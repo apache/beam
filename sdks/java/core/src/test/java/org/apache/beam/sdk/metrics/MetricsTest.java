@@ -273,11 +273,7 @@ public class MetricsTest implements Serializable {
           pipelineResult
               .metrics()
               .queryMetrics(
-                  MetricsFilter.builder()
-                      .addNameFilter(
-                          MetricNameFilter.named(
-                              ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()))
-                      .build());
+                  MetricsFilter.user(ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()));
 
       assertThat(
           metrics.getCounters(),
@@ -304,11 +300,7 @@ public class MetricsTest implements Serializable {
           pipelineResult
               .metrics()
               .queryMetrics(
-                  MetricsFilter.builder()
-                      .addNameFilter(
-                          MetricNameFilter.named(
-                              ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()))
-                      .build());
+                  MetricsFilter.user(ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()));
 
       assertThat(
           metrics.getCounters(),

@@ -214,7 +214,8 @@ public class SparkUnboundedSource {
                   : globalHighWatermarkForBatch;
           // Update metrics reported in the read
           final Gauge gauge = Metrics.gauge(NAMESPACE, READ_DURATION_MILLIS);
-          final MetricsContainer container = metadata.getMetricsContainers().getContainer(stepName);
+          final MetricsContainer container =
+              metadata.getMetricsContainers().ptransformContainer(stepName);
           try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(container)) {
             final long readDurationMillis = metadata.getReadDurationMillis();
             if (readDurationMillis > maxReadDuration) {

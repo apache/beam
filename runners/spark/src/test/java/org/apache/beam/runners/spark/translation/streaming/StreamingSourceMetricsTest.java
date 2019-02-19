@@ -27,7 +27,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SourceMetrics;
@@ -59,11 +58,7 @@ public class StreamingSourceMetricsTest implements Serializable {
         pipelineResult
             .metrics()
             .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(
-                            ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()))
-                    .build());
+                MetricsFilter.user(ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()));
 
     assertThat(
         metrics.getCounters(),

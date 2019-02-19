@@ -88,8 +88,8 @@ public class MetricsHttpSink implements MetricsSink {
     public void serialize(MetricName value, JsonGenerator gen, SerializerProvider provider)
         throws IOException {
       gen.writeStartObject();
-      gen.writeObjectField("name", value.name());
-      gen.writeObjectField("namespace", value.namespace());
+      gen.writeObjectField("name", value.getName());
+      gen.writeObjectField("namespace", value.getNamespace());
       gen.writeEndObject();
     }
   }

@@ -93,7 +93,7 @@ public class BatchModeExecutionContext
     return new MetricsContainerRegistry<MetricsContainerImpl>() {
       @Override
       protected MetricsContainerImpl createContainer(String stepName) {
-        return new MetricsContainerImpl(stepName);
+        return MetricsContainerImpl.ptransform(stepName);
       }
     };
   }

@@ -18,7 +18,6 @@
 package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.metrics.MetricUrns.PROCESS_BUNDLE_MSECS_URN;
-import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
 
 import java.io.Closeable;
 import java.util.HashMap;
@@ -33,6 +32,7 @@ import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
@@ -87,11 +87,10 @@ public class PCollectionConsumerRegistry {
               + "calling getMultiplexingConsumer.");
     }
 
-    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(PTRANSFORM_LABEL, pTransformId);
+    MetricLabels labels = MetricLabels.ptransform(pTransformId);
     SimpleExecutionState state =
         new SimpleExecutionState(
-            ExecutionStateTracker.PROCESS_STATE_NAME, PROCESS_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.PROCESS_STATE_NAME, PROCESS_BUNDLE_MSECS_URN, labels.map());
     executionStates.register(state);
     // Wrap the consumer with extra logic to set the metric container with the appropriate
     // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
@@ -99,7 +98,7 @@ public class PCollectionConsumerRegistry {
     // Process Bundle Execution time metric.
     FnDataReceiver<WindowedValue<T>> wrapAndEnableMetricContainer =
         (WindowedValue<T> input) -> {
-          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+          MetricsContainerImpl container = metricsContainerRegistry.getContainer(labels);
           try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
             try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
               consumer.accept(input);

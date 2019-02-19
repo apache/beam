@@ -21,8 +21,8 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import com.codahale.metrics.Metric;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -67,23 +67,14 @@ class SparkBeamMetric implements Metric {
   String renderName(MetricResult<?> metricResult) {
     MetricKey key = metricResult.getKey();
     MetricName name = key.metricName();
-    String step = key.stepName();
-
-    ArrayList<String> pieces = new ArrayList<>();
-
-    if (step != null) {
-      step = step.replaceAll(ILLEGAL_CHARACTERS, "_");
-      if (step.endsWith("_")) {
-        step = step.substring(0, step.length() - 1);
-      }
-      pieces.add(step);
-    }
-
-    pieces.addAll(
-        ImmutableList.of(name.getNamespace(), name.getName()).stream()
+    List<String> pieces =
+        ImmutableList.of(key.labels().value(), name.getNamespace(), name.getName()).stream()
             .map(str -> str.replaceAll(ILLEGAL_CHARACTERS, "_"))
-            .collect(toList()));
-
+            .collect(toList());
+    String label = pieces.get(0);
+    if (label.endsWith("_")) {
+      pieces.set(0, label.substring(0, label.length() - 1));
+    }
     return String.join(".", pieces);
   }
 }

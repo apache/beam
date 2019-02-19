@@ -192,7 +192,7 @@ public class MetricResultsMatchers {
       String namespace,
       String name,
       String step) {
-    MetricKey key = MetricKey.create(step, MetricName.named(namespace, name));
+    MetricKey key = MetricKey.ptransform(step, namespace, name);
     if (!Objects.equals(key, item.getKey())) {
       mismatchDescription
           .appendText("inKey: ")

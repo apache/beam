@@ -129,7 +129,7 @@ public class TestOperationContext extends DataflowOperationContext {
     return new TestOperationContext(
         counterSet,
         NameContextsForTests.nameContextForTest(),
-        new MetricsContainerImpl(NameContextsForTests.SYSTEM_NAME),
+        MetricsContainerImpl.ptransform(NameContextsForTests.SYSTEM_NAME),
         ExecutionStateTracker.newForTest());
   }
 
@@ -137,7 +137,7 @@ public class TestOperationContext extends DataflowOperationContext {
     return new TestOperationContext(
         counterSet,
         nameContext,
-        new MetricsContainerImpl(nameContext.systemName()),
+        MetricsContainerImpl.ptransform(nameContext.systemName()),
         ExecutionStateTracker.newForTest());
   }
 

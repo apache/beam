@@ -95,7 +95,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
                 }
 
                 return MetricsToCounterUpdateConverter.fromCounter(
-                    MetricKey.create(stepName, entry.getKey()), false, value);
+                    MetricKey.ptransform(stepName, entry.getKey()), false, value);
               }
             })
         .filter(Predicates.notNull());
@@ -114,7 +114,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
                 }
 
                 return MetricsToCounterUpdateConverter.fromDistribution(
-                    MetricKey.create(stepName, entry.getKey()), false, value);
+                    MetricKey.ptransform(stepName, entry.getKey()), false, value);
               }
             })
         .filter(Predicates.notNull());

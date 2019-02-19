@@ -17,42 +17,80 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.metrics.MetricUrns.USER_METRIC_URN_PREFIX;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 
 /**
- * The name of a metric consists of a {@link #getNamespace} and a {@link #getName}. The {@link
- * #getNamespace} allows grouping related metrics together and also prevents collisions between
- * multiple metrics with the same name.
+ * Wrapper for {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo} URN.
+ *
+ * <p>"User" metrics (URN {@link MetricUrns#USER_METRIC_URN_PREFIX}) are defined by a "namespace"
+ * and "name", and are the most commonly dealt with by user code, so structured constructors and
+ * accessors are provided in terms of those strings.
+ *
+ * <p>The {@link #namespace} allows grouping related metrics together and also prevents collisions
+ * between multiple metrics with the same name.
  */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricName implements Serializable {
 
-  /** The namespace associated with this metric. */
-  public abstract String getNamespace();
+  public abstract String urn();
 
-  public Boolean isUserMetric() {
+  @Nullable private String name;
+
+  @Nullable private String namespace;
+
+  /** Parse the urn field into a name and namespace field. */
+  private boolean parseUrn(boolean raise) {
+    if (namespace != null && name != null) {
+      return true;
+    }
+    String urn = urn();
+    if (urn.startsWith(USER_METRIC_URN_PREFIX)) {
+      urn = urn.substring(USER_METRIC_URN_PREFIX.length());
+    } else {
+      if (raise) {
+        throw new IllegalStateException(
+            "Attempting to access namespace/name of a non-user metric: " + urn);
+      }
+      return false;
+    }
+    // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
+    List<String> pieces = Splitter.on(':').splitToList(urn);
+    if (pieces.size() != 2) {
+      throw new IllegalStateException("Invalid metric user-metric URN: " + urn);
+    }
+
+    namespace = pieces.get(0);
+    name = pieces.get(1);
     return true;
   }
 
-  /**
-   * The namespace associated with this metric.
-   *
-   * @deprecated to be removed once Dataflow no longer requires this method.
-   */
-  @Deprecated
-  public String namespace() {
-    return getNamespace();
+  public Boolean isUserMetric() {
+    return parseUrn(false);
   }
 
-  /** The name of this metric. */
-  public abstract String getName();
+  /** @return the parsed namespace from the user metric URN, otherwise throws. */
+  public String getNamespace() {
+    if (this.namespace == null) {
+      parseUrn(true);
+    }
+    return this.namespace;
+  }
+  /** @return the parsed name from the user metric URN, otherwise throws. */
+  public String getName() {
+    if (this.name == null) {
+      parseUrn(true);
+    }
+    return this.name;
+  }
 
   @Override
   public String toString() {
@@ -60,28 +98,21 @@ public abstract class MetricName implements Serializable {
   }
 
   public String toString(String delimiter) {
-    return String.format("%s%s%s", getNamespace(), delimiter, getName());
+    if (isUserMetric()) {
+      return String.join(delimiter, namespace, name);
+    }
+    return urn().replaceAll(":", delimiter);
   }
 
-  /**
-   * The name of this metric.
-   *
-   * @deprecated to be removed once Dataflow no longer requires this method.
-   */
-  @Deprecated
-  public String name() {
-    return getName();
+  public static MetricName of(String urn) {
+    return new AutoValue_MetricName(urn);
   }
 
   public static MetricName named(String namespace, String name) {
-    checkArgument(!Strings.isNullOrEmpty(namespace), "Metric namespace must be non-empty");
-    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return new AutoValue_MetricName(namespace, name);
+    return new AutoValue_MetricName(MetricUrns.urn(namespace, name));
   }
 
   public static MetricName named(Class<?> namespace, String name) {
-    checkArgument(namespace != null, "Metric namespace must be non-null");
-    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return new AutoValue_MetricName(namespace.getName(), name);
+    return new AutoValue_MetricName(MetricUrns.urn(namespace.getName(), name));
   }
 }

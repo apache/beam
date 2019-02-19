@@ -47,7 +47,7 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
   public boolean invokeStart(ReaderT reader) throws IOException {
     if (enableMetrics) {
       try (Closeable ignored =
-          MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+          MetricsEnvironment.scopedMetricsContainer(container.ptransformContainer(stepName))) {
         boolean result = reader.start();
         container.updateMetrics();
         return result;
@@ -60,7 +60,7 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
   public boolean invokeAdvance(ReaderT reader) throws IOException {
     if (enableMetrics) {
       try (Closeable ignored =
-          MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+          MetricsEnvironment.scopedMetricsContainer(container.ptransformContainer(stepName))) {
         boolean result = reader.advance();
         container.updateMetrics();
         return result;

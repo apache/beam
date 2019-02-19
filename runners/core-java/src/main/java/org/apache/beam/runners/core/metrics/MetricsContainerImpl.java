@@ -29,6 +29,7 @@ import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
@@ -47,7 +48,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 @Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
-  @Nullable private final String stepName;
+  private final MetricLabels labels;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
@@ -56,9 +57,13 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
+  public static MetricsContainerImpl ptransform(String ptransform) {
+    return new MetricsContainerImpl(MetricLabels.ptransform(ptransform));
+  }
+
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
-  public MetricsContainerImpl(@Nullable String stepName) {
-    this.stepName = stepName;
+  public MetricsContainerImpl(MetricLabels labels) {
+    this.labels = labels;
   }
 
   /**
@@ -121,7 +126,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       if (cell.getValue().getDirty().beforeCommit()) {
         updates.add(
             MetricUpdate.create(
-                MetricKey.create(stepName, cell.getKey()), cell.getValue().getCumulative()));
+                MetricKey.of(cell.getKey(), labels), cell.getValue().getCumulative()));
       }
     }
     return updates.build();
@@ -157,7 +162,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       UpdateT update = checkNotNull(cell.getValue().getCumulative());
-      updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
+      updates.add(MetricUpdate.create(MetricKey.of(cell.getKey(), labels), update));
     }
     return updates.build();
   }

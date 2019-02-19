@@ -168,7 +168,7 @@ public class MapTaskExecutorTest {
     return TestOperationContext.create(
         counterSet,
         NameContext.create("test", stepName, stepName, stepName),
-        new MetricsContainerImpl(stepName),
+        MetricsContainerImpl.ptransform(stepName),
         tracker);
   }
 

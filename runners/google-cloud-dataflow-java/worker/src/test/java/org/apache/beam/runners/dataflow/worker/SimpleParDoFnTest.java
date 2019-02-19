@@ -447,7 +447,7 @@ public class SimpleParDoFnTest {
         TestOperationContext.create(
             new CounterSet(),
             NameContextsForTests.nameContextForTest(),
-            new MetricsContainerImpl(NameContextsForTests.ORIGINAL_NAME),
+            MetricsContainerImpl.ptransform(NameContextsForTests.ORIGINAL_NAME),
             tracker);
 
     class StateTestingDoFn extends DoFn<Integer, String> {

@@ -49,7 +49,7 @@ public class SamzaMetricsContainer {
   }
 
   public MetricsContainer getContainer(String stepName) {
-    return this.metricsContainers.getContainer(stepName);
+    return this.metricsContainers.ptransformContainer(stepName);
   }
 
   public MetricsContainerStepMap getContainers() {

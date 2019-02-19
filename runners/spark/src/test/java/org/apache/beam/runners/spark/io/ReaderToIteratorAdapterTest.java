@@ -87,7 +87,8 @@ public class ReaderToIteratorAdapterTest {
   private final TestReader testReader = new TestReader();
 
   private final SourceRDD.Bounded.ReaderToIteratorAdapter<Integer> readerIterator =
-      new SourceRDD.Bounded.ReaderToIteratorAdapter<>(new MetricsContainerImpl(""), testReader);
+      new SourceRDD.Bounded.ReaderToIteratorAdapter<>(
+          MetricsContainerImpl.ptransform(""), testReader);
 
   private void assertReaderRange(final int start, final int end) {
     for (int i = start; i < end; i++) {

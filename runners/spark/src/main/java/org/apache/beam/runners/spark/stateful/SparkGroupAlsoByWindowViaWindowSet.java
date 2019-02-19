@@ -431,7 +431,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       final SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> reduceFn =
           SystemReduceFn.buffering(wvCoder.getValueCoder());
 
-      final MetricsContainerImpl cellProvider = new MetricsContainerImpl("cellProvider");
+      final MetricsContainerImpl cellProvider = MetricsContainerImpl.ptransform("cellProvider");
 
       final CounterCell droppedDueToClosedWindow =
           cellProvider.getCounter(

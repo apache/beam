@@ -44,8 +44,7 @@ public class MetricFilteringTest {
                 .addNameFilter(MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
                 .addStep("myStep")
                 .build(),
-            MetricKey.create(
-                "myBigStep/myStep", MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+            MetricKey.ptransform("myBigStep/myStep", MetricFilteringTest.class, "myMetricName")));
 
     // Unsuccessful match.
     assertFalse(
@@ -54,9 +53,8 @@ public class MetricFilteringTest {
                 .addNameFilter(MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
                 .addStep("myOtherStep")
                 .build(),
-            MetricKey.create(
-                "myOtherStepNoMatch/myStep",
-                MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+            MetricKey.ptransform(
+                "myOtherStepNoMatch/myStep", MetricFilteringTest.class, "myMetricName")));
   }
 
   @Test
@@ -69,8 +67,7 @@ public class MetricFilteringTest {
                 .addNameFilter(MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
                 .addStep("myStep")
                 .build(),
-            MetricKey.create(
-                "myStep", MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+            MetricKey.ptransform("myStep", MetricFilteringTest.class, "myMetricName")));
 
     // Unsuccessful match.
     assertFalse(
@@ -79,8 +76,7 @@ public class MetricFilteringTest {
                 .addNameFilter(MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
                 .addStep("myOtherStep")
                 .build(),
-            MetricKey.create(
-                "myStep", MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+            MetricKey.ptransform("myStep", MetricFilteringTest.class, "myMetricName")));
   }
 
   @Test
@@ -92,8 +88,7 @@ public class MetricFilteringTest {
             MetricsFilter.builder()
                 .addNameFilter(MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
                 .build(),
-            MetricKey.create(
-                "anyStep", MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+            MetricKey.ptransform("anyStep", MetricFilteringTest.class, "myMetricName")));
 
     // Unsuccessful match.
     assertFalse(
@@ -101,7 +96,7 @@ public class MetricFilteringTest {
             MetricsFilter.builder()
                 .addNameFilter(MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
                 .build(),
-            MetricKey.create("anyStep", MetricName.named(MetricFiltering.class, "myMetricName"))));
+            MetricKey.ptransform("anyStep", MetricFiltering.class, "myMetricName")));
   }
 
   @Test
@@ -113,7 +108,7 @@ public class MetricFilteringTest {
             MetricsFilter.builder()
                 .addNameFilter(MetricNameFilter.named("myNamespace", "myMetricName"))
                 .build(),
-            MetricKey.create("anyStep", MetricName.named("myNamespace", "myMetricName"))));
+            MetricKey.ptransform("anyStep", "myNamespace", "myMetricName")));
 
     // Unsuccessful match.
     assertFalse(
@@ -121,7 +116,7 @@ public class MetricFilteringTest {
             MetricsFilter.builder()
                 .addNameFilter(MetricNameFilter.named("myOtherNamespace", "myMetricName"))
                 .build(),
-            MetricKey.create("anyStep", MetricName.named("myNamespace", "myMetricname"))));
+            MetricKey.ptransform("anyStep", "myNamespace", "myMetricname")));
   }
 
   @Test

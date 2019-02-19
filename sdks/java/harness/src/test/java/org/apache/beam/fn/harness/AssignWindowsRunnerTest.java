@@ -184,7 +184,7 @@ public class AssignWindowsRunnerTest implements Serializable {
             null /* pipelineOptions */,
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
-            null /* pTransformId */,
+            "ptransform" /* pTransformId */,
             PTransform.newBuilder()
                 .putInputs("in", "input")
                 .putOutputs("out", "output")

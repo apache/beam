@@ -38,7 +38,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -325,12 +324,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     if (!containsUnboundedPCollection(pipeline)) {
       result.waitUntilFinish();
       MetricQueryResults metrics =
-          result
-              .metrics()
-              .queryMetrics(
-                  MetricsFilter.builder()
-                      .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
-                      .build());
+          result.metrics().queryMetrics(MetricsFilter.user(BeamEnumerableConverter.class, "rows"));
       Iterator<MetricResult<Long>> iterator = metrics.getCounters().iterator();
       if (iterator.hasNext()) {
         count = iterator.next().getAttempted();

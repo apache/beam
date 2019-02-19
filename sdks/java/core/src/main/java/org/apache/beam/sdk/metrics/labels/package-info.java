@@ -15,26 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.metrics;
-
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-
-import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricResult;
-import org.junit.Test;
-
-/** Test SparkBeamMetric. */
-public class SparkBeamMetricTest {
-  @Test
-  public void testRenderName() {
-    MetricResult<Object> metricResult =
-        MetricResult.create(
-            MetricKey.ptransform("myStep.one.two(three)", "myNameSpace//", "myName()"), 123, 456);
-    String renderedName = new SparkBeamMetric().renderName(metricResult);
-    assertThat(
-        "Metric name was not rendered correctly",
-        renderedName,
-        equalTo("myStep_one_two_three.myNameSpace__.myName__"));
-  }
-}
+/** Utilities for working with metric ptransform- and pcollection-labels. */
+package org.apache.beam.sdk.metrics.labels;

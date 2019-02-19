@@ -18,13 +18,13 @@
 package org.apache.beam.runners.flink.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
-import static org.apache.beam.runners.core.metrics.MonitoringInfos.keyFromMonitoringInfo;
 import static org.apache.beam.runners.core.metrics.MonitoringInfos.processMetric;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -37,6 +37,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -86,16 +87,16 @@ public class FlinkMetricContainer {
     this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
   }
 
-  public MetricsContainer getMetricsContainer(String stepName) {
+  @Nullable
+  public MetricsContainer getMetricsContainer(MetricLabels labels) {
     return metricsAccumulator != null
-        ? metricsAccumulator.getLocalValue().getContainer(stepName)
+        ? metricsAccumulator.getLocalValue().getContainer(labels)
         : null;
   }
 
-  public MetricsContainer getUnboundMetricsContainer() {
-    return metricsAccumulator != null
-        ? metricsAccumulator.getLocalValue().getUnboundContainer()
-        : null;
+  @Nullable
+  public MetricsContainer ptransformContainer(String ptransform) {
+    return getMetricsContainer(MetricLabels.ptransform(ptransform));
   }
 
   /**
@@ -113,12 +114,12 @@ public class FlinkMetricContainer {
 
           Metric metric = monitoringInfo.getMetric();
 
-          MetricKey metricKey = keyFromMonitoringInfo(monitoringInfo);
+          MetricKey metricKey = MetricKey.of(monitoringInfo);
 
-          String ptransform = metricKey.stepName();
           MetricName metricName = metricKey.metricName();
+          MetricLabels labels = metricKey.labels();
 
-          MetricsContainer container = getMetricsContainer(ptransform);
+          MetricsContainer container = getMetricsContainer(labels);
           if (container == null) {
             LOG.warn("Can't add monitoringinfo to null MetricsContainer: {}", monitoringInfo);
             return;

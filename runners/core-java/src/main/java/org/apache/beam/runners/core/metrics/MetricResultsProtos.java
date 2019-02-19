@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.MonitoringInfos.keyFromMonitoringInfo;
 import static org.apache.beam.runners.core.metrics.MonitoringInfos.processMetric;
 
 import java.util.Map;
@@ -143,7 +142,7 @@ public class MetricResultsProtos {
     }
 
     public void add(MonitoringInfo monitoringInfo, Boolean committed) {
-      add(keyFromMonitoringInfo(monitoringInfo), monitoringInfo.getMetric(), committed);
+      add(MetricKey.of(monitoringInfo), monitoringInfo.getMetric(), committed);
     }
 
     public void add(MetricKey metricKey, Metric metric, Boolean committed) {

@@ -56,7 +56,7 @@ public class LateDataDroppingDoFnRunnerTest {
 
   @Test
   public void testLateDataFilter() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));
 

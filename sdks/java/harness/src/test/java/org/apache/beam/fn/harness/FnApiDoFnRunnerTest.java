@@ -59,6 +59,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -564,13 +565,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
   /** @return a test MetricUpdate for expected metrics to compare against */
   public MetricUpdate create(String stepName, MetricName name, long value) {
-    return MetricUpdate.create(MetricKey.create(stepName, name), value);
+    return MetricUpdate.create(MetricKey.ptransform(stepName, name), value);
   }
 
   @Test
   public void testUsingMetrics() throws Exception {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    MetricsContainerImpl metricsContainer = metricsContainerRegistry.getUnboundContainer();
+    MetricsContainerImpl metricsContainer =
+        metricsContainerRegistry.getContainer(MetricLabels.ptransform(TEST_PTRANSFORM_ID));
     Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
     IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
@@ -639,7 +641,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             fakeClient,
             TEST_PTRANSFORM_ID,
             pTransform,
-            Suppliers.ofInstance("57L")::get,
+            () -> "57L",
             pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),

@@ -44,6 +44,18 @@ public abstract class MetricsFilter {
     return new AutoValue_MetricsFilter.Builder();
   }
 
+  public static MetricsFilter ptransform(String ptransform) {
+    return MetricsFilter.builder().addStep(ptransform).build();
+  }
+
+  public static MetricsFilter user(Class<?> namespace, String name) {
+    return MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build();
+  }
+
+  public static MetricsFilter user(String namespace, String name) {
+    return MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build();
+  }
+
   /** Builder for creating a {@link MetricsFilter}. */
   @AutoValue.Builder
   public abstract static class Builder {

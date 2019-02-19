@@ -18,12 +18,10 @@
 package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.metrics.MetricUrns.FINISH_BUNDLE_MSECS_URN;
-import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
 import static org.apache.beam.sdk.metrics.MetricUrns.START_BUNDLE_MSECS_URN;
 
 import java.io.Closeable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -33,6 +31,7 @@ import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 
 /**
  * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
@@ -90,8 +89,7 @@ public class PTransformFunctionRegistry {
    * @param runnable
    */
   public void register(String pTransformId, ThrowingRunnable runnable) {
-    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(PTRANSFORM_LABEL, pTransformId);
+    MetricLabels labels = MetricLabels.ptransform(pTransformId);
     String executionTimeUrn = "";
     if (executionStateName.equals(ExecutionStateTracker.START_STATE_NAME)) {
       executionTimeUrn = START_BUNDLE_MSECS_URN;
@@ -100,12 +98,13 @@ public class PTransformFunctionRegistry {
     }
 
     SimpleExecutionState state =
-        new SimpleExecutionState(this.executionStateName, executionTimeUrn, labelsMetadata);
+        new SimpleExecutionState(this.executionStateName, executionTimeUrn, labels.map());
+
     executionStates.register(state);
 
     ThrowingRunnable wrapped =
         () -> {
-          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+          MetricsContainerImpl container = metricsContainerRegistry.getContainer(labels);
           try (Closeable metricCloseable = MetricsEnvironment.scopedMetricsContainer(container)) {
             try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
               runnable.run();
