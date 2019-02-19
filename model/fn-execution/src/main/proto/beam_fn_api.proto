@@ -311,13 +311,12 @@ message ProcessBundleProgressRequest {
   string instruction_reference = 1;
 }
 
-// A specification containing required set of fields and labels required
-// to be set on a MonitoringInfo for the specific URN for SDK->RunnerHarness
-// ProcessBundleResponse reporting.
+// Specifications containing required fields and labels for a given
+// MonitoringInfo URN, for SDK->RunnerHarness ProcessBundleResponse reporting.
 message MonitoringInfoSpec {
   string urn = 1;
   string type_urn = 2;
-  // The list of required
+  // The list of required labels for this URN
   repeated string required_labels = 3;
   // Extra non functional parts of the spec for descriptive purposes.
   // i.e. description, units, etc.
@@ -454,8 +453,8 @@ message MonitoringInfo {
 
 message MonitoringInfoUrns {
   enum Enum {
-    // User counter have this format: 'beam:metric:user:<namespace>:<name>'.
-    USER_COUNTER_URN_PREFIX = 0
+    // User-metric URNs have this format: 'beam:metric:user:<namespace>:<name>'.
+    USER_METRIC_URN_PREFIX = 0
         [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:metric:user:"];
 
     ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =

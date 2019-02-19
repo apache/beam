@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -41,7 +41,7 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsErrorOnInvalidMonitoringInfoType() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN)
+            .setUrn(ELEMENT_COUNT_URN)
             .setType("beam:metrics:bad_value")
             .build();
     assertTrue(testObject.validate(testInput).isPresent());
@@ -61,7 +61,7 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsNoErrorOnValidMonitoringInfo() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn(USER_COUNTER_URN_PREFIX + "someCounter")
+            .setUrn(USER_METRIC_URN_PREFIX + "someCounter")
             .setType(SUM_INT64_TYPE_URN)
             .putLabels("dummy", "value")
             .build();

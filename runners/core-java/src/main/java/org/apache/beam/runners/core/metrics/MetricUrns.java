@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -32,8 +32,8 @@ public class MetricUrns {
    */
   @Nullable
   public static MetricName parseUrn(String urn) {
-    if (urn.startsWith(USER_COUNTER_URN_PREFIX)) {
-      urn = urn.substring(USER_COUNTER_URN_PREFIX.length());
+    if (urn.startsWith(USER_METRIC_URN_PREFIX)) {
+      urn = urn.substring(USER_METRIC_URN_PREFIX.length());
     } else {
       return null;
     }
