@@ -927,7 +927,7 @@ public class KafkaIOTest {
     MetricName backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId).getName();
     MetricName backlogBytesOfSplit = SourceMetrics.backlogBytesOfSplit(splitId).getName();
 
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults metrics = result.metrics().allMetrics();
 
     Iterable<MetricResult<Long>> counters = metrics.getCounters();
 

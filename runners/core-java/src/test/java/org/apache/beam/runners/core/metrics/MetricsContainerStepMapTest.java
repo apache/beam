@@ -124,7 +124,7 @@ public class MetricsContainerStepMapTest {
         false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
 
-    MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults allres = metricResults.allMetrics();
 
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);
