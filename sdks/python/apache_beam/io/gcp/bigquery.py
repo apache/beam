@@ -374,6 +374,7 @@ class BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+@deprecated(since='2.11.0', current="WriteToBigQuery")
 class BigQuerySink(dataflow_io.NativeSink):
   """A sink based on a BigQuery table.
 
@@ -449,11 +450,6 @@ bigquery_v2_messages.TableSchema` object.
       ~exceptions.ValueError: if the table reference as a string does not
         match the expected format.
     """
-
-    import warnings
-    warnings.warn("This class is deprecated and will be permanently removed "
-                  "in a future version of beam.")
-
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
@@ -651,6 +647,11 @@ class BigQueryWriteFn(DoFn):
 
 class WriteToBigQuery(PTransform):
 
+  class Method(object):
+    DEFAULT = 'DEFAULT'
+    STREAMING_INSERTS = 'STREAMING_INSERTS'
+    FILE_LOADS = 'FILE_LOADS'
+
   def __init__(self,
                table,
                dataset=None,
@@ -663,7 +664,8 @@ class WriteToBigQuery(PTransform):
                max_file_size=None,
                max_files_per_bundle=None,
                test_client=None,
-               gs_location=None):
+               gs_location=None,
+               method=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -727,6 +729,11 @@ bigquery_v2_messages.TableSchema`
         loads into BigQuery. By default, this will use the pipeline's
         temp_location, but for pipelines whose temp_location is not appropriate
         for BQ File Loads, users should pass a specific one.
+      method: The method to use to write to BigQuery. It may be
+        STREAMING_INSERTS, FILE_LOADS, or DEFAULT. An introduction on loading
+        data to BigQuery: https://cloud.google.com/bigquery/docs/loading-data.
+        DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
+        FILE_LOADS on Batch pipelines.
     """
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
@@ -741,6 +748,7 @@ bigquery_v2_messages.TableSchema`
     self.gs_location = gs_location
     self.max_file_size = max_file_size
     self.max_files_per_bundle = max_files_per_bundle
+    self.method = method or WriteToBigQuery.Method.DEFAULT
 
   @staticmethod
   def get_table_schema_from_string(schema):
@@ -831,7 +839,7 @@ bigquery_v2_messages.TableSchema):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
 
-    if standard_options.streaming:
+    if standard_options.streaming or self.method == 'STREAMING_INSERTS':
       # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
           table_id=self.table_reference.tableId,
@@ -846,6 +854,8 @@ bigquery_v2_messages.TableSchema):
       return pcoll | 'WriteToBigQuery' >> ParDo(bigquery_write_fn)
     else:
       from apache_beam.io.gcp import bigquery_file_loads
+      assert not standard_options.streaming, (
+          'File Loads to BigQuery are only supported on Batch pipelines.')
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.get_dict_table_schema(self.schema),
