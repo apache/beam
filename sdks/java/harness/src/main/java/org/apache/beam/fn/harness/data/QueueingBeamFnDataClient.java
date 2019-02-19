@@ -18,8 +18,10 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.Queue;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -42,12 +44,12 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClient.class);
 
   private final BeamFnDataClient mainClient;
-  private final SynchronousQueue<ConsumerAndData> queue;
+  private final Queue<ConsumerAndData> queue;
   private final ConcurrentHashMap<InboundDataClient, Object> inboundDataClients;
 
   public QueueingBeamFnDataClient(BeamFnDataClient mainClient) {
     this.mainClient = mainClient;
-    this.queue = new SynchronousQueue<>();
+    this.queue = new ConcurrentLinkedQueue<ConsumerAndData>();
     this.inboundDataClients = new ConcurrentHashMap<>();
   }
 
@@ -96,7 +98,8 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   public void drainAndBlock() throws Exception {
     while (true) {
       try {
-        ConsumerAndData tuple = queue.poll(200, TimeUnit.MILLISECONDS);
+        //ConsumerAndData tuple = queue.poll(200, TimeUnit.MILLISECONDS);
+        ConsumerAndData tuple = queue.poll();
         if (tuple != null) {
           // Forward to the consumers who cares about this data.
           tuple.consumer.accept(tuple.data);
@@ -156,7 +159,8 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     public void accept(WindowedValue<T> value) throws Exception {
       try {
         ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
-        while (!queue.offer(offering, 200, TimeUnit.MILLISECONDS)) {
+        //while (!queue.offer(offering, 200, TimeUnit.MILLISECONDS)) {
+        while (!queue.offer(offering)) {
           if (inboundDataClient.isDone()) {
             // If it was cancelled by the consuming side of the queue.
             break;
