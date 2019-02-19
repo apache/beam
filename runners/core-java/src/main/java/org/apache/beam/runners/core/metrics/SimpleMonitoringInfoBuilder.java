@@ -69,8 +69,8 @@ public class SimpleMonitoringInfoBuilder {
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.PROCESS_BUNDLE_MSECS);
   public static final String FINISH_BUNDLE_MSECS_URN =
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.FINISH_BUNDLE_MSECS);
-  public static final String USER_COUNTER_URN_PREFIX =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX);
+  public static final String USER_METRIC_URN_PREFIX =
+      BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_METRIC_URN_PREFIX);
   public static final String SUM_INT64_TYPE_URN =
       BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
 
@@ -121,7 +121,7 @@ public class SimpleMonitoringInfoBuilder {
     String fixedMetricNamespace = metricNamespace.replace(':', '_');
     String fixedMetricName = metricName.replace(':', '_');
     StringBuilder sb = new StringBuilder();
-    sb.append(USER_COUNTER_URN_PREFIX);
+    sb.append(USER_METRIC_URN_PREFIX);
     sb.append(fixedMetricNamespace);
     sb.append(':');
     sb.append(fixedMetricName);

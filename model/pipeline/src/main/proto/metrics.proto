@@ -33,13 +33,12 @@ import "beam_runner_api.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 
-// A specification containing required set of fields and labels required
-// to be set on a MonitoringInfo for the specific URN for SDK->RunnerHarness
-// ProcessBundleResponse reporting.
+// Specifications containing required fields and labels for a given
+// MonitoringInfo URN, for SDK->RunnerHarness ProcessBundleResponse reporting.
 message MonitoringInfoSpec {
   string urn = 1;
   string type_urn = 2;
-  // The list of required
+  // The list of required labels for this URN
   repeated string required_labels = 3;
   // Extra non functional parts of the spec for descriptive purposes.
   // i.e. description, units, etc.
@@ -61,7 +60,7 @@ message MonitoringInfoSpecs {
   enum Enum {
     // TODO(ajamato): Add the PTRANSFORM name as a required label after
     // upgrading the python SDK.
-    USER_COUNTER = 0 [(monitoring_info_spec) = {
+    USER_METRIC = 0 [(monitoring_info_spec) = {
       urn: "beam:metric:user:",
       type_urn: "beam:metrics:sum_int_64",
     }];
@@ -183,8 +182,8 @@ message MonitoringInfo {
 
 message MonitoringInfoUrns {
   enum Enum {
-    // User counter have this format: 'beam:metric:user:<namespace>:<name>'.
-    USER_COUNTER_URN_PREFIX = 0
+    // User-metric URNs have this format: 'beam:metric:user:<namespace>:<name>'
+    USER_METRIC_URN_PREFIX = 0
         [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:metric:user:"];
 
     ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =

@@ -62,7 +62,7 @@ public class SimpleMonitoringInfoBuilderTest {
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
     assertEquals(
-        SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace:myName",
+        SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX + "myNamespace:myName",
         monitoringInfo.getUrn());
     assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
@@ -77,7 +77,7 @@ public class SimpleMonitoringInfoBuilderTest {
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
     assertEquals(
-        SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace_withInvalidChar:myName",
+        SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX + "myNamespace_withInvalidChar:myName",
         monitoringInfo.getUrn());
     assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());

@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -61,11 +61,11 @@ class UserMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urn.startsWith(USER_COUNTER_URN_PREFIX)) {
+    if (!urn.startsWith(USER_METRIC_URN_PREFIX)) {
       throw new RuntimeException(
           String.format(
               "Received unexpected counter urn. Expected urn starting with: %s, received: %s",
-              USER_COUNTER_URN_PREFIX, urn));
+              USER_METRIC_URN_PREFIX, urn));
     }
 
     final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
@@ -98,7 +98,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
 
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
 
-    String nameWithNamespace = urn.substring(USER_COUNTER_URN_PREFIX.length()).replace("^:", "");
+    String nameWithNamespace = urn.substring(USER_METRIC_URN_PREFIX.length()).replace("^:", "");
 
     final int lastColonIndex = nameWithNamespace.lastIndexOf(':');
     String counterName = nameWithNamespace.substring(lastColonIndex + 1);
@@ -122,6 +122,6 @@ class UserMonitoringInfoToCounterUpdateTransformer
 
   /** @return MonitoringInfo urns prefix that this transformer can convert to CounterUpdates. */
   public String getSupportedUrnPrefix() {
-    return USER_COUNTER_URN_PREFIX;
+    return USER_METRIC_URN_PREFIX;
   }
 }
