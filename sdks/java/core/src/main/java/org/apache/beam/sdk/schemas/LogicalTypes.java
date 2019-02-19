@@ -28,16 +28,23 @@ public class LogicalTypes {
   /** A base class for LogicalTypes that use the same Java type as the underlying base type. */
   public abstract static class PassThroughLogicalType<T> implements LogicalType<T, T> {
     private final String identifier;
+    private final String argument;
     private final FieldType fieldType;
 
-    protected PassThroughLogicalType(String identifier, FieldType fieldType) {
+    protected PassThroughLogicalType(String identifier, String argument, FieldType fieldType) {
       this.identifier = identifier;
+      this.argument = argument;
       this.fieldType = fieldType;
     }
 
     @Override
     public String getIdentifier() {
       return identifier;
+    }
+
+    @Override
+    public String getArgument() {
+      return argument;
     }
 
     @Override

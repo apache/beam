@@ -48,7 +48,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlDateType";
 
     public DateType() {
-      super(IDENTIFIER, FieldType.DATETIME);
+      super(IDENTIFIER, "", FieldType.DATETIME);
     }
   }
 
@@ -57,7 +57,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeType";
 
     public TimeType() {
-      super(IDENTIFIER, FieldType.DATETIME);
+      super(IDENTIFIER, "", FieldType.DATETIME);
     }
   }
 
@@ -66,7 +66,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeWithLocalTzType";
 
     public TimeWithLocalTzType() {
-      super(IDENTIFIER, FieldType.DATETIME);
+      super(IDENTIFIER, "", FieldType.DATETIME);
     }
   }
 
@@ -75,7 +75,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimestampWithLocalTzType";
 
     public TimestampWithLocalTzType() {
-      super(IDENTIFIER, FieldType.DATETIME);
+      super(IDENTIFIER, "", FieldType.DATETIME);
     }
   }
 
@@ -84,7 +84,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlCharType";
 
     public CharType() {
-      super(IDENTIFIER, FieldType.STRING);
+      super(IDENTIFIER, "", FieldType.STRING);
     }
   }
 
