@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.metrics.BeamUrns.getUrn;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -30,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.StandardWindowFns.FixedWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.GlobalWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SessionsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SlidingWindowsPayload;
+import org.apache.beam.sdk.metrics.BeamUrns;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -354,6 +355,7 @@ public class WindowingStrategyTranslation implements Serializable {
         .withOnTimeBehavior(onTimeBehavior);
   }
 
+  /** Convert an {@link SdkFunctionSpec} to a {@link WindowFn}. */
   public static WindowFn<?, ?> windowFnFromProto(SdkFunctionSpec windowFnSpec) {
     try {
       String s = windowFnSpec.getSpec().getUrn();

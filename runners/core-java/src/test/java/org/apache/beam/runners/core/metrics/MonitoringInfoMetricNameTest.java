@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -36,7 +37,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   @Test
   public void testElementCountConstruction() {
     Map<String, String> labels = new HashMap<>();
-    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    String urn = ELEMENT_COUNT_URN;
     MonitoringInfoMetricName name =
         (MonitoringInfoMetricName) MonitoringInfoMetricName.named(urn, labels);
     assertEquals(labels, name.getLabels());
@@ -45,7 +46,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
     assertEquals(name, name); // test self equals;
 
     // Reconstruct and test equality and hash code equivalence
-    urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    urn = ELEMENT_COUNT_URN;
     labels = new HashMap<>();
     MetricName name2 = MonitoringInfoMetricName.named(urn, labels);
 
@@ -75,12 +76,12 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   @Test
   public void testNotEqualsDiffLabels() {
     Map<String, String> labels = new HashMap<>();
-    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    String urn = ELEMENT_COUNT_URN;
     MetricName name = MonitoringInfoMetricName.named(urn, labels);
 
     // Reconstruct and test equality and hash code equivalence
-    urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-    labels = new HashMap<>();
+    urn = ELEMENT_COUNT_URN;
+    labels = new HashMap<String, String>();
     labels.put("label", "value1");
     MetricName name2 = MonitoringInfoMetricName.named(urn, labels);
 
@@ -91,7 +92,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   @Test
   public void testNotEqualsDiffUrn() {
     Map<String, String> labels = new HashMap<>();
-    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    String urn = ELEMENT_COUNT_URN;
     MetricName name = MonitoringInfoMetricName.named(urn, labels);
 
     // Reconstruct and test equality and hash code equivalence
@@ -107,7 +108,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   public void testNullLabelsThrows() {
     thrown.expect(IllegalArgumentException.class);
     Map<String, String> labels = null;
-    MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+    MonitoringInfoMetricName.named(ELEMENT_COUNT_URN, labels);
   }
 
   @Test

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
 import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
@@ -663,13 +664,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setUrn(ELEMENT_COUNT_URN);
     builder.setPCollectionLabel("Window.Into()/Window.Assign.out");
     builder.setInt64Value(2);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setUrn(ELEMENT_COUNT_URN);
     builder.setPCollectionLabel(
         "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
     builder.setInt64Value(2);

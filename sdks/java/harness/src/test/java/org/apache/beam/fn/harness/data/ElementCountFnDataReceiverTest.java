@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness.data;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -63,7 +64,7 @@ public class ElementCountFnDataReceiverTest {
     verify(consumer, times(numElements)).accept(element);
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setUrn(ELEMENT_COUNT_URN);
     builder.setPCollectionLabel(pCollectionA);
     builder.setInt64Value(numElements);
     MonitoringInfo expected = builder.build();

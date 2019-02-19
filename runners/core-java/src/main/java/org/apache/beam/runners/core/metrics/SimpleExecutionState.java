@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -88,8 +90,7 @@ public class SimpleExecutionState extends ExecutionState {
   @VisibleForTesting
   public String getLullMessage(Thread trackedThread, Duration millis) {
     // TODO(ajamato): Share getLullMessage code with DataflowExecutionState.
-    String userStepName =
-        this.labelsMetadata.getOrDefault(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, null);
+    String userStepName = this.labelsMetadata.getOrDefault(PTRANSFORM_LABEL, null);
     StringBuilder message = new StringBuilder();
     message.append("Processing stuck");
     if (userStepName != null) {

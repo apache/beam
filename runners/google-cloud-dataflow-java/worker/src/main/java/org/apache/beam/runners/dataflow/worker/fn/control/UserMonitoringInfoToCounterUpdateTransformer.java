@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX;
+import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.USER_METRIC_URN_PREFIX;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;

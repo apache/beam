@@ -19,6 +19,13 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
 import static org.apache.beam.model.fnexecution.v1.BeamFnApi.IntGaugeData;
+import static org.apache.beam.sdk.metrics.MetricUrns.DISTRIBUTION_INT64_TYPE_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.LATEST_INT64_TYPE_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.SUM_INT64_TYPE_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.urn;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -26,14 +33,11 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoLabelProps;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
-import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.sdk.metrics.DistributionProtos;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeProtos;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -66,28 +70,9 @@ import org.slf4j.LoggerFactory;
  * builder.setInt64Value(1); MonitoringInfo mi = builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
-  public static final String ELEMENT_COUNT_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.ELEMENT_COUNT);
-  public static final String START_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.START_BUNDLE_MSECS);
-  public static final String PROCESS_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.PROCESS_BUNDLE_MSECS);
-  public static final String FINISH_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.FINISH_BUNDLE_MSECS);
-  public static final String USER_METRIC_URN_PREFIX =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_METRIC_URN_PREFIX);
-  public static final String SUM_INT64_TYPE_URN =
-      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
-  public static final String DISTRIBUTION_INT64_TYPE_URN =
-      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.DISTRIBUTION_INT64_TYPE);
-  public static final String LATEST_INT64_TYPE_URN =
-      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
 
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
-
-  public static final String PCOLLECTION_LABEL = getLabelString(MonitoringInfoLabels.PCOLLECTION);
-  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.PTRANSFORM);
 
   private final boolean validateAndDropInvalid;
 
@@ -109,13 +94,6 @@ public class SimpleMonitoringInfoBuilder {
     }
   }
 
-  /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */
-  private static String getLabelString(MonitoringInfoLabels label) {
-    MonitoringInfoLabelProps props =
-        label.getValueDescriptor().getOptions().getExtension(BeamFnApi.labelProps);
-    return props.getName();
-  }
-
   public SimpleMonitoringInfoBuilder() {
     this(true);
   }
@@ -123,18 +101,6 @@ public class SimpleMonitoringInfoBuilder {
   public SimpleMonitoringInfoBuilder(boolean validateAndDropInvalid) {
     this.builder = MonitoringInfo.newBuilder();
     this.validateAndDropInvalid = validateAndDropInvalid;
-  }
-
-  /** @return The metric URN for a user metric, with a proper URN prefix. */
-  public static String userMetricUrn(String metricNamespace, String metricName) {
-    String fixedMetricNamespace = metricNamespace.replace(':', '_');
-    String fixedMetricName = metricName.replace(':', '_');
-    StringBuilder sb = new StringBuilder();
-    sb.append(USER_METRIC_URN_PREFIX);
-    sb.append(fixedMetricNamespace);
-    sb.append(':');
-    sb.append(fixedMetricName);
-    return sb.toString();
   }
 
   /**
@@ -171,7 +137,7 @@ public class SimpleMonitoringInfoBuilder {
    * @param name
    */
   public SimpleMonitoringInfoBuilder setUrnForUserMetric(String namespace, String name) {
-    this.builder.setUrn(userMetricUrn(namespace, name));
+    this.builder.setUrn(urn(namespace, name));
     return this;
   }
 

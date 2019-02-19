@@ -19,6 +19,8 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUpdate;
 import static org.apache.beam.runners.core.metrics.MetricUpdatesProtos.toProto;
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
@@ -182,14 +184,13 @@ public class MetricsContainerImplTest {
   public void testMonitoringInfosArePopulatedForABeamCounter() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
     HashMap<String, String> labels = new HashMap<String, String>();
-    labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, "pcollection");
-    MetricName name =
-        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+    labels.put(PCOLLECTION_LABEL, "pcollection");
+    MetricName name = MonitoringInfoMetricName.named(ELEMENT_COUNT_URN, labels);
     CounterCell c1 = testObject.getCounter(name);
     c1.inc(2L);
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder1.setUrn(ELEMENT_COUNT_URN);
     builder1.setPCollectionLabel("pcollection");
     builder1.setInt64Value(2);
     builder1.build();

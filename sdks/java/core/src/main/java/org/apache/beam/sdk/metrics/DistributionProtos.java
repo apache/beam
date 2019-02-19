@@ -15,22 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntGaugeData;
-import org.apache.beam.sdk.metrics.GaugeResult;
-import org.joda.time.Instant;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
 
-/** Convert gauges between protobuf and SDK representations. */
-public class GaugeProtos {
-  public static GaugeResult fromProto(IntGaugeData gaugeData) {
-    return GaugeResult.create(gaugeData.getValue(), new Instant(gaugeData.getTimestampMs()));
+/** Convert distributions between protobuf and SDK representations. */
+public class DistributionProtos {
+  public static DistributionResult fromProto(IntDistributionData distributionData) {
+    return DistributionResult.create(
+        distributionData.getSum(),
+        distributionData.getCount(),
+        distributionData.getMin(),
+        distributionData.getMax());
   }
 
-  public static IntGaugeData toProto(GaugeResult gauge) {
-    return IntGaugeData.newBuilder()
-        .setValue(gauge.getValue())
-        .setTimestampMs(gauge.getTimestamp().getMillis())
+  public static IntDistributionData toProto(DistributionResult distributionResult) {
+    return IntDistributionData.newBuilder()
+        .setMin(distributionResult.getMin())
+        .setMax(distributionResult.getMax())
+        .setCount(distributionResult.getCount())
+        .setSum(distributionResult.getSum())
         .build();
   }
 }

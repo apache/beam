@@ -17,13 +17,15 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
+
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -49,9 +51,8 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
       MetricsContainerStepMap metricContainerRegistry) {
     this.original = original;
     Map<String, String> labels = new HashMap<String, String>();
-    labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
-    MetricName metricName =
-        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+    labels.put(PCOLLECTION_LABEL, pCollection);
+    MetricName metricName = MonitoringInfoMetricName.named(ELEMENT_COUNT_URN, labels);
     this.counter = LabeledMetrics.counter(metricName);
     // Collect the metric in a metric container which is not bound to the step name.
     // This is required to count elements from impulse steps, which will produce elements outside

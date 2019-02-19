@@ -17,7 +17,11 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
+
 import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
 
@@ -27,17 +31,15 @@ import org.apache.beam.sdk.metrics.MetricName;
 public class MonitoringInfoTestUtil {
   /** @return A basic MonitoringInfoMetricName to test. */
   public static MetricName testElementCountName() {
-    HashMap labels = new HashMap<String, String>();
-    labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, "testPCollection");
-    MetricName name =
-        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
-    return name;
+    Map<String, String> labels = new HashMap<>();
+    labels.put(PCOLLECTION_LABEL, "testPCollection");
+    return MonitoringInfoMetricName.named(ELEMENT_COUNT_URN, labels);
   }
 
   /** @return A basic MonitoringInfo which matches the testElementCountName. */
   public static MonitoringInfo testElementCountMonitoringInfo(long value) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setUrn(ELEMENT_COUNT_URN);
     builder.setPCollectionLabel("testPCollection");
     builder.setInt64Value(value);
     return builder.build();

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX;
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.SUM_INT64_TYPE_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.USER_METRIC_URN_PREFIX;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 

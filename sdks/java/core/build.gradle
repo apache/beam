@@ -62,6 +62,7 @@ dependencies {
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-job-management", configuration: "shadow")
+  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
   compile library.java.antlr_runtime
   compile library.java.protobuf_java

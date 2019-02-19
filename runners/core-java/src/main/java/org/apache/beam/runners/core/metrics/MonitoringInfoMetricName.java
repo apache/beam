@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
@@ -27,6 +27,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricUrns;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
 /**
@@ -105,9 +106,9 @@ public class MonitoringInfoMetricName extends MetricName {
   /**
    * Polymorphic constructor of {@link MetricName}s.
    *
-   * <p>If `urn` is a {@link SimpleMonitoringInfoBuilder#USER_METRIC_URN_PREFIX metric}, return a
-   * {@link MetricName} auto-value (which will {@link Object#equals equal} and {@link
-   * Object#hashCode hash} consistently with other {@link MetricName}s.
+   * <p>If `urn` is a {@link MetricUrns#USER_METRIC_URN_PREFIX metric}, return a {@link MetricName}
+   * auto-value (which will {@link Object#equals equal} and {@link Object#hashCode hash}
+   * consistently with other {@link MetricName}s.
    *
    * <p>Otherwise, return a concrete {@link MonitoringInfoMetricName} representing a "system"
    * metric.

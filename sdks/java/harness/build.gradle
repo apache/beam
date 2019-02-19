@@ -49,6 +49,7 @@ dependencies {
   dependOnProjects.each {
     compile project(path: it, configuration: "shadow")
   }
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   compile library.java.jackson_databind
   shadow library.java.vendored_guava_20_0
   shadowTest library.java.powermock

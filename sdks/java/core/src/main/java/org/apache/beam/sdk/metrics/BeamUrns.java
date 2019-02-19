@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.metrics;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ProtocolMessageEnum;
