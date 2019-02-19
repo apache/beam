@@ -360,6 +360,7 @@ public class FileIO {
         .setDynamic(false)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setMaxNumWritersPerBundle(WriteFiles.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .build();
   }
 
@@ -372,6 +373,7 @@ public class FileIO {
         .setDynamic(true)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setMaxNumWritersPerBundle(WriteFiles.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .build();
   }
 
@@ -894,6 +896,8 @@ public class FileIO {
 
     abstract boolean getIgnoreWindowing();
 
+    abstract int getMaxNumWritersPerBundle();
+
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -937,6 +941,8 @@ public class FileIO {
           PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
+
+      abstract Builder<DestinationT, UserT> setMaxNumWritersPerBundle(int maxNumWritersPerBundle);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1159,6 +1165,11 @@ public class FileIO {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
+    /** See {@link WriteFiles#withMaxNumWritersPerBundle(int)}. */
+    public Write<DestinationT, UserT> withMaxNumWritersPerBundle(int maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
@@ -1242,12 +1253,14 @@ public class FileIO {
       resolvedSpec.setCompression(getCompression());
       resolvedSpec.setNumShards(getNumShards());
       resolvedSpec.setSharding(getSharding());
+      resolvedSpec.setMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
           WriteFiles.to(new ViaFileBasedSink<>(resolved))
-              .withSideInputs(Lists.newArrayList(resolved.getAllSideInputs()));
+              .withSideInputs(Lists.newArrayList(resolved.getAllSideInputs()))
+              .withMaxNumWritersPerBundle(resolved.getMaxNumWritersPerBundle());
       if (getNumShards() != null) {
         writeFiles = writeFiles.withNumShards(getNumShards());
       } else if (getSharding() != null) {

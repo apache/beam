@@ -431,7 +431,8 @@ public class AvroIO {
         .setNumShards(0)
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .setMetadata(ImmutableMap.of())
-        .setWindowedWrites(false);
+        .setWindowedWrites(false)
+        .setMaxNumWritersPerBundle(WriteFiles.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE);
   }
 
   private static <T> PCollection<T> setBeamSchema(
@@ -954,6 +955,8 @@ public class AvroIO {
 
     abstract boolean getWindowedWrites();
 
+    abstract int getMaxNumWritersPerBundle();
+
     @Nullable
     abstract FilenamePolicy getFilenamePolicy();
 
@@ -994,6 +997,9 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setSchema(Schema schema);
 
       abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
+          int maxNumWritersPerBundle);
 
       abstract Builder<UserT, DestinationT, OutputT> setFilenamePolicy(
           FilenamePolicy filenamePolicy);
@@ -1189,6 +1195,12 @@ public class AvroIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /** See {@link WriteFiles#withMaxNumWritersPerBundle(int)}. */
+    public TypedWrite<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
+        int maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
     /** Writes to Avro file(s) compressed using specified codec. */
     public TypedWrite<UserT, DestinationT, OutputT> withCodec(CodecFactory codec) {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
@@ -1268,7 +1280,8 @@ public class AvroIO {
       }
       WriteFiles<UserT, DestinationT, OutputT> write =
           WriteFiles.to(
-              new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()));
+                  new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()))
+              .withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }

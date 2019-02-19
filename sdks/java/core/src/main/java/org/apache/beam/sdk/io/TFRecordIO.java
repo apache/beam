@@ -84,6 +84,7 @@ public class TFRecordIO {
         .setFilenameSuffix(null)
         .setNumShards(0)
         .setCompression(Compression.UNCOMPRESSED)
+        .setMaxNumWritersPerBundle(WriteFiles.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .build();
   }
 
@@ -231,6 +232,8 @@ public class TFRecordIO {
     /** Option to indicate the output sink's compression type. Default is NONE. */
     abstract Compression getCompression();
 
+    abstract int getMaxNumWritersPerBundle();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -244,6 +247,8 @@ public class TFRecordIO {
       abstract Builder setNumShards(int numShards);
 
       abstract Builder setCompression(Compression compression);
+
+      abstract Builder setMaxNumWritersPerBundle(int maxNumWritersPerBundle);
 
       abstract Write build();
     }
@@ -340,6 +345,11 @@ public class TFRecordIO {
       return toBuilder().setCompression(compression).build();
     }
 
+    /** See {@link WriteFiles#withMaxNumWritersPerBundle(int)}. */
+    public Write withMaxNumWritersPerBundle(int maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
     @Override
     public PDone expand(PCollection<byte[]> input) {
       checkState(
@@ -347,8 +357,9 @@ public class TFRecordIO {
           "need to set the output prefix of a TFRecordIO.Write transform");
       WriteFiles<byte[], Void, byte[]> write =
           WriteFiles.to(
-              new TFRecordSink(
-                  getOutputPrefix(), getShardTemplate(), getFilenameSuffix(), getCompression()));
+                  new TFRecordSink(
+                      getOutputPrefix(), getShardTemplate(), getFilenameSuffix(), getCompression()))
+              .withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }

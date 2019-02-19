@@ -252,6 +252,7 @@ public class TextIO {
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNumShards(0)
+        .setMaxNumWritersPerBundle(WriteFiles.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .build();
   }
 
@@ -635,6 +636,9 @@ public class TextIO {
      */
     abstract WritableByteChannelFactory getWritableByteChannelFactory();
 
+    /** Maximum number of writers created in a bundle before spilling to shuffle. */
+    abstract int getMaxNumWritersPerBundle();
+
     abstract Builder<UserT, DestinationT> toBuilder();
 
     @AutoValue.Builder
@@ -675,6 +679,8 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
+
+      abstract Builder<UserT, DestinationT> setMaxNumWritersPerBundle(int maxNumWritersPerBundle);
 
       abstract TypedWrite<UserT, DestinationT> build();
     }
@@ -899,6 +905,11 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /** See {@link WriteFiles#withMaxNumWritersPerBundle(int)}. */
+    public TypedWrite<UserT, DestinationT> withMaxNumWritersPerBundle(int maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -968,13 +979,14 @@ public class TextIO {
       }
       WriteFiles<UserT, DestinationT, String> write =
           WriteFiles.to(
-              new TextSink<>(
-                  tempDirectory,
-                  resolveDynamicDestinations(),
-                  getDelimiter(),
-                  getHeader(),
-                  getFooter(),
-                  getWritableByteChannelFactory()));
+                  new TextSink<>(
+                      tempDirectory,
+                      resolveDynamicDestinations(),
+                      getDelimiter(),
+                      getHeader(),
+                      getFooter(),
+                      getWritableByteChannelFactory()))
+              .withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -1143,6 +1155,11 @@ public class TextIO {
     /** See {@link TypedWrite#withWindowedWrites}. */
     public Write withWindowedWrites() {
       return new Write(inner.withWindowedWrites());
+    }
+
+    /** See {@link TypedWrite#withMaxNumWritersPerBundle(int)}. */
+    public Write withMaxNumWritersPerBundle(int maxNumWritersPerBundle) {
+      return new Write(inner.withMaxNumWritersPerBundle(maxNumWritersPerBundle));
     }
 
     /**

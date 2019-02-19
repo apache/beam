@@ -122,7 +122,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   // transform. Anything beyond that might be shuffled.
   // Keep in mind that specific runners may decide to run multiple bundles in parallel, based on
   // their own policy.
-  private static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
+  static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
 
   // When we spill records, shard the output keys to prevent hotspots.
   // We could consider making this a parameter.
