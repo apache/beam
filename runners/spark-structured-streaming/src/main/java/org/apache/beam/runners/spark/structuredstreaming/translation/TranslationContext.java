@@ -33,6 +33,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.SparkConf;
@@ -61,6 +62,8 @@ public class TranslationContext {
   @SuppressFBWarnings("URF_UNREAD_FIELD") // make findbug happy
   private SparkSession sparkSession;
 
+  private final Map<PCollectionView<?>, Dataset<?>> broadcastDataSets;
+
   public TranslationContext(SparkPipelineOptions options) {
     SparkConf sparkConf = new SparkConf();
     sparkConf.setMaster(options.getSparkMaster());
@@ -73,6 +76,7 @@ public class TranslationContext {
     this.serializablePipelineOptions = new SerializablePipelineOptions(options);
     this.datasets = new HashMap<>();
     this.leaves = new HashSet<>();
+    this.broadcastDataSets = new HashMap<>();
   }
 
   public SparkSession getSparkSession() {
@@ -125,6 +129,13 @@ public class TranslationContext {
     if (!datasets.containsKey(value)) {
       datasets.put(value, dataset);
       leaves.add(dataset);
+    }
+  }
+
+  public <ViewT, ElemT> void setSideInputDataset(
+      PCollectionView<ViewT> value, Dataset<WindowedValue<ElemT>> set) {
+    if (!broadcastDataSets.containsKey(value)) {
+      broadcastDataSets.put(value, set);
     }
   }
 
