@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.StreamSupport.stream;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
@@ -27,7 +29,6 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.Counter;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.GaugeResult;
-import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -180,14 +180,14 @@ public class MetricsContainerStepMapTest {
   public void testUpdateAllUpdatesUnboundedAndBoundedContainers() {
     MetricsContainerStepMap baseMetricContainerRegistry = new MetricsContainerStepMap();
 
-    MetricName name = MetricName.named("ns", "name1");
-    MetricLabels labels = MetricLabels.ptransform(STEP1);
-    MetricKey key = MetricKey.of(name, labels);
+    CounterCell c1 =
+        baseMetricContainerRegistry
+            .getContainer(MetricLabels.ptransform(STEP1))
+            .getCounter(MetricName.named("ns", "name1"));
 
-    CounterCell c1 = baseMetricContainerRegistry.getContainer(labels).getCounter(name);
     CounterCell c2 =
         baseMetricContainerRegistry
-            .getContainer(labels)
+            .getContainer(MetricLabels.pcollection("testPCollection"))
             .getCounter(MetricName.of(ELEMENT_COUNT_URN));
 
     c1.inc(7);
@@ -196,22 +196,17 @@ public class MetricsContainerStepMapTest {
     MetricsContainerStepMap testObject = new MetricsContainerStepMap();
     testObject.updateAll(baseMetricContainerRegistry);
 
-    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+    MonitoringInfo[] expected = {
+      new SimpleMonitoringInfoBuilder().userMetric(STEP1, "ns", "name1").setInt64Value(7).build(),
+      new SimpleMonitoringInfoBuilder().forElementCount("testPCollection").setInt64Value(14).build()
+    };
 
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("ns", "name1");
-    builder.setPTransformLabel(STEP1);
-    builder.setInt64Value(7);
-    expected.add(builder.build());
+    List<MonitoringInfo> actual =
+        stream(testObject.getMonitoringInfos().spliterator(), false)
+            .map(SimpleMonitoringInfoBuilder::clearTimestamp)
+            .collect(toList());
 
-    expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
-
-    ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
-
-    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actual.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
-    }
-    assertThat(actual, containsInAnyOrder(expected.toArray()));
+    assertThat(actual, containsInAnyOrder(expected));
   }
 
   @Test

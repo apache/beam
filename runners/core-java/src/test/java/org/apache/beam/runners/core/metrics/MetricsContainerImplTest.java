@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUpdate;
 import static org.apache.beam.runners.core.metrics.MetricUpdatesProtos.toProto;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.clearTimestamp;
 import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
-import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
@@ -29,7 +29,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Test;
@@ -161,45 +161,40 @@ public class MetricsContainerImplTest {
     c2.inc(4L);
     c1.inc(3L);
 
-    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrnForUserMetric("ns", "name1");
-    builder1.setInt64Value(5);
-    builder1.setPTransformLabel("step1");
-    builder1.build();
+    MonitoringInfo expected1 =
+        new SimpleMonitoringInfoBuilder()
+            .userMetric("step1", "ns", "name1")
+            .setInt64Value(5)
+            .build();
 
-    SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
-    builder2.setUrnForUserMetric("ns", "name2");
-    builder2.setInt64Value(4);
-    builder2.setPTransformLabel("step1");
-    builder2.build();
+    MonitoringInfo expected2 =
+        new SimpleMonitoringInfoBuilder()
+            .userMetric("step1", "ns", "name2")
+            .setInt64Value(4)
+            .build();
 
-    ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
-    for (MonitoringInfo mi : toProto(testObject.getUpdates())) {
-      actualMonitoringInfos.add(clearTimestamp(mi));
-    }
+    List<MonitoringInfo> actualMonitoringInfos =
+        toProto(testObject.getUpdates()).stream()
+            .map(SimpleMonitoringInfoBuilder::clearTimestamp)
+            .collect(toList());
 
-    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
+    assertThat(actualMonitoringInfos, containsInAnyOrder(expected1, expected2));
   }
 
   @Test
   public void testMonitoringInfosArePopulatedForABeamCounter() {
-    MetricsContainerImpl testObject = MetricsContainerImpl.ptransform("step1");
-    HashMap<String, String> labels = new HashMap<String, String>();
-    labels.put(PCOLLECTION_LABEL, "pcollection");
+    MetricsContainerImpl testObject = MetricsContainerImpl.pcollection("pcollection1");
     MetricName name = MetricName.of(ELEMENT_COUNT_URN);
     CounterCell c1 = testObject.getCounter(name);
     c1.inc(2L);
 
-    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrn(ELEMENT_COUNT_URN);
-    builder1.setPCollectionLabel("pcollection");
-    builder1.setInt64Value(2);
-    builder1.build();
+    MonitoringInfo expected =
+        new SimpleMonitoringInfoBuilder().forElementCount("pcollection1").setInt64Value(2).build();
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : toProto(testObject.getUpdates())) {
       actualMonitoringInfos.add(clearTimestamp(mi));
     }
-    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
+    assertThat(actualMonitoringInfos, containsInAnyOrder(expected));
   }
 }

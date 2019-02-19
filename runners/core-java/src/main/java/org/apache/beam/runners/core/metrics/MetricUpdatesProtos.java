@@ -27,12 +27,12 @@ import org.apache.beam.sdk.metrics.MetricKey;
 public class MetricUpdatesProtos {
   private static <T> MonitoringInfo addMetric(
       MetricUpdate<T> metricUpdate, BiConsumer<SimpleMonitoringInfoBuilder, T> fn) {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
     MetricKey metricKey = metricUpdate.getKey();
-    builder.handleMetricKey(metricKey);
+    SimpleMonitoringInfoBuilder builder =
+        new SimpleMonitoringInfoBuilder().setTimestampToNow().handleMetricKey(metricKey);
 
     fn.accept(builder, metricUpdate.getUpdate());
-    return builder.setTimestampToNow().build();
+    return builder.build();
   }
 
   private static <T> void fromMetrics(

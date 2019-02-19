@@ -152,7 +152,8 @@ public class DirectMetricsTest {
             ImmutableList.of()));
 
     MetricQueryResults results =
-        metrics.queryMetrics(MetricsFilter.builder().addNameFilter(inNamespace("ns1")).build());
+        metrics.queryMetrics(
+            MetricsFilter.builder().addNameFilter(inNamespace(NAME1.getNamespace())).build());
 
     assertThat(
         results.getCounters(),

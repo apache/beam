@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import static org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
 import static org.apache.beam.model.fnexecution.v1.BeamFnApi.IntGaugeData;
 import static org.apache.beam.sdk.metrics.MetricUrns.DISTRIBUTION_INT64_TYPE_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
 import static org.apache.beam.sdk.metrics.MetricUrns.LATEST_INT64_TYPE_URN;
 import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
 import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
@@ -116,6 +117,10 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  public SimpleMonitoringInfoBuilder userMetric(String ptransform, String namespace, String name) {
+    return setUrn(urn(namespace, name)).setPTransformLabel(ptransform);
+  }
+
   /**
    * Sets the urn of the MonitoringInfo to a proper user metric URN for the given params.
    *
@@ -182,6 +187,10 @@ public class SimpleMonitoringInfoBuilder {
     // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
     setLabel(PTRANSFORM_LABEL, pTransform);
     return this;
+  }
+
+  public SimpleMonitoringInfoBuilder forElementCount(String pCollection) {
+    return setLabel(PCOLLECTION_LABEL, pCollection).setUrn(ELEMENT_COUNT_URN);
   }
 
   /** Sets the PCOLLECTION MonitoringInfo label to the given param. */

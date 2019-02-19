@@ -60,6 +60,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return new MetricsContainerImpl(MetricLabels.ptransform(ptransform));
   }
 
+  public static MetricsContainerImpl pcollection(String pcollection) {
+    return new MetricsContainerImpl(MetricLabels.pcollection(pcollection));
+  }
+
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
   public MetricsContainerImpl(MetricLabels labels) {
     this.labels = labels;
