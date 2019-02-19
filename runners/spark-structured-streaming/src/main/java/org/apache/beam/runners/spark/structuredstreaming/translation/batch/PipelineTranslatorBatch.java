@@ -67,6 +67,10 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
 
     TRANSFORM_TRANSLATORS.put(
         PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch());
+
+    TRANSFORM_TRANSLATORS.put(
+        PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
+        new CreatePCollectionViewTranslatorBatch());
   }
 
   public PipelineTranslatorBatch(SparkPipelineOptions options) {
