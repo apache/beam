@@ -75,6 +75,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
     // TODO: add support of SideInputs
     List<PCollectionView<?>> sideInputs = getSideInputs(context);
+    System.out.println("sideInputs = " + sideInputs);
     final boolean hasSideInputs = sideInputs != null && sideInputs.size() > 0;
     checkState(!hasSideInputs, "SideInputs are not supported for the moment.");
 
