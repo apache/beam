@@ -337,14 +337,7 @@ message Annotation {
 // MonitoringInfo protos.
 message MonitoringInfoSpecs {
   enum Enum {
-    // TODO(ajamato): Add the PTRANSFORM name as a required label after
-    // upgrading the python SDK.
-    USER_COUNTER = 0 [(monitoring_info_spec) = {
-      urn: "beam:metric:user:",
-      type_urn: "beam:metrics:sum_int_64",
-    }];
-
-    ELEMENT_COUNT = 1 [(monitoring_info_spec) = {
+    ELEMENT_COUNT = 0 [(monitoring_info_spec) = {
       urn: "beam:metric:element_count:v1",
       type_urn: "beam:metrics:sum_int_64",
       // TODO(ryan): we currently also generate this metric with ["PTRANSFORM"] labels, but it fails validation in
@@ -356,7 +349,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    START_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
+    START_BUNDLE_MSECS = 1 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:start_bundle_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: [ "PTRANSFORM" ],
@@ -367,7 +360,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    PROCESS_BUNDLE_MSECS = 3 [(monitoring_info_spec) = {
+    PROCESS_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:process_bundle_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: [ "PTRANSFORM" ],
@@ -378,7 +371,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    FINISH_BUNDLE_MSECS = 4 [(monitoring_info_spec) = {
+    FINISH_BUNDLE_MSECS = 3 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: [ "PTRANSFORM" ],
@@ -389,7 +382,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    TOTAL_MSECS = 5 [(monitoring_info_spec) = {
+    TOTAL_MSECS = 4 [(monitoring_info_spec) = {
       urn: "beam:metric:ptransform_execution_time:total_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: [ "PTRANSFORM" ],

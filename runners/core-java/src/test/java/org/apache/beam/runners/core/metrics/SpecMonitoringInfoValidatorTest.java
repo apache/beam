@@ -41,10 +41,20 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsErrorOnInvalidMonitoringInfoType() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user:someCounter")
+            .setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN)
             .setType("beam:metrics:bad_value")
             .build();
     assertTrue(testObject.validate(testInput).isPresent());
+  }
+
+  @Test
+  public void validatePassesThroughInvalidTypeOnUserMetric() {
+    MonitoringInfo testInput =
+        MonitoringInfo.newBuilder()
+            .setUrn("beam:metric:user:someCounter")
+            .setType("beam:metrics:bad_value")
+            .build();
+    assertFalse(testObject.validate(testInput).isPresent());
   }
 
   @Test

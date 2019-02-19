@@ -55,7 +55,6 @@ public class SimpleMonitoringInfoBuilderTest {
   public void testUserCounter() {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrnForUserMetric("myNamespace", "myName");
-    assertNull(builder.build());
 
     builder.setInt64Value(1);
     // Pass now that the spec is fully met.
