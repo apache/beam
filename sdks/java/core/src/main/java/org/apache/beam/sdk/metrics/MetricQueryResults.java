@@ -57,10 +57,9 @@ public abstract class MetricQueryResults {
             .append(name.getName())
             .append(": ")
             .append(metricResult.getAttempted());
-        try {
+        if (metricResult.hasCommitted()) {
           T committed = metricResult.getCommitted();
           sb.append(", ").append(committed);
-        } catch (UnsupportedOperationException ignored) {
         }
       }
       sb.append(")");
