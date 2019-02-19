@@ -99,7 +99,7 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(27L)))));
 
-    MetricQueryResults results = metrics.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults results = metrics.allMetrics();
     assertThat(
         results.getCounters(),
         containsInAnyOrder(
