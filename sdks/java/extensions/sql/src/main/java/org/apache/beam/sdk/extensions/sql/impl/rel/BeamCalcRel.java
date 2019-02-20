@@ -157,24 +157,17 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
               new InputGetterImpl(input, upstream.getSchema()),
               null);
 
-      // output = Row.withSchema(outputSchema)
       Expression output = Expressions.call(Row.class, "withSchema", outputSchemaParam);
       Method addValue = Types.lookupMethod(Row.Builder.class, "addValue", Object.class);
 
       for (int index = 0; index < expressions.size(); index++) {
         Expression value = expressions.get(index);
         FieldType toType = outputSchema.getField(index).getType();
-
-        // .addValue(value)
         output = Expressions.call(output, addValue, castOutput(value, toType));
       }
 
-      // .build();
       output = Expressions.call(output, "build");
 
-      // if (condition) {
-      //   c.output(output);
-      // }
       builder.add(
           Expressions.ifThen(
               condition,
