@@ -339,6 +339,9 @@ func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
 			return err
 		}
 	}
+	// Clear the cache now since all elements have been output.
+	// Down isn't guaranteed to be called.
+	n.cache = nil
 
 	return n.Out.FinishBundle(ctx)
 }
