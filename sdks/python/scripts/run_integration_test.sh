@@ -74,8 +74,9 @@ WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 # Default test (nose) options.
-# Default test sets are full integration tests.
-TEST_OPTS="--attr=IT --nocapture"
+# Run WordCountIT.test_wordcount_it by default if no test options are
+# provided.
+TEST_OPTS="--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it --nocapture"
 
 while [[ $# -gt 0 ]]
 do
