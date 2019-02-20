@@ -41,11 +41,10 @@ task run(type: Exec) {
         loadTestArgs +=" --sdk_location=${project.buildDir}/apache-beam.tar.gz"
     }
 
-    setWorkingDir "${project.rootDir}/sdks/python"
     environment "LOAD_TEST_ENABLED", 'true'
-    println "Running command python ${project.ext.envdir}/bin/python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass}"
+    setWorkingDir "${project.rootDir}/sdks/python"
 
-    commandLine 'sh', '-c', ". ${project.ext.envdir}/bin/activate && python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass}"
+    commandLine 'sh', '-c', "${project.ext.envdir}/bin/python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass}"
     ignoreExitValue true
 
     doLast {

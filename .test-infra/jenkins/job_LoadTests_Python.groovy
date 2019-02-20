@@ -20,6 +20,8 @@ import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 
+def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
+
 def smokeTestConfigurations = [
         [
                 title        : 'GroupByKey Python load test Direct',
@@ -44,11 +46,12 @@ def smokeTestConfigurations = [
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
                 runner       : CommonTestProperties.Runner.DATAFLOW_PYTHON,
                 jobProperties: [
+                        job_name            : 'load-tests-python-dataflow-batch-gbk-smoke-' + now,
                         project             : 'apache-beam-testing',
                         temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query: true,
                         metrics_dataset     : 'load_test_SMOKE',
-                        bigQueryTable       : 'python_dataflow_gbk',
+                        metrics_table       : 'python_dataflow_gbk',
                         input_options       : '\'{"num_records": 100000,' +
                                 '"key_size": 1,' +
                                 '"value_size":1,' +
