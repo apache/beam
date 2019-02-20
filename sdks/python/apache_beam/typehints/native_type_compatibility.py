@@ -36,18 +36,27 @@ _TypeMapEntry = collections.namedtuple(
     '_TypeMapEntry', ['match', 'arity', 'beam_type'])
 
 
+def _get_compatible_args(typ):
+  # On Python versions < 3.5.3, the Tuple and Union type from typing do
+  # not have an __args__ attribute, but a __tuple_params__, and a
+  # __union_params__ argument respectively.
+  if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
+    if getattr(typ, '__tuple_params__', None) is not None:
+      return typ.__tuple_params__
+    elif getattr(typ, '__union_params__', None) is not None:
+      return typ.__union_params__
+  return None
+
+
 def _get_arg(typ, index):
   """Returns the index-th argument to the given type."""
   try:
     return typ.__args__[index]
   except AttributeError:
-    if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
-      # On Python versions < 3.5.3, the Tuple and Union type from typing do
-      # not have an __args__ attribute, but a __tuple_params__, and a
-      # __union_params__ and __union_set_params__ argument respectively.
-      args = next(value for key, value in typ.__dict__.items()
-                  if key.endswith('_params__') and 'set' not in key)
-      return args[index]
+    compatible_args = _get_compatible_args(typ)
+    if compatible_args is None:
+      raise
+    return compatible_args[index]
 
 
 def _len_arg(typ):
@@ -55,18 +64,10 @@ def _len_arg(typ):
   try:
     return len(typ.__args__)
   except AttributeError:
-    if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
-      # On Python versions < 3.5.3, the Tuple and Union type from typing do
-      # not have an __args__ attribute, but a __tuple_params__, and a
-      # __union_params__ and __union_set_params__ argument respectively.
-      try:
-        args = next(value for key, value in typ.__dict__.items()
-                    if key.endswith('_params__') and 'set' not in key)
-        return len(args)
-      except StopIteration:
-        return 0
-    # For Any type, which takes no arguments.
-    return 0
+    compatible_args = _get_compatible_args(typ)
+    if compatible_args is None:
+      return 0
+    return len(compatible_args)
 
 
 def _safe_issubclass(derived, parent):
