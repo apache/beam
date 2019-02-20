@@ -1631,11 +1631,14 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.installGcpTest.mustRunAfter project.sdist
 
-      project.task('cleanPython', dependsOn: 'setupVirtualenv') {
+      project.task('cleanPython') {
         doLast {
+          def activate = "${project.ext.envdir}/bin/activate"
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && python ${pythonRootDir}/setup.py clean"
+            args '-c', "if [ -e ${activate} ]; then " +
+                    ". ${activate} && python ${pythonRootDir}/setup.py clean; " +
+                    "fi"
           }
           project.delete project.buildDir     // Gradle build directory
           project.delete project.ext.envdir   // virtualenv directory
