@@ -341,28 +341,28 @@ class DataflowDistributionCounterFn(AccumulatorCombineFn):
 class ComparableValue(object):
   """A way to allow comparing elements in a rich fashion."""
 
-  __slots__ = ('value', '_less_than_fn', '_comparable_value')
+  __slots__ = (
+      'value', '_less_than_fn', '_comparable_value', 'requires_hydration')
 
-  def __init__(self, value, less_than_fn, key_fn, _from_pickle=False):
+  def __init__(self, value, less_than_fn, key_fn, _requires_hydration=False):
     self.value = value
-    self._less_than_fn = less_than_fn if less_than_fn else operator.lt
-    self._comparable_value = key_fn(value) if key_fn else value
+    self.hydrate(less_than_fn, key_fn)
+    self.requires_hydration = _requires_hydration
 
-    # TODO(b/123368592): Remove this limitation by making ComparableValue
-    # hydratable with less_than_fn and perhaps key_fn post construction, and
-    # updating TopCombineFn appropriately.
-    assert not _from_pickle  # See comments in __reduce__ below.
+  def hydrate(self, less_than_fn, key_fn):
+    self._less_than_fn = less_than_fn if less_than_fn else operator.lt
+    self._comparable_value = key_fn(self.value) if key_fn else self.value
+    self.requires_hydration = False
 
   def __lt__(self, other):
+    assert not self.requires_hydration
+    assert self._less_than_fn is other._less_than_fn
     return self._less_than_fn(self._comparable_value, other._comparable_value)
 
   def __repr__(self):
     return 'ComparableValue[%s]' % str(self.value)
 
   def __reduce__(self):
-    # ComparableValues might need to be encoded for sizing estimation, but
-    # should otherwise never be instantiated from their encoded representation
-    # and compared with each other (since we are not always able to
-    # serialize self._less_than_fn and/or self._key_fn) and this is verified in
-    # __init__ by asserting on _from_pickle.
+    # Since we can't pickle the Compare and Key Fn we pass None and we signify
+    # that this object _requires_hydration.
     return ComparableValue, (self.value, None, None, True)
