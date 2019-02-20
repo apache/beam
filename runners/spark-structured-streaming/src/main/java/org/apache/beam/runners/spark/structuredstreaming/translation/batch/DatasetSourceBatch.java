@@ -28,6 +28,7 @@ import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -93,14 +94,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     @Override
     public StructType readSchema() {
       // TODO: find a way to extend schema with a WindowedValue schema
-      // we use a binary schema for now because:
-      // using a empty schema raises a indexOutOfBoundsException
-      // using a NullType schema stores null in the elements
-      StructField[] array = new StructField[1];
-      StructField binaryStructField =
-          StructField.apply("binaryStructField", DataTypes.BinaryType, true, Metadata.empty());
-      array[0] = binaryStructField;
-      return new StructType(array);
+      return SchemaHelpers.binarySchema();
     }
 
     @Override
