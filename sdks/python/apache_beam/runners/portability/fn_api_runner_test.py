@@ -311,6 +311,12 @@ class FnApiRunnerTest(unittest.TestCase):
                    'This test is flaky on on Python 3. '
                    'TODO: BEAM-5692')
   def test_pardo_state_timers(self):
+    self._run_pardo_state_timers(False)
+
+  def test_windowed_pardo_state_timers(self):
+    self._run_pardo_state_timers(True)
+
+  def _run_pardo_state_timers(self, windowed):
     state_spec = userstate.BagStateSpec('state', beam.coders.StrUtf8Coder())
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
     elements = list('abcdefgh')
@@ -346,11 +352,22 @@ class FnApiRunnerTest(unittest.TestCase):
       # based on ordering and trigger firing timing.
       self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
       self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
+      if windowed:
+        # Elements were assigned to windows based on their parity.
+        # Assert that each grouping consists of elements belonging to the
+        # same window to ensure states and timers were properly partitioned.
+        for b in actual:
+          parity = set(ord(e) % 2 for e in b)
+          self.assertEqual(1, len(parity), b)
 
     with self.create_pipeline() as p:
       actual = (
           p
           | beam.Create(elements)
+          # Send even and odd elements to different windows.
+          | beam.Map(lambda e: window.TimestampedValue(e, ord(e) % 2))
+          | beam.WindowInto(window.FixedWindows(1) if windowed
+                            else window.GlobalWindows())
           | beam.Map(lambda x: ('key', x))
           | beam.ParDo(BufferDoFn()))
 
