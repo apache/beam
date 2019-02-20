@@ -178,16 +178,6 @@ public class MetricsContainerStepMapTest {
   }
 
   @Test
-  public void testUserMetricDroppedOnUnbounded() {
-    MetricsContainerStepMap testObject = new MetricsContainerStepMap();
-    CounterCell c1 = testObject.getUnboundContainer().getCounter(MetricName.named("ns", "name1"));
-    c1.inc(5);
-
-    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
-    assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
-  }
-
-  @Test
   public void testUpdateAllUpdatesUnboundedAndBoundedContainers() {
     MetricsContainerStepMap baseMetricContainerRegistry = new MetricsContainerStepMap();
 

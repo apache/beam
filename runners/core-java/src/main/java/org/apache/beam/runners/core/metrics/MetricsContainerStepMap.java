@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static java.util.Collections.singleton;
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.runners.core.metrics.MetricUpdatesProtos.toProto;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.concat;
 
 import java.io.Serializable;
@@ -159,9 +160,7 @@ public class MetricsContainerStepMap implements Serializable {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<>();
     for (MetricsContainerImpl container : getMetricsContainers()) {
-      for (MonitoringInfo mi : container.getMonitoringInfos()) {
-        monitoringInfos.add(mi);
-      }
+      monitoringInfos.addAll(toProto(container.getUpdates()));
     }
     return monitoringInfos;
   }

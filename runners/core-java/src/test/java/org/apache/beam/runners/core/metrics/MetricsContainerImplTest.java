@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUpdate;
+import static org.apache.beam.runners.core.metrics.MetricUpdatesProtos.toProto;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
@@ -170,7 +171,7 @@ public class MetricsContainerImplTest {
     builder2.build();
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
-    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+    for (MonitoringInfo mi : toProto(testObject.getUpdates())) {
       actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
     }
 
@@ -194,7 +195,7 @@ public class MetricsContainerImplTest {
     builder1.build();
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
-    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+    for (MonitoringInfo mi : toProto(testObject.getUpdates())) {
       actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
     }
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
