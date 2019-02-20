@@ -21,6 +21,8 @@ import static org.apache.beam.runners.core.construction.PipelineResources.detect
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
@@ -29,6 +31,8 @@ import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,18 +40,23 @@ import org.slf4j.LoggerFactory;
 public class FlinkJobInvoker implements JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
-  public static FlinkJobInvoker create(
-      ListeningExecutorService executorService,
-      FlinkJobServerDriver.ServerConfiguration serverConfig) {
+  public static FlinkJobInvoker create(FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
+    ThreadFactory threadFactory =
+        new ThreadFactoryBuilder()
+            .setNameFormat("flink-runner-job-invoker")
+            .setDaemon(true)
+            .build();
+    ListeningExecutorService executorService =
+        MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(threadFactory));
     return new FlinkJobInvoker(executorService, serverConfig);
   }
 
   private final ListeningExecutorService executorService;
-  private final FlinkJobServerDriver.ServerConfiguration serverConfig;
+  private final FlinkJobServerDriver.FlinkServerConfiguration serverConfig;
 
   private FlinkJobInvoker(
       ListeningExecutorService executorService,
-      FlinkJobServerDriver.ServerConfiguration serverConfig) {
+      FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
     this.executorService = executorService;
     this.serverConfig = serverConfig;
   }
@@ -82,7 +91,7 @@ public class FlinkJobInvoker implements JobInvoker {
         executorService,
         pipeline,
         flinkOptions,
-        serverConfig.flinkConfDir,
+        serverConfig.getFlinkConfDir(),
         detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
   }
 }

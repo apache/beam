@@ -36,14 +36,14 @@ public class FlinkJobServerDriverTest {
 
   @Test
   public void testConfigurationDefaults() {
-    FlinkJobServerDriver.ServerConfiguration config =
-        new FlinkJobServerDriver.ServerConfiguration();
-    assertThat(config.host, is("localhost"));
-    assertThat(config.port, is(8099));
-    assertThat(config.artifactPort, is(8098));
-    assertThat(config.flinkMasterUrl, is("[auto]"));
-    assertThat(config.sdkWorkerParallelism, is(1L));
-    assertThat(config.cleanArtifactsPerJob, is(false));
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        new FlinkJobServerDriver.FlinkServerConfiguration();
+    assertThat(config.getHost(), is("localhost"));
+    assertThat(config.getPort(), is(8099));
+    assertThat(config.getArtifactPort(), is(8098));
+    assertThat(config.getFlinkMasterUrl(), is("[auto]"));
+    assertThat(config.getSdkWorkerParallelism(), is(1L));
+    assertThat(config.isCleanArtifactsPerJob(), is(false));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
   }
@@ -62,18 +62,20 @@ public class FlinkJobServerDriverTest {
               "--sdk-worker-parallelism=4",
               "--clean-artifacts-per-job",
             });
-    assertThat(driver.configuration.host, is("test"));
-    assertThat(driver.configuration.port, is(42));
-    assertThat(driver.configuration.artifactPort, is(43));
-    assertThat(driver.configuration.flinkMasterUrl, is("jobmanager"));
-    assertThat(driver.configuration.sdkWorkerParallelism, is(4L));
-    assertThat(driver.configuration.cleanArtifactsPerJob, is(true));
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        (FlinkJobServerDriver.FlinkServerConfiguration) driver.configuration;
+    assertThat(config.getHost(), is("test"));
+    assertThat(config.getPort(), is(42));
+    assertThat(config.getArtifactPort(), is(43));
+    assertThat(config.getFlinkMasterUrl(), is("jobmanager"));
+    assertThat(config.getSdkWorkerParallelism(), is(4L));
+    assertThat(config.isCleanArtifactsPerJob(), is(true));
   }
 
   @Test
   public void testConfigurationFromConfig() {
-    FlinkJobServerDriver.ServerConfiguration config =
-        new FlinkJobServerDriver.ServerConfiguration();
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        new FlinkJobServerDriver.FlinkServerConfiguration();
     FlinkJobServerDriver driver = FlinkJobServerDriver.fromConfig(config);
     assertThat(driver.configuration, is(config));
   }
