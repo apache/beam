@@ -30,29 +30,34 @@ public class EncoderHelpers {
   // 2. use raw objects because only raw classes can be used with kryo. Cast to Class<T> to allow
   // the type inference mechanism to infer Encoder<WindowedValue<T>> to get back the type checking
 
+  /*
+    --------- Encoders for internal spark runner objects
+   */
+
   /**
    * Get a bytes {@link Encoder} for {@link WindowedValue}. Bytes serialisation is issued by Kryo
    */
-  @SuppressWarnings("unchecked")
-  public static <T> Encoder<T> windowedValueEncoder() {
+  @SuppressWarnings("unchecked") public static <T> Encoder<T> windowedValueEncoder() {
     return Encoders.kryo((Class<T>) WindowedValue.class);
   }
 
   /** Get a bytes {@link Encoder} for {@link KV}. Bytes serialisation is issued by Kryo */
-  @SuppressWarnings("unchecked")
-  public static <T> Encoder<T> kvEncoder() {
+  @SuppressWarnings("unchecked") public static <T> Encoder<T> kvEncoder() {
     return Encoders.kryo((Class<T>) KV.class);
   }
 
   /** Get a bytes {@link Encoder} for {@code T}. Bytes serialisation is issued by Kryo */
-  @SuppressWarnings("unchecked")
-  public static <T> Encoder<T> genericEncoder() {
+  @SuppressWarnings("unchecked") public static <T> Encoder<T> genericEncoder() {
     return Encoders.kryo((Class<T>) Object.class);
   }
 
   /** Get a bytes {@link Encoder} for {@link Tuple2}. Bytes serialisation is issued by Kryo */
-  @SuppressWarnings("unchecked")
-  public static <T> Encoder<T> tuple2Encoder() {
+  @SuppressWarnings("unchecked") public static <T> Encoder<T> tuple2Encoder() {
     return Encoders.kryo((Class<T>) Tuple2.class);
   }
+
+  /*
+    --------- Bridges from Beam Coders to Spark Encoders
+   */
+
 }
