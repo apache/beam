@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import collections
+import sys
 import typing
 from builtins import next
 from builtins import range
@@ -37,7 +38,16 @@ _TypeMapEntry = collections.namedtuple(
 
 def _get_arg(typ, index):
   """Returns the index-th argument to the given type."""
-  return typ.__args__[index]
+  try:
+    return typ.__args__[index]
+  except AttributeError:
+    if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
+      # On Python versions < 3.5.3, the Tuple and Union type from typing do
+      # not have an __args__ attribute, but a __tuple_params__, and a
+      # __union_params__ and __union_set_params__ argument respectively.
+      args = next(value for key, value in typ.__dict__.items()
+                  if key.endswith('_params__') and 'set' not in key)
+      return args[index]
 
 
 def _len_arg(typ):
@@ -45,6 +55,16 @@ def _len_arg(typ):
   try:
     return len(typ.__args__)
   except AttributeError:
+    if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
+      # On Python versions < 3.5.3, the Tuple and Union type from typing do
+      # not have an __args__ attribute, but a __tuple_params__, and a
+      # __union_params__ and __union_set_params__ argument respectively.
+      try:
+        args = next(value for key, value in typ.__dict__.items()
+                    if key.endswith('_params__') and 'set' not in key)
+        return len(args)
+      except StopIteration:
+        return 0
     # For Any type, which takes no arguments.
     return 0
 
