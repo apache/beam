@@ -504,11 +504,10 @@ class FlinkBatchTransformTranslators {
       DoFnSchemaInformation doFnSchemaInformation;
       try {
         mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
-        doFnSchemaInformation =
-            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
+      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
       Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
       // put the main output at index 0, FlinkMultiOutputDoFnFunction  expects this
       outputMap.put(mainOutputTag, 0);

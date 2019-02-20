@@ -128,11 +128,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     DoFnSchemaInformation doFnSchemaInformation;
-    try {
-      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
@@ -226,11 +222,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final String nodeFullname = transform.getTransform().getUniqueName();
 
     final DoFnSchemaInformation doFnSchemaInformation;
-    try {
-      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(

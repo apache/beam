@@ -21,7 +21,6 @@ import static org.apache.beam.runners.spark.translation.TranslationUtils.avoidRd
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -359,12 +358,9 @@ public final class TransformTranslator {
             signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
 
         DoFnSchemaInformation doFnSchemaInformation;
-        try {
-          doFnSchemaInformation =
-              ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
+        doFnSchemaInformation =
+            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =
             new MultiDoFnFunction<>(
                 metricsAccum,

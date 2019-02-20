@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -403,13 +402,9 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<InputT>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
-        final DoFnSchemaInformation doFnSchemaInformation;
-        try {
-          doFnSchemaInformation =
-              ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
+        final DoFnSchemaInformation doFnSchemaInformation =
+            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
         final String stepName = context.getCurrentTransform().getFullName();
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
             dStream.transformToPair(

@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.datatorrent.api.Operator;
 import com.datatorrent.api.Operator.OutputPort;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -81,11 +80,7 @@ class ParDoTranslator<InputT, OutputT>
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
     DoFnSchemaInformation doFnSchemaInformation;
-    try {
-      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
     Map<TupleTag<?>, Coder<?>> outputCoders =
         outputs.entrySet().stream()

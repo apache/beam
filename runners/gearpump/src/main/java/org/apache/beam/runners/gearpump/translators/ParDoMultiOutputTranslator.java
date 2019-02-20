@@ -19,7 +19,6 @@ package org.apache.beam.runners.gearpump.translators;
 
 import io.gearpump.streaming.dsl.api.functions.FilterFunction;
 import io.gearpump.streaming.dsl.javaapi.JavaStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -76,11 +75,7 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
         TranslatorUtils.withSideInputStream(context, inputStream, tagsToSideInputs);
 
     DoFnSchemaInformation doFnSchemaInformation;
-    try {
-      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
     JavaStream<TranslatorUtils.RawUnionValue> outputStream =
         TranslatorUtils.toList(unionStream)

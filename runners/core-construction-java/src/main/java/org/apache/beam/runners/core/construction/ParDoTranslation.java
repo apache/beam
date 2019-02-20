@@ -120,7 +120,9 @@ public class ParDoTranslation {
           PTransformTranslation.translateAppliedPTransform(
               appliedPTransform, subtransforms, components);
 
-      ParDoPayload payload = translateParDo(appliedPTransform, components);
+      AppliedPTransform<?, ?, ParDo.MultiOutput<?, ?>> appliedParDo =
+          (AppliedPTransform<?, ?, ParDo.MultiOutput<?, ?>>) appliedPTransform;
+      ParDoPayload payload = translateParDo(appliedParDo, components);
       builder.setSpec(
           RunnerApi.FunctionSpec.newBuilder()
               .setUrn(PAR_DO_TRANSFORM_URN)
@@ -158,9 +160,9 @@ public class ParDoTranslation {
   }
 
   public static ParDoPayload translateParDo(
-      AppliedPTransform<?, ?, ?> appliedPTransform, SdkComponents components) throws IOException {
-    final ParDo.MultiOutput<?, ?> parDo =
-        (ParDo.MultiOutput<?, ?>) appliedPTransform.getTransform();
+      AppliedPTransform<?, ?, ParDo.MultiOutput<?, ?>> appliedPTransform, SdkComponents components)
+      throws IOException {
+    final ParDo.MultiOutput<?, ?> parDo = appliedPTransform.getTransform();
     final Pipeline pipeline = appliedPTransform.getPipeline();
     final DoFn<?, ?> doFn = parDo.getFn();
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
@@ -289,13 +291,15 @@ public class ParDoTranslation {
     return getDoFn(getParDoPayload(application));
   }
 
-  public static DoFnSchemaInformation getSchemaInformation(AppliedPTransform<?, ?, ?> application)
-      throws IOException {
-    return getSchemaInformation(getParDoPayload(application));
+  public static DoFnSchemaInformation getSchemaInformation(AppliedPTransform<?, ?, ?> application) {
+    try {
+      return getSchemaInformation(getParDoPayload(application));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  public static DoFnSchemaInformation getSchemaInformation(RunnerApi.PTransform pTransform)
-      throws IOException {
+  public static DoFnSchemaInformation getSchemaInformation(RunnerApi.PTransform pTransform) {
     return getSchemaInformation(getParDoPayload(pTransform));
   }
 
@@ -644,8 +648,7 @@ public class ParDoTranslation {
     return getParDoPayload(parDoPTransform);
   }
 
-  private static ParDoPayload getParDoPayload(RunnerApi.PTransform parDoPTransform)
-      throws IOException {
+  private static ParDoPayload getParDoPayload(RunnerApi.PTransform parDoPTransform) {
     return ParDoPayload.parseFrom(parDoPTransform.getSpec().getPayload());
   }
 

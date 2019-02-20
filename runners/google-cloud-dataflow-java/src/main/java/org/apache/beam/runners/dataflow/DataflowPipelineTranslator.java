@@ -41,7 +41,6 @@ import com.google.api.services.dataflow.model.Environment;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -885,12 +884,8 @@ public class DataflowPipelineTranslator {
               ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             DoFnSchemaInformation doFnSchemaInformation;
-            try {
-              doFnSchemaInformation =
-                  ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-            } catch (IOException e) {
-              throw new RuntimeException(e);
-            }
+            doFnSchemaInformation =
+                ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
             Map<TupleTag<?>, Coder<?>> outputCoders =
                 context.getOutputs(transform).entrySet().stream()
@@ -928,12 +923,9 @@ public class DataflowPipelineTranslator {
               ParDoSingle<InputT, OutputT> transform, TranslationContext context) {
 
             DoFnSchemaInformation doFnSchemaInformation;
-            try {
-              doFnSchemaInformation =
-                  ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-            } catch (IOException e) {
-              throw new RuntimeException(e);
-            }
+            doFnSchemaInformation =
+                ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             Map<TupleTag<?>, Coder<?>> outputCoders =
                 context.getOutputs(transform).entrySet().stream()
@@ -1003,12 +995,9 @@ public class DataflowPipelineTranslator {
               SplittableParDo.ProcessKeyedElements<InputT, OutputT, RestrictionT> transform,
               TranslationContext context) {
             DoFnSchemaInformation doFnSchemaInformation;
-            try {
-              doFnSchemaInformation =
-                  ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-            } catch (IOException e) {
-              throw new RuntimeException(e);
-            }
+            doFnSchemaInformation =
+                ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
             StepTranslationContext stepContext =
                 context.addStep(transform, "SplittableProcessKeyed");
             Map<TupleTag<?>, Coder<?>> outputCoders =
