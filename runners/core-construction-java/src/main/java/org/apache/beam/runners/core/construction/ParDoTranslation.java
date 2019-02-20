@@ -300,7 +300,11 @@ public class ParDoTranslation {
   }
 
   public static DoFnSchemaInformation getSchemaInformation(RunnerApi.PTransform pTransform) {
-    return getSchemaInformation(getParDoPayload(pTransform));
+    try {
+      return getSchemaInformation(getParDoPayload(pTransform));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public static DoFnSchemaInformation getSchemaInformation(ParDoPayload payload) {
@@ -648,7 +652,8 @@ public class ParDoTranslation {
     return getParDoPayload(parDoPTransform);
   }
 
-  private static ParDoPayload getParDoPayload(RunnerApi.PTransform parDoPTransform) {
+  private static ParDoPayload getParDoPayload(RunnerApi.PTransform parDoPTransform)
+      throws IOException {
     return ParDoPayload.parseFrom(parDoPTransform.getSpec().getPayload());
   }
 
