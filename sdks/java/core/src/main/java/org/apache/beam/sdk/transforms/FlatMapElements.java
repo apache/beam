@@ -85,6 +85,12 @@ public class FlatMapElements<InputT, OutputT>
     return new FlatMapElements<>(wrapped, fn, inputType, outputType);
   }
 
+  /** Binary compatibility adapter for {@link #via(ProcessFunction)}. */
+  public static <InputT, OutputT> FlatMapElements<InputT, OutputT> via(
+      SimpleFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
+    return via((InferableFunction<? super InputT, ? extends Iterable<OutputT>>) fn);
+  }
+
   /**
    * Returns a new {@link FlatMapElements} transform with the given type descriptor for the output
    * type, but the mapping function yet to be specified using {@link #via(ProcessFunction)}.
@@ -111,6 +117,12 @@ public class FlatMapElements<InputT, OutputT>
       ProcessFunction<NewInputT, ? extends Iterable<OutputT>> fn) {
     return new FlatMapElements<>(
         (Contextful) Contextful.fn(fn), fn, TypeDescriptors.inputOf(fn), outputType);
+  }
+
+  /** Binary compatibility adapter for {@link #via(ProcessFunction)}. */
+  public <NewInputT> FlatMapElements<NewInputT, OutputT> via(
+      SerializableFunction<NewInputT, ? extends Iterable<OutputT>> fn) {
+    return via((ProcessFunction<NewInputT, ? extends Iterable<OutputT>>) fn);
   }
 
   /** Like {@link #via(ProcessFunction)}, but allows access to additional context. */
