@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -80,6 +81,9 @@ public class CassandraIOTest implements Serializable {
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
   private static final String CASSANDRA_HOST = "127.0.0.1";
   private static final int CASSANDRA_PORT = 9142;
+  private static final String CASSANDRA_USERNAME = "cassandra";
+  private static final String CASSANDRA_ENCRYPTED_PASSWORD =
+      "Y2Fzc2FuZHJh"; // Base64 encoded version of "cassandra"
   private static final String CASSANDRA_TABLE = "scientist";
   private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
@@ -242,16 +246,10 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testWrite() {
-    ArrayList<Scientist> data = new ArrayList<>();
-    for (int i = 0; i < NUM_ROWS; i++) {
-      Scientist scientist = new Scientist();
-      scientist.id = i;
-      scientist.name = "Name " + i;
-      data.add(scientist);
-    }
+    ArrayList<Scientist> scientists = buildScientists(NUM_ROWS);
 
     pipeline
-        .apply(Create.of(data))
+        .apply(Create.of(scientists))
         .apply(
             CassandraIO.<Scientist>write()
                 .withHosts(Arrays.asList(CASSANDRA_HOST))
@@ -266,6 +264,81 @@ public class CassandraIOTest implements Serializable {
     for (Row row : results) {
       assertTrue(row.getString("person_name").matches("Name (\\d*)"));
     }
+  }
+
+  @Test
+  public void testReadWithPasswordDecryption() throws Exception {
+    insertRecords();
+
+    String sessionReadUID = "session-read-" + UUID.randomUUID();
+    PasswordDecrypter readPwdDecrypter = new TestPasswordDecrypter(sessionReadUID);
+
+    PCollection<Scientist> output =
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(Arrays.asList(CASSANDRA_HOST))
+                .withPort(CASSANDRA_PORT)
+                .withUsername(CASSANDRA_USERNAME)
+                .withEncryptedPassword(CASSANDRA_ENCRYPTED_PASSWORD)
+                .withPasswordDecrypter(readPwdDecrypter)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withTable(CASSANDRA_TABLE)
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_ROWS);
+
+    PCollection<KV<String, Integer>> mapped =
+        output.apply(
+            MapElements.via(
+                new SimpleFunction<Scientist, KV<String, Integer>>() {
+                  @Override
+                  public KV<String, Integer> apply(Scientist scientist) {
+                    return KV.of(scientist.name, scientist.id);
+                  }
+                }));
+    PAssert.that(mapped.apply("Count occurrences per scientist", Count.perKey()))
+        .satisfies(
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(element.getKey(), NUM_ROWS / 10, element.getValue().longValue());
+              }
+              return null;
+            });
+
+    pipeline.run();
+
+    assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionReadUID));
+  }
+
+  @Test
+  public void testWriteWithPasswordDecryption() {
+    ArrayList<Scientist> scientists = buildScientists(NUM_ROWS);
+
+    String sessionWriteUID = "session-write-" + UUID.randomUUID();
+    PasswordDecrypter writePwdDecrypter = new TestPasswordDecrypter(sessionWriteUID);
+
+    pipeline
+        .apply(Create.of(scientists))
+        .apply(
+            CassandraIO.<Scientist>write()
+                .withHosts(Arrays.asList(CASSANDRA_HOST))
+                .withPort(CASSANDRA_PORT)
+                .withUsername(CASSANDRA_USERNAME)
+                .withEncryptedPassword(CASSANDRA_ENCRYPTED_PASSWORD)
+                .withPasswordDecrypter(writePwdDecrypter)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withEntity(Scientist.class));
+
+    pipeline.run();
+
+    List<Row> results = getRows();
+    assertEquals(NUM_ROWS, results.size());
+    for (Row row : results) {
+      assertTrue(row.getString("person_name").matches("Name (\\d*)"));
+    }
+
+    assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionWriteUID));
   }
 
   @Test
@@ -300,6 +373,17 @@ public class CassandraIOTest implements Serializable {
       }
     }
     assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
+  }
+
+  private ArrayList<Scientist> buildScientists(long nbRows) {
+    ArrayList<Scientist> scientists = new ArrayList<>();
+    for (int i = 0; i < nbRows; i++) {
+      Scientist scientist = new Scientist();
+      scientist.id = i;
+      scientist.name = "Name " + i;
+      scientists.add(scientist);
+    }
+    return scientists;
   }
 
   private List<Row> getRows() {
