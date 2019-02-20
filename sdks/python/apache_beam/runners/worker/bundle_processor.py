@@ -56,6 +56,7 @@ from apache_beam.transforms import userstate
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
+from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -358,16 +359,16 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
 
 
 class OutputTimer(object):
-  def __init__(self, key, receiver):
+  def __init__(self, key, window, receiver):
     self._key = key
+    self._window = window
     self._receiver = receiver
 
   def set(self, ts):
-    from apache_beam.transforms.window import GlobalWindows
+    ts = timestamp.Timestamp.of(ts)
     self._receiver.receive(
-        GlobalWindows.windowed_value(
-            (self._key,
-             dict(timestamp=timestamp.Timestamp.of(ts)))))
+        windowed_value.WindowedValue(
+            (self._key, dict(timestamp=ts)), ts, (self._window,)))
 
   def clear(self, timestamp):
     self._receiver.receive((self._key, dict(clear=True)))
@@ -390,7 +391,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
       self._timer_receivers[tag] = receivers.pop(tag)
 
   def get_timer(self, timer_spec, key, window):
-    return OutputTimer(key, self._timer_receivers[timer_spec.name])
+    return OutputTimer(
+        key, window, self._timer_receivers[timer_spec.name])
 
   def get_state(self, *args):
     state_handle = self._all_states.get(args)
