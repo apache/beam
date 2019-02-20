@@ -474,13 +474,7 @@ public class BeamFnMapTaskExecutorTest {
             .setUrn("beam:metric:user:ExpectedCounter")
             .setType("beam:metrics:sum_int_64")
             .putLabels("PTRANSFORM", "ExpectedPTransform")
-            .setMetric(
-                BeamFnApi.Metric.newBuilder()
-                    .setCounterData(
-                        BeamFnApi.CounterData.newBuilder()
-                            .setInt64Value(expectedCounterValue)
-                            .build())
-                    .build())
+            .setMetric(BeamFnApi.Metric.newBuilder().setCounter(expectedCounterValue).build())
             .build();
 
     InstructionRequestHandler instructionRequestHandler =

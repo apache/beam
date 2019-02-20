@@ -29,7 +29,6 @@ from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
 from apache_beam.portability import common_urns
-from apache_beam.portability.api.beam_fn_api_pb2 import CounterData
 from apache_beam.portability.api.beam_fn_api_pb2 import Metric
 from apache_beam.portability.api.beam_fn_api_pb2 import MonitoringInfo
 
@@ -38,8 +37,8 @@ START_BUNDLE_MSECS_URN = common_urns.monitoring_infos.START_BUNDLE_MSECS.urn
 PROCESS_BUNDLE_MSECS_URN = common_urns.monitoring_infos.PROCESS_BUNDLE_MSECS.urn
 FINISH_BUNDLE_MSECS_URN = common_urns.monitoring_infos.FINISH_BUNDLE_MSECS.urn
 TOTAL_MSECS_URN = common_urns.monitoring_infos.TOTAL_MSECS.urn
-USER_COUNTER_URN_PREFIX = (
-    common_urns.monitoring_infos.USER_COUNTER_URN_PREFIX.urn)
+USER_METRIC_URN_PREFIX = (
+    common_urns.monitoring_infos.USER_METRIC_URN_PREFIX.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
@@ -77,7 +76,7 @@ def to_timestamp_secs(timestamp_proto):
 def extract_counter_value(monitoring_info_proto):
   """Returns the int coutner value of the monitoring info."""
   if is_counter(monitoring_info_proto) or is_gauge(monitoring_info_proto):
-    return monitoring_info_proto.metric.counter_data.int64_value
+    return monitoring_info_proto.metric.counter
   return None
 
 
@@ -88,7 +87,7 @@ def extract_distribution(monitoring_info_proto):
     monitoring_info_proto: The monitoring infor for the distribution.
   """
   if is_distribution(monitoring_info_proto):
-    return monitoring_info_proto.metric.distribution_data.int_distribution_data
+    return monitoring_info_proto.metric.distribution
   return None
 
 
@@ -120,9 +119,7 @@ def int64_counter(urn, metric, ptransform='', tag=''):
   labels = create_labels(ptransform=ptransform, tag=tag)
   if isinstance(metric, int):
     metric = Metric(
-        counter_data=CounterData(
-            int64_value=metric
-        )
+        counter=metric
     )
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
@@ -182,7 +179,7 @@ def user_metric_urn(namespace, name):
     namespace: The namespace of the metric.
     name: The name of the metric.
   """
-  return '%s%s:%s' % (USER_COUNTER_URN_PREFIX, namespace, name)
+  return '%s%s:%s' % (USER_METRIC_URN_PREFIX, namespace, name)
 
 
 def is_counter(monitoring_info_proto):
@@ -202,7 +199,7 @@ def is_gauge(monitoring_info_proto):
 
 def is_user_monitoring_info(monitoring_info_proto):
   """Returns true if the monitoring info is a user metric."""
-  return monitoring_info_proto.urn.startswith(USER_COUNTER_URN_PREFIX)
+  return monitoring_info_proto.urn.startswith(USER_METRIC_URN_PREFIX)
 
 
 def extract_metric_result_map_value(monitoring_info_proto):
@@ -230,7 +227,7 @@ def parse_namespace_and_name(monitoring_info_proto):
   to_split = monitoring_info_proto.urn
   if is_user_monitoring_info(monitoring_info_proto):
     # Remove the URN prefix which indicates that it is a user counter.
-    to_split = monitoring_info_proto.urn[len(USER_COUNTER_URN_PREFIX):]
+    to_split = monitoring_info_proto.urn[len(USER_METRIC_URN_PREFIX):]
   # If it is not a user counter, just use the first part of the URN, i.e. 'beam'
   split = to_split.split(':')
   return split[0], ':'.join(split[1:])

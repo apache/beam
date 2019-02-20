@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.MetricName;
 
 /** Utility for parsing a URN to a {@link MetricName}. */
@@ -29,14 +30,17 @@ public class MetricUrns {
    *
    * <p>Should be consistent with {@code parse_namespace_and_name} in monitoring_infos.py.
    */
+  @Nullable
   public static MetricName parseUrn(String urn) {
-    if (urn.startsWith(USER_COUNTER_URN_PREFIX)) {
-      urn = urn.substring(USER_COUNTER_URN_PREFIX.length());
+    if (urn.startsWith(USER_METRIC_URN_PREFIX)) {
+      urn = urn.substring(USER_METRIC_URN_PREFIX.length());
+    } else {
+      return null;
     }
     // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
     String[] pieces = urn.split(":", 2);
     if (pieces.length != 2) {
-      throw new IllegalArgumentException("Invalid metric URN: " + urn);
+      throw new IllegalArgumentException("Invalid user-metric URN: " + urn);
     }
     return MetricName.named(pieces[0], pieces[1]);
   }

@@ -41,7 +41,7 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 BEAM_CONTAINER_VERSION = 'beam-master-20190208'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20190208'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20190213'
 
 # TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'

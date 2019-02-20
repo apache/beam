@@ -39,6 +39,7 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
@@ -76,7 +77,7 @@ public class BigQueryReadWriteIT implements Serializable {
           .addNullableField("c_float", FLOAT)
           .addNullableField("c_double", DOUBLE)
           .addNullableField("c_boolean", BOOLEAN)
-          .addNullableField("c_timestamp", FieldType.DATETIME.withMetadata("TS"))
+          .addNullableField("c_timestamp", CalciteUtils.TIMESTAMP)
           .addNullableField("c_varchar", STRING)
           .addNullableField("c_char", STRING)
           .addNullableField("c_arr", FieldType.array(STRING))

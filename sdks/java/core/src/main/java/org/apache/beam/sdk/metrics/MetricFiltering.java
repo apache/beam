@@ -15,12 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction.metrics;
+package org.apache.beam.sdk.metrics;
 
 import java.util.Set;
-import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 
 /**
@@ -43,6 +40,7 @@ public class MetricFiltering {
   public static boolean matches(MetricsFilter filter, MetricKey key) {
     return filter == null
         || (matchesName(key.metricName(), filter.names())
+            && key.stepName() != null
             && matchesScope(key.stepName(), filter.steps()));
   }
 

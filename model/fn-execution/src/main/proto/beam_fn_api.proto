@@ -311,13 +311,13 @@ message ProcessBundleProgressRequest {
   string instruction_reference = 1;
 }
 
-// A specification containing required set of fields and labels required
-// to be set on a MonitoringInfo for the specific URN for SDK->RunnerHarness
+// A specification containing required set of fields and labels required to be
+// set on a MonitoringInfo for a given URN-type, for SDK->RunnerHarness
 // ProcessBundleResponse reporting.
 message MonitoringInfoSpec {
   string urn = 1;
   string type_urn = 2;
-  // The list of required
+  // The list of required labels for this URN-type
   repeated string required_labels = 3;
   // Extra non functional parts of the spec for descriptive purposes.
   // i.e. description, units, etc.
@@ -337,16 +337,11 @@ message Annotation {
 // MonitoringInfo protos.
 message MonitoringInfoSpecs {
   enum Enum {
-    // TODO(ajamato): Add the PTRANSFORM name as a required label after
-    // upgrading the python SDK.
-    USER_COUNTER = 0 [(monitoring_info_spec) = {
-      urn: "beam:metric:user:",
-      type_urn: "beam:metrics:sum_int_64",
-    }];
-
-    ELEMENT_COUNT = 1 [(monitoring_info_spec) = {
+    ELEMENT_COUNT = 0 [(monitoring_info_spec) = {
       urn: "beam:metric:element_count:v1",
       type_urn: "beam:metrics:sum_int_64",
+      // TODO(ryan): we currently also generate this metric with ["PTRANSFORM"] labels, but it fails validation in
+      // Java's SimpleMonitoringInfoBuilder (and emits a WARN); should ["PTRANSFORM"] and ["PCOLLEcTION"] both work?
       required_labels: [ "PCOLLECTION" ],
       annotations: [ {
         key: "description",
@@ -354,7 +349,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    START_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
+    START_BUNDLE_MSECS = 1 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:start_bundle_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: [ "PTRANSFORM" ],
@@ -365,7 +360,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    PROCESS_BUNDLE_MSECS = 3 [(monitoring_info_spec) = {
+    PROCESS_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:process_bundle_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: [ "PTRANSFORM" ],
@@ -376,7 +371,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    FINISH_BUNDLE_MSECS = 4 [(monitoring_info_spec) = {
+    FINISH_BUNDLE_MSECS = 3 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: [ "PTRANSFORM" ],
@@ -387,7 +382,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    TOTAL_MSECS = 5 [(monitoring_info_spec) = {
+    TOTAL_MSECS = 4 [(monitoring_info_spec) = {
       urn: "beam:metric:ptransform_execution_time:total_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: [ "PTRANSFORM" ],
@@ -436,8 +431,7 @@ message MonitoringInfo {
   }
 
   enum MonitoringInfoLabels {
-    // TODO(ajamato): Rename all references to TRANSFORM to PTRANSFORM
-    TRANSFORM = 0 [(label_props) = { name: "PTRANSFORM" }];
+    PTRANSFORM = 0 [(label_props) = { name: "PTRANSFORM" }];
     PCOLLECTION = 1 [(label_props) = { name: "PCOLLECTION" }];
     WINDOWING_STRATEGY = 2 [(label_props) = { name: "WINDOWING_STRATEGY" }];
     CODER = 3 [(label_props) = { name: "CODER" }];
@@ -460,8 +454,8 @@ message MonitoringInfo {
 
 message MonitoringInfoUrns {
   enum Enum {
-    // User counter have this format: 'beam:metric:user:<namespace>:<name>'.
-    USER_COUNTER_URN_PREFIX = 0
+    // User-metric URNs have this format: 'beam:metric:user:<namespace>:<name>'.
+    USER_METRIC_URN_PREFIX = 0
         [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:metric:user:"];
 
     ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
@@ -501,48 +495,9 @@ message MonitoringInfoTypeUrns {
 message Metric {
   // (Required) The data for this metric.
   oneof data {
-    CounterData counter_data = 1;
-    DistributionData distribution_data = 2;
-    ExtremaData extrema_data = 3;
-  }
-}
-
-// Data associated with a Counter or Gauge metric.
-// This is designed to be compatible with metric collection
-// systems such as DropWizard.
-message CounterData {
-  oneof value {
-    int64 int64_value = 1;
-    double double_value = 2;
-    string string_value = 3;
-  }
-}
-
-// Extrema messages are used for calculating
-// Top-N/Bottom-N metrics.
-message ExtremaData {
-  oneof extrema {
-    IntExtremaData int_extrema_data = 1;
-    DoubleExtremaData double_extrema_data = 2;
-  }
-}
-
-message IntExtremaData {
-  repeated int64 int_values = 1;
-}
-
-message DoubleExtremaData {
-  repeated double double_values = 2;
-}
-
-// Data associated with a distribution metric.
-// This is based off of the current DistributionData metric.
-// This is not a stackdriver or dropwizard compatible
-// style of distribution metric.
-message DistributionData {
-  oneof distribution {
-    IntDistributionData int_distribution_data = 1;
-    DoubleDistributionData double_distribution_data = 2;
+    int64 counter = 1;
+    IntDistributionData distribution = 2;
+    IntGaugeData gauge = 3;
   }
 }
 
@@ -553,11 +508,9 @@ message IntDistributionData {
   int64 max = 4;
 }
 
-message DoubleDistributionData {
-  int64 count = 1;
-  double sum = 2;
-  double min = 3;
-  double max = 4;
+message IntGaugeData {
+  int64 value = 1;
+  int64 timestamp_ms = 2;
 }
 
 // General MonitoredState information which contains

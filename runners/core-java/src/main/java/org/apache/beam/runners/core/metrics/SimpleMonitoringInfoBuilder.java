@@ -17,8 +17,12 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
+import static org.apache.beam.model.fnexecution.v1.BeamFnApi.IntGaugeData;
+
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
@@ -29,6 +33,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,16 +72,20 @@ public class SimpleMonitoringInfoBuilder {
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.PROCESS_BUNDLE_MSECS);
   public static final String FINISH_BUNDLE_MSECS_URN =
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.FINISH_BUNDLE_MSECS);
-  public static final String USER_COUNTER_URN_PREFIX =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX);
+  public static final String USER_METRIC_URN_PREFIX =
+      BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_METRIC_URN_PREFIX);
   public static final String SUM_INT64_TYPE_URN =
       BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
+  public static final String DISTRIBUTION_INT64_TYPE_URN =
+      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.DISTRIBUTION_INT64_TYPE);
+  public static final String LATEST_INT64_TYPE_URN =
+      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
 
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
 
   public static final String PCOLLECTION_LABEL = getLabelString(MonitoringInfoLabels.PCOLLECTION);
-  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.TRANSFORM);
+  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.PTRANSFORM);
 
   private final boolean validateAndDropInvalid;
 
@@ -118,7 +128,7 @@ public class SimpleMonitoringInfoBuilder {
     String fixedMetricNamespace = metricNamespace.replace(':', '_');
     String fixedMetricName = metricName.replace(':', '_');
     StringBuilder sb = new StringBuilder();
-    sb.append(USER_COUNTER_URN_PREFIX);
+    sb.append(USER_METRIC_URN_PREFIX);
     sb.append(fixedMetricNamespace);
     sb.append(':');
     sb.append(fixedMetricName);
@@ -155,7 +165,7 @@ public class SimpleMonitoringInfoBuilder {
 
   /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropriate type URN. */
   public SimpleMonitoringInfoBuilder setInt64Value(long value) {
-    this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
+    this.builder.getMetricBuilder().setCounter(value);
     this.setInt64TypeUrn();
     return this;
   }
@@ -163,6 +173,36 @@ public class SimpleMonitoringInfoBuilder {
   /** Sets the the appropriate type URN for sum int64 counters. */
   public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
     this.builder.setType(SUM_INT64_TYPE_URN);
+    return this;
+  }
+
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(DistributionData value) {
+    return setIntDistributionValue(value.extractResult());
+  }
+
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(DistributionResult value) {
+    return setIntDistributionValue(DistributionProtos.toProto(value));
+  }
+
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(IntDistributionData value) {
+    this.builder.getMetricBuilder().setDistribution(value);
+    this.builder.setType(DISTRIBUTION_INT64_TYPE_URN);
+    return this;
+  }
+
+  public SimpleMonitoringInfoBuilder setGaugeValue(GaugeData value) {
+    return setGaugeValue(value.extractResult());
+  }
+
+  public SimpleMonitoringInfoBuilder setGaugeValue(GaugeResult value) {
+    return setGaugeValue(GaugeProtos.toProto(value));
+  }
+
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  public SimpleMonitoringInfoBuilder setGaugeValue(IntGaugeData value) {
+    this.builder.getMetricBuilder().setGauge(value);
+    this.builder.setType(LATEST_INT64_TYPE_URN);
     return this;
   }
 
@@ -210,8 +250,13 @@ public class SimpleMonitoringInfoBuilder {
   @Nullable
   public MonitoringInfo build() {
     final MonitoringInfo result = this.builder.build();
-    if (validateAndDropInvalid && this.validator.validate(result).isPresent()) {
-      return null;
+    if (validateAndDropInvalid) {
+      Optional<String> error = this.validator.validate(result);
+      if (error.isPresent()) {
+        // TODO(ryan): throw in this case; remove nullability
+        LOG.warn("Dropping invalid partial MonitoringInfo: {}\n{}", error, result);
+        return null;
+      }
     }
     return result;
   }

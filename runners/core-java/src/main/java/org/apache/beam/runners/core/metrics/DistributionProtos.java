@@ -17,20 +17,25 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.DelegatingCounter;
-import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
+import org.apache.beam.sdk.metrics.DistributionResult;
 
-/**
- * Define a metric on the current MetricContainer with a specific URN and a set of labels. This is a
- * more convenient way to collect the necessary fields to repackage the metric into a MonitoringInfo
- * proto later. Intended for internal use only (SDK and RunnerHarness development).
- */
-public class LabeledMetrics {
-  /**
-   * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
-   */
-  public static Counter counter(MetricName metricName) {
-    return new DelegatingCounter(metricName);
+/** Convert distributions between protobuf and SDK representations. */
+public class DistributionProtos {
+  public static DistributionResult fromProto(IntDistributionData distributionData) {
+    return DistributionResult.create(
+        distributionData.getSum(),
+        distributionData.getCount(),
+        distributionData.getMin(),
+        distributionData.getMax());
+  }
+
+  public static IntDistributionData toProto(DistributionResult distributionResult) {
+    return IntDistributionData.newBuilder()
+        .setMin(distributionResult.getMin())
+        .setMax(distributionResult.getMax())
+        .setCount(distributionResult.getCount())
+        .setSum(distributionResult.getSum())
+        .build();
   }
 }

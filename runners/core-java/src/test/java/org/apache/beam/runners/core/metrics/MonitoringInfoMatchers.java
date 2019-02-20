@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric.DataCase.COUNTER;
+
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -45,9 +47,9 @@ public class MonitoringInfoMatchers {
           return false;
         }
 
-        if (mi.getMetric().hasCounterData()) {
-          long valueToMatch = mi.getMetric().getCounterData().getInt64Value();
-          if (valueToMatch != item.getMetric().getCounterData().getInt64Value()) {
+        if (mi.getMetric().getDataCase() == COUNTER) {
+          long valueToMatch = mi.getMetric().getCounter();
+          if (valueToMatch != item.getMetric().getCounter()) {
             return false;
           }
         }
@@ -63,10 +65,8 @@ public class MonitoringInfoMatchers {
             .appendValue(mi.getLabels())
             .appendText(", type=")
             .appendValue(mi.getType());
-        if (mi.getMetric().hasCounterData()) {
-          description
-              .appendText(", value=")
-              .appendValue(mi.getMetric().getCounterData().getInt64Value());
+        if (mi.getMetric().getDataCase() == COUNTER) {
+          description.appendText(", value=").appendValue(mi.getMetric().getCounter());
         }
       }
     };
@@ -83,7 +83,7 @@ public class MonitoringInfoMatchers {
 
       @Override
       protected boolean matchesSafely(MonitoringInfo item) {
-        if (item.getMetric().getCounterData().getInt64Value() < value) {
+        if (item.getMetric().getCounter() < value) {
           return false;
         }
         return true;

@@ -15,10 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.core.metrics;
 
-/** Utilities for runners to implement metrics. */
-@DefaultAnnotation(NonNull.class)
-package org.apache.beam.runners.core.construction.metrics;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntGaugeData;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.joda.time.Instant;
 
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+/** Convert gauges between protobuf and SDK representations. */
+public class GaugeProtos {
+  public static GaugeResult fromProto(IntGaugeData gaugeData) {
+    return GaugeResult.create(gaugeData.getValue(), new Instant(gaugeData.getTimestampMs()));
+  }
+
+  public static IntGaugeData toProto(GaugeResult gauge) {
+    return IntGaugeData.newBuilder()
+        .setValue(gauge.getValue())
+        .setTimestampMs(gauge.getTimestamp().getMillis())
+        .build();
+  }
+}
