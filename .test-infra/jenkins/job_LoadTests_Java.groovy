@@ -206,27 +206,26 @@ def loadTestConfigurations = [
         ]
 ]
 
-// Cron job for all GBK Dataflow batch load tests
-CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 12 * * *', this) {
-  description('Runs Java GBK load tests on Dataflow runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+def loadTestJob = { scope ->
+  scope.description('Runs Java GBK load tests on Dataflow runner in batch mode')
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   for (testConfiguration in loadTestConfigurations) {
-    loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
   }
 }
 
-// Phrase triggered job for all GBK Dataflow batch load tests
+CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 12 * * *', this) {
+  loadTestJob(delegate)
+}
+
 PhraseTriggeringPostCommitBuilder.postCommitJob(
         'beam_LoadTests_Java_GBK_Dataflow_Batch',
         'Run Load Tests Java GBK Dataflow Batch',
         'Load Tests Java GBK Dataflow Batch suite',
         this
 ) {
-  description('Runs Java GBK load tests on Dataflow runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-
-  for (testConfiguration in loadTestConfigurations) {
-    loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass.CommonTestProperties.TriggeringContext.PR)
-  }
+  loadTestJob(delegate)
 }
+
+
