@@ -84,6 +84,10 @@ public abstract class MetricResult<T> {
         getKey(), committed == null ? update : combine.apply(committed, update), getAttempted());
   }
 
+  public MetricResult<T> setCommitted(T update) {
+    return create(getKey(), update, getAttempted());
+  }
+
   public static <T> MetricResult<T> attempted(MetricKey key, T attempted) {
     return new AutoValue_MetricResult<>(key, null, attempted);
   }
