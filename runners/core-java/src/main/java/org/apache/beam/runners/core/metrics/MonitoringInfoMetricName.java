@@ -17,12 +17,15 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -39,9 +42,9 @@ public class MonitoringInfoMetricName extends MetricName {
   private String urn;
   @Nullable private String name;
   @Nullable private String namespace;
-  private HashMap<String, String> labels = new HashMap<String, String>();
+  private Map<String, String> labels = new HashMap<>();
 
-  private MonitoringInfoMetricName(String urn, HashMap<String, String> labels) {
+  private MonitoringInfoMetricName(String urn, Map<String, String> labels) {
     checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
     checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
     // TODO(ajamato): Move SimpleMonitoringInfoBuilder to beam-runner-core-construction-java
@@ -54,7 +57,7 @@ public class MonitoringInfoMetricName extends MetricName {
 
   /** Parse the urn field into a name and namespace field. */
   private void parseUrn() {
-    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX)) {
+    if (this.urn.startsWith(USER_COUNTER_URN_PREFIX)) {
       List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
       this.name = split.get(split.size() - 1);
       this.namespace = split.get(split.size() - 2);
@@ -85,12 +88,26 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   /** @return The labels associated with this MonitoringInfo. */
-  public HashMap<String, String> getLabels() {
+  public Map<String, String> getLabels() {
     return this.labels;
   }
 
-  public static MonitoringInfoMetricName named(String urn, HashMap<String, String> labels) {
-    return new MonitoringInfoMetricName(urn, labels);
+  /**
+   * Polymorphic constructor of {@link MetricName}s.
+   *
+   * <p>If `urn` is a {@link SimpleMonitoringInfoBuilder#USER_COUNTER_URN_PREFIX user metric},
+   * return a {@link MetricName} auto-value (which will {@link Object#equals equal} and {@link
+   * Object#hashCode hash} consistently with other {@link MetricName}s.
+   *
+   * <p>Otherwise, return a concrete {@link MonitoringInfoMetricName} representing a "system"
+   * metric.
+   */
+  public static MetricName named(String urn, Map<String, String> labels) {
+    MetricName metricName = MetricUrns.parseUrn(urn);
+    if (metricName == null) {
+      return new MonitoringInfoMetricName(urn, labels);
+    }
+    return metricName;
   }
 
   @Override
@@ -113,11 +130,15 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   @Override
-  public String toString() {
+  public String toString(String delimiter) {
+    if (getNamespace() != null && getName() != null) {
+      return super.toString(delimiter);
+    }
     StringBuilder builder = new StringBuilder();
-    builder.append(this.urn.toString());
-    builder.append(" ");
-    builder.append(this.labels.toString());
+    if (labels.containsKey(PCOLLECTION_LABEL)) {
+      builder.append(labels.get(PCOLLECTION_LABEL)).append(delimiter);
+    }
+    builder.append(this.urn.replaceAll(":", delimiter));
     return builder.toString();
   }
 }

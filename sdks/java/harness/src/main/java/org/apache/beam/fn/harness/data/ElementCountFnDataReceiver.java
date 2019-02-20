@@ -25,6 +25,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -48,7 +49,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
     this.original = original;
     HashMap<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
-    MonitoringInfoMetricName metricName =
+    MetricName metricName =
         MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
     this.counter = LabeledMetrics.counter(metricName);
     // Collect the metric in a metric container which is not bound to the step name.

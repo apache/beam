@@ -19,16 +19,17 @@ package org.apache.beam.runners.core.metrics;
 
 import java.util.HashMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.sdk.metrics.MetricName;
 
 /**
  * Provides convenient one line factories for unit tests that need to generate test MonitoringInfos.
  */
 public class MonitoringInfoTestUtil {
   /** @return A basic MonitoringInfoMetricName to test. */
-  public static MonitoringInfoMetricName testElementCountName() {
+  public static MetricName testElementCountName() {
     HashMap labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, "testPCollection");
-    MonitoringInfoMetricName name =
+    MetricName name =
         MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
     return name;
   }
