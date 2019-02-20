@@ -735,11 +735,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
     }
 
     @Override
-    public final void awaitTermination() throws InterruptedException {
-      finishLatch.await();
-    }
-
-    @Override
     public final boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
       return finishLatch.await(time, unit);
     }
