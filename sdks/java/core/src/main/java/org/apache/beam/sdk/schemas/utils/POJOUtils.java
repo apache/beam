@@ -63,7 +63,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
-/** A set of utilities yo generate getter and setter classes for POJOs. */
+/** A set of utilities to generate getter and setter classes for POJOs. */
 @Experimental(Kind.SCHEMAS)
 public class POJOUtils {
   public static Schema schemaFromPojoClass(
@@ -229,7 +229,7 @@ public class POJOUtils {
    *   class Getter implements {@literal FieldValueGetter<POJO, FieldType>} {
    *     {@literal @}Override public String name() { return field.getName(); }
    *     {@literal @}Override public Class type() { return field.getType(); }
-   *      {@literal @}Override public FieldType get(POJO pojo) {
+   *     {@literal @}Override public FieldType get(POJO pojo) {
    *        return convert(pojo.field);
    *      }
    *   }

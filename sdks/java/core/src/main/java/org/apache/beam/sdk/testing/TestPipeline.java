@@ -73,7 +73,7 @@ import org.junit.runners.model.Statement;
  *     "--runner=TestDataflowRunner",
  *     "--project=mygcpproject",
  *     "--stagingLocation=gs://mygcsbucket/path"
- *     ]}</pre>
+ * ]}</pre>
  *       Note that the set of pipeline options required is pipeline runner specific.
  *   <li>Jars containing the SDK and test classes must be available on the classpath.
  * </ul>
@@ -83,15 +83,15 @@ import org.junit.runners.model.Statement;
  *
  * <pre><code>
  * {@literal @Rule}
- * public final transient TestPipeline p = TestPipeline.create();
+ *  public final transient TestPipeline p = TestPipeline.create();
  *
  * {@literal @Test}
  * {@literal @Category}(NeedsRunner.class)
- * public void myPipelineTest() throws Exception {
- *   final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
- *   PAssert.that(pCollection).containsInAnyOrder(...);
- *   pipeline.run();
- * }
+ *  public void myPipelineTest() throws Exception {
+ *    final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
+ *    PAssert.that(pCollection).containsInAnyOrder(...);
+ *    pipeline.run();
+ *  }
  * </code></pre>
  *
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
