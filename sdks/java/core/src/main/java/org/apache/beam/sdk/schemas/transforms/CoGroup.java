@@ -50,15 +50,14 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <p>This transform has similarites to {@link CoGroupByKey}, however works on PCollections that
  * have schemas. This allows users of the transform to simply specify schema fields to join on. The
- * output type of the transform is a {@literal KV<Row, Row>} where the value contains one field for
+ * output type of the transform is a {@code KV<Row, Row>} where the value contains one field for
  * every input PCollection and the key represents the fields that were joined on. By default the
  * cross product is not expanded, so all fields in the output row are array fields.
  *
  * <p>For example, the following demonstrates joining three PCollections on the "user" and "country"
- * fields.
+ * fields:
  *
- * <pre>{@code
- * TupleTag<Input1Type> input1Tag = new TupleTag<>("input1");
+ * <pre>{@code TupleTag<Input1Type> input1Tag = new TupleTag<>("input1");
  * TupleTag<Input2Type> input2Tag = new TupleTag<>("input2");
  * TupleTag<Input3Type> input3Tag = new TupleTag<>("input3");
  * PCollection<KV<Row, Row>> joined = PCollectionTuple
@@ -77,8 +76,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <p>To put it in other words, the key schema is convertible to the following POJO:
  *
- * <pre>{@code
- * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * public class JoinedKey {
  *   public String user;
  *   public String country;
@@ -89,10 +87,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *     .apply(Convert.to(JoinedKey.class));
  * }</pre>
  *
- * The value schema is convertible to the following POJO:
+ * <p>The value schema is convertible to the following POJO:
  *
- * <pre>{@code
- * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * public class JoinedValue {
  *   // The below lists contain all values from each of the three inputs that match on the given
  *   // key.
@@ -110,8 +107,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * those fields match. In this case, fields must be specified for every input PCollection. For
  * example:
  *
- * <pre>{@code
- * PCollection<KV<Row, Row>> joined = PCollectionTuple
+ * <pre>{@code PCollection<KV<Row, Row>> joined = PCollectionTuple
  *     .of(input1Tag, input1)
  *     .and(input2Tag, input2)
  *   .apply(CoGroup
