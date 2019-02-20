@@ -103,8 +103,8 @@ public class BigQueryUtils {
           .put("SqlDateType", StandardSQLTypeName.DATE)
           .put("SqlTimeType", StandardSQLTypeName.TIME)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
-          .put("SqlTimestamp", StandardSQLTypeName.TIMESTAMP)
           .put("SqlTimestampWithLocalTzType", StandardSQLTypeName.TIMESTAMP)
+          .put("SqlCharType", StandardSQLTypeName.STRING)
           .build();
 
   /**
