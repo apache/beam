@@ -38,12 +38,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests to validate HadoopInputFormatIO for embedded Cassandra instance. */
+@Ignore("Ignored because HadoopInputFormatIO is deprecated, tested by HadoopFormatIOCassandraTest")
 @RunWith(JUnit4.class)
 public class HIFIOWithEmbeddedCassandraTest implements Serializable {
   private static final long serialVersionUID = 1L;
