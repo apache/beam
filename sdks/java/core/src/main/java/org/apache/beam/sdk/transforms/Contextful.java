@@ -112,6 +112,12 @@ public final class Contextful<ClosureT> implements Serializable {
     return new Contextful<>((element, c) -> fn.apply(element), Requirements.empty());
   }
 
+  /** Binary compatibility adapter for {@link #fn(ProcessFunction)}. */
+  public static <InputT, OutputT> Contextful<Fn<InputT, OutputT>> fn(
+      final SerializableFunction<InputT, OutputT> fn) {
+    return fn((ProcessFunction<InputT, OutputT>) fn);
+  }
+
   /** Same with {@link #of} but with better type inference behavior for the case of {@link Fn}. */
   public static <InputT, OutputT> Contextful<Fn<InputT, OutputT>> fn(
       final Fn<InputT, OutputT> fn, Requirements requirements) {

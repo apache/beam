@@ -76,6 +76,12 @@ public class MapElements<InputT, OutputT>
         Contextful.fn(fn), fn, fn.getInputTypeDescriptor(), fn.getOutputTypeDescriptor());
   }
 
+  /** Binary compatibility adapter for {@link #via(InferableFunction)}. */
+  public static <InputT, OutputT> MapElements<InputT, OutputT> via(
+      final SimpleFunction<InputT, OutputT> fn) {
+    return via((InferableFunction<InputT, OutputT>) fn);
+  }
+
   /**
    * Returns a new {@link MapElements} transform with the given type descriptor for the output type,
    * but the mapping function yet to be specified using {@link #via(ProcessFunction)}.
@@ -99,6 +105,12 @@ public class MapElements<InputT, OutputT>
    */
   public <NewInputT> MapElements<NewInputT, OutputT> via(ProcessFunction<NewInputT, OutputT> fn) {
     return new MapElements<>(Contextful.fn(fn), fn, TypeDescriptors.inputOf(fn), outputType);
+  }
+
+  /** Binary compatibility adapter for {@link #via(ProcessFunction)}. */
+  public <NewInputT> MapElements<NewInputT, OutputT> via(
+      SerializableFunction<NewInputT, OutputT> fn) {
+    return via((ProcessFunction<NewInputT, OutputT>) fn);
   }
 
   /** Like {@link #via(ProcessFunction)}, but supports access to context, such as side inputs. */
