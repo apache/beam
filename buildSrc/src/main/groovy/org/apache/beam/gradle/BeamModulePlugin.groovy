@@ -1550,6 +1550,9 @@ class BeamModulePlugin implements Plugin<Project> {
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
+        // increase maxHeapSize as this is directly correlated to direct memory,
+        // see https://issues.apache.org/jira/browse/BEAM-6698
+        maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
           dependsOn ':beam-sdks-java-container:docker'
         }
