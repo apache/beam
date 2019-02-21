@@ -264,8 +264,7 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
-    // TODO(BEAM-6232): ViewTest tests sideinputs, which is not supported bu current bundle execution.
-    exclude '**/ViewTest.class'
+    include "**/ViewTest.class"
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         commonExcludeCategories.each {
@@ -274,8 +273,6 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
         fnApiWorkerExcludeCategories.each {
             excludeCategories it
         }
-        // TODO(BEAM-6232): Support sideinput.
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
         // TODO(BEAM-6233): Support timer and state.
         excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     }
