@@ -51,7 +51,7 @@ GIT_REPO_URL=https://github.com/apache/beam.git
 PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
 HUB_VERSION=2.5.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
-declare -a PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
+declare -a DEFAULT_PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
 
 echo "[Input Required] Please enter the release version: "
 read RELEASE
@@ -293,6 +293,15 @@ if [[ $confirmation = "y" ]]; then
   sudo `which pip` install --upgrade pip
   sudo `which pip` install --upgrade setuptools
   sudo `which pip` install --upgrade virtualenv
+
+  echo "[Input Required] Please enter Python interpreter(s) separated by space to use for running validation steps."
+  echo "Sample input: python2.7"
+  echo "Enter empty line to repeat validation steps using all of ${DEFAULT_PYTHON_VERSIONS_TO_VALIDATE[@]}."
+
+  read -a PYTHON_VERSIONS_TO_VALIDATE
+  if [[ -z "$PYTHON_VERSIONS_TO_VALIDATE" ]]; then
+    PYTHON_VERSIONS_TO_VALIDATE=${DEFAULT_PYTHON_VERSIONS_TO_VALIDATE[@]}
+  fi
 
   for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
   do
