@@ -1,7 +1,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions;
 
 import java.util.ArrayList;
-import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.spark.sql.Encoder;
