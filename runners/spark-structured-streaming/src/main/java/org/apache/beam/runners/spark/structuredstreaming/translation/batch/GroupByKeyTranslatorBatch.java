@@ -19,9 +19,10 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -47,8 +48,7 @@ class GroupByKeyTranslatorBatch<K, V>
     // Extract key to group by key only.
     KeyValueGroupedDataset<K, KV<K, V>> grouped =
         input
-            .map(
-                (MapFunction<WindowedValue<KV<K, V>>, KV<K, V>>) WindowedValue::getValue,
+            .map(WindowingHelpers.unwindowMapFunction(),
                 EncoderHelpers.kvEncoder())
             .groupByKey((MapFunction<KV<K, V>, K>) KV::getKey, EncoderHelpers.genericEncoder());
 
@@ -69,9 +69,7 @@ class GroupByKeyTranslatorBatch<K, V>
 
     // Window the result into global window.
     Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
-        materialized.map(
-            (MapFunction<KV<K, Iterable<V>>, WindowedValue<KV<K, Iterable<V>>>>)
-                WindowedValue::valueInGlobalWindow,
+        materialized.map(WindowingHelpers.windowMapFunction(),
             EncoderHelpers.windowedValueEncoder());
 
     context.putDataset(context.getOutput(), output);
