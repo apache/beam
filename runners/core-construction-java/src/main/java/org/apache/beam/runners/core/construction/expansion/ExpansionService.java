@@ -180,11 +180,17 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 .filter(id -> !existingTransformIds.contains(id))
                 .collect(Collectors.toList()));
     RunnerApi.Components components = pipelineProto.getComponents();
-    LOG.debug("Expanded to {}", components.getTransformsOrThrow(expandedTransformId));
+    RunnerApi.PTransform expandedTransform =
+        components
+            .getTransformsOrThrow(expandedTransformId)
+            .toBuilder()
+            .setUniqueName(expandedTransformId)
+            .build();
+    LOG.debug("Expanded to {}", expandedTransform);
 
     return ExpansionApi.ExpansionResponse.newBuilder()
         .setComponents(components.toBuilder().removeTransforms(expandedTransformId))
-        .setTransform(components.getTransformsOrThrow(expandedTransformId))
+        .setTransform(expandedTransform)
         .build();
   }
 

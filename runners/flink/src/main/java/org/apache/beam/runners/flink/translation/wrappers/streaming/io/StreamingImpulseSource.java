@@ -26,7 +26,10 @@ import org.slf4j.LoggerFactory;
 /**
  * A streaming source that periodically produces an empty byte array. This is mostly useful for
  * debugging, or for triggering periodic behavior in a portable pipeline.
+ *
+ * @deprecated Legacy non-portable source which can be replaced by a DoFn with timers.
  */
+@Deprecated
 public class StreamingImpulseSource extends RichParallelSourceFunction<WindowedValue<byte[]>> {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingImpulseSource.class);
 
