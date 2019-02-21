@@ -63,7 +63,7 @@ task runTestExpansionService (type: JavaExec) {
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
 
-task jarTestExpansionService(type: Jar) {
+task buildTestExpansionServiceJar(type: Jar) {
   dependsOn = [shadowJar, shadowTestJar]
   appendix = "testExpansionService"
   manifest {

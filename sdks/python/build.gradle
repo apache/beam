@@ -203,7 +203,7 @@ task portableWordCount {
 def portableWordCountTask(name, streaming, crossLanguage) {
   tasks.create(name) {
     dependsOn = ['installGcpTest']
-    mustRunAfter = [':beam-runners-flink_2.11-job-server-container:docker', ':beam-sdks-python-container:docker', ':beam-sdks-java-container:docker', ':beam-runners-core-construction-java:jarTestExpansionService']
+    mustRunAfter = [':beam-runners-flink_2.11-job-server-container:docker', ':beam-sdks-python-container:docker', ':beam-sdks-java-container:docker', ':beam-runners-core-construction-java:buildTestExpansionServiceJar']
     doLast {
       // TODO: Figure out GCS credentials and use real GCS input and output.
       def options = [
@@ -220,7 +220,7 @@ def portableWordCountTask(name, streaming, crossLanguage) {
         // workaround for local file output in docker container
         options += ["--environment_cache_millis=10000"]
       if (crossLanguage)
-        options += ["--expansion_service_jar=${project(":beam-runners-core-construction-java:").jarTestExpansionService.archivePath}"]
+        options += ["--expansion_service_jar=${project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath}"]
       if (project.hasProperty("jobEndpoint"))
         options += ["--job_endpoint=${project.property('jobEndpoint')}"]
       def wordcountMain = crossLanguage ? "apache_beam.examples.wordcount_xlang" : "apache_beam.examples.wordcount"
@@ -449,11 +449,11 @@ project.task('createProcessWorker') {
 project.task('crossLanguagePythonJava') {
   dependsOn 'setupVirtualenv'
   dependsOn ':beam-sdks-java-container:docker'
-  dependsOn ':beam-runners-core-construction-java:jarTestExpansionService'
+  dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${project(":beam-runners-core-construction-java:").jarTestExpansionService.archivePath}"
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath}"
     }
   }
 }
