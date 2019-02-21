@@ -21,6 +21,7 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -71,6 +72,7 @@ class BeamModulePlugin implements Plugin<Project> {
  * limitations under the License.
  */
 """
+  static AtomicInteger startingExpansionPortNumber = new AtomicInteger(18091)
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
@@ -1545,6 +1547,7 @@ class BeamModulePlugin implements Plugin<Project> {
        */
       project.evaluationDependsOn(":beam-sdks-java-core")
       project.evaluationDependsOn(":beam-runners-core-java")
+      project.evaluationDependsOn(":beam-runners-core-construction-java")
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
       def name = config.name
       def beamTestPipelineOptions = [
@@ -1552,6 +1555,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "--jobServerDriver=${config.jobServerDriver}",
         "--environmentCacheMillis=10000"
       ]
+      def expansionPort = startingExpansionPortNumber.getAndDecrement()
       beamTestPipelineOptions.addAll(config.pipelineOpts)
       if (config.environment == PortableValidatesRunnerConfiguration.Environment.EMBEDDED) {
         beamTestPipelineOptions += "--defaultEnvironmentType=EMBEDDED"
@@ -1563,8 +1567,9 @@ class BeamModulePlugin implements Plugin<Project> {
         group = "Verification"
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
         systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+        systemProperty "expansionPort", expansionPort
         classpath = config.testClasspathConfiguration
-        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
         // increase maxHeapSize as this is directly correlated to direct memory,
