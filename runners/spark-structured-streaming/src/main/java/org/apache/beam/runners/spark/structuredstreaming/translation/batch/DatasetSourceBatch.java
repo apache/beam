@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -159,23 +160,10 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
 
     @Override
     public InternalRow get() {
-      List<Object> list = new ArrayList<>();
       WindowedValue<T> windowedValue =
           WindowedValue.timestampedValueInGlobalWindow(
               reader.getCurrent(), reader.getCurrentTimestamp());
-      //serialize the windowedValue to bytes array to comply with dataset binary schema
-      WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
-          WindowedValue.FullWindowedValueCoder.of(
-              source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
-      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-      try {
-        windowedValueCoder.encode(windowedValue, byteArrayOutputStream);
-        byte[] bytes = byteArrayOutputStream.toByteArray();
-        list.add(bytes);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      return InternalRow.apply(asScalaBuffer(list).toList());
+      return WindowingHelpers.windowedValueToRow(windowedValue, source.getOutputCoder());
     }
 
     @Override

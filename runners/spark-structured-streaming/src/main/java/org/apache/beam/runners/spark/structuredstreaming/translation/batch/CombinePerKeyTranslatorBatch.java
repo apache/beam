@@ -20,10 +20,11 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import java.io.ByteArrayInputStream;
-import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.AggregatorCombiner;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -68,8 +69,7 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT> implements
     Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(context.getInput());
 
     Dataset<KV<K, InputT>> keyedDataset = inputDataset
-        .map((MapFunction<WindowedValue<KV<K, InputT>>, KV<K, InputT>>) WindowedValue::getValue,
-            EncoderHelpers.kvEncoder());
+        .map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.windowedValueEncoder());
     //TODO do the aggregation per key
     Dataset<Row> rowDataset = keyedDataset.select(
         new AggregatorCombiner<>(combineFn, accumulatorCoder, outputCoder.getValueCoder())
@@ -96,12 +96,8 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT> implements
 
 
     // Window the result into global window.
-    //TODO generify and make a util method for use with Pardo/GBK and combine
     Dataset<WindowedValue<KV<K, OutputT>>> outputDataset =
-        dataset.map(
-            (MapFunction<KV<K, OutputT>, WindowedValue<KV<K, OutputT>>>)
-                WindowedValue::valueInGlobalWindow,
-            EncoderHelpers.windowedValueEncoder());
+        dataset.map(WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
     context.putDataset(output, outputDataset);
 
   }
