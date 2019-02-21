@@ -279,11 +279,12 @@ class WriteToParquet(PTransform):
 
     .. testsetup::
 
+      from tempfile import NamedTemporaryFile
       import glob
       import os
       import pyarrow
 
-      filename = 'myoutput'
+      filename = NamedTemporaryFile(delete=False).name
 
     .. testcode::
 
