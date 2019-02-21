@@ -463,6 +463,28 @@ class TopCombineFn(core.CombineFn):
     self._less_than = None
     self._key = key
 
+  def _hydrated_heap(self, heap):
+    if heap:
+      first = heap[0]
+      if isinstance(first, cy_combiners.ComparableValue):
+        if first.requires_hydration:
+          assert self._less_than is not None
+          for comparable in heap:
+            assert comparable.requires_hydration
+            comparable.hydrate(self._less_than, self._key)
+            assert not comparable.requires_hydration
+          return heap
+        else:
+          return heap
+      else:
+        assert self._less_than is not None
+        return [
+            cy_combiners.ComparableValue(element, self._less_than, self._key)
+            for element in heap
+        ]
+    else:
+      return heap
+
   def display_data(self):
     return {'n': self._n,
             'compare': DisplayDataItem(self._compare.__name__
@@ -474,10 +496,11 @@ class TopCombineFn(core.CombineFn):
   # (bool, Union[List[T], List[ComparableValue[T]])
   # where the boolean indicates whether the second slot contains a List of T
   # (False) or List of ComparableValue[T] (True). In either case, the List
-  # maintains heap invariance.
+  # maintains heap invariance. When the contents of the List are
+  # ComparableValue[T] they either all 'requires_hydration' or none do.
   # This accumulator representation allows us to minimize the data encoding
-  # overheads. Creation of ComparableValues is also elided when there is no need
-  # for complicated comparison functions.
+  # overheads. Creation of ComparableValues is elided for performance reasons
+  # when there is no need for complicated comparison functions.
   def create_accumulator(self, *args, **kwargs):
     return (False, [])
 
@@ -492,11 +515,8 @@ class TopCombineFn(core.CombineFn):
 
     holds_comparables, heap = accumulator
     if self._less_than is not operator.lt or self._key:
-      if not holds_comparables:
-        heap = [
-            cy_combiners.ComparableValue(value, self._less_than, self._key)
-            for value in heap]
-        holds_comparables = True
+      heap = self._hydrated_heap(heap)
+      holds_comparables = True
     else:
       assert not holds_comparables
 
@@ -524,11 +544,8 @@ class TopCombineFn(core.CombineFn):
     for accumulator in accumulators:
       holds_comparables, heap = accumulator
       if self._less_than is not operator.lt or self._key:
-        if not holds_comparables:
-          heap = [
-              cy_combiners.ComparableValue(value, self._less_than, self._key)
-              for value in heap]
-          holds_comparables = True
+        heap = self._hydrated_heap(heap)
+        holds_comparables = True
       else:
         assert not holds_comparables
 
@@ -560,10 +577,7 @@ class TopCombineFn(core.CombineFn):
     holds_comparables, heap = accumulator
     if self._less_than is not operator.lt or self._key:
       if not holds_comparables:
-        heap = [
-            cy_combiners.ComparableValue(value, self._less_than, self._key)
-            for value in heap
-        ]
+        heap = self._hydrated_heap(heap)
         holds_comparables = True
     else:
       assert not holds_comparables
