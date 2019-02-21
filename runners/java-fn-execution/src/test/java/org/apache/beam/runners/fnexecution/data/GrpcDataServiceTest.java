@@ -79,6 +79,7 @@ public class GrpcDataServiceTest {
                 () -> {
                   ManagedChannel channel =
                       InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
+                          .directExecutor()
                           .build();
                   StreamObserver<Elements> outboundObserver =
                       BeamFnDataGrpc.newStub(channel)
