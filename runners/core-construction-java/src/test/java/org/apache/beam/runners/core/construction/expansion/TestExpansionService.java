@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction.expansion;
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Filter;
@@ -51,7 +52,7 @@ public class TestExpansionService {
     }
   }
 
-  /** Exposes Java's GenerateSequence transform */
+  /** Exposes Java's GenerateSequence transform. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
   public static class RegisteredTransforms implements ExpansionService.ExpansionServiceRegistrar {
 
