@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -630,7 +631,7 @@ public class Group {
     public PCollection<KV<Row, Iterable<InputT>>> expand(PCollection<InputT> input) {
       Schema schema = input.getSchema();
       FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
-      keySchema = Select.getOutputSchema(schema, resolved);
+      keySchema = SelectHelpers.getOutputSchema(schema, resolved);
       return input
           .apply(
               "Group by fields",
@@ -641,7 +642,9 @@ public class Group {
                         @Element InputT element,
                         @Element Row row,
                         OutputReceiver<KV<Row, InputT>> o) {
-                      o.output(KV.of(Select.selectRow(row, resolved, schema, keySchema), element));
+                      o.output(
+                          KV.of(
+                              SelectHelpers.selectRow(row, resolved, schema, keySchema), element));
                     }
                   }))
           .setCoder(KvCoder.of(SchemaCoder.of(keySchema), input.getCoder()))
