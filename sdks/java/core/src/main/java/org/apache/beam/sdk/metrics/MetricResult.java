@@ -18,21 +18,28 @@
 package org.apache.beam.sdk.metrics;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
+import com.google.auto.value.AutoValue;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * The results of a single current metric. TODO(BEAM-6265): Decouple wire formats from internal
- * formats, remove usage of MetricName.
+ * The results of a single current metric.
+ *
+ * <p>TODO(BEAM-6265): Decouple wire formats from internal formats, remove usage of MetricName.
  */
 @Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
-public interface MetricResult<T> {
+@AutoValue
+public abstract class MetricResult<T> {
   /** Return the name of the metric. */
-  MetricName getName();
+  public abstract MetricName getName();
 
   /** Return the step context to which this metric result applies. */
-  String getStep();
+  @Nullable
+  public abstract String getStep();
 
   /**
    * Return the value of this metric across all successfully completed parts of the pipeline.
@@ -40,12 +47,63 @@ public interface MetricResult<T> {
    * <p>Not all runners will support committed metrics. If they are not supported, the runner will
    * throw an {@link UnsupportedOperationException}.
    */
-  T getCommitted();
+  public T getCommitted() {
+    T committed = getCommittedOrNull();
+    if (committed == null) {
+      throw new UnsupportedOperationException(
+          "This runner does not currently support committed"
+              + " metrics results. Please use 'attempted' instead.");
+    }
+    return committed;
+  }
+
+  public boolean hasCommitted() {
+    return getCommittedOrNull() != null;
+  }
 
   /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
-  T getAttempted();
+  @Nullable
+  public abstract T getCommittedOrNull();
 
-  static <T> DefaultMetricResult<T> create(MetricName name, String step, T committed, T attempted) {
-    return new AutoValue_DefaultMetricResult<>(name, step, committed, attempted);
+  /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
+  public abstract T getAttempted();
+
+  public <V> MetricResult<V> transform(Function<T, V> fn) {
+    T committed = getCommittedOrNull();
+    return create(
+        getName(),
+        getStep(),
+        committed == null ? null : fn.apply(committed),
+        fn.apply(getAttempted()));
+  }
+
+  public MetricResult<T> addAttempted(T update, BiFunction<T, T, T> combine) {
+    return create(getName(), getStep(), getCommitted(), combine.apply(getAttempted(), update));
+  }
+
+  public MetricResult<T> addCommitted(T update, BiFunction<T, T, T> combine) {
+    T committed = getCommittedOrNull();
+    return create(
+        getName(),
+        getStep(),
+        committed == null ? update : combine.apply(committed, update),
+        getAttempted());
+  }
+
+  public static <T> MetricResult<T> attempted(MetricName name, @Nullable String step, T attempted) {
+    return new AutoValue_MetricResult<>(name, step, null, attempted);
+  }
+
+  public static <T> MetricResult<T> create(
+      MetricName name, @Nullable String step, Boolean isCommittedSupported, T value) {
+    if (isCommittedSupported) {
+      return create(name, step, value, value);
+    }
+    return attempted(name, step, value);
+  }
+
+  public static <T> MetricResult<T> create(
+      MetricName name, @Nullable String step, @Nullable T committed, T attempted) {
+    return new AutoValue_MetricResult<>(name, step, committed, attempted);
   }
 }
