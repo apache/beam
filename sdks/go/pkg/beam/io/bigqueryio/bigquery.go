@@ -34,6 +34,8 @@ import (
 
 // writeSizeLimit is the maximum number of rows allowed by BQ in a write.
 const writeRowLimit = 10000
+// writeSizeLimit is the maximum  number of bytes allowed in BQ write.
+const writeSizeLimit = 10000000
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*queryFn)(nil)).Elem())
@@ -184,6 +186,33 @@ type writeFn struct {
 	Type beam.EncodedType `json:"type"`
 }
 
+// Approximate the size of an element to not exceed the bigquery API limit.
+func getSize(v interface{}) int {
+	t := reflect.TypeOf(v)
+	switch t.Kind() {
+	case reflect.Slice:
+		s := reflect.ValueOf(v)
+		size := int(t.Size())
+		for i := 0; i < s.Len(); i++ {
+			size += getSize(s.Index(i).Interface())
+		}
+		return size
+	case reflect.String:
+		return int(t.Size()) + reflect.ValueOf(v).Len()
+	case reflect.Struct:
+		s := reflect.ValueOf(v)
+		size := 0
+		for i := 0; i < s.NumField(); i++ {
+			if s.Field(i).CanInterface() {
+				size += getSize(s.Field(i).Interface())
+			}
+		}
+		return size
+	default:
+		return int(t.Size())
+	}
+}
+
 func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
 	client, err := bigquery.NewClient(ctx, f.Project)
 	if err != nil {
@@ -209,16 +238,20 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	}
 
 	var data []reflect.Value
+	var size = 0
 	var val beam.X
 	for iter(&val) {
-		data = append(data, reflect.ValueOf(val.(interface{})))
-
-		if len(data) == writeRowLimit {
+		current := getSize(val.(interface{}))
+		if len(data) + 1 > writeRowLimit || size + current > writeSizeLimit {
 			// Write rows in batches to comply with BQ limits.
 			if err := put(ctx, table, f.Type.T, data); err != nil {
-				return err
+				return fmt.Errorf("write error: %d : %v",  size, err)
 			}
 			data = nil
+			size = 0
+		} else {
+			data = append(data, reflect.ValueOf(val.(interface{})))
+			size += current
 		}
 	}
 	if len(data) == 0 {
@@ -234,7 +267,10 @@ func put(ctx context.Context, table *bigquery.Table, t reflect.Type, data []refl
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
-	return table.Uploader().Put(ctx, list)
+	if err :=  table.Uploader().Put(ctx, list);  err != nil {
+		return fmt.Errorf("bigquery write error: %v", err)
+	}
+	return nil
 }
 
 func isNotFound(err error) bool {
