@@ -27,6 +27,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.LRUMap;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Optional;
@@ -1163,17 +1164,29 @@ public class DoFnOperatorTest {
     testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("c")));
 
     // draw a snapshot
+    boolean bundleFinishedBeforeSnapshot = callPrepareSnapshotPreBarrier(doFnOperator);
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
     // There is a finishBundle in snapshot()
-    // Elements will be buffered as part of finishing a bundle in snapshot()
-    assertThat(
-        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(
-            WindowedValue.valueInGlobalWindow("a"),
-            WindowedValue.valueInGlobalWindow("b"),
-            WindowedValue.valueInGlobalWindow("finishBundle"),
-            WindowedValue.valueInGlobalWindow("c")));
+    if (bundleFinishedBeforeSnapshot) {
+      assertThat(
+          stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow("a"),
+              WindowedValue.valueInGlobalWindow("b"),
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("c"),
+              WindowedValue.valueInGlobalWindow("finishBundle")));
+    } else {
+      // Elements will be buffered as part of finishing a bundle in snapshot()
+      assertThat(
+          stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow("a"),
+              WindowedValue.valueInGlobalWindow("b"),
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("c")));
+    }
 
     testHarness.close();
 
@@ -1209,38 +1222,65 @@ public class DoFnOperatorTest {
     // check finishBundle by timeout
     newHarness.setProcessingTime(10);
 
-    assertThat(
-        stripStreamRecordFromWindowedValue(newHarness.getOutput()),
-        contains(
-            WindowedValue.valueInGlobalWindow("finishBundle"),
-            WindowedValue.valueInGlobalWindow("d"),
-            WindowedValue.valueInGlobalWindow("finishBundle")));
+    if (bundleFinishedBeforeSnapshot) {
+      assertThat(
+          stripStreamRecordFromWindowedValue(newHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow("d"),
+              WindowedValue.valueInGlobalWindow("finishBundle")));
+    } else {
+      assertThat(
+          stripStreamRecordFromWindowedValue(newHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("d"),
+              WindowedValue.valueInGlobalWindow("finishBundle")));
+    }
 
     // A final bundle will be created when sending the MAX watermark
     newHarness.close();
 
-    assertThat(
-        stripStreamRecordFromWindowedValue(newHarness.getOutput()),
-        contains(
-            WindowedValue.valueInGlobalWindow("finishBundle"),
-            WindowedValue.valueInGlobalWindow("d"),
-            WindowedValue.valueInGlobalWindow("finishBundle"),
-            WindowedValue.valueInGlobalWindow("finishBundle")));
+    if (bundleFinishedBeforeSnapshot) {
+      assertThat(
+          stripStreamRecordFromWindowedValue(newHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow("d"),
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("finishBundle")));
+    } else {
+      assertThat(
+          stripStreamRecordFromWindowedValue(newHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("d"),
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("finishBundle")));
+    }
 
     // close() will also call dispose(), but call again to verify no new bundle
     // is created afterwards
     newDoFnOperator.dispose();
 
-    assertThat(
-        stripStreamRecordFromWindowedValue(newHarness.getOutput()),
-        contains(
-            WindowedValue.valueInGlobalWindow("finishBundle"),
-            WindowedValue.valueInGlobalWindow("d"),
-            WindowedValue.valueInGlobalWindow("finishBundle"),
-            WindowedValue.valueInGlobalWindow("finishBundle")));
+    if (bundleFinishedBeforeSnapshot) {
+      assertThat(
+          stripStreamRecordFromWindowedValue(newHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow("d"),
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("finishBundle")));
+    } else {
+      assertThat(
+          stripStreamRecordFromWindowedValue(newHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("d"),
+              WindowedValue.valueInGlobalWindow("finishBundle"),
+              WindowedValue.valueInGlobalWindow("finishBundle")));
+    }
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testBundleKeyed() throws Exception {
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
@@ -1303,17 +1343,29 @@ public class DoFnOperatorTest {
         new StreamRecord(WindowedValue.valueInGlobalWindow(KV.of("key", "c"))));
 
     // Take a snapshot
+    boolean bundleFinishedBeforeSnapshot = callPrepareSnapshotPreBarrier(doFnOperator);
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
     // There is a finishBundle in snapshot()
-    // Elements will be buffered as part of finishing a bundle in snapshot()
-    assertThat(
-        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "c"))));
+    if (bundleFinishedBeforeSnapshot) {
+      assertThat(
+          stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
+              WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+              WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
+              WindowedValue.valueInGlobalWindow(KV.of("key", "c")),
+              WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
+    } else {
+      // Elements will be buffered as part of finishing a bundle in snapshot()
+      assertThat(
+          stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
+              WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+              WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
+              WindowedValue.valueInGlobalWindow(KV.of("key", "c"))));
+    }
 
     testHarness.close();
 
@@ -1351,13 +1403,21 @@ public class DoFnOperatorTest {
     // check finishBundle by timeout
     testHarness.setProcessingTime(10);
 
-    assertThat(
-        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(
-            // The first finishBundle is restored from the checkpoint
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "d")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
+    if (bundleFinishedBeforeSnapshot) {
+      assertThat(
+          stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+          contains(
+              WindowedValue.valueInGlobalWindow(KV.of("key", "d")),
+              WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
+    } else {
+      assertThat(
+          stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+          contains(
+              // The first finishBundle is restored from the checkpoint
+              WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
+              WindowedValue.valueInGlobalWindow(KV.of("key", "d")),
+              WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
+    }
 
     testHarness.close();
   }
@@ -1478,5 +1538,23 @@ public class DoFnOperatorTest {
 
   private interface TestHarnessFactory<T> {
     T create() throws Exception;
+  }
+
+  /**
+   * Flink version >=1.6 provides a hook for performing an action before the snapshot barrier is
+   * emitted to downstream operators. This avoids buffering elements emitted during finalizing the
+   * bundle in the snapshot method.
+   */
+  private static boolean callPrepareSnapshotPreBarrier(DoFnOperator doFnOperator) throws Exception {
+    Method prepareSnapshotPreBarrier;
+    try {
+      prepareSnapshotPreBarrier =
+          doFnOperator.getClass().getMethod("prepareSnapshotPreBarrier", long.class);
+      prepareSnapshotPreBarrier.invoke(doFnOperator, 0L);
+      return true;
+    } catch (NoSuchMethodException e) {
+      // that's ok. not supported in this Flink version.
+      return false;
+    }
   }
 }

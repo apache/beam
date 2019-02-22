@@ -102,4 +102,11 @@
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
+
+  <!-- Flink exceptions -->
+  <!-- These prevent "Missing/Duplicate package-info.java file" when using multiple source directories -->
+  <suppress checks="JavadocPackage" files=".*/DoFnOperator\.java" />
+  <suppress checks="JavadocPackage" files=".*/FlinkSplitStateInternals\.java" />
+  <suppress checks="JavadocPackage" files=".*/FlinkSplitStateInternalsTest\.java" />
+
 </suppressions>

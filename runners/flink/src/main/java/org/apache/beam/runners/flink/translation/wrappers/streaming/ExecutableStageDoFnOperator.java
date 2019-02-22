@@ -40,6 +40,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -117,7 +118,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient FlinkMetricContainer flinkMetricContainer;
   private transient long backupWatermarkHold = Long.MIN_VALUE;
 
-  /** Constructor. */
+  /** This is a constructor, please see the class description above. */
   public ExecutableStageDoFnOperator(
       String stepName,
       Coder<WindowedValue<InputT>> windowedInputCoder,
@@ -505,7 +506,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final StageBundleFactory stageBundleFactory;
     private final StateRequestHandler stateRequestHandler;
     private final BundleProgressHandler progressHandler;
-    private final BufferedOutputManager<OutputT> outputManager;
+    private final DoFnRunners.OutputManager outputManager;
     private final Map<String, TupleTag<?>> outputMap;
     /** Timer Output Pcollection id => TimerSpec. */
     private final Map<String, TimerSpec> timerOutputIdToSpecMap;
@@ -528,7 +529,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         StageBundleFactory stageBundleFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
-        BufferedOutputManager<OutputT> outputManager,
+        DoFnRunners.OutputManager outputManager,
         Map<String, TupleTag<?>> outputMap,
         Coder<BoundedWindow> windowCoder,
         KeySelector<WindowedValue<InputT>, ?> keySelector,
