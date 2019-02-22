@@ -65,7 +65,6 @@ public final class FlinkPipelineTranslatorUtils {
         components.getWindowingStrategiesOrThrow(
             components.getPcollectionsOrThrow(pCollectionId).getWindowingStrategyId());
 
-    final WindowingStrategy<?, ?> windowingStrategy;
     try {
       return WindowingStrategyTranslation.fromProto(
           windowingStrategyProto, RehydratedComponents.forComponents(components));
