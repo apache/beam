@@ -19,7 +19,7 @@
 plugins {
   id 'base'
   // Enable publishing build scans
-  id 'com.gradle.build-scan' version '2.1' apply false
+  id 'com.gradle.build-scan' version '1.13.1' apply false
   // This plugin provides a task to determine which dependencies have updates.
   // Additionally, the plugin checks for updates to Gradle itself.
   //
