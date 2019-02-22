@@ -187,8 +187,8 @@ type writeFn struct {
 	Type beam.EncodedType `json:"type"`
 }
 
-// Approximate the size of an element to not exceed the bigquery API limit.
-func getSize(v interface{}) (int, error) {
+// Approximate the size of an element as it would appear in a BQ insert request.
+func getInsertSize(v interface{}) (int, error) {
 	schema, err := bigquery.InferSchema(v)
 	if (err != nil) {
 		return 0, err
@@ -243,10 +243,12 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	}
 
 	var data []reflect.Value
-	var size = 0
+	// This stores the running byte size estimate of a BQ request. Initializing to 1KB
+	// as an estimate for overall message overhead.
+	var size = 1024
 	var val beam.X
 	for iter(&val) {
-		current, err := getSize(val.(interface{}))
+		current, err := getInsertSize(val.(interface{}))
 		if err != nil {
 			return fmt.Errorf("biquery write error: %v", err)
 		}
