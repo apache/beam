@@ -245,7 +245,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 		if len(data) + 1 > writeRowLimit || size + current > writeSizeLimit {
 			// Write rows in batches to comply with BQ limits.
 			if err := put(ctx, table, f.Type.T, data); err != nil {
-				return fmt.Errorf("write error: %d : %v",  size, err)
+				return err
 			}
 			data = nil
 			size = 0
