@@ -39,7 +39,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -69,8 +68,7 @@ public class SamzaDoFnRunners {
       DoFnRunners.OutputManager outputManager,
       Coder<InT> inputCoder,
       List<TupleTag<?>> sideOutputTags,
-      Map<TupleTag<?>, Coder<?>> outputCoders,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      Map<TupleTag<?>, Coder<?>> outputCoders) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
@@ -102,8 +100,7 @@ public class SamzaDoFnRunners {
             createStepContext(stateInternals, timerInternals),
             inputCoder,
             outputCoders,
-            windowingStrategy,
-            doFnSchemaInformation);
+            windowingStrategy);
 
     final DoFnRunner<InT, FnOutT> doFnRunnerWithMetrics =
         DoFnRunnerWithMetrics.wrap(

@@ -87,7 +87,7 @@ public class DoFnSignatures {
           ImmutableList.of(
               Parameter.ProcessContextParameter.class,
               Parameter.ElementParameter.class,
-              Parameter.SchemaElementParameter.class,
+              Parameter.RowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
@@ -102,6 +102,7 @@ public class DoFnSignatures {
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
+              Parameter.RowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
@@ -819,6 +820,7 @@ public class DoFnSignatures {
     TypeDescriptor<?> trackerT = getTrackerType(fnClass, m);
     TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
     for (int i = 0; i < params.length; ++i) {
+
       Parameter extraParam =
           analyzeExtraParameter(
               errors.forMethod(DoFn.ProcessElement.class, m),
@@ -889,11 +891,15 @@ public class DoFnSignatures {
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
     if (hasElementAnnotation(param.getAnnotations())) {
-      if (paramT.equals(inputT)) {
-        return Parameter.elementParameter(paramT);
+      if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
+        // a null id means that there is no registered FieldAccessDescriptor, so we should default
+        // to all fields. If the input type of the DoFn is already Row, then no need to do
+        // anything special.
+        return Parameter.rowParameter(null);
       } else {
-        String fieldAccessString = getFieldAccessId(param.getAnnotations());
-        return Parameter.schemaElementParameter(paramT, fieldAccessString);
+        methodErrors.checkArgument(
+            paramT.equals(inputT), "@Element argument must have type %s", inputT);
+        return Parameter.elementParameter(paramT);
       }
     } else if (hasTimestampAnnotation(param.getAnnotations())) {
       methodErrors.checkArgument(
@@ -1022,6 +1028,15 @@ public class DoFnSignatures {
           stateDecl.field().getDeclaringClass().getName());
 
       return Parameter.stateParameter(stateDecl);
+    } else if (rawType.equals(Row.class)) {
+      String id = getFieldAccessId(param.getAnnotations());
+      paramErrors.checkArgument(
+          id != null, "missing %s annotation", DoFn.FieldAccess.class.getSimpleName());
+      FieldAccessDeclaration fieldAccessDeclaration =
+          fnContext.getFieldAccessDeclarations().get(id);
+      paramErrors.checkArgument(
+          fieldAccessDeclaration != null, "No FieldAccessDescriptor defined.");
+      return Parameter.rowParameter(id);
     } else {
       List<String> allowedParamTypes =
           Arrays.asList(
@@ -1061,11 +1076,21 @@ public class DoFnSignatures {
   }
 
   private static boolean hasElementAnnotation(List<Annotation> annotations) {
-    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Element.class));
+    for (Annotation anno : annotations) {
+      if (anno.annotationType().equals(DoFn.Element.class)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
-    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Timestamp.class));
+    for (Annotation anno : annotations) {
+      if (anno.annotationType().equals(DoFn.Timestamp.class)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Nullable

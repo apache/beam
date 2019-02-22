@@ -69,7 +69,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -169,8 +168,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   /** Max duration of a bundle. */
   private final long maxBundleTimeMills;
 
-  private final DoFnSchemaInformation doFnSchemaInformation;
-
   protected transient InternalTimerService<TimerData> timerService;
 
   protected transient FlinkTimerInternals timerInternals;
@@ -202,8 +199,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
       Coder<?> keyCoder,
-      KeySelector<WindowedValue<InputT>, ?> keySelector,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      KeySelector<WindowedValue<InputT>, ?> keySelector) {
     this.doFn = doFn;
     this.stepName = stepName;
     this.windowedInputCoder = inputWindowedCoder;
@@ -229,7 +225,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     this.maxBundleSize = flinkOptions.getMaxBundleSize();
     this.maxBundleTimeMills = flinkOptions.getMaxBundleTimeMills();
-    this.doFnSchemaInformation = doFnSchemaInformation;
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
@@ -358,8 +353,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             new FlinkStepContext(),
             inputCoder,
             outputCoders,
-            windowingStrategy,
-            doFnSchemaInformation);
+            windowingStrategy);
 
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 

@@ -239,11 +239,6 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public Object schemaElement(DoFn<InputT, OutputT> doFn) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
       public Instant timestamp(DoFn<InputT, OutputT> doFn) {
         return outerContext.timestamp();
       }
@@ -355,6 +350,11 @@ public class SplittableParDoNaiveBounded {
       public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
           DoFn<InputT, OutputT> doFn) {
         throw new IllegalStateException();
+      }
+
+      @Override
+      public Row asRow(@Nullable String id) {
+        throw new UnsupportedOperationException();
       }
 
       @Override

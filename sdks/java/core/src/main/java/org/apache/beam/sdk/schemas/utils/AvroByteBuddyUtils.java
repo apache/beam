@@ -84,9 +84,7 @@ class AvroByteBuddyUtils {
 
       return builder
           .make()
-          .load(
-              ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

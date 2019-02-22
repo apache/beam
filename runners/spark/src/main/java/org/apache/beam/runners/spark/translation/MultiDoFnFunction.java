@@ -36,7 +36,6 @@ import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -74,7 +73,6 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final boolean stateful;
-  private final DoFnSchemaInformation doFnSchemaInformation;
 
   /**
    * @param metricsAccum The Spark {@link Accumulator} that backs the Beam metrics.
@@ -99,8 +97,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       Map<TupleTag<?>, Coder<?>> outputCoders,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy,
-      boolean stateful,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      boolean stateful) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -112,7 +109,6 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;
     this.stateful = stateful;
-    this.doFnSchemaInformation = doFnSchemaInformation;
   }
 
   @Override
@@ -165,8 +161,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             context,
             inputCoder,
             outputCoders,
-            windowingStrategy,
-            doFnSchemaInformation);
+            windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);

@@ -50,7 +50,6 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -204,8 +203,7 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT,
-            DoFnSchemaInformation.create());
+            MAIN_OUTPUT);
     TestReceiver receiver = new TestReceiver();
     TestReceiver receiver1 = new TestReceiver();
     TestReceiver receiver2 = new TestReceiver();
@@ -229,7 +227,6 @@ public class SimpleParDoFnTest {
             BatchModeExecutionContext.forTesting(options, "testStage")
                 .getStepContext(operationContext),
             operationContext,
-            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     userParDoFn.startBundle(receiver, receiver1, receiver2, receiver3);
@@ -283,8 +280,7 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT,
-            DoFnSchemaInformation.create());
+            MAIN_OUTPUT);
     TestReceiver receiver = new TestReceiver();
 
     ParDoFn userParDoFn =
@@ -297,7 +293,6 @@ public class SimpleParDoFnTest {
             BatchModeExecutionContext.forTesting(options, "testStage")
                 .getStepContext(operationContext),
             operationContext,
-            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     try {
@@ -332,8 +327,7 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT,
-            DoFnSchemaInformation.create());
+            MAIN_OUTPUT);
     TestReceiver receiver = new TestReceiver();
 
     ParDoFn userParDoFn =
@@ -346,7 +340,6 @@ public class SimpleParDoFnTest {
             BatchModeExecutionContext.forTesting(options, "testStage")
                 .getStepContext(operationContext),
             operationContext,
-            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     try {
@@ -423,8 +416,7 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT,
-            DoFnSchemaInformation.create());
+            MAIN_OUTPUT);
     CounterSet counters = new CounterSet();
     TestOperationContext operationContext = TestOperationContext.create(counters);
     ParDoFn userParDoFn =
@@ -437,7 +429,6 @@ public class SimpleParDoFnTest {
             BatchModeExecutionContext.forTesting(options, "testStage")
                 .getStepContext(operationContext),
             operationContext,
-            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     userParDoFn.startBundle(new TestReceiver(), new TestReceiver());
@@ -483,8 +474,7 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT,
-            DoFnSchemaInformation.create());
+            MAIN_OUTPUT);
 
     ParDoFn userParDoFn =
         new SimpleParDoFn<>(
@@ -497,7 +487,6 @@ public class SimpleParDoFnTest {
                     options, operationContext.counterFactory(), "testStage")
                 .getStepContext(operationContext),
             operationContext,
-            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     // This test ensures proper behavior of the state sampling even with lazy initialization.
@@ -574,8 +563,7 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT,
-            DoFnSchemaInformation.create());
+            MAIN_OUTPUT);
 
     ParDoFn parDoFn =
         new SimpleParDoFn<>(
@@ -586,7 +574,6 @@ public class SimpleParDoFnTest {
             ImmutableMap.of(MAIN_OUTPUT, 0),
             stepContext,
             operationContext,
-            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     parDoFn.startBundle(new TestReceiver());

@@ -60,7 +60,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
@@ -418,8 +417,7 @@ class FlinkStreamingTransformTranslators {
           Map<TupleTag<?>, Coder<?>> outputCoders,
           Coder keyCoder,
           KeySelector<WindowedValue<InputT>, ?> keySelector,
-          Map<Integer, PCollectionView<?>> transformedSideInputs,
-          DoFnSchemaInformation doFnSchemaInformation);
+          Map<Integer, PCollectionView<?>> transformedSideInputs);
     }
 
     static <InputT, OutputT> void translateParDo(
@@ -430,7 +428,6 @@ class FlinkStreamingTransformTranslators {
         Map<TupleTag<?>, PValue> outputs,
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
-        DoFnSchemaInformation doFnSchemaInformation,
         FlinkStreamingTranslationContext context,
         DoFnOperatorFactory<InputT, OutputT> doFnOperatorFactory) {
 
@@ -508,8 +505,7 @@ class FlinkStreamingTransformTranslators {
                 outputCoders,
                 keyCoder,
                 keySelector,
-                new HashMap<>() /* side-input mapping */,
-                doFnSchemaInformation);
+                new HashMap<>() /* side-input mapping */);
 
         outputStream =
             inputDataStream.transform(transformName, outputTypeInformation, doFnOperator);
@@ -535,8 +531,7 @@ class FlinkStreamingTransformTranslators {
                 outputCoders,
                 keyCoder,
                 keySelector,
-                transformedSideInputs.f0,
-                doFnSchemaInformation);
+                transformedSideInputs.f0);
 
         if (stateful) {
           // we have to manually construct the two-input transform because we're not
@@ -622,9 +617,6 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
-      DoFnSchemaInformation doFnSchemaInformation;
-      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-
       ParDoTranslationHelper.translateParDo(
           getCurrentTransformName(context),
           doFn,
@@ -633,7 +625,6 @@ class FlinkStreamingTransformTranslators {
           context.getOutputs(transform),
           mainOutputTag,
           additionalOutputTags.getAll(),
-          doFnSchemaInformation,
           context,
           (doFn1,
               stepName,
@@ -650,8 +641,7 @@ class FlinkStreamingTransformTranslators {
               outputCoders1,
               keyCoder,
               keySelector,
-              transformedSideInputs,
-              doFnSchemaInformation1) ->
+              transformedSideInputs) ->
               new DoFnOperator<>(
                   doFn1,
                   stepName,
@@ -667,8 +657,7 @@ class FlinkStreamingTransformTranslators {
                   sideInputs1,
                   context1.getPipelineOptions(),
                   keyCoder,
-                  keySelector,
-                  doFnSchemaInformation1));
+                  keySelector));
     }
   }
 
@@ -692,7 +681,6 @@ class FlinkStreamingTransformTranslators {
           context.getOutputs(transform),
           transform.getMainOutputTag(),
           transform.getAdditionalOutputTags().getAll(),
-          DoFnSchemaInformation.create(),
           context,
           (doFn,
               stepName,
@@ -709,8 +697,7 @@ class FlinkStreamingTransformTranslators {
               outputCoders1,
               keyCoder,
               keySelector,
-              transformedSideInputs,
-              doFnSchemaInformation) ->
+              transformedSideInputs) ->
               new SplittableDoFnOperator<>(
                   doFn,
                   stepName,

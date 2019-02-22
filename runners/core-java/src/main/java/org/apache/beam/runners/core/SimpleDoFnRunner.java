@@ -19,8 +19,10 @@ package org.apache.beam.runners.core;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +30,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
@@ -38,10 +41,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -103,9 +107,32 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Nullable private Map<TupleTag<?>, Coder<?>> outputCoders;
 
-  @Nullable private final DoFnSchemaInformation doFnSchemaInformation;
+  @Nullable private final FieldAccessDescriptor fieldAccessDescriptor;
 
-  /** Constructor. */
+  // This constructor exists for backwards compatibility with the Dataflow runner.
+  // Once the Dataflow runner has been updated to use the new constructor, remove this one.
+  public SimpleDoFnRunner(
+      PipelineOptions options,
+      DoFn<InputT, OutputT> fn,
+      SideInputReader sideInputReader,
+      OutputManager outputManager,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> additionalOutputTags,
+      StepContext stepContext,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    this(
+        options,
+        fn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        null,
+        Collections.emptyMap(),
+        windowingStrategy);
+  }
+
   public SimpleDoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
@@ -116,8 +143,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       StepContext stepContext,
       @Nullable Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, ?> windowingStrategy,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      WindowingStrategy<?, ?> windowingStrategy) {
     this.options = options;
     this.fn = fn;
     this.signature = DoFnSignatures.getSignature(fn.getClass());
@@ -142,6 +168,43 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Sets.newHashSet(FluentIterable.<TupleTag<?>>of(mainOutputTag).append(additionalOutputTags));
     this.stepContext = stepContext;
 
+    // Currently we only support a single FieldAccessDescriptor on a processElement. We should
+    // decide whether to get rid of the FieldAccess ids, or find a use for multiple.
+    DoFnSignature doFnSignature = DoFnSignatures.getSignature(fn.getClass());
+    DoFnSignature.ProcessElementMethod processElementMethod = doFnSignature.processElement();
+    RowParameter rowParameter = processElementMethod.getRowParameter();
+    FieldAccessDescriptor fieldAccessDescriptor = null;
+    if (rowParameter != null) {
+      checkArgument(
+          schemaCoder != null,
+          "Cannot access object as a row if the input PCollection does not have a schema ."
+              + "DoFn "
+              + fn.getClass()
+              + " Coder "
+              + inputCoder.getClass().getSimpleName());
+      String id = rowParameter.fieldAccessId();
+      if (id == null) {
+        // This is the case where no FieldId is defined, just an @Element Row row. Default to all
+        // fields accessed.
+        fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
+      } else {
+        // In this case, we expect to have a FieldAccessDescriptor defined in the class.
+        FieldAccessDeclaration fieldAccessDeclaration =
+            doFnSignature.fieldAccessDeclarations().get(id);
+        checkArgument(
+            fieldAccessDeclaration != null, "No FieldAccessDeclaration defined with id", id);
+        checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
+        try {
+          fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      // Resolve the FieldAccessDescriptor. This converts all field names into field ids.
+      fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
+    }
+    this.fieldAccessDescriptor = fieldAccessDescriptor;
+
     // This is a cast of an _invariant_ coder. But we are assured by pipeline validation
     // that it really is the coder for whatever BoundedWindow subclass is provided
     @SuppressWarnings("unchecked")
@@ -149,7 +212,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
     this.windowCoder = untypedCoder;
     this.allowedLateness = windowingStrategy.getAllowedLateness();
-    this.doFnSchemaInformation = doFnSchemaInformation;
   }
 
   @Override
@@ -301,9 +363,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
-          "Element parameters are not supported outside of @ProcessElement method.");
+          "Cannot access element outside of @ProcessElement method.");
     }
 
     @Override
@@ -415,7 +477,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
@@ -631,9 +693,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
-      Row row = schemaCoder.getToRowFunction().apply(element());
-      return doFnSchemaInformation.getElementParameterSchema().getFromRowFunction().apply(row);
+    public Row asRow(@Nullable String id) {
+      checkState(fieldAccessDescriptor.getAllFields());
+      return schemaCoder.getToRowFunction().apply(element());
     }
 
     @Override
@@ -781,8 +843,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("Element parameters are not supported.");
+    public Row asRow(@Nullable String id) {
+      throw new UnsupportedOperationException(
+          "Cannot access element outside of @ProcessElement method.");
     }
 
     @Override

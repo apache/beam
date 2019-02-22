@@ -318,7 +318,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   /** Returns whether this {@link PCollection} has an attached schema. */
   @Experimental(Kind.SCHEMAS)
   public boolean hasSchema() {
-    return coderOrFailure.coder != null && coderOrFailure.coder instanceof SchemaCoder;
+    return getCoder() instanceof SchemaCoder;
   }
 
   /** Returns the attached schema. */

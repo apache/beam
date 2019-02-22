@@ -31,7 +31,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -111,8 +110,7 @@ public class PipelineOptionsTest {
         Collections.emptyList(),
         null,
         null, /* key coder */
-        null /* key selector */,
-        DoFnSchemaInformation.create());
+        null /* key selector */);
   }
 
   /** Tests that PipelineOptions are present after serialization. */
@@ -137,8 +135,7 @@ public class PipelineOptionsTest {
             Collections.emptyList(),
             options,
             null, /* key coder */
-            null /* key selector */,
-            DoFnSchemaInformation.create());
+            null /* key selector */);
 
     final byte[] serialized = SerializationUtils.serialize(doFnOperator);
 

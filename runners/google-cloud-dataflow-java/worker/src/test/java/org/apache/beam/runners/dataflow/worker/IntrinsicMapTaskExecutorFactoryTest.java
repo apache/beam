@@ -87,7 +87,6 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.AppliedCombineFn;
@@ -483,8 +482,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                     WindowingStrategy.globalDefault(),
                     null /* side input views */,
                     null /* input coder */,
-                    new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-                    DoFnSchemaInformation.create())));
+                    new TupleTag<>(PropertyNames.OUTPUT) /* main output id */)));
 
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);

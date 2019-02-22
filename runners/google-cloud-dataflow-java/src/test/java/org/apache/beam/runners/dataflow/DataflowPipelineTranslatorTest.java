@@ -775,7 +775,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, spkTransform.getSpec().getUrn());
     ParDoPayload payload = ParDoPayload.parseFrom(spkTransform.getSpec().getPayload());
     assertThat(
-        ParDoTranslation.doFnWithExecutionInformationFromProto(payload.getDoFn()).getDoFn(),
+        ParDoTranslation.doFnAndMainOutputTagFromProto(payload.getDoFn()).getDoFn(),
         instanceOf(TestSplittableFn.class));
     assertThat(
         components.getCoder(payload.getRestrictionCoderId()), instanceOf(SerializableCoder.class));

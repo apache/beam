@@ -251,7 +251,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public InputT schemaElement(DoFn<InputT, OutputT> doFn) {
+            public Row asRow(@Nullable String id) {
               throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
             }
 

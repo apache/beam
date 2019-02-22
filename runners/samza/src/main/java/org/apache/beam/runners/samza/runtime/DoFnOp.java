@@ -42,7 +42,6 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -102,7 +101,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient Instant sideInputWatermark;
   private transient List<WindowedValue<InT>> pushbackValues;
   private transient StageBundleFactory stageBundleFactory;
-  private DoFnSchemaInformation doFnSchemaInformation;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -118,8 +116,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       String stepName,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
-      Map<String, TupleTag<?>> idToTupleTagMap,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      Map<String, TupleTag<?>> idToTupleTagMap) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;
@@ -134,7 +131,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.isPortable = isPortable;
     this.stagePayload = stagePayload;
     this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
-    this.doFnSchemaInformation = doFnSchemaInformation;
   }
 
   @Override
@@ -188,8 +184,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               outputManagerFactory.create(emitter),
               inputCoder,
               sideOutputTags,
-              outputCoders,
-              doFnSchemaInformation);
+              outputCoders);
     }
 
     this.pushbackFnRunner =

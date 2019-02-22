@@ -25,7 +25,6 @@ import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -43,6 +42,5 @@ interface DoFnRunnerFactory<InputT, OutputT> {
       WindowingStrategy<?, ?> windowingStrategy,
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowExecutionContext.DataflowStepContext userStepContext,
-      OutputManager outputManager,
-      DoFnSchemaInformation doFnSchemaInformation);
+      OutputManager outputManager);
 }

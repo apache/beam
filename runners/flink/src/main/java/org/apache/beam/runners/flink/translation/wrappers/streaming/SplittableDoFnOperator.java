@@ -40,7 +40,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -94,8 +93,7 @@ public class SplittableDoFnOperator<
         sideInputs,
         options,
         keyCoder,
-        keySelector,
-        DoFnSchemaInformation.create());
+        keySelector);
   }
 
   @Override

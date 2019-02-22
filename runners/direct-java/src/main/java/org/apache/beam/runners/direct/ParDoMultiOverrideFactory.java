@@ -35,7 +35,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -108,8 +107,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
           fn,
           ParDoTranslation.getMainOutputTag(application),
           ParDoTranslation.getAdditionalOutputTags(application),
-          ParDoTranslation.getSideInputs(application),
-          ParDoTranslation.getSchemaInformation(application));
+          ParDoTranslation.getSideInputs(application));
     } else {
       return application.getTransform();
     }
@@ -127,19 +125,16 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     private final TupleTagList additionalOutputTags;
     private final TupleTag<OutputT> mainOutputTag;
     private final List<PCollectionView<?>> sideInputs;
-    private final DoFnSchemaInformation doFnSchemaInformation;
 
     public GbkThenStatefulParDo(
         DoFn<KV<K, InputT>, OutputT> doFn,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
-        List<PCollectionView<?>> sideInputs,
-        DoFnSchemaInformation doFnSchemaInformation) {
+        List<PCollectionView<?>> sideInputs) {
       this.doFn = doFn;
       this.additionalOutputTags = additionalOutputTags;
       this.mainOutputTag = mainOutputTag;
       this.sideInputs = sideInputs;
-      this.doFnSchemaInformation = doFnSchemaInformation;
     }
 
     @Override
@@ -201,8 +196,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
           // the input
           .apply(
           "Stateful ParDo",
-          new StatefulParDo<>(
-              doFn, mainOutputTag, additionalOutputTags, sideInputs, doFnSchemaInformation));
+          new StatefulParDo<>(doFn, mainOutputTag, additionalOutputTags, sideInputs));
     }
   }
 
@@ -215,19 +209,16 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     private final TupleTagList additionalOutputTags;
     private final TupleTag<OutputT> mainOutputTag;
     private final List<PCollectionView<?>> sideInputs;
-    private final DoFnSchemaInformation doFnSchemaInformation;
 
     public StatefulParDo(
         DoFn<KV<K, InputT>, OutputT> doFn,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
-        List<PCollectionView<?>> sideInputs,
-        DoFnSchemaInformation doFnSchemaInformation) {
+        List<PCollectionView<?>> sideInputs) {
       this.doFn = doFn;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
       this.sideInputs = sideInputs;
-      this.doFnSchemaInformation = doFnSchemaInformation;
     }
 
     public DoFn<KV<K, InputT>, OutputT> getDoFn() {
@@ -244,10 +235,6 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
 
     public TupleTagList getAdditionalOutputTags() {
       return additionalOutputTags;
-    }
-
-    public DoFnSchemaInformation getSchemaInformation() {
-      return doFnSchemaInformation;
     }
 
     @Override

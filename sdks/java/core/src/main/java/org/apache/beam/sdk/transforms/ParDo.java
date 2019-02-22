@@ -26,17 +26,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.state.StateSpec;
@@ -49,7 +46,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -59,7 +56,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -435,11 +431,16 @@ public class ParDo {
     }
   }
 
-  private static void validateFieldAccessParameter(
-      @Nullable String fieldAccessString,
-      Schema inputSchema,
+  private static void validateRowParameter(
+      RowParameter rowParameter,
+      Coder<?> inputCoder,
       Map<String, FieldAccessDeclaration> fieldAccessDeclarations,
       DoFn<?, ?> fn) {
+    checkArgument(
+        inputCoder instanceof SchemaCoder,
+        "Cannot access object as a row if the input PCollection does not have a schema ."
+            + " Coder "
+            + inputCoder.getClass().getSimpleName());
 
     // Resolve the FieldAccessDescriptor against the Schema.
     // This will be resolved anyway by the runner, however we want any resolution errors
@@ -447,18 +448,16 @@ public class ParDo {
     // be caught and presented to the user at graph-construction time. Therefore we resolve
     // here as well to catch these errors.
     FieldAccessDescriptor fieldAccessDescriptor = null;
-    if (fieldAccessString == null) {
+    String id = rowParameter.fieldAccessId();
+    if (id == null) {
       // This is the case where no FieldId is defined, just an @Element Row row. Default to all
       // fields accessed.
       fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
     } else {
       // In this case, we expect to have a FieldAccessDescriptor defined in the class.
-      FieldAccessDeclaration fieldAccessDeclaration =
-          fieldAccessDeclarations.get(fieldAccessString);
+      FieldAccessDeclaration fieldAccessDeclaration = fieldAccessDeclarations.get(id);
       checkArgument(
-          fieldAccessDeclaration != null,
-          "No FieldAccessDeclaration  defined with id",
-          fieldAccessString);
+          fieldAccessDeclaration != null, "No FieldAccessDeclaration  defined with id", id);
       checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
       try {
         fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);
@@ -466,7 +465,7 @@ public class ParDo {
         throw new RuntimeException(e);
       }
     }
-    fieldAccessDescriptor.resolve(inputSchema);
+    fieldAccessDescriptor.resolve(((SchemaCoder<?>) inputCoder).getSchema());
   }
 
   /**
@@ -560,76 +559,6 @@ public class ParDo {
               "%s is splittable and uses timers, but these are not compatible",
               fn.getClass().getName()));
     }
-  }
-
-  /**
-   * Extract information on how the DoFn uses schemas. In particular, if the schema of an element
-   * parameter does not match the input PCollection's schema, convert.
-   */
-  @Internal
-  public static DoFnSchemaInformation getDoFnSchemaInformation(
-      DoFn<?, ?> fn, PCollection<?> input) {
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-    DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
-    SchemaElementParameter elementParameter = processElementMethod.getSchemaElementParameter();
-    boolean validateInputSchema = elementParameter != null;
-    TypeDescriptor<?> elementT = null;
-    if (validateInputSchema) {
-      elementT = (TypeDescriptor<?>) elementParameter.elementT();
-    }
-
-    DoFnSchemaInformation doFnSchemaInformation = DoFnSchemaInformation.create();
-    if (validateInputSchema) {
-      // Element type doesn't match input type, so we need to covnert.
-      if (!input.hasSchema()) {
-        throw new IllegalArgumentException("Type of @Element must match the DoFn type" + input);
-      }
-
-      validateFieldAccessParameter(
-          elementParameter.fieldAccessString(),
-          input.getSchema(),
-          signature.fieldAccessDeclarations(),
-          fn);
-
-      boolean toRow = elementT.equals(TypeDescriptor.of(Row.class));
-      if (toRow) {
-        doFnSchemaInformation =
-            doFnSchemaInformation.withElementParameterSchema(
-                SchemaCoder.of(
-                    input.getSchema(),
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
-      } else {
-        // For now we assume the parameter is not of type Row (TODO: change this)
-        SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
-        try {
-          Schema schema = schemaRegistry.getSchema(elementT);
-          SerializableFunction toRowFunction = schemaRegistry.getToRowFunction(elementT);
-          SerializableFunction fromRowFunction = schemaRegistry.getFromRowFunction(elementT);
-          doFnSchemaInformation =
-              doFnSchemaInformation.withElementParameterSchema(
-                  SchemaCoder.of(schema, toRowFunction, fromRowFunction));
-
-          // assert matches input schema.
-          // TODO: Properly handle nullable.
-          if (!doFnSchemaInformation
-              .getElementParameterSchema()
-              .getSchema()
-              .assignableToIgnoreNullable(input.getSchema())) {
-            throw new IllegalArgumentException(
-                "Input to DoFn has schema: "
-                    + input.getSchema()
-                    + " However @ElementParameter of type "
-                    + elementT
-                    + " has incompatible schema "
-                    + doFnSchemaInformation.getElementParameterSchema().getSchema());
-          }
-        } catch (NoSuchSchemaException e) {
-          throw new RuntimeException("No schema registered for " + elementT);
-        }
-      }
-    }
-    return doFnSchemaInformation;
   }
 
   /**
@@ -844,6 +773,14 @@ public class ParDo {
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       if (signature.usesState() || signature.usesTimers()) {
         validateStateApplicableForInput(fn, input);
+      }
+
+      DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
+      RowParameter rowParameter = processElementMethod.getRowParameter();
+      // Can only ask for a Row if a Schema was specified!
+      if (rowParameter != null) {
+        validateRowParameter(
+            rowParameter, input.getCoder(), signature.fieldAccessDeclarations(), fn);
       }
 
       // TODO: We should validate OutputReceiver<Row> only happens if the output PCollection

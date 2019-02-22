@@ -37,7 +37,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -61,8 +60,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         DirectStepContext stepContext,
         @Nullable Coder<InputT> inputCoder,
         Map<TupleTag<?>, Coder<?>> outputCoders,
-        WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
-        DoFnSchemaInformation doFnSchemaInformation);
+        WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy);
   }
 
   public static <InputT, OutputT> DoFnRunnerFactory<InputT, OutputT> defaultRunnerFactory() {
@@ -76,8 +74,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         stepContext,
         schemaCoder,
         outputCoders,
-        windowingStrategy,
-        doFnSchemaInformation) -> {
+        windowingStrategy) -> {
       DoFnRunner<InputT, OutputT> underlying =
           DoFnRunners.simpleRunner(
               options,
@@ -89,8 +86,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               stepContext,
               schemaCoder,
               outputCoders,
-              windowingStrategy,
-              doFnSchemaInformation);
+              windowingStrategy);
       return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
   }
@@ -108,7 +104,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs,
-      DoFnSchemaInformation doFnSchemaInformation,
       DoFnRunnerFactory<InputT, OutputT> runnerFactory) {
 
     BundleOutputManager outputManager = createOutputManager(evaluationContext, key, outputs);
@@ -132,8 +127,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
             stepContext,
             inputCoder,
             outputCoders,
-            windowingStrategy,
-            doFnSchemaInformation);
+            windowingStrategy);
 
     return create(runner, stepContext, application, outputManager);
   }

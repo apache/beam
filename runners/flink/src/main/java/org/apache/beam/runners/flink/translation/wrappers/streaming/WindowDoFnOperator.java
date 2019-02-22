@@ -35,7 +35,6 @@ import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -78,8 +77,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         sideInputs,
         options,
         keyCoder,
-        keySelector,
-        DoFnSchemaInformation.create());
+        keySelector);
 
     this.systemReduceFn = systemReduceFn;
   }

@@ -53,7 +53,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputRece
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
@@ -137,16 +136,15 @@ public class DoFnSignaturesTest {
   }
 
   @Test
-  public void testMismatchingElementType() throws Exception {
+  public void testWrongElementType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("@Element argument must have type java.lang.String");
     DoFnSignature sig =
         DoFnSignatures.getSignature(
             new DoFn<String, String>() {
               @ProcessElement
               public void process(@Element Integer element) {}
             }.getClass());
-    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
-    assertThat(
-        sig.processElement().extraParameters().get(0), instanceOf(SchemaElementParameter.class));
   }
 
   @Test
@@ -181,7 +179,7 @@ public class DoFnSignaturesTest {
               @ProcessElement
               public void process(@Element Row row) {}
             }.getClass());
-    assertThat(sig.processElement().getSchemaElementParameter(), notNullValue());
+    assertThat(sig.processElement().getRowParameter(), notNullValue());
   }
 
   @Test
@@ -193,7 +191,7 @@ public class DoFnSignaturesTest {
           final FieldAccessDescriptor fieldAccess = descriptor;
 
           @ProcessElement
-          public void process(@FieldAccess("foo") @Element Row row) {}
+          public void process(@FieldAccess("foo") Row row) {}
         };
 
     DoFnSignature sig = DoFnSignatures.getSignature(doFn.getClass());
@@ -202,7 +200,19 @@ public class DoFnSignaturesTest {
     assertThat(field.getName(), equalTo("fieldAccess"));
     assertThat(field.get(doFn), equalTo(descriptor));
 
-    assertThat(sig.processElement().getSchemaElementParameter(), notNullValue());
+    assertThat(sig.processElement().getRowParameter(), notNullValue());
+  }
+
+  @Test
+  public void testMissingFieldAccess() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("No FieldAccessDescriptor defined.");
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(@FieldAccess("foo") Row row) {}
+            }.getClass());
   }
 
   @Test

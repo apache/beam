@@ -400,7 +400,7 @@ public class ClickHouseIO {
     }
 
     @ProcessElement
-    public void processElement(@FieldAccess("filterFields") @Element Row input) throws Exception {
+    public void processElement(@FieldAccess("filterFields") Row input) throws Exception {
       buffer.add(input);
 
       if (buffer.size() >= maxInsertBlockSize()) {

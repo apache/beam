@@ -39,7 +39,6 @@ import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -154,8 +153,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
             stepContext,
             null,
             Collections.emptyMap(),
-            windowingStrategy,
-            DoFnSchemaInformation.create());
+            windowingStrategy);
 
     final SamzaExecutionContext executionContext = (SamzaExecutionContext) context.getUserContext();
     this.fnRunner =

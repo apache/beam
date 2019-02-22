@@ -107,7 +107,6 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -314,8 +313,7 @@ public class StreamingDataflowWorkerTest {
                     windowingStrategy /* windowing strategy */,
                     null /* side input views */,
                     null /* input coder */,
-                    new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-                    DoFnSchemaInformation.create()))));
+                    new TupleTag<>(PropertyNames.OUTPUT) /* main output id */))));
     return new ParallelInstruction()
         .setSystemName(DEFAULT_PARDO_SYSTEM_NAME)
         .setName(DEFAULT_PARDO_USER_NAME)

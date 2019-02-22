@@ -27,7 +27,6 @@ import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -82,8 +81,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 inputBundle.getKey(),
                 ParDoTranslation.getSideInputs(application),
                 (TupleTag<OutputT>) ParDoTranslation.getMainOutputTag(application),
-                ParDoTranslation.getAdditionalOutputTags(application).getAll(),
-                ParDoTranslation.getSchemaInformation(application));
+                ParDoTranslation.getAdditionalOutputTags(application).getAll());
     return evaluator;
   }
 
@@ -106,8 +104,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       StructuralKey<?> inputBundleKey,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> additionalOutputTags,
-      DoFnSchemaInformation doFnSchemaInformation)
+      List<TupleTag<?>> additionalOutputTags)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
@@ -125,7 +122,6 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             additionalOutputTags,
             stepContext,
             fnManager.get(),
-            doFnSchemaInformation,
             fnManager),
         fnManager);
   }
@@ -139,7 +135,6 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       List<TupleTag<?>> additionalOutputTags,
       DirectStepContext stepContext,
       DoFn<InputT, OutputT> fn,
-      DoFnSchemaInformation doFnSchemaInformation,
       DoFnLifecycleManager fnManager)
       throws Exception {
     try {
@@ -156,7 +151,6 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           mainOutputTag,
           additionalOutputTags,
           pcollections(application.getOutputs()),
-          doFnSchemaInformation,
           runnerFactory);
     } catch (Exception e) {
       try {

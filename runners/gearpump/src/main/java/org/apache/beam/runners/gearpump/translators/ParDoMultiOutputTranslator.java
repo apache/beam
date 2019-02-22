@@ -24,12 +24,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -74,9 +72,6 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
     JavaStream<TranslatorUtils.RawUnionValue> unionStream =
         TranslatorUtils.withSideInputStream(context, inputStream, tagsToSideInputs);
 
-    DoFnSchemaInformation doFnSchemaInformation;
-    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-
     JavaStream<TranslatorUtils.RawUnionValue> outputStream =
         TranslatorUtils.toList(unionStream)
             .flatMap(
@@ -88,8 +83,7 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
                     tagsToSideInputs,
                     mainOutput,
                     outputCoders,
-                    sideOutputs,
-                    doFnSchemaInformation),
+                    sideOutputs),
                 transform.getName());
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       JavaStream<WindowedValue<OutputT>> taggedStream =

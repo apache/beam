@@ -136,10 +136,7 @@ public class JavaBeanUtils {
     try {
       return builder
           .make()
-          .load(
-              ReflectHelpers.findClassLoader(
-                  typeInformation.getMethod().getDeclaringClass().getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -191,10 +188,7 @@ public class JavaBeanUtils {
     try {
       return builder
           .make()
-          .load(
-              ReflectHelpers.findClassLoader(
-                  typeInformation.getMethod().getDeclaringClass().getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -249,9 +243,7 @@ public class JavaBeanUtils {
               .intercept(new ConstructorCreateInstruction(types, clazz, constructor));
       return builder
           .make()
-          .load(
-              ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -279,16 +271,13 @@ public class JavaBeanUtils {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
-              .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
               .intercept(new StaticFactoryMethodInstruction(types, clazz, creator));
 
       return builder
           .make()
-          .load(
-              ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

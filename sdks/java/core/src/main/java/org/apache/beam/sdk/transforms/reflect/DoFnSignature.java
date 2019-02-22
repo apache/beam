@@ -38,7 +38,7 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -231,8 +231,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((PipelineOptionsParameter) this);
       } else if (this instanceof ElementParameter) {
         return cases.dispatch((ElementParameter) this);
-      } else if (this instanceof SchemaElementParameter) {
-        return cases.dispatch((SchemaElementParameter) this);
+      } else if (this instanceof RowParameter) {
+        return cases.dispatch((RowParameter) this);
       } else if (this instanceof TimestampParameter) {
         return cases.dispatch((TimestampParameter) this);
       } else if (this instanceof OutputReceiverParameter) {
@@ -259,7 +259,7 @@ public abstract class DoFnSignature {
 
       ResultT dispatch(ElementParameter p);
 
-      ResultT dispatch(SchemaElementParameter p);
+      ResultT dispatch(RowParameter p);
 
       ResultT dispatch(TimestampParameter p);
 
@@ -309,7 +309,7 @@ public abstract class DoFnSignature {
         }
 
         @Override
-        public ResultT dispatch(SchemaElementParameter p) {
+        public ResultT dispatch(RowParameter p) {
           return dispatchDefault(p);
         }
 
@@ -397,9 +397,8 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
-    public static SchemaElementParameter schemaElementParameter(
-        TypeDescriptor<?> elementT, @Nullable String fieldAccessId) {
-      return new AutoValue_DoFnSignature_Parameter_SchemaElementParameter(elementT, fieldAccessId);
+    public static RowParameter rowParameter(@Nullable String id) {
+      return new AutoValue_DoFnSignature_Parameter_RowParameter(id);
     }
 
     public static TimestampParameter timestampParameter() {
@@ -500,17 +499,16 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a (@link Parameter} of type {@link DoFn.Element} where the type does not match
-     * the DoFn's input type. This implies that the input must have a schema that is compatible.
+     * Descriptor for a {@link Parameter} of Row type.
+     *
+     * <p>All such descriptors are equal.
      */
     @AutoValue
-    public abstract static class SchemaElementParameter extends Parameter {
-      SchemaElementParameter() {}
-
-      public abstract TypeDescriptor<?> elementT();
+    public abstract static class RowParameter extends Parameter {
+      RowParameter() {}
 
       @Nullable
-      public abstract String fieldAccessString();
+      public abstract String fieldAccessId();
     }
 
     /**
@@ -690,13 +688,17 @@ public abstract class DoFnSignature {
                   ::apply);
     }
 
+    /**
+     * Whether this {@link DoFn} reads a schema {@link PCollection} type as a {@link
+     * org.apache.beam.sdk.values.Row} object.
+     */
     @Nullable
-    public SchemaElementParameter getSchemaElementParameter() {
+    public RowParameter getRowParameter() {
       Optional<Parameter> parameter =
           extraParameters().stream()
-              .filter(Predicates.instanceOf(SchemaElementParameter.class)::apply)
+              .filter(Predicates.instanceOf(RowParameter.class)::apply)
               .findFirst();
-      return parameter.isPresent() ? ((SchemaElementParameter) parameter.get()) : null;
+      return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
     }
 
     /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */

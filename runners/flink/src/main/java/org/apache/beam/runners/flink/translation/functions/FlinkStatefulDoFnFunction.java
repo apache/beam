@@ -37,7 +37,6 @@ import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -67,7 +66,6 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<KV<K, V>> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
-  private final DoFnSchemaInformation doFnSchemaInformation;
   private transient DoFnInvoker doFnInvoker;
 
   public FlinkStatefulDoFnFunction(
@@ -79,8 +77,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       Map<TupleTag<?>, Integer> outputMap,
       TupleTag<OutputT> mainOutputTag,
       Coder<KV<K, V>> inputCoder,
-      Map<TupleTag<?>, Coder<?>> outputCoderMap,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      Map<TupleTag<?>, Coder<?>> outputCoderMap) {
 
     this.dofn = dofn;
     this.stepName = stepName;
@@ -91,7 +88,6 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     this.mainOutputTag = mainOutputTag;
     this.inputCoder = inputCoder;
     this.outputCoderMap = outputCoderMap;
-    this.doFnSchemaInformation = doFnSchemaInformation;
   }
 
   @Override
@@ -147,8 +143,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
             },
             inputCoder,
             outputCoderMap,
-            windowingStrategy,
-            doFnSchemaInformation);
+            windowingStrategy);
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
