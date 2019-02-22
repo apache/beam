@@ -57,8 +57,15 @@ task runExpansionService (type: JavaExec) {
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
 
-task testExpansionService(type: Jar) {
+task runTestExpansionService (type: JavaExec) {
+  main = "org.apache.beam.runners.core.construction.TestExpansionService"
+  classpath = sourceSets.test.runtimeClasspath
+  args = [project.findProperty("constructionService.port") ?: "8097"]
+}
+
+task buildTestExpansionServiceJar(type: Jar) {
   dependsOn = [shadowJar, shadowTestJar]
+  appendix = "testExpansionService"
   manifest {
     attributes(
             'Main-Class': 'org.apache.beam.runners.core.construction.TestExpansionService'
