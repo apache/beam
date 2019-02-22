@@ -37,6 +37,8 @@ import (
 const writeRowLimit = 10000
 // writeSizeLimit is the maximum number of bytes allowed in BQ write.
 const writeSizeLimit = 10485760
+// Estimate for overall message overhead.for a write message in bytes.
+const writeOverheadBytes = 1024
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*queryFn)(nil)).Elem())
@@ -240,9 +242,9 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	}
 
 	var data []reflect.Value
-	// This stores the running byte size estimate of a BQ request. Initializing to 1KB
-	// as an estimate for overall message overhead.
-	var size = 1024
+	// This stores the running byte size estimate of a BQ request.
+	size := writeOverheadBytes
+
 	var val beam.X
 	for iter(&val) {
 		current, err := getInsertSize(val.(interface{}), schema)
@@ -255,7 +257,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 				return fmt.Errorf("bigquery write error [len=%d, size=%d]: %v", len(data), size, err)
 			}
 			data = nil
-			size = 1024
+			size = writeOverheadBytes
 		} else {
 			data = append(data, reflect.ValueOf(val.(interface{})))
 			size += current
