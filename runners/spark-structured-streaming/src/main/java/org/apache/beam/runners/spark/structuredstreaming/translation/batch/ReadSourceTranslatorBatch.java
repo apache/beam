@@ -23,7 +23,7 @@ import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -71,7 +71,7 @@ class ReadSourceTranslatorBatch<T>
     // extract windowedValue from Row
     Dataset<WindowedValue<T>> dataset =
         rowDataset.map(
-            WindowingHelpers.rowToWindowedValueMapFunction(source.getOutputCoder()),
+            RowHelpers.extractWindowedValueFromRowMapFunction(source.getOutputCoder()),
             EncoderHelpers.windowedValueEncoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
