@@ -106,7 +106,6 @@ afterEvaluate {
     publications {
       mavenJava(MavenPublication) {
         version = project.version
-        artifact mavenJavaBomOutputFile
       }
     }
     repositories project.ext.repositories
