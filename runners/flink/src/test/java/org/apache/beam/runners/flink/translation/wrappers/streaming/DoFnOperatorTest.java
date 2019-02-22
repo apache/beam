@@ -1284,7 +1284,8 @@ public class DoFnOperatorTest {
             Collections.emptyList(), /* side inputs */
             options,
             keyCoder,
-            keySelector);
+            keySelector,
+            DoFnSchemaInformation.create());
 
     OneInputStreamOperatorTestHarness<
             WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
@@ -1331,7 +1332,8 @@ public class DoFnOperatorTest {
             Collections.emptyList(), /* side inputs */
             options,
             keyCoder,
-            keySelector);
+            keySelector,
+            DoFnSchemaInformation.create());
 
     testHarness =
         new KeyedOneInputStreamOperatorTestHarness(
