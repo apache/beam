@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	bq "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
@@ -35,7 +36,7 @@ import (
 // writeSizeLimit is the maximum number of rows allowed by BQ in a write.
 const writeRowLimit = 10000
 // writeSizeLimit is the maximum  number of bytes allowed in BQ write.
-const writeSizeLimit = 10000000
+const writeSizeLimit = 10485760
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*queryFn)(nil)).Elem())
@@ -187,30 +188,34 @@ type writeFn struct {
 }
 
 // Approximate the size of an element to not exceed the bigquery API limit.
-func getSize(v interface{}) int {
-	t := reflect.TypeOf(v)
-	switch t.Kind() {
-	case reflect.Slice:
-		s := reflect.ValueOf(v)
-		size := int(t.Size())
-		for i := 0; i < s.Len(); i++ {
-			size += getSize(s.Index(i).Interface())
-		}
-		return size
-	case reflect.String:
-		return int(t.Size()) + reflect.ValueOf(v).Len()
-	case reflect.Struct:
-		s := reflect.ValueOf(v)
-		size := 0
-		for i := 0; i < s.NumField(); i++ {
-			if s.Field(i).CanInterface() {
-				size += getSize(s.Field(i).Interface())
-			}
-		}
-		return size
-	default:
-		return int(t.Size())
+func getSize(v interface{}) (int, error) {
+	schema, err := bigquery.InferSchema(v)
+	if (err != nil) {
+		return 0, err
 	}
+	saver := bigquery.StructSaver{
+		InsertID: strings.Repeat("0", 27),
+		Struct:   v,
+		Schema:   schema,
+	}
+	row, id, err := saver.Save()
+	if err != nil {
+		return 0, err
+	}
+	m := make(map[string]bq.JsonValue)
+	for k, v := range row {
+		m[k] = bq.JsonValue(v)
+	}
+	req := bq.TableDataInsertAllRequestRows{
+		InsertId: id,
+		Json: m,
+	}
+	data, err := req.MarshalJSON()
+	if (err != nil) {
+		return 0, err
+	}
+	// Add 1 for comma separator between elements.
+	return len(data) + 1, err
 }
 
 func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
@@ -241,11 +246,14 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	var size = 0
 	var val beam.X
 	for iter(&val) {
-		current := getSize(val.(interface{}))
+		current, err := getSize(val.(interface{}))
+		if err != nil {
+			return fmt.Errorf("biquery write error: %v", err)
+		}
 		if len(data) + 1 > writeRowLimit || size + current > writeSizeLimit {
 			// Write rows in batches to comply with BQ limits.
 			if err := put(ctx, table, f.Type.T, data); err != nil {
-				return err
+				return fmt.Errorf("bigquery write error [len=%d, size=%d]: %v", len(data), size, err)
 			}
 			data = nil
 			size = 0
@@ -257,7 +265,10 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	if len(data) == 0 {
 		return nil
 	}
-	return put(ctx, table, f.Type.T, data)
+	if err := put(ctx, table, f.Type.T, data); err != nil {
+		return fmt.Errorf("bigquery write error [len=%d, size=%d]: %v", len(data), size, err)
+	}
+	return nil
 }
 
 func put(ctx context.Context, table *bigquery.Table, t reflect.Type, data []reflect.Value) error {
@@ -267,10 +278,7 @@ func put(ctx context.Context, table *bigquery.Table, t reflect.Type, data []refl
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
-	if err :=  table.Uploader().Put(ctx, list);  err != nil {
-		return fmt.Errorf("bigquery write error: %v", err)
-	}
-	return nil
+	return table.Uploader().Put(ctx, list)
 }
 
 func isNotFound(err error) bool {
