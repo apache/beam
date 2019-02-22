@@ -99,6 +99,16 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(env.proto.workerPools[0].subnetwork,
                      '/regions/MY/subnetworks/SUBNETWORK')
 
+  def test_flexrs_blank(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(env.proto.flexResourceSchedulingGoal, None)
+
   def test_flexrs_cost(self):
     pipeline_options = PipelineOptions(
         ['--flexrs_goal', 'COST_OPTIMIZED',
