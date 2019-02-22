@@ -135,7 +135,9 @@ public class POJOUtils {
 
       return builder
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(
+              ReflectHelpers.findClassLoader(clazz.getClassLoader()),
+              ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -169,13 +171,16 @@ public class POJOUtils {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
+              .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
               .intercept(new ConstructorCreateInstruction(types, clazz, constructor));
 
       return builder
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(
+              ReflectHelpers.findClassLoader(clazz.getClassLoader()),
+              ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -203,6 +208,7 @@ public class POJOUtils {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
+              .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
               .intercept(new StaticFactoryMethodInstruction(types, clazz, creator));
@@ -249,7 +255,9 @@ public class POJOUtils {
     try {
       return builder
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(
+              ReflectHelpers.findClassLoader(field.getDeclaringClass().getClassLoader()),
+              ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -315,7 +323,9 @@ public class POJOUtils {
     try {
       return builder
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(
+              ReflectHelpers.findClassLoader(field.getDeclaringClass().getClassLoader()),
+              ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
