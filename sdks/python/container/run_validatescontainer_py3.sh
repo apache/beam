@@ -60,6 +60,7 @@ gcloud docker -- push $CONTAINER
 function cleanup_container {
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
+  gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   echo "Removed the container"
 }
 trap cleanup_container EXIT
@@ -82,7 +83,7 @@ SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 python setup.py nosetests \
-  --attr Py3IT \
+  --attr ValidatesContainer \
   --nologcapture \
   --processes=1 \
   --process-timeout=900 \
