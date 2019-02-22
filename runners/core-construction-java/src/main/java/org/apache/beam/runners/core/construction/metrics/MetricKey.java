@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricResult;
 
 /** Metrics are keyed by the step name they are associated with and the name of the metric. */
 @Experimental(Kind.METRICS)
@@ -41,7 +42,11 @@ public abstract class MetricKey implements Serializable {
     return String.format("%s:%s", stepName(), metricName());
   }
 
-  public static MetricKey create(String stepName, MetricName metricName) {
+  public static MetricKey create(MetricResult<?> result) {
+    return create(result.getStep(), result.getName());
+  }
+
+  public static MetricKey create(@Nullable String stepName, MetricName metricName) {
     return new AutoValue_MetricKey(stepName, metricName);
   }
 }
