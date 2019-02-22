@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
@@ -119,12 +121,27 @@ public class MonitoringInfoMetricName extends MetricName {
     return this.urn.equals(other.urn) && this.labels.equals(other.labels);
   }
 
+  /**
+   * String-representation of this {@link MonitoringInfoMetricName} with a custom delimiter.
+   *
+   * <p>See discussion on {@link MetricKey#toString}; metric "label" info is currently split between
+   * {@link MetricKey#stepName} and {@link MonitoringInfoMetricName#labels} (the former holds {@link
+   * SimpleMonitoringInfoBuilder#PTRANSFORM_LABEL ptransform} info, and the latter {@link
+   * SimpleMonitoringInfoBuilder#PCOLLECTION_LABEL info}.
+   *
+   * <p>For now, we bake in the assumption here that {@link MonitoringInfoMetricName#toString} is
+   * only responsible for inlining the pcollection label to the string representation.
+   *
+   * <p>Later, {@link MonitoringInfoMetricName} and {@link MetricKey} will be merged, and this
+   * handling unified.
+   */
   @Override
-  public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append(this.urn.toString());
-    builder.append(" ");
-    builder.append(this.labels.toString());
-    return builder.toString();
+  public String toString(String delimiter) {
+    StringBuilder sb = new StringBuilder();
+    if (labels.containsKey(PCOLLECTION_LABEL)) {
+      sb.append(labels.get(PCOLLECTION_LABEL)).append(delimiter);
+    }
+    sb.append(urn.replaceAll(":", delimiter));
+    return sb.toString();
   }
 }

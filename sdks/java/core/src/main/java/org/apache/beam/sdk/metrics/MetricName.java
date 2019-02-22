@@ -52,7 +52,11 @@ public abstract class MetricName implements Serializable {
 
   @Override
   public String toString() {
-    return String.format("%s:%s", getNamespace(), getName());
+    return toString(":");
+  }
+
+  public String toString(String delimiter) {
+    return String.join(delimiter, getNamespace(), getName());
   }
 
   /**

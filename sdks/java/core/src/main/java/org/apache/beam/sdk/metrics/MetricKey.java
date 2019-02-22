@@ -37,7 +37,24 @@ public abstract class MetricKey implements Serializable {
 
   @Override
   public String toString() {
-    return String.format("%s:%s", stepName(), metricName());
+    return toString(":");
+  }
+
+  /**
+   * Convenient representation of a metric's identifying information, with an arbitrary delimiter.
+   *
+   * <p>Metrics currently have either a {@link MetricKey#stepName ptransform-scope} or a
+   * pcollection-scope; whichever label is present has its value inlined in this string
+   * representation as the first delimited segment.
+   *
+   * <p>These two metric scopes are currently stored in different places, with only the
+   * ptransform-scope handled here, but will be unified in the future.
+   */
+  public String toString(String delimiter) {
+    if (stepName() == null) {
+      return metricName().toString(delimiter);
+    }
+    return String.join(delimiter, stepName(), metricName().toString(delimiter));
   }
 
   public static MetricKey create(@Nullable String stepName, MetricName metricName) {
