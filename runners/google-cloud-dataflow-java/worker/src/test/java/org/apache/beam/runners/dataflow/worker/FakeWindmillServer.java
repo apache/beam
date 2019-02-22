@@ -24,13 +24,11 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -220,11 +218,6 @@ class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void awaitTermination() throws InterruptedException {
-        done.await();
-      }
-
-      @Override
       public boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
         return done.await(time, unit);
       }
@@ -238,7 +231,62 @@ class FakeWindmillServer extends WindmillServerStub {
 
   @Override
   public GetDataStream getDataStream() {
-    throw new UnsupportedOperationException();
+    Instant startTime = Instant.now();
+    return new GetDataStream() {
+      @Override
+      public Windmill.KeyedGetDataResponse requestKeyedData(
+          String computation, KeyedGetDataRequest request) {
+        Windmill.GetDataRequest getDataRequest =
+            GetDataRequest.newBuilder()
+                .addRequests(
+                    ComputationGetDataRequest.newBuilder()
+                        .setComputationId(computation)
+                        .addRequests(request)
+                        .build())
+                .build();
+        GetDataResponse getDataResponse = getData(getDataRequest);
+        if (getDataResponse.getDataList().isEmpty()) {
+          return null;
+        }
+        assertEquals(1, getDataResponse.getDataCount());
+        if (getDataResponse.getData(0).getDataList().isEmpty()) {
+          return null;
+        }
+        assertEquals(1, getDataResponse.getData(0).getDataCount());
+        return getDataResponse.getData(0).getData(0);
+      }
+
+      @Override
+      public Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request) {
+        Windmill.GetDataRequest getDataRequest =
+            GetDataRequest.newBuilder().addGlobalDataFetchRequests(request).build();
+        GetDataResponse getDataResponse = getData(getDataRequest);
+        if (getDataResponse.getGlobalDataList().isEmpty()) {
+          return null;
+        }
+        assertEquals(1, getDataResponse.getGlobalDataCount());
+        return getDataResponse.getGlobalData(0);
+      }
+
+      @Override
+      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {}
+
+      @Override
+      public void close() {}
+
+      @Override
+      public boolean awaitTermination(int time, TimeUnit unit) {
+        return true;
+      }
+
+      @Override
+      public void closeAfterDefaultTimeout() {}
+
+      @Override
+      public Instant startTime() {
+        return startTime;
+      }
+    };
   }
 
   @Override
@@ -265,9 +313,6 @@ class FakeWindmillServer extends WindmillServerStub {
 
       @Override
       public void close() {}
-
-      @Override
-      public void awaitTermination() {}
 
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) {
