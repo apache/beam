@@ -684,7 +684,11 @@ class PTransformWithSideInputs(PTransform):
     self._cached_fn = self.fn
 
     # Ensure fn and side inputs are picklable for remote execution.
-    self.fn = pickler.loads(pickler.dumps(self.fn))
+    try:
+      self.fn = pickler.loads(pickler.dumps(self.fn))
+    except RuntimeError:
+      raise RuntimeError('Unable to pickle fn %s' % self.fn)
+
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
 
