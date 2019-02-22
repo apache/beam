@@ -35,7 +35,7 @@ import (
 
 // writeSizeLimit is the maximum number of rows allowed by BQ in a write.
 const writeRowLimit = 10000
-// writeSizeLimit is the maximum  number of bytes allowed in BQ write.
+// writeSizeLimit is the maximum number of bytes allowed in BQ write.
 const writeSizeLimit = 10485760
 
 func init() {
@@ -188,11 +188,7 @@ type writeFn struct {
 }
 
 // Approximate the size of an element as it would appear in a BQ insert request.
-func getInsertSize(v interface{}) (int, error) {
-	schema, err := bigquery.InferSchema(v)
-	if (err != nil) {
-		return 0, err
-	}
+func getInsertSize(v interface{}, schema bigquery.Schema) (int, error) {
 	saver := bigquery.StructSaver{
 		InsertID: strings.Repeat("0", 27),
 		Struct:   v,
@@ -232,12 +228,13 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 		return err
 	}
 
+	schema := mustInferSchema(f.Type.T)
 	table := dataset.Table(f.Table.Table)
 	if _, err := table.Metadata(ctx); err != nil {
 		if !isNotFound(err) {
 			return err
 		}
-		if err := table.Create(ctx, &bigquery.TableMetadata{Schema: mustInferSchema(f.Type.T)}); err != nil {
+		if err := table.Create(ctx, &bigquery.TableMetadata{Schema: schema}); err != nil {
 			return err
 		}
 	}
@@ -248,7 +245,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	var size = 1024
 	var val beam.X
 	for iter(&val) {
-		current, err := getInsertSize(val.(interface{}))
+		current, err := getInsertSize(val.(interface{}), schema)
 		if err != nil {
 			return fmt.Errorf("biquery write error: %v", err)
 		}
@@ -258,7 +255,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 				return fmt.Errorf("bigquery write error [len=%d, size=%d]: %v", len(data), size, err)
 			}
 			data = nil
-			size = 0
+			size = 1024
 		} else {
 			data = append(data, reflect.ValueOf(val.(interface{})))
 			size += current
