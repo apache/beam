@@ -19,9 +19,8 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.AggregatorCombinerPerKey;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -29,47 +28,44 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.KeyValueGroupedDataset;
-import scala.Tuple2;
+import org.apache.spark.sql.Row;
 
-class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
+/**
+ * By default Combine.globally is translated as a composite transform that does a Pardo (to key the input PCollection with Void keys and then a Combine.PerKey transform.
+ * The problem is that Combine.PerKey uses spark GroupByKey which is not very performant due to shuffle. So we add a special
+ * CombineGloballyTranslator that does not need GroupByKey
+ */
+class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
     implements TransformTranslator<
-        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
+        PTransform<PCollection<InputT>, PCollection<OutputT>>> {
 
-  @Override
-  public void translateTransform(
-      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-      TranslationContext context) {
+  @Override public void translateTransform(
+      PTransform<PCollection<InputT>, PCollection<OutputT>> transform, TranslationContext context) {
 
-    Combine.PerKey combineTransform = (Combine.PerKey) transform;
+    Combine.Globally combineTransform = (Combine.Globally) transform;
     @SuppressWarnings("unchecked")
-    final PCollection<KV<K, InputT>> input = (PCollection<KV<K, InputT>>) context.getInput();
+    final PCollection<InputT> input = (PCollection<InputT>) context.getInput();
     @SuppressWarnings("unchecked")
-    final PCollection<KV<K, OutputT>> output = (PCollection<KV<K, OutputT>>) context.getOutput();
+    final PCollection<OutputT> output = (PCollection<OutputT>) context.getOutput();
     @SuppressWarnings("unchecked")
     final Combine.CombineFn<InputT, AccumT, OutputT> combineFn =
         (Combine.CombineFn<InputT, AccumT, OutputT>) combineTransform.getFn();
 
-    Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(input);
+    Dataset<WindowedValue<InputT>> inputDataset = context.getDataset(input);
 
-    Dataset<KV<K, InputT>> keyedDataset =
+    Dataset<InputT> unWindowedDataset =
         inputDataset.map(
             WindowingHelpers.unwindowMapFunction(), EncoderHelpers.windowedValueEncoder());
 
-    KeyValueGroupedDataset<K, KV<K, InputT>> groupedDataset =
-        keyedDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
+    Dataset<Row> combinedRowDataset = unWindowedDataset
+        .agg(new AggregatorCombinerGlobally<>(combineFn).toColumn());
 
-    Dataset<Tuple2<K, OutputT>> combinedDataset =
-        groupedDataset.agg(
-            new AggregatorCombinerPerKey<K, InputT, AccumT, OutputT>(combineFn).toColumn());
-
-    Dataset<KV<K, OutputT>> kvOutputDataset =
-        combinedDataset.map(KVHelpers.tuple2ToKV(), EncoderHelpers.kvEncoder());
+    Dataset<Object> combinedDataset = combinedRowDataset
+        .map(RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.kvEncoder());
 
     // Window the result into global window.
-    Dataset<WindowedValue<KV<K, OutputT>>> outputDataset =
-        kvOutputDataset.map(
-            WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
+    Dataset<WindowedValue<Object>> outputDataset = combinedDataset
+        .map(WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
     context.putDataset(output, outputDataset);
   }
 }

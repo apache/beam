@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions;
+package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.util.ArrayList;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
@@ -24,12 +24,12 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.expressions.Aggregator;
 
-public class AggregatorCombiner<K, InputT, AccumT, OutputT>
-    extends Aggregator<KV<K, InputT>, AccumT, OutputT> {
+public class AggregatorCombinerGlobally<InputT, AccumT, OutputT>
+    extends Aggregator<InputT, AccumT, OutputT> {
 
   Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
 
-  public AggregatorCombiner(Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+  public AggregatorCombinerGlobally(Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
     this.combineFn = combineFn;
   }
 
@@ -39,8 +39,8 @@ public class AggregatorCombiner<K, InputT, AccumT, OutputT>
   }
 
   @Override
-  public AccumT reduce(AccumT accumulator, KV<K, InputT> input) {
-    return combineFn.addInput(accumulator, input.getValue());
+  public AccumT reduce(AccumT accumulator, InputT input) {
+    return combineFn.addInput(accumulator, input);
   }
 
   @Override
