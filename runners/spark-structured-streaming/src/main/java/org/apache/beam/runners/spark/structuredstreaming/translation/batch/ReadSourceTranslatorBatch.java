@@ -69,8 +69,9 @@ class ReadSourceTranslatorBatch<T>
             .load();
 
     // extract windowedValue from Row
-    Dataset<WindowedValue<T>> dataset = rowDataset
-        .map(WindowingHelpers.rowToWindowedValueMapFunction(source.getOutputCoder()),
+    Dataset<WindowedValue<T>> dataset =
+        rowDataset.map(
+            WindowingHelpers.rowToWindowedValueMapFunction(source.getOutputCoder()),
             EncoderHelpers.windowedValueEncoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();

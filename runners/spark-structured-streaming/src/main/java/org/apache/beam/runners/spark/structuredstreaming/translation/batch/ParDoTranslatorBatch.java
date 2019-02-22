@@ -25,9 +25,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -46,8 +46,7 @@ import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
 
 /**
- * TODO: Add support of state and timers
- * TODO: Add support of side inputs
+ * TODO: Add support of state and timers TODO: Add support of side inputs
  *
  * @param <InputT>
  * @param <OutputT>
@@ -162,8 +161,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     context.putDatasetWildcard(output.getValue(), outputDataset);
   }
 
-  static class DoFnFilterFunction
-      implements FilterFunction<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+  static class DoFnFilterFunction implements FilterFunction<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
     private final TupleTag<?> key;
 
