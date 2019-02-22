@@ -134,6 +134,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
@@ -373,6 +374,7 @@ class BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+@deprecated(since='2.11.0', current="WriteToBigQuery")
 class BigQuerySink(dataflow_io.NativeSink):
   """A sink based on a BigQuery table.
 
@@ -448,7 +450,6 @@ bigquery_v2_messages.TableSchema` object.
       ~exceptions.ValueError: if the table reference as a string does not
         match the expected format.
     """
-
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
@@ -646,18 +647,38 @@ class BigQueryWriteFn(DoFn):
 
 class WriteToBigQuery(PTransform):
 
-  def __init__(self, table, dataset=None, project=None, schema=None,
+  class Method(object):
+    DEFAULT = 'DEFAULT'
+    STREAMING_INSERTS = 'STREAMING_INSERTS'
+    FILE_LOADS = 'FILE_LOADS'
+
+  def __init__(self,
+               table,
+               dataset=None,
+               project=None,
+               schema=None,
                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=BigQueryDisposition.WRITE_APPEND,
-               batch_size=None, kms_key=None, test_client=None):
+               kms_key=None,
+               batch_size=None,
+               max_file_size=None,
+               max_files_per_bundle=None,
+               test_client=None,
+               gs_location=None,
+               method=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
-      table (str): The ID of the table. The ID must contain only letters
-        ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. If dataset
-        argument is :data:`None` then the table argument must contain the
-        entire table reference specified as: ``'DATASET.TABLE'`` or
-        ``'PROJECT:DATASET.TABLE'``.
+      table (str, callable): The ID of the table, or a callable
+         that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
+         numbers ``0-9``, or underscores ``_``. If dataset argument is
+         :data:`None` then the table argument must contain the entire table
+         reference specified as: ``'DATASET.TABLE'``
+         or ``'PROJECT:DATASET.TABLE'``. If it's a callable, it must receive one
+         argument representing an element to be written to BigQuery, and return
+         a TableReference, or a string table name as specified above.
+         Multiple destinations are only supported on Batch pipelines at the
+         moment.
       dataset (str): The ID of the dataset containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
@@ -691,12 +712,28 @@ bigquery_v2_messages.TableSchema`
           empty.
 
         For streaming pipelines WriteTruncate can not be used.
-
-      batch_size (int): Number of rows to be written to BQ per streaming API
-        insert.
       kms_key (str): Experimental. Optional Cloud KMS key name for use when
         creating new tables.
+      batch_size (int): Number of rows to be written to BQ per streaming API
+        insert. The default is 500.
+        insert.
       test_client: Override the default bigquery client used for testing.
+      max_file_size (int): The maximum size for a file to be written and then
+        loaded into BigQuery. The default value is 4TB, which is 80% of the
+        limit of 5TB for BigQuery to load any file.
+      max_files_per_bundle(int): The maximum number of files to be concurrently
+        written by a worker. The default here is 20. Larger values will allow
+        writing to multiple destinations without having to reshard - but they
+        increase the memory burden on the workers.
+      gs_location (str): A GCS location to store files to be used for file
+        loads into BigQuery. By default, this will use the pipeline's
+        temp_location, but for pipelines whose temp_location is not appropriate
+        for BQ File Loads, users should pass a specific one.
+      method: The method to use to write to BigQuery. It may be
+        STREAMING_INSERTS, FILE_LOADS, or DEFAULT. An introduction on loading
+        data to BigQuery: https://cloud.google.com/bigquery/docs/loading-data.
+        DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
+        FILE_LOADS on Batch pipelines.
     """
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
@@ -708,6 +745,10 @@ bigquery_v2_messages.TableSchema`
     self.batch_size = batch_size
     self.kms_key = kms_key
     self.test_client = test_client
+    self.gs_location = gs_location
+    self.max_file_size = max_file_size
+    self.max_files_per_bundle = max_files_per_bundle
+    self.method = method or WriteToBigQuery.Method.DEFAULT
 
   @staticmethod
   def get_table_schema_from_string(schema):
@@ -788,20 +829,42 @@ bigquery_v2_messages.TableSchema):
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
   def expand(self, pcoll):
-    if self.table_reference.projectId is None:
+    p = pcoll.pipeline
+
+    # TODO(pabloem): Use a different method to determine if streaming or batch.
+    standard_options = p.options.view_as(StandardOptions)
+
+    if (not callable(self.table_reference)
+        and self.table_reference.projectId is None):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
-    bigquery_write_fn = BigQueryWriteFn(
-        table_id=self.table_reference.tableId,
-        dataset_id=self.table_reference.datasetId,
-        project_id=self.table_reference.projectId,
-        batch_size=self.batch_size,
-        schema=self.get_dict_table_schema(self.schema),
-        create_disposition=self.create_disposition,
-        write_disposition=self.write_disposition,
-        kms_key=self.kms_key,
-        test_client=self.test_client)
-    return pcoll | 'WriteToBigQuery' >> ParDo(bigquery_write_fn)
+
+    if standard_options.streaming or self.method == 'STREAMING_INSERTS':
+      # TODO: Support load jobs for streaming pipelines.
+      bigquery_write_fn = BigQueryWriteFn(
+          table_id=self.table_reference.tableId,
+          dataset_id=self.table_reference.datasetId,
+          project_id=self.table_reference.projectId,
+          batch_size=self.batch_size,
+          schema=self.get_dict_table_schema(self.schema),
+          create_disposition=self.create_disposition,
+          write_disposition=self.write_disposition,
+          kms_key=self.kms_key,
+          test_client=self.test_client)
+      return pcoll | 'WriteToBigQuery' >> ParDo(bigquery_write_fn)
+    else:
+      from apache_beam.io.gcp import bigquery_file_loads
+      assert not standard_options.streaming, (
+          'File Loads to BigQuery are only supported on Batch pipelines.')
+      return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
+          destination=self.table_reference,
+          schema=self.get_dict_table_schema(self.schema),
+          create_disposition=self.create_disposition,
+          write_disposition=self.write_disposition,
+          max_file_size=self.max_file_size,
+          max_files_per_bundle=self.max_files_per_bundle,
+          gs_location=self.gs_location,
+          test_client=self.test_client)
 
   def display_data(self):
     res = {}
