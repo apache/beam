@@ -19,10 +19,12 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+import static org.apache.beam.runners.core.metrics.DistributionProtos.toProto;
 
 import java.time.Instant;
 import java.util.HashMap;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoLabelProps;
@@ -31,6 +33,11 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoTypeUrns;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoUrns;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Timestamp;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +79,10 @@ public class SimpleMonitoringInfoBuilder {
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX);
   public static final String SUM_INT64_TYPE_URN =
       BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
+  public static final String DISTRIBUTION_INT64_TYPE_URN =
+      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.DISTRIBUTION_INT64_TYPE);
+  public static final String LATEST_INT64_TYPE_URN =
+      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
 
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
@@ -137,6 +148,23 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  public SimpleMonitoringInfoBuilder setLabelsAndUrnFrom(MetricKey key) {
+    MetricName metricName = key.metricName();
+    if (metricName instanceof MonitoringInfoMetricName) {
+      MonitoringInfoMetricName name = (MonitoringInfoMetricName) metricName;
+      builder.setUrn(name.getUrn()).putAllLabels(name.getLabels());
+    } else {
+      setUrnForUserMetric(metricName.getNamespace(), metricName.getName());
+      String ptransform = key.stepName();
+      if (ptransform != null) {
+        setPTransformLabel(ptransform);
+      } else {
+        LOG.warn("User metric {} without step name set", metricName);
+      }
+    }
+    return this;
+  }
+
   /**
    * Sets the urn of the MonitoringInfo to a proper user metric URN for the given params.
    *
@@ -148,17 +176,21 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  /** Sets the timestamp of the MonitoringInfo to the specified time. */
+  public SimpleMonitoringInfoBuilder setTimestamp(Instant instant) {
+    this.builder.setTimestamp(
+        Timestamp.newBuilder().setSeconds(instant.getEpochSecond()).setNanos(instant.getNano()));
+    return this;
+  }
+
   /** Sets the timestamp of the MonitoringInfo to the current time. */
   public SimpleMonitoringInfoBuilder setTimestampToNow() {
-    Instant time = Instant.now();
-    this.builder.getTimestampBuilder().setSeconds(time.getEpochSecond()).setNanos(time.getNano());
-    return this;
+    return setTimestamp(Instant.now());
   }
 
   /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropriate type URN. */
   public SimpleMonitoringInfoBuilder setInt64Value(long value) {
-    this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
-    this.setInt64TypeUrn();
+    this.setInt64TypeUrn().builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
     return this;
   }
 
@@ -168,17 +200,51 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(DistributionData value) {
+    return setIntDistributionValue(value.extractResult());
+  }
+
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(DistributionResult value) {
+    return setIntDistributionValue(toProto(value));
+  }
+
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(IntDistributionData value) {
+    this.builder
+        .setType(DISTRIBUTION_INT64_TYPE_URN)
+        .getMetricBuilder()
+        .getDistributionDataBuilder()
+        .setIntDistributionData(value);
+    return this;
+  }
+
+  public SimpleMonitoringInfoBuilder setGaugeValue(GaugeData value) {
+    return setGaugeValue(value.extractResult());
+  }
+
+  public SimpleMonitoringInfoBuilder setGaugeValue(GaugeResult value) {
+    return setGaugeValue(value.getValue());
+  }
+
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  public SimpleMonitoringInfoBuilder setGaugeValue(long value) {
+    this.builder
+        .setType(LATEST_INT64_TYPE_URN)
+        .getMetricBuilder()
+        .getCounterDataBuilder()
+        .setInt64Value(value);
+    return this;
+  }
+
   /** Sets the PTRANSFORM MonitoringInfo label to the given param. */
   public SimpleMonitoringInfoBuilder setPTransformLabel(String pTransform) {
     // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
-    setLabel(PTRANSFORM_LABEL, pTransform);
-    return this;
+    return setLabel(PTRANSFORM_LABEL, pTransform);
   }
 
   /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
   public SimpleMonitoringInfoBuilder setPCollectionLabel(String pCollection) {
-    setLabel(PCOLLECTION_LABEL, pCollection);
-    return this;
+    return setLabel(PCOLLECTION_LABEL, pCollection);
   }
 
   /** Sets the MonitoringInfo label to the given name and value. */

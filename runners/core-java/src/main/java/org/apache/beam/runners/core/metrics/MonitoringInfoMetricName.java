@@ -23,9 +23,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
@@ -39,9 +41,9 @@ public class MonitoringInfoMetricName extends MetricName {
   private String urn;
   @Nullable private String name;
   @Nullable private String namespace;
-  private HashMap<String, String> labels = new HashMap<String, String>();
+  private Map<String, String> labels = new HashMap<String, String>();
 
-  private MonitoringInfoMetricName(String urn, HashMap<String, String> labels) {
+  private MonitoringInfoMetricName(String urn, Map<String, String> labels) {
     checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
     checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
     // TODO(ajamato): Move SimpleMonitoringInfoBuilder to beam-runner-core-construction-java
@@ -85,12 +87,17 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   /** @return The labels associated with this MonitoringInfo. */
-  public HashMap<String, String> getLabels() {
+  public Map<String, String> getLabels() {
     return this.labels;
   }
 
-  public static MonitoringInfoMetricName named(String urn, HashMap<String, String> labels) {
+  public static MonitoringInfoMetricName named(String urn, Map<String, String> labels) {
     return new MonitoringInfoMetricName(urn, labels);
+  }
+
+  /** @return a MetricName for a specific urn and labels map. */
+  public static MetricName create(MonitoringInfo monitoringInfo) {
+    return named(monitoringInfo.getUrn(), monitoringInfo.getLabelsMap());
   }
 
   @Override
