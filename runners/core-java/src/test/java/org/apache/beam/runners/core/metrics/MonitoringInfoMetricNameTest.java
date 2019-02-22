@@ -19,9 +19,11 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -35,9 +37,10 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   public void testElementCountConstruction() {
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
-    assertEquals(null, name.getName());
-    assertEquals(null, name.getNamespace());
+    MonitoringInfoMetricName name =
+        (MonitoringInfoMetricName) MonitoringInfoMetricName.named(urn, labels);
+    assertNull(name.getName());
+    assertNull(name.getNamespace());
     assertEquals(labels, name.getLabels());
     assertEquals(urn, name.getUrn());
 
@@ -46,7 +49,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
     // Reconstruct and test equality and hash code equivalence
     urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
     labels = new HashMap<String, String>();
-    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
+    MetricName name2 = MonitoringInfoMetricName.named(urn, labels);
 
     assertEquals(name, name2);
     assertEquals(name.hashCode(), name2.hashCode());
@@ -56,18 +59,16 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   public void testUserCounterUrnConstruction() {
     String urn = SimpleMonitoringInfoBuilder.userMetricUrn("namespace", "name");
     HashMap<String, String> labels = new HashMap<String, String>();
-    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+    MetricName name = MonitoringInfoMetricName.named(urn, labels);
     assertEquals("name", name.getName());
     assertEquals("namespace", name.getNamespace());
-    assertEquals(labels, name.getLabels());
-    assertEquals(urn, name.getUrn());
 
     assertEquals(name, name); // test self equals;
 
     // Reconstruct and test equality and hash code equivalence
     urn = SimpleMonitoringInfoBuilder.userMetricUrn("namespace", "name");
     labels = new HashMap<String, String>();
-    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
+    MetricName name2 = MonitoringInfoMetricName.named(urn, labels);
 
     assertEquals(name, name2);
     assertEquals(name.hashCode(), name2.hashCode());
@@ -77,13 +78,14 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   public void testNotEqualsDiffLabels() {
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+    MonitoringInfoMetricName name =
+        (MonitoringInfoMetricName) MonitoringInfoMetricName.named(urn, labels);
 
     // Reconstruct and test equality and hash code equivalence
     urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-    labels = new HashMap<String, String>();
+    labels = new HashMap<>();
     labels.put("label", "value1");
-    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
+    MetricName name2 = MonitoringInfoMetricName.named(urn, labels);
 
     assertNotEquals(name, name2);
     assertNotEquals(name.hashCode(), name2.hashCode());
@@ -93,12 +95,12 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   public void testNotEqualsDiffUrn() {
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+    MetricName name = MonitoringInfoMetricName.named(urn, labels);
 
     // Reconstruct and test equality and hash code equivalence
     urn = "differentUrn";
-    labels = new HashMap<String, String>();
-    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
+    labels = new HashMap<>();
+    MetricName name2 = MonitoringInfoMetricName.named(urn, labels);
 
     assertNotEquals(name, name2);
     assertNotEquals(name.hashCode(), name2.hashCode());

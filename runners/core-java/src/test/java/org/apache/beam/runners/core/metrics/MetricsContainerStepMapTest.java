@@ -21,6 +21,8 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoTestUtil.testElementCountMonitoringInfo;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoTestUtil.testElementCountName;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.clearTimestamp;
@@ -218,9 +220,7 @@ public class MetricsContainerStepMapTest {
     CounterCell c1 =
         baseMetricContainerRegistry.getContainer(STEP1).getCounter(MetricName.named("ns", "name1"));
     CounterCell c2 =
-        baseMetricContainerRegistry
-            .getUnboundContainer()
-            .getCounter(MonitoringInfoTestUtil.testElementCountName());
+        baseMetricContainerRegistry.getUnboundContainer().getCounter(testElementCountName());
 
     c1.inc(7);
     c2.inc(14);
@@ -236,7 +236,7 @@ public class MetricsContainerStepMapTest {
     builder.setInt64Value(7);
     expected.add(builder.build());
 
-    expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
+    expected.add(testElementCountMonitoringInfo(14));
 
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 

@@ -46,8 +46,6 @@ public class MonitoringInfoMetricName extends MetricName {
   private Map<String, String> labels = new HashMap<String, String>();
 
   private MonitoringInfoMetricName(String urn, Map<String, String> labels) {
-    checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
-    checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
     // TODO(ajamato): Move SimpleMonitoringInfoBuilder to beam-runner-core-construction-java
     // and ensure all necessary labels are set for the specific URN.
     this.urn = urn;
@@ -93,8 +91,24 @@ public class MonitoringInfoMetricName extends MetricName {
     return this.labels;
   }
 
-  public static MonitoringInfoMetricName named(String urn, Map<String, String> labels) {
-    return new MonitoringInfoMetricName(urn, labels);
+  /**
+   * Polymorphic constructor of {@link MetricName}s.
+   *
+   * <p>If `urn` is a {@link SimpleMonitoringInfoBuilder#USER_COUNTER_URN_PREFIX metric}, return a
+   * {@link MetricName} auto-value (which will {@link Object#equals equal} and {@link
+   * Object#hashCode hash} consistently with other {@link MetricName}s.
+   *
+   * <p>Otherwise, return a concrete {@link MonitoringInfoMetricName} representing a "system"
+   * metric.
+   */
+  public static MetricName named(String urn, Map<String, String> labels) {
+    checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
+    checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
+    MetricName metricName = MetricUrns.parseUrn(urn);
+    if (metricName == null) {
+      return new MonitoringInfoMetricName(urn, labels);
+    }
+    return metricName;
   }
 
   /** @return a MetricName for a specific urn and labels map. */
