@@ -53,6 +53,8 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
     TRANSFORM_TRANSLATORS.put(
         PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(
+        PTransformTranslation.COMBINE_GLOBALLY_TRANSFORM_URN, new CombineGloballyTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch());
 
