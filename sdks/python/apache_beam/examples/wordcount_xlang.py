@@ -54,6 +54,8 @@ class WordExtractingDoFn(beam.DoFn):
     # Using bytes type to match input and output coders between Python
     # and Java SDKs. Any element type can be used for crossing the language
     # boundary if a matching coder implementation exists in both SDKs.
+    # TODO(BEAM-6587): Use strings once they're understood by the
+    # Java SDK.
     words = [bytes(x) for x in re.findall(r'[\w\']+', text_line)]
     return words
 
