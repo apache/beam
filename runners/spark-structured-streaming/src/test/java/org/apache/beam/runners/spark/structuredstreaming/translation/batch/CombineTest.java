@@ -18,6 +18,8 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -25,6 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -44,36 +47,52 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  public void testCombine() {
+  public void testCombineGlobally() {
     PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
     input.apply(
-        Combine.globally(
-            new Combine.CombineFn<Integer, Integer, Integer>() {
-
-              @Override
-              public Integer createAccumulator() {
-                return 0;
-              }
-
-              @Override
-              public Integer addInput(Integer accumulator, Integer input) {
-                return accumulator + input;
-              }
-
-              @Override
-              public Integer mergeAccumulators(Iterable<Integer> accumulators) {
-                Integer result = 0;
-                for (Integer value : accumulators) {
-                  result += value;
-                }
-                return result;
-              }
-
-              @Override
-              public Integer extractOutput(Integer accumulator) {
-                return accumulator;
-              }
-            }));
+        Combine.globally(new IntegerCombineFn()));
     pipeline.run();
+  }
+
+  @Test
+  public void testCombinePerKey(){
+    List<KV<Integer, Integer>> elems = new ArrayList<>();
+    elems.add(KV.of(1, 1));
+    elems.add(KV.of(1, 3));
+    elems.add(KV.of(1, 5));
+    elems.add(KV.of(2, 2));
+    elems.add(KV.of(2, 4));
+    elems.add(KV.of(2, 6));
+
+    PCollection<KV<Integer, Integer>> input = pipeline.apply(Create.of(elems));
+    input.apply(Combine.perKey(new IntegerCombineFn()));
+    pipeline.run();
+  }
+
+  private static class IntegerCombineFn extends Combine.CombineFn<Integer, Integer, Integer> {
+
+    @Override
+    public Integer createAccumulator() {
+      return 0;
+    }
+
+    @Override
+    public Integer addInput(Integer accumulator, Integer input) {
+      return accumulator + input;
+    }
+
+    @Override
+    public Integer mergeAccumulators(Iterable<Integer> accumulators) {
+      Integer result = 0;
+      for (Integer value : accumulators) {
+        result += value;
+      }
+      return result;
+    }
+
+    @Override
+    public Integer extractOutput(Integer accumulator) {
+      return accumulator;
+    }
   }
 }
