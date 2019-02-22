@@ -31,23 +31,26 @@ public class EncoderHelpers {
   // the type inference mechanism to infer Encoder<WindowedValue<T>> to get back the type checking
 
   /*
-    --------- Encoders for internal spark runner objects
-   */
+   --------- Encoders for internal spark runner objects
+  */
 
   /**
    * Get a bytes {@link Encoder} for {@link WindowedValue}. Bytes serialisation is issued by Kryo
    */
-  @SuppressWarnings("unchecked") public static <T> Encoder<T> windowedValueEncoder() {
+  @SuppressWarnings("unchecked")
+  public static <T> Encoder<T> windowedValueEncoder() {
     return Encoders.kryo((Class<T>) WindowedValue.class);
   }
 
   /** Get a bytes {@link Encoder} for {@link KV}. Bytes serialisation is issued by Kryo */
-  @SuppressWarnings("unchecked") public static <T> Encoder<T> kvEncoder() {
+  @SuppressWarnings("unchecked")
+  public static <T> Encoder<T> kvEncoder() {
     return Encoders.kryo((Class<T>) KV.class);
   }
 
   /** Get a bytes {@link Encoder} for {@code T}. Bytes serialisation is issued by Kryo */
-  @SuppressWarnings("unchecked") public static <T> Encoder<T> genericEncoder() {
+  @SuppressWarnings("unchecked")
+  public static <T> Encoder<T> genericEncoder() {
     return Encoders.kryo((Class<T>) Object.class);
   }
 
@@ -57,7 +60,7 @@ public class EncoderHelpers {
   }
 
   /*
-    --------- Bridges from Beam Coders to Spark Encoders
-   */
+   --------- Bridges from Beam Coders to Spark Encoders
+  */
 
 }

@@ -21,9 +21,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -66,8 +66,10 @@ class ReadSourceTranslatorStreaming<T>
             .option(
                 DatasetSourceStreaming.DEFAULT_PARALLELISM,
                 String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
-            .option(DatasetSourceStreaming.PIPELINE_OPTIONS,
-                context.getSerializableOptions().toString()).load();
+            .option(
+                DatasetSourceStreaming.PIPELINE_OPTIONS,
+                context.getSerializableOptions().toString())
+            .load();
 
     // extract windowedValue from Row
     MapFunction<Row, WindowedValue<T>> func =

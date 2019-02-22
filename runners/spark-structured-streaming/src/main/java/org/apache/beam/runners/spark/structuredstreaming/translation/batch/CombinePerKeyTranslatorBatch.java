@@ -17,88 +17,59 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import java.io.ByteArrayInputStream;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.AggregatorCombiner;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
+import org.apache.spark.sql.KeyValueGroupedDataset;
+import scala.Tuple2;
 
-class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT> implements
-    TransformTranslator<PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
+class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
+    implements TransformTranslator<
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
 
-  @Override public void translateTransform(
+  @Override
+  public void translateTransform(
       PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
       TranslationContext context) {
 
-
     Combine.PerKey combineTransform = (Combine.PerKey) transform;
     @SuppressWarnings("unchecked")
-    final PCollection<KV<K, InputT>> input = (PCollection<KV<K, InputT>>)context.getInput();
+    final PCollection<KV<K, InputT>> input = (PCollection<KV<K, InputT>>) context.getInput();
     @SuppressWarnings("unchecked")
-    final PCollection<KV<K, OutputT>> output = (PCollection<KV<K, OutputT>>)context.getOutput();
+    final PCollection<KV<K, OutputT>> output = (PCollection<KV<K, OutputT>>) context.getOutput();
     @SuppressWarnings("unchecked")
-    final KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
-    @SuppressWarnings("unchecked")
-    final KvCoder<K, OutputT> outputCoder = (KvCoder<K, OutputT>) output.getCoder();
-    @SuppressWarnings("unchecked")
-    final Combine.CombineFn<InputT, AccumT, OutputT> combineFn = (Combine.CombineFn<InputT, AccumT, OutputT>)combineTransform.getFn();
+    final Combine.CombineFn<InputT, AccumT, OutputT> combineFn =
+        (Combine.CombineFn<InputT, AccumT, OutputT>) combineTransform.getFn();
 
-    final Coder<AccumT> accumulatorCoder;
-    try {
-      accumulatorCoder =
-          combineFn.getAccumulatorCoder(
-              input.getPipeline().getCoderRegistry(), inputCoder.getValueCoder());
-    } catch (CannotProvideCoderException e) {
-      throw new IllegalStateException("Could not determine coder for accumulator", e);
-    }
+    Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(input);
 
-    Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(context.getInput());
+    Dataset<KV<K, InputT>> keyedDataset =
+        inputDataset.map(
+            WindowingHelpers.unwindowMapFunction(), EncoderHelpers.windowedValueEncoder());
 
-    Dataset<KV<K, InputT>> keyedDataset = inputDataset
-        .map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.windowedValueEncoder());
-    //TODO do the aggregation per key
-    Dataset<Row> rowDataset = keyedDataset.select(
-        new AggregatorCombiner<>(combineFn, accumulatorCoder, outputCoder.getValueCoder())
-            .toColumn());
+    KeyValueGroupedDataset<K, KV<K, InputT>> groupedDataset =
+        keyedDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
 
+    Dataset<Tuple2<K, OutputT>> combinedDataset =
+        groupedDataset.agg(
+            new AggregatorCombiner<K, InputT, AccumT, OutputT>(combineFn).toColumn());
 
-    // extract KV from Row
-    MapFunction<Row, KV<K, OutputT>> func =
-        new MapFunction<Row, KV<K, OutputT>>() {
-          @Override
-          public KV<K, OutputT> call(Row value) throws Exception {
-            //TODO replace with outputCoder
-            byte[] bytes = (byte[]) value.get(0);
-            // it was serialized by kryo
-            Kryo kryo = new Kryo();
-            Input kryoInput = new Input(new ByteArrayInputStream(bytes));
-            @SuppressWarnings("unchecked")
-            KV<K, OutputT> kv= (KV<K, OutputT>)kryo.readClassAndObject(kryoInput);
-            kryoInput.close();
-            return kv;
-          }
-        };
-    Dataset< KV<K, OutputT>> dataset = rowDataset.map(func, EncoderHelpers.kvEncoder());
-
+    Dataset<KV<K, OutputT>> kvOutputDataset =
+        combinedDataset.map(KVHelpers.tuple2ToKV(), EncoderHelpers.kvEncoder());
 
     // Window the result into global window.
     Dataset<WindowedValue<KV<K, OutputT>>> outputDataset =
-        dataset.map(WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
+        kvOutputDataset.map(
+            WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
     context.putDataset(output, outputDataset);
-
   }
 }

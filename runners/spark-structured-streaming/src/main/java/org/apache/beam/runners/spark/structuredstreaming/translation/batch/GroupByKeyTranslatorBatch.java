@@ -19,9 +19,10 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
+import java.util.List;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -31,8 +32,6 @@ import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.KeyValueGroupedDataset;
-
-import java.util.List;
 
 class GroupByKeyTranslatorBatch<K, V>
     implements TransformTranslator<
@@ -48,8 +47,7 @@ class GroupByKeyTranslatorBatch<K, V>
     // Extract key to group by key only.
     KeyValueGroupedDataset<K, KV<K, V>> grouped =
         input
-            .map(WindowingHelpers.unwindowMapFunction(),
-                EncoderHelpers.kvEncoder())
+            .map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.kvEncoder())
             .groupByKey((MapFunction<KV<K, V>, K>) KV::getKey, EncoderHelpers.genericEncoder());
 
     // Materialize grouped values, potential OOM because of creation of new iterable
@@ -69,8 +67,8 @@ class GroupByKeyTranslatorBatch<K, V>
 
     // Window the result into global window.
     Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
-        materialized.map(WindowingHelpers.windowMapFunction(),
-            EncoderHelpers.windowedValueEncoder());
+        materialized.map(
+            WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
 
     context.putDataset(context.getOutput(), output);
   }

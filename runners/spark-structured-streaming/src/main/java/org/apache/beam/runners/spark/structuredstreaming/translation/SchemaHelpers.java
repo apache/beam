@@ -33,5 +33,4 @@ public class SchemaHelpers {
     array[0] = binaryStructField;
     return new StructType(array);
   }
-
 }

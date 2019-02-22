@@ -18,9 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static scala.collection.JavaConversions.asScalaBuffer;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -32,7 +30,6 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpe
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
@@ -42,9 +39,6 @@ import org.apache.spark.sql.sources.v2.ReadSupport;
 import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
 import org.apache.spark.sql.sources.v2.reader.InputPartition;
 import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Metadata;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 /**
@@ -89,7 +83,8 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
       if (!options.get(PIPELINE_OPTIONS).isPresent()) {
         throw new RuntimeException("Beam pipelineOptions were not set in DataSource options");
       }
-      this.serializablePipelineOptions = new SerializablePipelineOptions(options.get(PIPELINE_OPTIONS).get());
+      this.serializablePipelineOptions =
+          new SerializablePipelineOptions(options.get(PIPELINE_OPTIONS).get());
     }
 
     @Override
