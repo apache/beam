@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 
