@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
+/** Helper methods to select fields from a Schema. */
 public class SelectHelpers {
   // Currently we don't flatten selected nested fields.
   public static Schema getOutputSchema(
