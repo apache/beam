@@ -28,7 +28,7 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
-/** Options which can be used to configure a Flink PipelineRunner. */
+/** Options which can be used to configure a Flink PortablePipelineRunner. */
 public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
