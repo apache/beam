@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -194,8 +195,8 @@ public class FlinkSavepointTest implements Serializable {
     ListeningExecutorService executorService =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
     try {
-      FlinkJobInvocation jobInvocation =
-          FlinkJobInvocation.create(
+      JobInvocation jobInvocation =
+          FlinkJobInvoker.createJobInvocation(
               "id",
               "none",
               executorService,
