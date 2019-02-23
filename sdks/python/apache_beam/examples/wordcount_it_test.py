@@ -24,13 +24,92 @@ import time
 import unittest
 
 from hamcrest.core.core.allof import all_of
+from hamcrest.library.number.ordering_comparison import greater_than
 from nose.plugins.attrib import attr
 
 from apache_beam.examples import wordcount
+from apache_beam.testing import metric_result_matchers
+from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import delete_files
+
+
+def common_metric_matchers():
+  """MetricResult matchers common to all tests."""
+  matchers = [
+      # TODO(ajamato): Matcher for the 'pair_with_one' step's ElementCount.
+      # TODO(ajamato): Matcher for the 'pair_with_one' step's MeanByteCount.
+      # TODO(ajamato): Matcher for the start and finish exec times.
+      # TODO(ajamato): Matcher for a user distribution tuple metric.
+      MetricResultMatcher( # GroupByKey.
+          name='ElementCount',
+          labels={
+              'original_name': 'pair_with_one-out0-ElementCount',
+              'output_user_name': 'pair_with_one-out0'
+          },
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+      # User Metrics.
+      MetricResultMatcher(
+          name='empty_lines',
+          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+          step='split',
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+          name='word_lengths',
+          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+          step='split',
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+          name='words',
+          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+          step='split',
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+  ]
+  return matchers
+
+
+def fn_api_metric_matchers():
+  """MetricResult matchers with adjusted step names for the FN API DF test."""
+  matchers = common_metric_matchers()
+  matchers.extend([
+      # Execution Time Metric for the pair_with_one step.
+      MetricResultMatcher(
+          name='ExecutionTime_ProcessElement',
+          labels={
+              'step': 's9',
+          },
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+  ])
+  return matchers
+
+
+def legacy_metric_matchers():
+  """MetricResult matchers with adjusted step names for the legacy DF test."""
+  matchers = common_metric_matchers()
+  matchers.extend([
+      # Execution Time Metric for the pair_with_one step.
+      MetricResultMatcher(
+          name='ExecutionTime_ProcessElement',
+          labels={
+              'step': 's2',
+          },
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+  ])
+  return matchers
 
 
 class WordCountIT(unittest.TestCase):
@@ -44,11 +123,17 @@ class WordCountIT(unittest.TestCase):
 
   @attr('IT')
   def test_wordcount_it(self):
-    self._run_wordcount_it(wordcount.run)
+    result = self._run_wordcount_it(wordcount.run)
+    errors = metric_result_matchers.verify_all(
+        result.metrics().all_metrics(), legacy_metric_matchers())
+    self.assertFalse(errors, str(errors))
 
   @attr('IT', 'ValidatesContainer')
   def test_wordcount_fnapi_it(self):
-    self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
+    result = self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
+    errors = metric_result_matchers.verify_all(
+        result.metrics().all_metrics(), fn_api_metric_matchers())
+    self.assertFalse(errors, str(errors))
 
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -72,7 +157,8 @@ class WordCountIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    run_wordcount(test_pipeline.get_full_options_as_args(**extra_opts))
+    return run_wordcount(
+        test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':

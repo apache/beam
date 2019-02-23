@@ -23,7 +23,10 @@ service.
 
 from __future__ import absolute_import
 
+import argparse
+import logging
 import numbers
+import sys
 from collections import defaultdict
 
 from future.utils import iteritems
@@ -34,6 +37,8 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 
 def _get_match(proto, filter_fn):
@@ -174,8 +179,6 @@ class DataflowMetrics(MetricResults):
     for metric_key, metric in iteritems(metrics_by_name):
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
-      if attempted is None or committed is None:
-        continue
       result.append(MetricResult(metric_key,
                                  attempted=attempted,
                                  committed=committed))
@@ -209,12 +212,13 @@ class DataflowMetrics(MetricResults):
     else:
       return None
 
-  def _get_metrics_from_dataflow(self):
+  def _get_metrics_from_dataflow(self, job_id=None):
     """Return cached metrics or query the dataflow service."""
-    try:
-      job_id = self.job_result.job_id()
-    except AttributeError:
-      job_id = None
+    if not job_id:
+      try:
+        job_id = self.job_result.job_id()
+      except AttributeError:
+        job_id = None
     if not job_id:
       raise ValueError('Can not query metrics. Job id is unknown.')
 
@@ -223,12 +227,12 @@ class DataflowMetrics(MetricResults):
 
     job_metrics = self._dataflow_client.get_job_metrics(job_id)
     # If the job has terminated, metrics will not change and we can cache them.
-    if self.job_result.is_in_terminal_state():
+    if self.job_result and self.job_result.is_in_terminal_state():
       self._cached_metrics = job_metrics
     return job_metrics
 
-  def all_metrics(self):
-    response = self._get_metrics_from_dataflow()
+  def all_metrics(self, job_id=None):
+    response = self._get_metrics_from_dataflow(job_id=job_id)
     return  self._populate_metric_results(response)
 
   def query(self, filter=None):
@@ -240,3 +244,45 @@ class DataflowMetrics(MetricResults):
                                  if self.matches(filter, elm.key)
                                  and DataflowMetrics._is_distribution(elm)],
             self.GAUGES: []}  # TODO(pabloem): Add Gauge support for dataflow.
+
+
+def main(argv):
+  """Print the metric results for a the dataflow --job_id and --project.
+
+  Instead of running an entire pipeline which takes several minutes, use this
+  main method to display MetricResults for a specific --job_id and --project
+  which takes only a few seconds.
+  """
+  # Import here to avoid adding the dependency for local running scenarios.
+  try:
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners.dataflow.internal import apiclient
+  except ImportError:
+    raise ImportError(
+        'Google Cloud Dataflow runner not available, '
+        'please install apache_beam[gcp]')
+  if argv[0] == __file__:
+    argv = argv[1:]
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-j', '--job_id', type=str,
+                      help='The job id to query metrics for.')
+  parser.add_argument('-p', '--project', type=str,
+                      help='The project name to query metrics for.')
+  flags = parser.parse_args(argv)
+
+  # Get a Dataflow API client and set its project and job_id in the options.
+  options = PipelineOptions()
+  gcloud_options = options.view_as(GoogleCloudOptions)
+  gcloud_options.project = flags.project
+  dataflow_client = apiclient.DataflowApplicationClient(options)
+  df_metrics = DataflowMetrics(dataflow_client)
+  all_metrics = df_metrics.all_metrics(job_id=flags.job_id)
+  logging.info('Printing all MetricResults for %s in %s',
+               flags.job_id, flags.project)
+  for metric_result in all_metrics:
+    logging.info(metric_result)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  main(sys.argv)
