@@ -33,7 +33,6 @@ import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
 
-
 // Job Service for running RunnerAPI pipelines
 service JobService {
   // Prepare a job for execution. The job will not be executed until a call is made to run with the

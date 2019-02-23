@@ -25,7 +25,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
