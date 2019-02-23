@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import static org.hamcrest.Matchers.array;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -96,7 +97,7 @@ public class SparkMetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounters(getClass()), array(is(6L)));
   }
 
   private static class CountingDoFn extends DoFn<Integer, Integer> {
@@ -122,6 +123,6 @@ public class SparkMetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounters(getClass()), array(is(6L)));
   }
 }

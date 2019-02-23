@@ -17,33 +17,49 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static java.util.stream.StreamSupport.stream;
+import static org.apache.beam.sdk.metrics.MetricNameFilter.inNamespace;
+
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
 
 /**
- * This sink just stores in a static field the first counter (if it exists) attempted value. This is
- * useful for tests.
+ * This {@link MetricsSink sink} intercepts a {@link MetricQueryResults} and exposes its
+ * ("attempted") counter values. This is useful for tests.
  */
 public class TestMetricsSink implements MetricsSink {
 
-  private static long counterValue;
+  private static MetricResults metricResults;
 
   public TestMetricsSink(MetricsOptions pipelineOptions) {}
 
-  public static long getCounterValue() {
-    return counterValue;
+  public static Long[] getCounters(Class<?> namespace) {
+    MetricsFilter metricsFilter =
+        MetricsFilter.builder().addNameFilter(inNamespace(namespace)).build();
+    Iterable<MetricResult<Long>> counters = metricResults.queryMetrics(metricsFilter).getCounters();
+    return stream(counters.spliterator(), false)
+        .map(MetricResult::getAttempted)
+        .toArray(Long[]::new);
+  }
+
+  public static MetricResults getMetricResults() {
+    return metricResults;
   }
 
   public static void clear() {
-    counterValue = 0L;
+    metricResults = null;
   }
 
   @Override
-  public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
-    counterValue =
-        metricQueryResults.getCounters().iterator().hasNext()
-            ? metricQueryResults.getCounters().iterator().next().getAttempted()
-            : 0L;
+  public void writeMetrics(MetricQueryResults metricQueryResults) {
+    metricResults =
+        new DefaultMetricResults(
+            metricQueryResults.getCounters(),
+            metricQueryResults.getDistributions(),
+            metricQueryResults.getGauges());
   }
 }

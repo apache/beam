@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.hamcrest.Matchers.array;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -68,8 +69,9 @@ public class MetricsPusherTest {
     pipeline.run();
     // give metrics pusher time to push
     Thread.sleep(
-        (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(NUM_ELEMENTS));
+        (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 2) * 1000);
+
+    assertThat(TestMetricsSink.getCounters(getClass()), array(is(NUM_ELEMENTS)));
   }
 
   private static class CountingDoFn extends DoFn<Long, Long> {
