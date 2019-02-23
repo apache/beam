@@ -32,6 +32,7 @@ Available classes:
 
 from __future__ import absolute_import
 
+import pprint
 import threading
 from builtins import object
 from collections import defaultdict
@@ -51,15 +52,17 @@ class MetricKey(object):
   Metrics are internally keyed by the name of the step they're associated with
   and the name of the metric.
   """
-  def __init__(self, step, metric):
+  def __init__(self, step, metric, labels=None):
     """Initializes ``MetricKey``.
 
     Args:
       step: A string with the step this metric cell is part of.
-      metric: A ``MetricName`` that identifies a metric.
+      metric: A ``MetricName`` namespace+name that identifies a metric.
+      labels: An arbitrary set of labels that also identifies the metric.
     """
     self.step = step
     self.metric = metric
+    self.labels = labels if labels else dict()
 
   def __eq__(self, other):
     return (self.step == other.step and
@@ -73,8 +76,8 @@ class MetricKey(object):
     return hash((self.step, self.metric))
 
   def __repr__(self):
-    return 'MetricKey(step={}, metric={})'.format(
-        self.step, self.metric)
+    return 'MetricKey(step={}, metric={}, labels={})'.format(
+        self.step, self.metric, self.labels)
 
   def __hash__(self):
     return hash((self.step, self.metric))
@@ -121,6 +124,9 @@ class MetricResult(object):
   def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
+
+  def __str__(self):
+    return pprint.pformat(self)
 
   @property
   def result(self):
