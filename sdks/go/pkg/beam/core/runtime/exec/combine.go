@@ -318,6 +318,27 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 		return n.fail(err)
 	}
 
+	// TODO(BEAM-4468): replace with some better implementation
+	// once adding dependencies is easier.
+	// Arbitrary limit until a broader improvement can be demonstrated.
+	const cacheMax = 2000
+	if len(n.cache) > cacheMax {
+		// Use Go's random map iteration to have a basic
+		// random eviction policy.
+		for key, a := range n.cache {
+			if err := n.Out.ProcessElement(ctx, &a); err != nil {
+				return err
+			}
+			delete(n.cache, key)
+			// Having the check be on strict greater than and
+			// strict less than allows at least 2 keys to be
+			// processed before evicting again.
+			if len(n.cache) < cacheMax {
+				break
+			}
+		}
+	}
+
 	// Cache the accumulator with the key
 	n.cache[key] = FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
 
