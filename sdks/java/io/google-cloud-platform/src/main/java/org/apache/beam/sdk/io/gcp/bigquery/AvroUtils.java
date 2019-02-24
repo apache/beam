@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 
 /** Utils to help convert Apache Avro types to Beam types. */
@@ -33,6 +33,7 @@ public class AvroUtils {
           "SqlDateType", "SqlTimeType", "SqlTimeWithLocalTzType", "SqlTimestampWithLocalTzType");
   private static final Set<String> SQL_STRING_TYPES = ImmutableSet.of("SqlCharType");
 
+  /** Tries to convert an Avro field to Beam field based on the target type of the Beam field. */
   public static Object convertAvroFormat(Field beamField, Object value) {
     Object ret;
     TypeName beamFieldTypeName = beamField.getType().getTypeName();
