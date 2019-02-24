@@ -301,10 +301,10 @@ UDF and how to use it in DSL:</p>
 <span class="c1">// Register the UDFs used in the query by calling '.registerUdf()' with </span>
 <span class="c1">// either a class which implements BeamSqlUdf or with </span>
 <span class="c1">// an instance of the SerializableFunction;</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">BeamSqlRow</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
     <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="s">"udfExample"</span><span class="o">,</span>
-        <span class="n">BeamSql</span>
+        <span class="n">SqlTransform</span>
             <span class="o">.</span><span class="na">query</span><span class="o">(</span><span class="n">sql</span><span class="o">)</span>
             <span class="o">.</span><span class="na">registerUdf</span><span class="o">(</span><span class="s">"cubic1"</span><span class="o">,</span> <span class="n">CubicInteger</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
             <span class="o">.</span><span class="na">registerUdf</span><span class="o">(</span><span class="s">"cubic2"</span><span class="o">,</span> <span class="k">new</span> <span class="n">CubicIntegerFn</span><span class="o">())</span>
@@ -355,10 +355,10 @@ example above:</p>
 <span class="c1">// Create and apply the PTransform representing the query.</span>
 <span class="c1">// Register the UDAFs used in the query by calling '.registerUdaf()' by </span>
 <span class="c1">// providing it an instance of the CombineFn</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">BeamSqlRow</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
     <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="s">"udafExample"</span><span class="o">,</span>
-        <span class="n">BeamSql</span>
+        <span class="n">SqlTransform</span>
             <span class="o">.</span><span class="na">query</span><span class="o">(</span><span class="n">sql</span><span class="o">)</span>
             <span class="o">.</span><span class="na">registerUdaf</span><span class="o">(</span><span class="s">"squaresum"</span><span class="o">,</span> <span class="k">new</span> <span class="n">SquareSum</span><span class="o">()));</span>
 </code></pre>
