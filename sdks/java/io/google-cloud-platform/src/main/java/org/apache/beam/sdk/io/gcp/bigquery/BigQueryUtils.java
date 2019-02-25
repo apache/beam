@@ -103,8 +103,8 @@ public class BigQueryUtils {
           .put("SqlDateType", StandardSQLTypeName.DATE)
           .put("SqlTimeType", StandardSQLTypeName.TIME)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
-          .put("SqlTimestamp", StandardSQLTypeName.TIMESTAMP)
           .put("SqlTimestampWithLocalTzType", StandardSQLTypeName.TIMESTAMP)
+          .put("SqlCharType", StandardSQLTypeName.STRING)
           .build();
 
   /**
@@ -112,17 +112,14 @@ public class BigQueryUtils {
    * FieldType}.
    */
   private static StandardSQLTypeName toStandardSQLTypeName(FieldType fieldType) {
-    StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
-
-    if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getTypeName().isLogicalType()) {
+    if (fieldType.getTypeName().isLogicalType()) {
       StandardSQLTypeName foundType =
           BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(fieldType.getLogicalType().getIdentifier());
       if (foundType != null) {
         return foundType;
       }
     }
-
-    return sqlType;
+    return BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
   }
 
   private static List<TableFieldSchema> toTableFieldSchema(Schema schema) {
