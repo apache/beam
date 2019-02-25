@@ -321,10 +321,7 @@ public class CoGroup {
           KeyedPCollectionTuple.empty(input.getPipeline());
 
       List<String> sortedTags =
-          input
-              .getAll()
-              .keySet()
-              .stream()
+          input.getAll().keySet().stream()
               .map(TupleTag::getId)
               .sorted()
               .collect(Collectors.toList());
@@ -590,7 +587,8 @@ public class CoGroup {
           crossProductHelper(tagIndex, accumulatedRows, null, gbkResult, o);
         }
         for (Object item : items) {
-          // For every item that joined for the current input, and recurse down to calculate the list
+          // For every item that joined for the current input, and recurse down to calculate the
+          // list
           // of expanded records.
           Row row = toRow.apply(item);
           crossProductHelper(tagIndex, accumulatedRows, row, gbkResult, o);
