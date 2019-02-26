@@ -41,6 +41,7 @@ job('beam_sonarqube_report') {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks("test")
+      tasks("jacocoTestReport")
       tasks("sonarqube")
       switches("--continue")
       switches("-PdisableSpotlessCheck=true")
