@@ -39,7 +39,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
 
   // Gradle goals for this job.
   Nexmark.streamingOnlyJob(delegate, Runner.GEARPUMP, JOB_SPECIFIC_OPTIONS, 
-    Nexmark.TriggeringContext.POST_COMMIT)
+    TriggeringContext.POST_COMMIT)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Gearpump', 
@@ -49,5 +49,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Ge
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-  Nexmark.streamingOnlyJob(delegate, Runner.GEARPUMP, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
+  Nexmark.streamingOnlyJob(delegate, Runner.GEARPUMP, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }
