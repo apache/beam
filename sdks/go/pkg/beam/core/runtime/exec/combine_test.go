@@ -304,6 +304,10 @@ type MyErrorCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput implementations
 }
 
+func (*MyErrorCombine) CreateAccumulator() (int64, error) {
+	return 0, nil
+}
+
 func (*MyErrorCombine) MergeAccumulators(a, b int64) (int64, error) {
 	return a + b, nil
 }
