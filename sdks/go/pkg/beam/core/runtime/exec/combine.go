@@ -355,11 +355,18 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 	if len(n.cache) > cacheMax {
 		// Use Go's random map iteration to have a basic
 		// random eviction policy.
-		for key, a := range n.cache {
+		for k, a := range n.cache {
+			// Never evict and send out the current working key.
+			// We've already combined this contribution with the
+			// accumulator and we'd be repeating the contributions
+			// of older elements.
+			if k == key {
+				continue
+			}
 			if err := n.Out.ProcessElement(ctx, &a); err != nil {
 				return err
 			}
-			delete(n.cache, key)
+			delete(n.cache, k)
 			// Having the check be on strict greater than and
 			// strict less than allows at least 2 keys to be
 			// processed before evicting again.
