@@ -31,11 +31,10 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
-import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Joiner;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -168,6 +167,9 @@ public class CassandraIO {
     abstract String consistencyLevel();
 
     @Nullable
+    abstract String where();
+
+    @Nullable
     abstract Integer minNumberOfSplits();
 
     abstract Builder<T> builder();
@@ -256,6 +258,24 @@ public class CassandraIO {
     }
 
     /**
+     * Specify a string with a partial {@code Where} clause. Note: Cassandra places restrictions on
+     * the {@code Where} clause you may use. (e.g. filter on a primary/clustering column only etc.)
+     *
+     * @param where Partial {@code Where} clause. Optional - If unspecified will not filter the
+     *     data.
+     * @see <a href="http://cassandra.apache.org/doc/4.0/cql/dml.html#where-clause">CQL
+     *     Documentation</a>
+     * @throws com.datastax.driver.core.exceptions.InvalidQueryException If {@code Where} clause
+     *     makes the generated query invalid. Please Consult <a
+     *     href="http://cassandra.apache.org/doc/4.0/cql/dml.html#where-clause">CQL
+     *     Documentation</a> for more info on correct usage of the {@code Where} clause.
+     */
+    public Read<T> withWhere(String where) {
+      checkArgument(where != null, "where can not be null");
+      return builder().setWhere(where).build();
+    }
+
+    /**
      * It's possible that system.size_estimates isn't populated or that the number of splits
      * computed by Beam is still to low for Cassandra to handle it. This setting allows to enforce a
      * minimum number of splits in case Beam cannot compute it correctly.
@@ -302,6 +322,8 @@ public class CassandraIO {
       abstract Builder<T> setLocalDc(String localDc);
 
       abstract Builder<T> setConsistencyLevel(String consistencyLevel);
+
+      abstract Builder<T> setWhere(String where);
 
       abstract Builder<T> setMinNumberOfSplits(Integer minNumberOfSplits);
 
@@ -351,7 +373,12 @@ public class CassandraIO {
           LOG.warn(
               "Only Murmur3Partitioner is supported for splitting, using an unique source for "
                   + "the read");
-          String splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
+          String splitQuery =
+              String.format(
+                  "SELECT * FROM %s.%s%s;",
+                  spec.keyspace(),
+                  spec.table(),
+                  spec.where() == null ? "" : String.format(" WHERE %s", spec.where()));
           return Collections.singletonList(
               new CassandraIO.CassandraSource<>(spec, Collections.singletonList(splitQuery)));
         }
@@ -389,7 +416,6 @@ public class CassandraIO {
       for (List<RingRange> split : splits) {
         List<String> queries = new ArrayList<>();
         for (RingRange range : split) {
-          Select.Where builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
           if (range.isWrapping()) {
             // A wrapping range is one that overlaps from the end of the partitioner range and its
             // start (ie : when the start token of the split is greater than the end token)
@@ -397,30 +423,63 @@ public class CassandraIO {
             // of
             // the partitioner range, and the other from the start of the partitioner range to the
             // end token of the split.
-            builder =
-                builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
-            String query = builder.toString();
-            LOG.debug("Cassandra generated read query : {}", query);
-            queries.add(query);
-
+            queries.add(
+                generateRangeQuery(
+                    spec.keyspace(),
+                    spec.table(),
+                    spec.where(),
+                    partitionKey,
+                    range.getStart(),
+                    null));
             // Generation of the second query of the wrapping range
-            builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
-            builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", range.getEnd()));
-            query = builder.toString();
-            LOG.debug("Cassandra generated read query : {}", query);
-            queries.add(query);
+            queries.add(
+                generateRangeQuery(
+                    spec.keyspace(),
+                    spec.table(),
+                    spec.where(),
+                    partitionKey,
+                    null,
+                    range.getEnd()));
           } else {
-            builder =
-                builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
-            builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", range.getEnd()));
-            String query = builder.toString();
-            LOG.debug("Cassandra generated read query : {}", query);
-            queries.add(query);
+            queries.add(
+                generateRangeQuery(
+                    spec.keyspace(),
+                    spec.table(),
+                    spec.where(),
+                    partitionKey,
+                    range.getStart(),
+                    range.getEnd()));
           }
         }
         sources.add(new CassandraIO.CassandraSource<>(spec, queries));
       }
       return sources;
+    }
+
+    private static String generateRangeQuery(
+        String keyspace,
+        String table,
+        String where,
+        String partitionKey,
+        BigInteger rangeStart,
+        BigInteger rangeEnd) {
+      String query =
+          String.format(
+              "SELECT * FROM %s.%s WHERE %s;",
+              keyspace,
+              table,
+              Joiner.on(" AND ")
+                  .skipNulls()
+                  .join(
+                      where == null ? null : String.format("(%s)", where),
+                      rangeStart == null
+                          ? null
+                          : String.format("(token(%s)>=%d)", partitionKey, rangeStart),
+                      rangeEnd == null
+                          ? null
+                          : String.format("(token(%s)<%d)", partitionKey, rangeEnd)));
+      LOG.debug("Cassandra generated read query : {}", query);
+      return query;
     }
 
     private static long getNumSplits(
