@@ -203,7 +203,7 @@ public class Pipeline {
    * overrides.
    */
   @Internal
-  public void replaceAll(List<PTransformOverride> overrides) {
+  public void treplaceAll(List<PTransformOverride> overrides) {
     for (PTransformOverride override : overrides) {
       replace(override);
     }
