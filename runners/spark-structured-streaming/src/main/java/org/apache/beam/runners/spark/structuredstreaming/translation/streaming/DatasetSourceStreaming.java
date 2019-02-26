@@ -49,6 +49,7 @@ public class DatasetSourceStreaming<T> implements DataSourceV2, MicroBatchReadSu
   /** This class can be mapped to Beam {@link BoundedSource}. */
   private static class DatasetMicroBatchReader implements MicroBatchReader {
 
+    @SuppressWarnings("unused")
     private DatasetMicroBatchReader(String checkpointLocation, DataSourceOptions options) {
       //TODO deal with schema and options
     }
