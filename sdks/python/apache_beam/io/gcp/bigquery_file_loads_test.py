@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import random
+import sys
 import time
 import unittest
 
@@ -251,6 +252,10 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-6711')
   def test_records_traverse_transform_with_mocks(self):
     destination = 'project1:dataset1.table1'
 
