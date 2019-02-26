@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.Preconditions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 
 /** This holds system metrics related constants used in Batch and Streaming. */
 public class DataflowSystemMetrics {
@@ -34,11 +33,13 @@ public class DataflowSystemMetrics {
   /** System counters populated by streaming dataflow workers. */
   public enum StreamingSystemCounterNames {
     WINDMILL_SHUFFLE_BYTES_READ("WindmillShuffleBytesRead"),
-    WINDMILl_STATE_BYTES_READ("WindmillStateBytesRead"),
-    WINDMILl_STATE_BYTES_WRITTEN("WindmillStateBytesWritten"),
+    WINDMILL_STATE_BYTES_READ("WindmillStateBytesRead"),
+    WINDMILL_STATE_BYTES_WRITTEN("WindmillStateBytesWritten"),
+    WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES("WindmillMaxWorkItemCommitBytes"),
     JAVA_HARNESS_USED_MEMORY("dataflow_java_harness_used_memory"),
     JAVA_HARNESS_MAX_MEMORY("dataflow_java_harness_max_memory"),
-    JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts");
+    JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts"),
+    WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs");
 
     private final String name;
 

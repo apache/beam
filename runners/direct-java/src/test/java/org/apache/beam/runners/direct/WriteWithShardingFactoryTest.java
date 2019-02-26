@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -28,7 +27,6 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.Reader;
 import java.io.Serializable;
@@ -63,6 +61,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -152,7 +151,8 @@ public class WriteWithShardingFactoryTest implements Serializable {
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 
     AppliedPTransform<
-            PCollection<Object>, WriteFilesResult<Void>,
+            PCollection<Object>,
+            WriteFilesResult<Void>,
             PTransform<PCollection<Object>, WriteFilesResult<Void>>>
         originalApplication =
             AppliedPTransform.of("write", objs.expand(), Collections.emptyMap(), original, p);

@@ -15,21 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -39,13 +36,14 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * A runner which creates {@link Reader}s for each {@link BoundedSource} sent as an input and
@@ -79,14 +77,13 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener) {
-
       ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
-        consumers.addAll(pCollectionIdsToConsumers.get(pCollectionId));
+        consumers.add(pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId));
       }
 
       @SuppressWarnings({"rawtypes", "unchecked"})
@@ -94,11 +91,11 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
           new BoundedSourceRunner(pipelineOptions, pTransform.getSpec(), consumers.build());
 
       // TODO: Remove and replace with source being sent across gRPC port
-      addStartFunction.accept(runner::start);
+      startFunctionRegistry.register(pTransformId, runner::start);
 
       FnDataReceiver runReadLoop = (FnDataReceiver<WindowedValue<InputT>>) runner::runReadLoop;
       for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionIdsToConsumers.put(pCollectionId, runReadLoop);
+        pCollectionConsumerRegistry.register(pCollectionId, pTransformId, runReadLoop);
       }
 
       return runner;

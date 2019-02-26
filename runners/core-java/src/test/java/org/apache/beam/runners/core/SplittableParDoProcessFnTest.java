@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -31,6 +31,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -123,7 +124,7 @@ public class SplittableParDoProcessFnTest {
           PositionT,
           TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
       implements AutoCloseable {
-    private final DoFnTester<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> tester;
+    private final DoFnTester<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> tester;
     private Instant currentProcessingTime;
 
     private InMemoryTimerInternals timerInternals;
@@ -198,7 +199,8 @@ public class SplittableParDoProcessFnTest {
 
     void startElement(WindowedValue<KV<InputT, RestrictionT>> windowedValue) throws Exception {
       tester.processElement(
-          KeyedWorkItems.elementsWorkItem("key", Collections.singletonList(windowedValue)));
+          KeyedWorkItems.elementsWorkItem(
+              "key".getBytes(StandardCharsets.UTF_8), Collections.singletonList(windowedValue)));
     }
 
     /**
@@ -217,7 +219,8 @@ public class SplittableParDoProcessFnTest {
       if (timers.isEmpty()) {
         return false;
       }
-      tester.processElement(KeyedWorkItems.timersWorkItem("key", timers));
+      tester.processElement(
+          KeyedWorkItems.timersWorkItem("key".getBytes(StandardCharsets.UTF_8), timers));
       return true;
     }
 
@@ -503,7 +506,7 @@ public class SplittableParDoProcessFnTest {
     // Should output the range [2*max, 2*max + max/2)
     assertThat(elements, hasItem(String.valueOf(baseIndex + 2 * max)));
     assertThat(elements, hasItem(String.valueOf(baseIndex + 2 * max + max / 2 - 1)));
-    assertThat(elements, not(hasItem((String.valueOf(baseIndex + 2 * max + max / 2)))));
+    assertThat(elements, not(hasItem(String.valueOf(baseIndex + 2 * max + max / 2))));
   }
 
   @Test

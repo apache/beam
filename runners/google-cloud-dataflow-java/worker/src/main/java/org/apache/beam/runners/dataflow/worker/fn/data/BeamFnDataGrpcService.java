@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.data;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -34,7 +31,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
@@ -47,7 +44,9 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -205,9 +204,9 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     }
   }
 
-  /** Get the DataService for the clientId */
-  public FnDataService getDataService(final String clientId) {
-    return new FnDataService() {
+  /** Get the anonymous subclass of GrpcDataService for the clientId */
+  public GrpcDataService getDataService(final String clientId) {
+    return new GrpcDataService() {
       @Override
       public <T> InboundDataClient receive(
           LogicalEndpoint inputLocation,
@@ -240,6 +239,10 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
           throw new RuntimeException(e);
         }
       }
+
+      /** It is intended to do nothing in close. */
+      @Override
+      public void close() throws Exception {}
     };
   }
 
@@ -266,6 +269,6 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
 
   private CompletableFuture<BeamFnDataGrpcMultiplexer> getClientFuture(String sdkWorkerId) {
     Preconditions.checkNotNull(sdkWorkerId);
-    return connectedClients.computeIfAbsent(sdkWorkerId, (clientId) -> new CompletableFuture<>());
+    return connectedClients.computeIfAbsent(sdkWorkerId, clientId -> new CompletableFuture<>());
   }
 }

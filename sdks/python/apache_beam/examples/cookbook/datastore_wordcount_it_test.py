@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import logging
+import os
+import sys
 import time
 import unittest
 
@@ -32,6 +34,10 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-4543')
 class DatastoreWordCountIT(unittest.TestCase):
 
   DATASTORE_WORDCOUNT_KIND = "DatastoreWordCount"
@@ -43,7 +49,7 @@ class DatastoreWordCountIT(unittest.TestCase):
     dataset = test_pipeline.get_option("project")
     kind = self.DATASTORE_WORDCOUNT_KIND
     output = '/'.join([test_pipeline.get_option('output'),
-                       str(int(time.time())),
+                       str(int(time.time() * 1000)),
                        'datastore_wordcount_results'])
 
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')

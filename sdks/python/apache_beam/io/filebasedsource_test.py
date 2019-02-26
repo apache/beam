@@ -52,10 +52,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 class LineSource(FileBasedSource):
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def read_records(self, file_name, range_tracker):
     f = self.open_file(file_name)
     try:
@@ -74,7 +70,7 @@ class LineSource(FileBasedSource):
       while line:
         if not range_tracker.try_claim(current):
           return
-        yield line.rstrip('\n')
+        yield line.rstrip(b'\n')
         current += len(line)
         line = f.readline()
     finally:
@@ -91,6 +87,22 @@ class EOL(object):
 def write_data(
     num_lines, no_data=False, directory=None, prefix=tempfile.template,
     eol=EOL.LF):
+  """Writes test data to a temporary file.
+
+  Args:
+    num_lines (int): The number of lines to write.
+    no_data (bool): If :data:`True`, empty lines will be written, otherwise
+      each line will contain a concatenation of b'line' and the line number.
+    directory (str): The name of the directory to create the temporary file in.
+    prefix (str): The prefix to use for the temporary file.
+    eol (int): The line ending to use when writing.
+      :class:`~apache_beam.io.filebasedsource_test.EOL` exposes attributes that
+      can be used here to define the eol.
+
+  Returns:
+    Tuple[str, List[bytes]]: A tuple of the filename and a list of the written
+      data.
+  """
   all_data = []
   with tempfile.NamedTemporaryFile(
       delete=False, dir=directory, prefix=prefix) as f:
@@ -135,6 +147,17 @@ def write_prepared_pattern(data, suffixes=None):
 
 
 def write_pattern(lines_per_file, no_data=False):
+  """Writes a pattern of temporary files.
+
+  Args:
+    lines_per_file (List[int]): The number of lines to write per file.
+    no_data (bool): If :data:`True`, empty lines will be written, otherwise
+      each line will contain a concatenation of b'line' and the line number.
+
+  Returns:
+    Tuple[str, List[bytes]]: A tuple of the filename pattern and a list of the
+      written data.
+  """
   temp_dir = tempfile.mkdtemp()
 
   all_data = []
@@ -186,6 +209,12 @@ class TestConcatSource(unittest.TestCase):
     def estimate_size(self):
       return len(self._values)  # Assuming each value to be 1 byte.
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -197,7 +226,7 @@ class TestConcatSource(unittest.TestCase):
     concat = ConcatSource(sources)
     range_tracker = concat.get_range_tracker(None, None)
     read_data = [value for value in concat.read(range_tracker)]
-    self.assertItemsEqual(list(range(30)), read_data)
+    self.assertCountEqual(list(range(30)), read_data)
 
   def test_split(self):
     sources = [TestConcatSource.DummySource(list(range(start, start + 10)))
@@ -214,7 +243,7 @@ class TestConcatSource(unittest.TestCase):
           split.stop_position)
       read_data.extend([value for value in split.source.read(
           range_tracker_for_split)])
-    self.assertItemsEqual(list(range(30)), read_data)
+    self.assertCountEqual(list(range(30)), read_data)
 
   def test_estimate_size(self):
     sources = [TestConcatSource.DummySource(range(start, start + 10)) for start
@@ -224,6 +253,12 @@ class TestConcatSource(unittest.TestCase):
 
 
 class TestFileBasedSource(unittest.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
@@ -277,7 +312,7 @@ class TestFileBasedSource(unittest.TestCase):
     fbs = LineSource(file_name)
     range_tracker = fbs.get_range_tracker(None, None)
     read_data = [record for record in fbs.read(range_tracker)]
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_single_file_display_data(self):
     file_name, _ = write_data(10)
@@ -295,7 +330,7 @@ class TestFileBasedSource(unittest.TestCase):
     fbs = LineSource(pattern)
     range_tracker = fbs.get_range_tracker(None, None)
     read_data = [record for record in fbs.read(range_tracker)]
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_fully_read_file_pattern_with_empty_files(self):
     pattern, expected_data = write_pattern([5, 0, 12, 0, 8, 0])
@@ -303,7 +338,7 @@ class TestFileBasedSource(unittest.TestCase):
     fbs = LineSource(pattern)
     range_tracker = fbs.get_range_tracker(None, None)
     read_data = [record for record in fbs.read(range_tracker)]
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_estimate_size_of_file(self):
     file_name, expected_data = write_data(10)
@@ -375,7 +410,7 @@ class TestFileBasedSource(unittest.TestCase):
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
 
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_read_splits_file_pattern(self):
     pattern, expected_data = write_pattern([34, 66, 40, 24, 24, 12])
@@ -392,7 +427,7 @@ class TestFileBasedSource(unittest.TestCase):
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
 
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def _run_source_test(self, pattern, expected_data, splittable=True):
     pipeline = TestPipeline()
@@ -433,7 +468,7 @@ class TestFileBasedSource(unittest.TestCase):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
     with bz2.BZ2File(filename, 'wb') as f:
-      f.write('\n'.join(lines))
+      f.write(b'\n'.join(lines))
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -448,7 +483,7 @@ class TestFileBasedSource(unittest.TestCase):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
     with gzip.GzipFile(filename, 'wb') as f:
-      f.write('\n'.join(lines))
+      f.write(b'\n'.join(lines))
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -466,7 +501,7 @@ class TestFileBasedSource(unittest.TestCase):
     for c in chunks:
       compressobj = bz2.BZ2Compressor()
       compressed_chunks.append(
-          compressobj.compress('\n'.join(c)) + compressobj.flush())
+          compressobj.compress(b'\n'.join(c)) + compressobj.flush())
     file_pattern = write_prepared_pattern(compressed_chunks)
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -484,7 +519,7 @@ class TestFileBasedSource(unittest.TestCase):
     for c in chunks:
       out = io.BytesIO()
       with gzip.GzipFile(fileobj=out, mode="wb") as f:
-        f.write('\n'.join(c))
+        f.write(b'\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(compressed_chunks)
     pipeline = TestPipeline()
@@ -500,7 +535,7 @@ class TestFileBasedSource(unittest.TestCase):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template, suffix='.bz2').name
     with bz2.BZ2File(filename, 'wb') as f:
-      f.write('\n'.join(lines))
+      f.write(b'\n'.join(lines))
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -514,7 +549,7 @@ class TestFileBasedSource(unittest.TestCase):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template, suffix='.gz').name
     with gzip.GzipFile(filename, 'wb') as f:
-      f.write('\n'.join(lines))
+      f.write(b'\n'.join(lines))
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -531,7 +566,7 @@ class TestFileBasedSource(unittest.TestCase):
     for c in chunks:
       out = io.BytesIO()
       with gzip.GzipFile(fileobj=out, mode="wb") as f:
-        f.write('\n'.join(c))
+        f.write(b'\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(
         compressed_chunks, suffixes=['.gz']*len(chunks))
@@ -551,10 +586,10 @@ class TestFileBasedSource(unittest.TestCase):
       if i%2 == 0:
         out = io.BytesIO()
         with gzip.GzipFile(fileobj=out, mode="wb") as f:
-          f.write('\n'.join(c))
+          f.write(b'\n'.join(c))
         chunks_to_write.append(out.getvalue())
       else:
-        chunks_to_write.append('\n'.join(c))
+        chunks_to_write.append(b'\n'.join(c))
     file_pattern = write_prepared_pattern(chunks_to_write,
                                           suffixes=(['.gz', '']*3))
     pipeline = TestPipeline()

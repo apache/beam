@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
+import mock
 from hamcrest.core.assert_that import assert_that as hc_assert_that
 from hamcrest.core.base_matcher import BaseMatcher
 
@@ -107,6 +108,13 @@ class TestPipelineTest(unittest.TestCase):
     test_pipeline.run()
     # Note that this will never be reached since it should be skipped above.
     self.fail()
+
+  @mock.patch('apache_beam.testing.test_pipeline.Pipeline.run', autospec=True)
+  def test_not_use_test_runner_api(self, mock_run):
+    test_pipeline = TestPipeline(argv=['--not-use-test-runner-api'],
+                                 blocking=False)
+    test_pipeline.run()
+    mock_run.assert_called_once_with(test_pipeline, test_runner_api=False)
 
 
 if __name__ == '__main__':

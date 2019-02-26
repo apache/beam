@@ -4,18 +4,17 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * License); you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
@@ -49,11 +48,6 @@ import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.WriteInstruction;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,7 +62,6 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.MapTaskToNetworkFunction;
@@ -89,6 +82,8 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -103,6 +98,11 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -116,17 +116,22 @@ import org.mockito.MockitoAnnotations;
 public class IntrinsicMapTaskExecutorFactoryTest {
   private static final String STAGE = "test";
 
+  private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
+
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork =
-      new FixMultiOutputInfosOnParDoInstructions(IdGenerator::generate)
-          .andThen(new MapTaskToNetworkFunction());
+      new FixMultiOutputInfosOnParDoInstructions(idGenerator)
+          .andThen(new MapTaskToNetworkFunction(idGenerator));
 
   private static final CloudObject windowedStringCoder =
-      CloudObjects.asCloudObject(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
+      CloudObjects.asCloudObject(
+          WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()), /*sdkComponents=*/ null);
 
   private IntrinsicMapTaskExecutorFactory mapTaskExecutorFactory;
   private PipelineOptions options;
   private ReaderRegistry readerRegistry;
   private SinkRegistry sinkRegistry;
+  private static final String PCOLLECTION_ID = "fakeId";
+
   @Mock private Network<Node, Edge> network;
   @Mock private CounterUpdateExtractor<?> updateExtractor;
 
@@ -170,9 +175,9 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     try (DataflowMapTaskExecutor executor =
         mapTaskExecutorFactory.create(
             null /* beamFnControlClientHandler */,
-            null /* beamFnDataService */,
-            null, /* dataApiServiceDescriptor */
-            null /* beamFnStateService */,
+            null /* GrpcFnServer<GrpcDataService> */,
+            null /* ApiServiceDescriptor */,
+            null, /* GrpcFnServer<GrpcStateService> */
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,
@@ -180,7 +185,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             sinkRegistry,
             BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
             counterSet,
-            IdGenerator::generate)) {
+            idGenerator)) {
       // Safe covariant cast not expressible without rawtypes.
       @SuppressWarnings({"rawtypes", "unchecked"})
       List<Object> operations = (List) executor.operations;
@@ -262,8 +267,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         mapTaskExecutorFactory.create(
             null /* beamFnControlClientHandler */,
             null /* beamFnDataService */,
-            null, /* dataApiServiceDescriptor */
             null /* beamFnStateService */,
+            null,
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,
@@ -271,7 +276,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             sinkRegistry,
             context,
             counterSet,
-            IdGenerator::generate)) {
+            idGenerator)) {
       executor.execute();
     }
 
@@ -323,7 +328,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
                     .apply(
                         InstructionOutputNode.create(
-                            instructionNode.getParallelInstruction().getOutputs().get(0)))));
+                            instructionNode.getParallelInstruction().getOutputs().get(0),
+                            PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
     Node operationNode =
@@ -521,7 +527,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
             .apply(
                 InstructionOutputNode.create(
-                    instructionNode.getParallelInstruction().getOutputs().get(0)));
+                    instructionNode.getParallelInstruction().getOutputs().get(0), PCOLLECTION_ID));
 
     when(network.successors(instructionNode)).thenReturn(ImmutableSet.of(outputReceiverNode));
     when(network.outDegree(instructionNode)).thenReturn(1);
@@ -561,13 +567,15 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         CloudObjects.asCloudObject(
             FullWindowedValueCoder.of(
                 KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()),
-                IntervalWindowCoder.of())));
+                IntervalWindowCoder.of()),
+            /*sdkComponents=*/ null));
 
     InstructionOutput output = new InstructionOutput();
     output.setName("pgbk_output_name");
     output.setCodec(
         CloudObjects.asCloudObject(
-            KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(BigEndianIntegerCoder.of()))));
+            KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
+            /*sdkComponents=*/ null));
     output.setOriginalName("originalName");
     output.setSystemName("systemName");
 
@@ -596,7 +604,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
                     .apply(
                         InstructionOutputNode.create(
-                            instructionNode.getParallelInstruction().getOutputs().get(0)))));
+                            instructionNode.getParallelInstruction().getOutputs().get(0),
+                            PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
     Node operationNode =
@@ -647,7 +656,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
                     .apply(
                         InstructionOutputNode.create(
-                            instructionNode.getParallelInstruction().getOutputs().get(0)))));
+                            instructionNode.getParallelInstruction().getOutputs().get(0),
+                            PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
     Node operationNode =
@@ -692,7 +702,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     InstructionOutput output = new InstructionOutput();
     output.setName("flatten_output_name");
-    output.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of()));
+    output.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null));
     output.setOriginalName("originalName");
     output.setSystemName("systemName");
 
@@ -724,7 +734,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
                     .apply(
                         InstructionOutputNode.create(
-                            instructionNode.getParallelInstruction().getOutputs().get(0)))));
+                            instructionNode.getParallelInstruction().getOutputs().get(0),
+                            PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
     Node operationNode =

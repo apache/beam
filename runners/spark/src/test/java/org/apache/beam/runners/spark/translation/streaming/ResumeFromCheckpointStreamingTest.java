@@ -23,10 +23,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -73,6 +69,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
@@ -133,9 +133,8 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     Serializer<String> stringSerializer = new StringSerializer();
     Serializer<Instant> instantSerializer = new InstantSerializer();
 
-    try (@SuppressWarnings("unchecked")
-        KafkaProducer<String, Instant> kafkaProducer =
-            new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
+    try (KafkaProducer<String, Instant> kafkaProducer =
+        new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
       for (Map.Entry<String, Instant> en : messages.entrySet()) {
         kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
       }
@@ -179,12 +178,12 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
                 "EOFShallNotPassFn",
                 4L)));
 
-    //--- between executions:
+    // --- between executions:
 
-    //- clear state.
+    // - clear state.
     clean();
 
-    //- write a bit more.
+    // - write a bit more.
     produce(
         ImmutableMap.of(
             "k5", new Instant(499),

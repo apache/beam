@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -107,7 +107,7 @@ public class CombineFnBase {
   abstract static class AbstractGlobalCombineFn<InputT, AccumT, OutputT>
       implements GlobalCombineFn<InputT, AccumT, OutputT>, Serializable {
     private static final String INCOMPATIBLE_GLOBAL_WINDOW_ERROR_MESSAGE =
-        "Default values are not supported in Combine.globally() if the output "
+        "Default values are not supported in Combine.globally() if the input "
             + "PCollection is not windowed by GlobalWindows. Instead, use "
             + "Combine.globally().withoutDefaults() to output an empty PCollection if the input "
             + "PCollection is empty, or Combine.globally().asSingletonView() to get the default "

@@ -22,6 +22,8 @@ limitations under the License.
 
 This guide shows you how to set up your Python development environment, get the Apache Beam SDK for Python, and run an example pipeline.
 
+If you're interested in contributing to the Apache Beam Python codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+
 * TOC
 {:toc}
 
@@ -199,6 +201,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --temp_location gs://<your-gcs-bucket>/tmp/
 ```
 
+{:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
 After the pipeline completes, you can view the output files at your specified
 output path. For example, if you specify `/dir1/counts` for the `--output`
 parameter, the pipeline writes the files to `/dir1/` and names the files
@@ -209,7 +216,8 @@ sequentially in the format `counts-0000-of-0001`.
 * Learn more about the [Beam SDK for Python]({{ site.baseurl }}/documentation/sdks/python/)
   and look through the [Python SDK API reference](https://beam.apache.org/releases/pydoc).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
-* Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
+* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!

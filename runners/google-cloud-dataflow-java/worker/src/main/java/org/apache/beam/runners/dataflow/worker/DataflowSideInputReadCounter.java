@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.MoreObjects;
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +25,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * This class tracks time and bytes spent when consuming side inputs.

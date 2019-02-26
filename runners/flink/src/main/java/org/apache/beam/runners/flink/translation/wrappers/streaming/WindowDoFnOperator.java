@@ -122,6 +122,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   @Override
   public void fireTimer(InternalTimer<?, TimerData> timer) {
+    timerInternals.cleanupPendingTimer(timer.getNamespace());
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(

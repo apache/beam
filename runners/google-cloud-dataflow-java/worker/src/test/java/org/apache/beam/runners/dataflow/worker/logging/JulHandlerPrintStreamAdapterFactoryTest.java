@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.logging;
 
 import static org.apache.beam.runners.dataflow.worker.LogRecordMatcher.hasLogItem;
@@ -24,11 +23,11 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import org.apache.beam.runners.dataflow.worker.LogSaver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

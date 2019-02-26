@@ -39,6 +39,11 @@ public class BeamPCollectionTable<InputT> extends BaseBeamTable {
   }
 
   @Override
+  public PCollection.IsBounded isBounded() {
+    return upstream.isBounded();
+  }
+
+  @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     assert begin.getPipeline() == upstream.getPipeline();
     return upstream.apply(Convert.toRows());

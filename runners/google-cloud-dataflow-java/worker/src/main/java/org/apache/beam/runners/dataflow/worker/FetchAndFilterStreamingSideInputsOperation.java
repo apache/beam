@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.collect.ImmutableList;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Set;
@@ -27,7 +25,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -37,6 +34,7 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -52,6 +50,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
  * This {@link ReceivingOperation} is responsible for fetching any ready side inputs and also
@@ -72,7 +71,7 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
       InstructionRequestHandler instructionRequestHandler,
       FnDataService beamFnDataService,
       ApiServiceDescriptor dataServiceApiServiceDescriptor,
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       Coder<WindowedValue<T>> inputCoder,
       WindowingStrategy<?, W> windowingStrategy,
       DataflowExecutionContext.DataflowStepContext stepContext,
@@ -163,7 +162,7 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
   }
 
   private Iterable<PCollectionView<?>> buildPCollectionViewsWithSdkSupportedWindowMappingFn(
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       InstructionRequestHandler instructionRequestHandler,
       FnDataService beamFnDataService,
       ApiServiceDescriptor dataServiceApiServiceDescriptor,

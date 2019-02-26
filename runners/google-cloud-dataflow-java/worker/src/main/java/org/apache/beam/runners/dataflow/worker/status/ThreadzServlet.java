@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.status;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -31,6 +29,7 @@ import java.util.Objects;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** Respond to /threadz with the stack traces of all running threads. */
 class ThreadzServlet extends BaseStatusServlet implements Capturable {
@@ -110,12 +109,10 @@ class ThreadzServlet extends BaseStatusServlet implements Capturable {
 
     // Then, print out each stack along with the threads that share it. Stacks with more threads
     // are printed first.
-    stacks
-        .entrySet()
-        .stream()
-        .sorted(Comparator.comparingInt((e) -> -e.getValue().size()))
+    stacks.entrySet().stream()
+        .sorted(Comparator.comparingInt(e -> -e.getValue().size()))
         .forEachOrdered(
-            (entry) -> {
+            entry -> {
               Stack stack = entry.getKey();
               List<String> threads = entry.getValue();
               writer.println(

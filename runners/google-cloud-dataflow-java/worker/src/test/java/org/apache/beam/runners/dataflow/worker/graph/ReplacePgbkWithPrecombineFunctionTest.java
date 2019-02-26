@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -28,10 +27,6 @@ import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
-import com.google.common.graph.ImmutableNetwork;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
-import com.google.common.graph.NetworkBuilder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +36,10 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ImmutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -149,6 +148,6 @@ public final class ReplacePgbkWithPrecombineFunctionTest {
 
   /** Creates an {@link InstructionOutputNode} to act as a PCollection. */
   private static InstructionOutputNode createInstructionOutputNode(String name) {
-    return InstructionOutputNode.create(new InstructionOutput().setName(name));
+    return InstructionOutputNode.create(new InstructionOutput().setName(name), "fakeId");
   }
 }

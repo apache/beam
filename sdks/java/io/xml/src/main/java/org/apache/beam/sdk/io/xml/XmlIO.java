@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.xml;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** Transforms for reading and writing XML files using JAXB mappers. */
 public class XmlIO {
@@ -85,7 +85,7 @@ public class XmlIO {
    * <p>Example:
    *
    * <pre>{@code
-   * PCollection<String> output = p.apply(XmlIO.<Record>read()
+   * PCollection<Record> output = p.apply(XmlIO.<Record>read()
    *     .from(file.toPath().toString())
    *     .withRootElement("root")
    *     .withRecordElement("record")
@@ -126,7 +126,7 @@ public class XmlIO {
    *       Duration.standardSeconds(30), afterTimeSinceNewOutput(Duration.standardMinutes(5))))
    *     .apply(FileIO.readMatches().withCompression(GZIP));
    *
-   * PCollection<String> output = files.apply(XmlIO.<Record>readFiles()
+   * PCollection<Record> output = files.apply(XmlIO.<Record>readFiles()
    *     .withRootElement("root")
    *     .withRecordElement("record")
    *     .withRecordClass(Record.class));

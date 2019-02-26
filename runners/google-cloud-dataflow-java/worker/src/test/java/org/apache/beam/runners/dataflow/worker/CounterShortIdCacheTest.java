@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertNull;
@@ -53,10 +52,10 @@ public class CounterShortIdCacheTest {
   }
 
   private List<WorkItemStatus> createWorkStatusNameAndKind(String[]... counterNames) {
-    List<WorkItemStatus> statuses = new ArrayList<WorkItemStatus>();
+    List<WorkItemStatus> statuses = new ArrayList<>();
     for (String[] names : counterNames) {
       WorkItemStatus status = new WorkItemStatus();
-      List<CounterUpdate> counterList = new ArrayList<CounterUpdate>();
+      List<CounterUpdate> counterList = new ArrayList<>();
       for (String name : names) {
         counterList.add(createMetricUpdateNameAndKind(name));
       }
@@ -74,10 +73,10 @@ public class CounterShortIdCacheTest {
   }
 
   private List<WorkItemStatus> createWorkStatusStructuredName(String[]... counterNames) {
-    List<WorkItemStatus> statuses = new ArrayList<WorkItemStatus>();
+    List<WorkItemStatus> statuses = new ArrayList<>();
     for (String[] names : counterNames) {
       WorkItemStatus status = new WorkItemStatus();
-      List<CounterUpdate> counterList = new ArrayList<CounterUpdate>();
+      List<CounterUpdate> counterList = new ArrayList<>();
       for (String name : names) {
         counterList.add(createMetricUpdateStructuredName(name));
       }
@@ -95,10 +94,10 @@ public class CounterShortIdCacheTest {
   }
 
   private List<WorkItemServiceState> createWorkServiceState(Long[]... counterIds) {
-    List<WorkItemServiceState> states = new ArrayList<WorkItemServiceState>();
+    List<WorkItemServiceState> states = new ArrayList<>();
     for (Long[] ids : counterIds) {
       WorkItemServiceState state = new WorkItemServiceState();
-      List<MetricShortId> shortIds = new ArrayList<MetricShortId>();
+      List<MetricShortId> shortIds = new ArrayList<>();
       for (int i = 0; i < ids.length; i++) {
         shortIds.add(createMetricShortId(i, ids[i]));
       }
@@ -109,10 +108,10 @@ public class CounterShortIdCacheTest {
   }
 
   private List<WorkItemServiceState> createWorkServiceState(MetricShortId[]... counterIds) {
-    List<WorkItemServiceState> states = new ArrayList<WorkItemServiceState>();
+    List<WorkItemServiceState> states = new ArrayList<>();
     for (MetricShortId[] ids : counterIds) {
       WorkItemServiceState state = new WorkItemServiceState();
-      List<MetricShortId> shortIds = new ArrayList<MetricShortId>();
+      List<MetricShortId> shortIds = new ArrayList<>();
       for (int i = 0; i < ids.length; i++) {
         shortIds.add(ids[i]);
       }

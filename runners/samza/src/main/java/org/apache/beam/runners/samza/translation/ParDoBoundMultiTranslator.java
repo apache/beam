@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,6 +51,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.functions.FlatMapFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
@@ -82,7 +81,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     doTranslate(transform, node, ctx);
   }
 
-  //static for serializing anonymous functions
+  // static for serializing anonymous functions
   private static <InT, OutT> void doTranslate(
       ParDo.MultiOutput<InT, OutT> transform,
       TransformHierarchy.Node node,
@@ -90,10 +89,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final PCollection<? extends InT> input = ctx.getInput(transform);
     final HashMap<TupleTag<?>, Coder<?>> outputCoders =
         new HashMap<>(
-            ctx.getCurrentTransform()
-                .getOutputs()
-                .entrySet()
-                .stream()
+            ctx.getCurrentTransform().getOutputs().entrySet().stream()
                 .filter(e -> e.getValue() instanceof PCollection)
                 .collect(
                     Collectors.toMap(
@@ -109,9 +105,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
-        transform
-            .getSideInputs()
-            .stream()
+        transform.getSideInputs().stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
     final ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
@@ -191,7 +185,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     doTranslatePortable(transform, pipeline, ctx);
   }
 
-  //static for serializing anonymous functions
+  // static for serializing anonymous functions
   private static <InT, OutT> void doTranslatePortable(
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,

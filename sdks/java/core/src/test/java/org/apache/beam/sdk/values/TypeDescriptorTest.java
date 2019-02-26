@@ -19,11 +19,11 @@ package org.apache.beam.sdk.values;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Method;
 import java.lang.reflect.TypeVariable;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.TypeToken;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

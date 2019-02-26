@@ -17,19 +17,14 @@
  */
 package org.apache.beam.sdk.transforms.display;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
@@ -39,6 +34,11 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
@@ -85,8 +85,7 @@ public class DisplayData implements Serializable {
    *
    * <p>Use this method if the type of metadata is not known at compile time. For example:
    *
-   * <pre>{@code
-   * {@literal @}Override
+   * <pre>{@code @Override
    * public void populateDisplayData(DisplayData.Builder builder) {
    *   Optional<DisplayData.Type> type = DisplayData.inferType(foo);
    *   if (type.isPresent()) {
@@ -150,7 +149,7 @@ public class DisplayData implements Serializable {
      * {@link PTransform} which delegates to a user-provided function can implement {@link
      * HasDisplayData} on the function and include it from the {@link PTransform}:
      *
-     * <pre><code>{@literal @Override}
+     * <pre>{@code @Override
      * public void populateDisplayData(DisplayData.Builder builder) {
      *   super.populateDisplayData(builder);
      *
@@ -160,7 +159,7 @@ public class DisplayData implements Serializable {
      *     // To allow the userFn to register additional display data
      *     .include("userFn", userFn);
      * }
-     * </code></pre>
+     * }</pre>
      *
      * <p>Using {@code include(path, subcomponent)} will associate each of the registered items with
      * the namespace of the {@code subcomponent} being registered, with the specified path element
@@ -181,11 +180,11 @@ public class DisplayData implements Serializable {
      * display data from the wrapped component. Such components should implement {@code
      * populateDisplayData} as:
      *
-     * <pre><code>{@literal @Override}
+     * <pre>{@code @Override
      * public void populateDisplayData(DisplayData.Builder builder) {
      *   builder.delegate(wrapped);
      * }
-     * </code></pre>
+     * }</pre>
      */
     Builder delegate(HasDisplayData component);
 
@@ -610,7 +609,7 @@ public class DisplayData implements Serializable {
       @Override
       FormattedItemValue format(Object value) {
         Instant instant = checkType(value, Instant.class, TIMESTAMP);
-        return new FormattedItemValue((TIMESTAMP_FORMATTER.print(instant)));
+        return new FormattedItemValue(TIMESTAMP_FORMATTER.print(instant));
       }
     },
     DURATION {

@@ -56,6 +56,7 @@ from collections import namedtuple
 from multiprocessing.pool import ThreadPool
 
 from apache_beam.io import iobase
+from apache_beam.testing.util import equal_to
 
 __all__ = ['read_from_source',
            'assert_sources_equal_reference_source',
@@ -174,7 +175,7 @@ def assert_sources_equal_reference_source(reference_source_info, sources_info):
         'list of sources. Number of records were %d and %d instead.'
         % (len(reference_records), len(source_records)))
 
-  if sorted(reference_records) != sorted(source_records):
+  if equal_to(reference_records)(source_records):
     raise ValueError(
         'Reference source and provided list of sources must produce the '
         'same set of records.')
@@ -224,13 +225,13 @@ def assert_reentrant_reads_succeed(source_info):
     for val in read_iter:
       original_read.append(val)
 
-    if sorted(original_read) != sorted(expected_values):
+    if equal_to(original_read)(expected_values):
       raise ValueError('Source did not produce expected values when '
                        'performing a reentrant read after reading %d values. '
                        'Expected %r received %r.'
                        % (i, expected_values, original_read))
 
-    if sorted(reentrant_read) != sorted(expected_values):
+    if equal_to(reentrant_read)(expected_values):
       raise ValueError('A reentrant read of source after reading %d values '
                        'did not produce expected values. Expected %r '
                        'received %r.'

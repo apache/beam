@@ -44,6 +44,11 @@ public class TestBoundedTable extends TestTable {
     super(beamSchema);
   }
 
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.BOUNDED;
+  }
+
   /**
    * Convenient way to build a mocked bounded table.
    *
@@ -88,7 +93,9 @@ public class TestBoundedTable extends TestTable {
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
-        .apply("MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows))
+        .apply(
+            "MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(),
+            Create.of(rows).withRowSchema(schema))
         .setRowSchema(getSchema());
   }
 

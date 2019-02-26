@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -35,14 +31,20 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -62,7 +64,6 @@ public class GroupingShuffleEntryIteratorTest {
 
   private static final String MOCK_STAGE_NAME = "mockStageName";
   private static final String MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1 = "mockOriginalName1";
-  private static final String MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP2 = "mockOriginalName2";
   private static final String MOCK_SYSTEM_NAME = "mockSystemName";
   private static final String MOCK_USER_NAME = "mockUserName";
   private static final String ORIGINAL_SHUFFLE_STEP_NAME = "originalName";
@@ -71,8 +72,7 @@ public class GroupingShuffleEntryIteratorTest {
   private GroupingShuffleEntryIterator iterator;
 
   private final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
-  private final ExecutionStateTracker tracker =
-      new ExecutionStateTracker(sampler, ElementExecutionTracker.newForTest());
+  private final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
   private Closeable trackerCleanup;
 
   @Before
@@ -118,20 +118,10 @@ public class GroupingShuffleEntryIteratorTest {
   }
 
   private void setCurrentExecutionState(String mockOriginalName) {
-    ExecutionStateTracker.ExecutionState state =
-        new ExecutionStateTracker.ExecutionState(nameContextForTest(), "activity") {
-          @Override
-          public void takeSample(long millisSinceLastSample) {}
-
-          @Override
-          public void reportLull(Thread trackedThread, long millis) {}
-
-          @Override
-          public NameContext getStepName() {
-            return NameContext.create(
-                MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME);
-          }
-        };
+    DataflowExecutionState state =
+        new TestDataflowExecutionState(
+            NameContext.create(MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME),
+            "activity");
     tracker.enterState(state);
   }
 
@@ -191,7 +181,7 @@ public class GroupingShuffleEntryIteratorTest {
 
     assertEquals(expectedEntry, values1Copy2.next());
 
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, 15L);
 
     // Verify that each executing step used when reading from the GroupingShuffleReader

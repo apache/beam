@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -537,9 +536,7 @@ public class GreedyPipelineFuserTest {
                 .withNoOutputs()
                 .withTransforms("pyParDo")));
     Set<String> materializedStageOutputs =
-        fused
-            .getFusedStages()
-            .stream()
+        fused.getFusedStages().stream()
             .flatMap(executableStage -> executableStage.getOutputPCollections().stream())
             .map(PCollectionNode::getId)
             .collect(Collectors.toSet());
@@ -1051,6 +1048,57 @@ public class GreedyPipelineFuserTest {
   }
 
   /*
+   * Tests that parDo with state and timers is fused correctly and can be queried
+   * impulse -> .out -> timer -> .out
+   * becomes
+   * (impulse.out) -> timer
+   */
+  @Test
+  public void parDoWithStateAndTimerRootsStage() {
+    PTransform timerTransform =
+        PTransform.newBuilder()
+            .setUniqueName("TimerParDo")
+            .putInputs("input", "impulse.out")
+            .putInputs("timer", "timer.out")
+            .putOutputs("timer", "timer.out")
+            .putOutputs("output", "output.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putStateSpecs("state", StateSpec.getDefaultInstance())
+                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+
+    Components components =
+        partialComponents
+            .toBuilder()
+            .putTransforms("timer", timerTransform)
+            .putPcollections("timer.out", pc("timer.out"))
+            .putPcollections("output.out", pc("output.out"))
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
+            .build();
+
+    FusedPipeline fused =
+        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+
+    assertThat(
+        fused.getRunnerExecutedTransforms(),
+        containsInAnyOrder(
+            PipelineNode.pTransform("impulse", components.getTransformsOrThrow("impulse"))));
+    assertThat(
+        fused.getFusedStages(),
+        contains(
+            ExecutableStageMatcher.withInput("impulse.out")
+                .withNoOutputs()
+                .withTransforms("timer")));
+  }
+
+  /*
    * impulse -> .out -> ( read -> .out --> goTransform -> .out )
    *                                    \
    *                                     -> pyTransform -> .out )
@@ -1266,16 +1314,11 @@ public class GreedyPipelineFuserTest {
             ExecutableStageMatcher.withInput(impulse2Output.getUniqueName())
                 .withTransforms(flattenTransform.getUniqueName(), read2Transform.getUniqueName())));
     assertThat(
-        fused
-            .getFusedStages()
-            .stream()
+        fused.getFusedStages().stream()
             .flatMap(
                 s ->
-                    s.getComponents()
-                        .getTransformsOrThrow(flattenTransform.getUniqueName())
-                        .getInputsMap()
-                        .values()
-                        .stream())
+                    s.getComponents().getTransformsOrThrow(flattenTransform.getUniqueName())
+                        .getInputsMap().values().stream())
             .collect(Collectors.toList()),
         containsInAnyOrder(read1Output.getUniqueName(), read2Output.getUniqueName()));
   }

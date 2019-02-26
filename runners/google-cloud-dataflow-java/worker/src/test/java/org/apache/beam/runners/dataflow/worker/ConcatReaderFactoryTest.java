@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addList;
@@ -59,7 +58,8 @@ public class ConcatReaderFactoryTest {
 
       inMemorySourceDictionary.put(PropertyNames.SOURCE_SPEC, inMemorySourceSpec);
 
-      CloudObject textSourceEncoding = CloudObjects.asCloudObject(StringUtf8Coder.of());
+      CloudObject textSourceEncoding =
+          CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null);
       inMemorySourceDictionary.put(PropertyNames.ENCODING, textSourceEncoding);
 
       sourcesList.add(inMemorySourceDictionary);

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
 import static org.junit.Assert.assertEquals;
@@ -26,7 +25,6 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.DAG.OperatorMeta;
 import com.datatorrent.stram.engine.PortContext;
 import com.datatorrent.stram.plan.logical.LogicalPlan;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +52,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

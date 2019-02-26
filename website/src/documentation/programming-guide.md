@@ -87,7 +87,7 @@ A typical Beam driver program works as follows:
 * **Apply** `PTransforms` to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
   transform creates a new output `PCollection` *without modifying the input
-  collection*. A typical pipeline applies subsequent transforms to the each new
+  collection*. A typical pipeline applies subsequent transforms to each new
   output `PCollection` in turn until processing is complete. However, note that
   a pipeline does not have to be a single straight line of transforms applied
   one after another: think of `PCollection`s as variables and `PTransform`s as
@@ -129,6 +129,10 @@ Pipeline p = Pipeline.create(options);
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_creating
 %}
 ```
+```go
+// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.
+p, s := beam.NewPipelineWithRoot()
+```
 
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
 
@@ -158,6 +162,10 @@ PipelineOptions options =
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_creating
 %}
+```
+```go
+// If beamx or Go flags are used, flags must be parsed first.
+flag.Parse()
 ```
 
 This interprets command-line arguments that follow the format:
@@ -192,6 +200,12 @@ public interface MyOptions extends PipelineOptions {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom
 %}
 ```
+```go
+var (
+  input = flag.String("input", "", "")
+  output = flag.String("output", "", "")
+)
+```
 
 You can also specify a description, which appears when a user passes `--help` as
 a command-line argument, and a default value.
@@ -210,6 +224,13 @@ public interface MyOptions extends PipelineOptions {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom_with_help_and_default
 %}
 ```
+```go
+var (
+  input = flag.String("input", "gs://my-bucket/input", "File(s) to read.")
+  output = flag.String("output", "gs://my-bucket/output", "Output file.")
+)
+```
+
 
 {:.language-java}
 It's recommended that you register your interface with `PipelineOptionsFactory`
@@ -287,6 +308,9 @@ public static void main(String[] args) {
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_reading
 %}
+```
+```go
+lines := textio.Read(s, "protocol://path/to/some/inputData.txt")
 ```
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -590,6 +614,16 @@ words = ...
 %}
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_apply
 %}```
+```go
+// words is the input PCollection of strings
+var words beam.PCollection = ...
+
+func computeWordLengthFn(word string) int {
+      return len(word)
+}
+
+wordLengths := beam.ParDo(s, computeWordLengthFn, words)
+```
 
 In the example, our input `PCollection` contains `String` values. We apply a
 `ParDo` transform that specifies a function (`ComputeWordLengthFn`) to compute
@@ -704,7 +738,6 @@ PCollection<Integer> wordLengths = words.apply(
       }
     }));
 ```
-
 ```py
 # The input PCollection of strings.
 words = ...
@@ -713,6 +746,14 @@ words = ...
 # Save the result as the PCollection word_lengths.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_using_flatmap
 %}```
+```go
+// words is the input PCollection of strings
+var words beam.PCollection = ...
+
+lengths := beam.ParDo(s, func (word string) int {
+      return len(word)
+}, words)
+```
 
 If your `ParDo` performs a one-to-one mapping of input elements to output
 elements--that is, for each input element, it applies a function that produces
@@ -734,7 +775,6 @@ PCollection<Integer> wordLengths = words.apply(
   MapElements.into(TypeDescriptors.integers())
              .via((String word) -> word.length()));
 ```
-
 ```py
 # The input PCollection of string.
 words = ...
@@ -1154,7 +1194,7 @@ player_accuracies = ...
 #### 4.2.5. Flatten {#flatten}
 
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
-<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span> and
+<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for `PCollection` objects that store the same data type.
 `Flatten` merges multiple `PCollection` objects into a single logical
 `PCollection`.
@@ -1484,7 +1524,7 @@ together.
 #### 4.5.2. Emitting to multiple outputs in your DoFn {#multiple-outputs-dofn}
 
 ```java
-// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a 
+// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a
 // MultiOutputReceiver to your process method, and passing in the appropriate TupleTag to obtain an OutputReceiver.
 // After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
 // Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
@@ -1576,6 +1616,8 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 `@OnTimer` methods can also access many of these parameters. Timestamp, window, `PipelineOptions`, `OutputReceiver`, and
 `MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
+Timers are explained in more detail in the
+[Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
 
 ### 4.6. Composite transforms {#composite-transforms}
 
@@ -1714,7 +1756,7 @@ Beam provides read and write transforms for a [number of common data storage
 types]({{ site.baseurl }}/documentation/io/built-in/). If you want your pipeline
 to read from or write to a data storage format that isn't supported by the
 built-in transforms, you can [implement your own read and write
-transforms]({{site.baseurl }}/documentation/io/io-toc/).
+transforms]({{site.baseurl }}/documentation/io/developing-io-overview/).
 
 ### 5.1. Reading input data {#pipeline-io-reading-data}
 
@@ -2379,8 +2421,9 @@ outside that range (data from 5:00 or later) belong to a different window.
 However, data isn't always guaranteed to arrive in a pipeline in time order, or
 to always arrive at predictable intervals. Beam tracks a _watermark_, which is
 the system's notion of when all data in a certain window can be expected to have
-arrived in the pipeline. Data that arrives with a timestamp after the watermark
-is considered **late data**.
+arrived in the pipeline. Once the watermark progresses past the end of a window,
+any further element that arrives with a timestamp in that window is considered
+**late data**.
 
 From our example, suppose we have a simple watermark that assumes approximately
 30s of lag time between the data timestamps (the event time) and the time the

@@ -21,13 +21,13 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** Utility functions for mock classes. */
 @Experimental
@@ -75,8 +75,7 @@ public class TestTableUtils {
    * }</pre>
    */
   public static List<Row> buildRows(Schema type, List<?> rowsValues) {
-    return Lists.partition(rowsValues, type.getFieldCount())
-        .stream()
+    return Lists.partition(rowsValues, type.getFieldCount()).stream()
         .map(values -> values.stream().collect(toRow(type)))
         .collect(toList());
   }

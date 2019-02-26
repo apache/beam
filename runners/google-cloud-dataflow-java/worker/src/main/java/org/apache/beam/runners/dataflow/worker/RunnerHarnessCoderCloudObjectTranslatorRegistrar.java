@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjectTranslator;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * A registrar for {@link CloudObjectTranslator}s for the Dataflow runner harness.
@@ -70,7 +70,7 @@ public class RunnerHarnessCoderCloudObjectTranslatorRegistrar
       implements CloudObjectTranslator<IsmRecordCoder<?>> {
 
     @Override
-    public CloudObject toCloudObject(IsmRecordCoder<?> target) {
+    public CloudObject toCloudObject(IsmRecordCoder<?> target, SdkComponents sdkComponents) {
       throw new UnsupportedOperationException();
     }
 
@@ -100,7 +100,7 @@ public class RunnerHarnessCoderCloudObjectTranslatorRegistrar
     InstanceBuilder.ofType(coderClass).fromFactoryMethod("of").build();
     return new CloudObjectTranslator<T>() {
       @Override
-      public CloudObject toCloudObject(T target) {
+      public CloudObject toCloudObject(T target, SdkComponents sdkComponents) {
         throw new UnsupportedOperationException();
       }
 

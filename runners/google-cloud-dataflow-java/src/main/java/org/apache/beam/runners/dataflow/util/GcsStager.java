@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
 import java.util.List;
@@ -54,11 +54,17 @@ public class GcsStager implements Stager {
     checkNotNull(options.getStagingLocation());
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
-
+    String dataflowWorkerJar = options.getDataflowWorkerJar();
     List<String> filesToStage = options.getFilesToStage();
 
     if (windmillBinary != null) {
       filesToStage.add("windmill_main=" + windmillBinary);
+    }
+
+    if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty()) {
+      // Put the user specified worker jar at the start of the classpath, to be consistent with the
+      // built in worker order.
+      filesToStage.add(0, "dataflow-worker.jar=" + dataflowWorkerJar);
     }
 
     return stageFiles(filesToStage);

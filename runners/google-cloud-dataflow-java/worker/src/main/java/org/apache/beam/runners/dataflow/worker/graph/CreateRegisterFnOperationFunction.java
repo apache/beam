@@ -15,19 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import com.google.api.services.dataflow.model.FlattenInstruction;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
-import com.google.common.graph.Graphs;
-import com.google.common.graph.ImmutableNetwork;
-import com.google.common.graph.MutableNetwork;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,6 +32,14 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ImmutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 
 /**
  * Splits the instruction graph into SDK and runner harness portions replacing the SDK sub-graphs
@@ -74,10 +74,10 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNo
  */
 public class CreateRegisterFnOperationFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {
-
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
   private final BiFunction<String, String, Node> portSupplier;
   private final Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
+  private final boolean useExecutableStageBundleExecution;
 
   /**
    * Constructs a function which is able to break up the instruction graph into SDK and Runner
@@ -91,12 +91,14 @@ public class CreateRegisterFnOperationFunction
    *     produces a {@link Node} that is able to register the SDK functions within the SDK harness.
    */
   public CreateRegisterFnOperationFunction(
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       BiFunction<String, String, Node> portSupplier,
-      Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction) {
+      Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction,
+      boolean useExecutableStageBundleExecution) {
     this.idGenerator = idGenerator;
     this.portSupplier = portSupplier;
     this.registerFnOperationFunction = registerFnOperationFunction;
+    this.useExecutableStageBundleExecution = useExecutableStageBundleExecution;
   }
 
   @Override
@@ -187,6 +189,11 @@ public class CreateRegisterFnOperationFunction
     Set<Node> allRunnerNodes =
         Networks.reachableNodes(
             network, Sets.union(runnerRootNodes, sdkToRunnerBoundaries), runnerToSdkBoundaries);
+    if (this.useExecutableStageBundleExecution) {
+      // When using shared library, there is no grpc node in runner graph.
+      allRunnerNodes =
+          Sets.difference(allRunnerNodes, Sets.union(runnerToSdkBoundaries, sdkToRunnerBoundaries));
+    }
     MutableNetwork<Node, Edge> runnerNetwork = Graphs.inducedSubgraph(network, allRunnerNodes);
 
     // TODO: Reduce the amount of 'copying' of SDK nodes by breaking potential cycles
@@ -204,11 +211,24 @@ public class CreateRegisterFnOperationFunction
       // Create happens before relationships between all Runner and SDK nodes which are in the
       // SDK subnetwork; direction dependent on whether its a predecessor of the SDK subnetwork or
       // a successor.
-      for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
-        runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
-      }
-      for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
-        runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
+      if (this.useExecutableStageBundleExecution) {
+        // When using shared library, there is no gprc node in runner graph. Then the registerFnNode
+        // should be linked directly to 2 OutputInstruction nodes.
+        for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
+          predecessor = network.predecessors(predecessor).iterator().next();
+          runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
+        }
+        for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
+          successor = network.successors(successor).iterator().next();
+          runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
+        }
+      } else {
+        for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
+          runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
+        }
+        for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
+          runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
+        }
       }
     }
 
@@ -241,11 +261,13 @@ public class CreateRegisterFnOperationFunction
       Set<Node> successors) {
 
     InstructionOutputNode newPredecessorOutputNode =
-        InstructionOutputNode.create(outputNode.getInstructionOutput());
+        InstructionOutputNode.create(
+            outputNode.getInstructionOutput(), outputNode.getPcollectionId());
     InstructionOutputNode portOutputNode =
-        InstructionOutputNode.create(outputNode.getInstructionOutput());
-    String predecessorPortEdgeId = idGenerator.get();
-    String successorPortEdgeId = idGenerator.get();
+        InstructionOutputNode.create(
+            outputNode.getInstructionOutput(), outputNode.getPcollectionId());
+    String predecessorPortEdgeId = idGenerator.getId();
+    String successorPortEdgeId = idGenerator.getId();
     Node portNode = portSupplier.apply(predecessorPortEdgeId, successorPortEdgeId);
     network.addNode(newPredecessorOutputNode);
     network.addNode(portNode);

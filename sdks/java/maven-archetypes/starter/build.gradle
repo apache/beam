@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
 ext.summary = """A Maven archetype to create a simple starter pipeline to

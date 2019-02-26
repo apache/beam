@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -38,6 +36,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.Accumulator;
 import org.apache.spark.Dependency;
 import org.apache.spark.HashPartitioner;
@@ -100,11 +99,8 @@ public class SourceRDD {
     @Override
     public Partition[] getPartitions() {
       try {
-        List<? extends Source<T>> partitionedSources;
-        if (bundleSize > 0) {
-          partitionedSources = source.split(bundleSize, options.get());
-        } else {
-          long desiredSizeBytes = DEFAULT_BUNDLE_SIZE;
+        long desiredSizeBytes = (bundleSize > 0) ? bundleSize : DEFAULT_BUNDLE_SIZE;
+        if (bundleSize == 0) {
           try {
             desiredSizeBytes = source.getEstimatedSizeBytes(options.get()) / numPartitions;
           } catch (Exception e) {
@@ -114,8 +110,10 @@ public class SourceRDD {
                 source,
                 DEFAULT_BUNDLE_SIZE);
           }
-          partitionedSources = source.split(desiredSizeBytes, options.get());
         }
+
+        List<? extends Source<T>> partitionedSources =
+            source.split(desiredSizeBytes, options.get());
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] = new SourcePartition<>(id(), i, partitionedSources.get(i));

@@ -15,12 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.AbstractIterator;
 import java.util.ArrayList;
 import java.util.Iterator;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -34,6 +32,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.AbstractIterator;
 
 /** Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}. */
 class SparkProcessContext<FnInputT, FnOutputT, OutputT> {

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonMap;
 import static org.apache.beam.runners.direct.DirectGraphs.getProducer;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -36,12 +36,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ContiguousSet;
-import com.google.common.collect.DiscreteDomain;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Range;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -82,6 +76,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ContiguousSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.DiscreteDomain;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.LinkedListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Range;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -329,7 +329,7 @@ public class UnboundedReadEvaluatorFactoryTest {
                   result.getUnprocessedElements());
     } while (!Iterables.isEmpty(residual.getElements()));
 
-    verify(output, times((numElements))).add(any());
+    verify(output, times(numElements)).add(any());
     assertThat(TestUnboundedSource.readerCreatedCount, equalTo(1));
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
   }
@@ -580,8 +580,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public UnboundedSource<T, ?> getCurrentSource() {
-        TestUnboundedSource<T> source = TestUnboundedSource.this;
-        return source;
+        return TestUnboundedSource.this;
       }
 
       @Override

@@ -15,16 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 
 import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -51,6 +47,9 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
 import org.joda.time.Instant;
 
 /** A factory class that creates {@link ParDoFn} for {@link PartialGroupByKeyInstruction}. */

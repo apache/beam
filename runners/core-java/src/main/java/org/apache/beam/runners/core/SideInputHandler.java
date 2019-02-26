@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -187,8 +187,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     Set<BoundedWindow> readyWindows =
         stateInternals.state(StateNamespaces.global(), availableWindowsTags.get(sideInput)).read();
 
-    boolean result = readyWindows != null && readyWindows.contains(window);
-    return result;
+    return readyWindows != null && readyWindows.contains(window);
   }
 
   @Override

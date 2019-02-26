@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import com.google.api.client.json.JsonFactory;
@@ -24,9 +23,6 @@ import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.base.MoreObjects;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.NetworkBuilder;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
@@ -37,7 +33,11 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 
 /**
  * Creates a directed bipartite network of {@link ParallelInstructionNode}s and {@link
@@ -62,6 +62,12 @@ public class MapTaskToNetworkFunction implements Function<MapTask, MutableNetwor
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private final IdGenerator idGenerator;
+
+  public MapTaskToNetworkFunction(IdGenerator idGenerator) {
+    this.idGenerator = idGenerator;
   }
 
   @Override
@@ -99,7 +105,9 @@ public class MapTaskToNetworkFunction implements Function<MapTask, MutableNetwor
       // Connect the instruction node output to the output PCollection node
       for (int j = 0; j < outputs.size(); ++j) {
         InstructionOutput instructionOutput = outputs.get(j);
-        InstructionOutputNode outputNode = InstructionOutputNode.create(instructionOutput);
+        InstructionOutputNode outputNode =
+            InstructionOutputNode.create(
+                instructionOutput, "generatedPcollection" + this.idGenerator.getId());
         network.addNode(outputNode);
         if (parallelInstruction.getParDo() != null) {
           network.addEdge(

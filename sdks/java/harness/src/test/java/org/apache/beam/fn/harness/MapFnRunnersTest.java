@@ -23,26 +23,26 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
 
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.fn.harness.MapFnRunners.ValueMapFnFactory;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingFunction;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -62,11 +62,18 @@ public class MapFnRunnersTest {
   @Test
   public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "finish");
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
     MapFnRunners.forValueMapFnFactory(factory)
@@ -81,16 +88,16 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -98,11 +105,18 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "finish");
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
@@ -116,16 +130,16 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -133,11 +147,17 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class));
+    consumers.register("outputPC", "pTransformId", outputConsumer::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
@@ -151,19 +171,20 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0L), Duration.standardMinutes(10L));
     IntervalWindow secondWindow =
         new IntervalWindow(new Instant(-10L), Duration.standardSeconds(22L));
-    Iterables.getOnlyElement(consumers.get("inputPC"))
+    consumers
+        .getMultiplexingConsumer("inputPC")
         .accept(
             WindowedValue.of(
                 "abc",

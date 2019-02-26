@@ -17,16 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -40,17 +36,22 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /**
  * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
  * {@link DoFn}, and returns the original collection unchanged.
  */
-public class CreateTables<DestinationT>
+public class CreateTables<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<DestinationT, TableRow>>, PCollection<KV<TableDestination, TableRow>>> {
+        PCollection<KV<DestinationT, ElementT>>, PCollection<KV<TableDestination, ElementT>>> {
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private final String kmsKey;
 
   /**
    * The list of tables created so far, so we don't try the creation each time.
@@ -63,25 +64,31 @@ public class CreateTables<DestinationT>
   public CreateTables(
       CreateDisposition createDisposition,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
-    this(createDisposition, new BigQueryServicesImpl(), dynamicDestinations);
+    this(createDisposition, new BigQueryServicesImpl(), dynamicDestinations, null);
   }
 
   private CreateTables(
       CreateDisposition createDisposition,
       BigQueryServices bqServices,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      String kmsKey) {
     this.createDisposition = createDisposition;
     this.bqServices = bqServices;
     this.dynamicDestinations = dynamicDestinations;
+    this.kmsKey = kmsKey;
   }
 
-  CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
-    return new CreateTables<>(createDisposition, bqServices, dynamicDestinations);
+  CreateTables<DestinationT, ElementT> withKmsKey(String kmsKey) {
+    return new CreateTables<>(createDisposition, bqServices, dynamicDestinations, kmsKey);
+  }
+
+  CreateTables<DestinationT, ElementT> withTestServices(BigQueryServices bqServices) {
+    return new CreateTables<>(createDisposition, bqServices, dynamicDestinations, kmsKey);
   }
 
   @Override
-  public PCollection<KV<TableDestination, TableRow>> expand(
-      PCollection<KV<DestinationT, TableRow>> input) {
+  public PCollection<KV<TableDestination, ElementT>> expand(
+      PCollection<KV<DestinationT, ElementT>> input) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList();
     sideInputs.addAll(dynamicDestinations.getSideInputs());
 
@@ -89,7 +96,7 @@ public class CreateTables<DestinationT>
   }
 
   private class CreateTablesFn
-      extends DoFn<KV<DestinationT, TableRow>, KV<TableDestination, TableRow>> {
+      extends DoFn<KV<DestinationT, ElementT>, KV<TableDestination, ElementT>> {
     private Map<DestinationT, TableDestination> destinations;
 
     @StartBundle
@@ -140,7 +147,7 @@ public class CreateTables<DestinationT>
         // every thread from attempting a create and overwhelming our BigQuery quota.
         synchronized (createdTables) {
           if (!createdTables.contains(tableSpec)) {
-            tryCreateTable(context, destination, tableDestination, tableSpec);
+            tryCreateTable(context, destination, tableDestination, tableSpec, kmsKey);
           }
         }
       }
@@ -151,7 +158,8 @@ public class CreateTables<DestinationT>
         ProcessContext context,
         DestinationT destination,
         TableDestination tableDestination,
-        String tableSpec) {
+        String tableSpec,
+        String kmsKey) {
       DatasetService datasetService =
           bqServices.getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class));
       TableReference tableReference = tableDestination.getTableReference().clone();
@@ -177,6 +185,9 @@ public class CreateTables<DestinationT>
                   .setDescription(tableDestination.getTableDescription());
           if (tableDestination.getTimePartitioning() != null) {
             table.setTimePartitioning(tableDestination.getTimePartitioning());
+          }
+          if (kmsKey != null) {
+            table.setEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKey));
           }
           datasetService.createTable(table);
         }

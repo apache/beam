@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util;
 
 /** Constants private to the exchange between the Dataflow service and the worker. */

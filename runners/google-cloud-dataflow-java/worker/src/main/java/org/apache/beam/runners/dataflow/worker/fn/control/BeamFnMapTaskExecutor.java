@@ -15,23 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.SpanBuilder;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -39,20 +37,25 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metrics;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
+import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsTranslation;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitRequest;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
@@ -60,6 +63,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,7 +134,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
   @Override
   @Nullable
-  public NativeReader.Progress getWorkerProgress() throws Exception {
+  public Progress getWorkerProgress() throws Exception {
     return progressTracker.getWorkerProgress();
   }
 
@@ -139,30 +145,42 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
    */
   @Override
   public Iterable<CounterUpdate> extractMetricUpdates() {
+    List<CounterUpdate> result = progressTracker.extractCounterUpdates();
+
+    if ((result != null) && (result.size() > 0)) {
+      return result;
+    }
+
+    // todo(BEAM-6189): Remove this fallback once Metrics is deprecated from SDKs.
     MetricUpdates updates = progressTracker.extractMetricUpdates();
-    return Iterables.concat(
-        FluentIterable.from(updates.counterUpdates())
-            .transform(
-                update ->
-                    MetricsToCounterUpdateConverter.fromCounter(
-                        update.getKey(), true, update.getUpdate())),
-        FluentIterable.from(updates.distributionUpdates())
-            .transform(
-                update ->
-                    MetricsToCounterUpdateConverter.fromDistribution(
-                        update.getKey(), true, update.getUpdate())));
+
+    Iterable<CounterUpdate> deprecatedMetrics =
+        Iterables.concat(
+            StreamSupport.stream(updates.counterUpdates().spliterator(), false)
+                .map(
+                    update ->
+                        MetricsToCounterUpdateConverter.fromCounter(
+                            update.getKey(), true, update.getUpdate()))
+                .collect(Collectors.toList()),
+            StreamSupport.stream(updates.distributionUpdates().spliterator(), false)
+                .map(
+                    update ->
+                        MetricsToCounterUpdateConverter.fromDistribution(
+                            update.getKey(), true, update.getUpdate()))
+                .collect(Collectors.toList()));
+
+    return deprecatedMetrics;
   }
 
   @Override
   @Nullable
-  public NativeReader.DynamicSplitResult requestCheckpoint() throws Exception {
+  public DynamicSplitResult requestCheckpoint() throws Exception {
     return progressTracker.requestCheckpoint();
   }
 
   @Override
   @Nullable
-  public NativeReader.DynamicSplitResult requestDynamicSplit(
-      NativeReader.DynamicSplitRequest splitRequest) throws Exception {
+  public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) throws Exception {
     return progressTracker.requestDynamicSplit(splitRequest);
   }
 
@@ -177,21 +195,24 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     throw new IllegalStateException(String.format("ReadOperation not found in %s", operations));
   }
 
-  private static interface ProgressTracker {
+  private interface ProgressTracker {
     @Nullable
-    public NativeReader.Progress getWorkerProgress() throws Exception;
+    public Progress getWorkerProgress() throws Exception;
 
     /**
      * Returns an metric updates accumulated since the last call to {@link #extractMetricUpdates()}.
      */
+    @Deprecated
     public MetricUpdates extractMetricUpdates();
 
-    @Nullable
-    public NativeReader.DynamicSplitResult requestCheckpoint() throws Exception;
+    public List<CounterUpdate> extractCounterUpdates();
 
     @Nullable
-    public NativeReader.DynamicSplitResult requestDynamicSplit(
-        NativeReader.DynamicSplitRequest splitRequest) throws Exception;
+    public DynamicSplitResult requestCheckpoint() throws Exception;
+
+    @Nullable
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
+        throws Exception;
 
     public default void start() {}
 
@@ -208,6 +229,11 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     @Override
     public MetricUpdates extractMetricUpdates() {
       return MetricUpdates.EMPTY;
+    }
+
+    @Override
+    public List<CounterUpdate> extractCounterUpdates() {
+      return Collections.emptyList();
     }
 
     @Nullable
@@ -241,6 +267,11 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       return MetricUpdates.EMPTY;
     }
 
+    @Override
+    public List<CounterUpdate> extractCounterUpdates() {
+      return Collections.emptyList();
+    }
+
     @Nullable
     @Override
     public DynamicSplitResult requestCheckpoint() throws Exception {
@@ -262,7 +293,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private final ReadOperation readOperation;
     private final RemoteGrpcPortWriteOperation grpcWriteOperation;
     private final RegisterAndProcessBundleOperation bundleProcessOperation;
-    private final long progressUpdatePeriodMs = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS;
+    private static final long progressUpdatePeriodMs =
+        ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS;
     private int progressErrors;
 
     private final Interpolator<Progress> progressInterpolator;
@@ -270,10 +302,13 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private final AtomicReference<Progress> latestProgress = new AtomicReference<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> nextProgressFuture;
+    private final Consumer<Integer> grpcWriteOperationElementsProcessed;
 
-    private final Map<MetricKey, MetricUpdates.MetricUpdate<Long>> counterUpdates;
-    private final Map<MetricKey, MetricUpdates.MetricUpdate<DistributionData>> distributionUpdates;
-    private final Map<MetricKey, MetricUpdates.MetricUpdate<GaugeData>> gaugeUpdates;
+    private List<CounterUpdate> counterUpdates = new ArrayList<>();
+
+    private final Map<MetricKey, MetricUpdate<Long>> deprecatedCounterUpdates;
+    private final Map<MetricKey, MetricUpdate<DistributionData>> deprecatedDistributionUpdates;
+    private final Map<MetricKey, MetricUpdate<GaugeData>> deprecatedGaugeUpdates;
 
     public SingularProcessBundleProgressTracker(
         ReadOperation readOperation,
@@ -282,6 +317,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       this.readOperation = readOperation;
       this.grpcWriteOperation = grpcWriteOperation;
       this.bundleProcessOperation = bundleProcessOperation;
+      this.grpcWriteOperationElementsProcessed = grpcWriteOperation.processedElementsConsumer();
       this.progressInterpolator =
           new Interpolator<Progress>(MAX_DATA_POINTS) {
             @Override
@@ -289,9 +325,9 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               return prev;
             }
           };
-      this.counterUpdates = new HashMap<>();
-      this.distributionUpdates = new HashMap<>();
-      this.gaugeUpdates = new HashMap<>();
+      this.deprecatedCounterUpdates = new HashMap<>();
+      this.deprecatedDistributionUpdates = new HashMap<>();
+      this.deprecatedGaugeUpdates = new HashMap<>();
     }
 
     private void periodicProgressUpdate() {
@@ -301,31 +337,48 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     @VisibleForTesting
     void updateProgress() {
       try {
-        BeamFnApi.Metrics metrics = MoreFutures.get(bundleProcessOperation.getMetrics());
+        if (bundleProcessOperation.hasFailed()) {
+          grpcWriteOperation.abortWait();
+        }
 
-        updateMetrics(metrics);
+        // TODO(BEAM-6189): Replace getProcessBundleProgress with getMonitoringInfos when Metrics
+        // is deprecated.
+        ProcessBundleProgressResponse processBundleProgressResponse =
+            MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
+        updateMetrics(processBundleProgressResponse.getMonitoringInfosList());
 
+        // Supporting deprecated metrics until all supported runners are migrated to using
+        // MonitoringInfos
+        Metrics metrics = processBundleProgressResponse.getMetrics();
+        updateMetricsDeprecated(metrics);
+
+        // todo(migryz): utilize monitoringInfos here.
+        // Requires Element Count metrics to be implemented.
         double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
 
+        grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
         progressInterpolator.addPoint(
             grpcWriteOperation.getElementsSent(), readOperation.getProgress());
         latestProgress.set(progressInterpolator.interpolateAndPurge(elementsConsumed));
         progressErrors = 0;
       } catch (Exception exn) {
-        progressErrors++;
-        // Only log verbosely every power of two to avoid spamming the logs.
-        if (Integer.bitCount(progressErrors) == 1) {
-          LOG.warn(
-              String.format(
-                  "Progress updating failed %s times. Following exception safely handled.",
-                  progressErrors),
-              exn);
-        } else {
-          LOG.debug(
-              String.format(
-                  "Progress updating failed %s times. Following exception safely handled.",
-                  progressErrors),
-              exn);
+        if (!isTransientProgressError(exn.getMessage())) {
+          grpcWriteOperationElementsProcessed.accept(-1); // Not supported.
+          progressErrors++;
+          // Only log verbosely every power of two to avoid spamming the logs.
+          if (Integer.bitCount(progressErrors) == 1) {
+            LOG.warn(
+                String.format(
+                    "Progress updating failed %s times. Following exception safely handled.",
+                    progressErrors),
+                exn);
+          } else {
+            LOG.debug(
+                String.format(
+                    "Progress updating failed %s times. Following exception safely handled.",
+                    progressErrors),
+                exn);
+          }
         }
 
         try {
@@ -341,7 +394,30 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       }
     }
 
-    private void updateMetrics(BeamFnApi.Metrics metrics) {
+    /**
+     * Updates internal metrics state from provided monitoringInfos list.
+     *
+     * @param monitoringInfos Usually received from FnApi.
+     */
+    private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
+      final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
+          new FnApiMonitoringInfoToCounterUpdateTransformer(
+              bundleProcessOperation.getPtransformIdToUserStepContext());
+
+      counterUpdates =
+          monitoringInfos.stream()
+              .map(monitoringInfoToCounterUpdateTransformer::transform)
+              .filter(Objects::nonNull)
+              .collect(Collectors.toList());
+    }
+
+    /**
+     * Updates internal metrics from provided (deprecated) Metrics object.
+     *
+     * @param metrics Metrics object received from FnApi.
+     */
+    @Deprecated
+    private void updateMetricsDeprecated(Metrics metrics) {
       metrics
           .getPtransformsMap()
           .entrySet()
@@ -350,19 +426,17 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
                 MetricUpdates ptransformMetricUpdates =
                     MetricsTranslation.metricUpdatesFromProto(
                         ptransformEntry.getKey(), ptransformEntry.getValue().getUserList());
-                for (MetricUpdates.MetricUpdate<Long> update :
-                    ptransformMetricUpdates.counterUpdates()) {
-                  counterUpdates.put(update.getKey(), update);
+                for (MetricUpdate<Long> update : ptransformMetricUpdates.counterUpdates()) {
+                  deprecatedCounterUpdates.put(update.getKey(), update);
                 }
 
-                for (MetricUpdates.MetricUpdate<DistributionData> update :
+                for (MetricUpdate<DistributionData> update :
                     ptransformMetricUpdates.distributionUpdates()) {
-                  distributionUpdates.put(update.getKey(), update);
+                  deprecatedDistributionUpdates.put(update.getKey(), update);
                 }
 
-                for (MetricUpdates.MetricUpdate<GaugeData> update :
-                    ptransformMetricUpdates.gaugeUpdates()) {
-                  gaugeUpdates.put(update.getKey(), update);
+                for (MetricUpdate<GaugeData> update : ptransformMetricUpdates.gaugeUpdates()) {
+                  deprecatedGaugeUpdates.put(update.getKey(), update);
                 }
               });
     }
@@ -374,11 +448,16 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     }
 
     @Override
+    public List<CounterUpdate> extractCounterUpdates() {
+      return counterUpdates;
+    }
+
+    @Override
     public MetricUpdates extractMetricUpdates() {
-      Map<MetricKey, MetricUpdates.MetricUpdate<Long>> snapshotCounterUpdates = counterUpdates;
-      Map<MetricKey, MetricUpdates.MetricUpdate<DistributionData>> snapshotDistributionUpdates =
-          distributionUpdates;
-      Map<MetricKey, MetricUpdates.MetricUpdate<GaugeData>> snapshotGaugeUpdates = gaugeUpdates;
+      Map<MetricKey, MetricUpdate<Long>> snapshotCounterUpdates = deprecatedCounterUpdates;
+      Map<MetricKey, MetricUpdate<DistributionData>> snapshotDistributionUpdates =
+          deprecatedDistributionUpdates;
+      Map<MetricKey, MetricUpdate<GaugeData>> snapshotGaugeUpdates = deprecatedGaugeUpdates;
       return MetricUpdates.create(
           snapshotCounterUpdates.values(),
           snapshotDistributionUpdates.values(),
@@ -426,10 +505,12 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       // Set final metrics to precisely the values in this update. This should overwrite, not
       // be combined with, all prior updates.
       counterUpdates.clear();
-      distributionUpdates.clear();
-      gaugeUpdates.clear();
+      deprecatedCounterUpdates.clear();
+      deprecatedDistributionUpdates.clear();
+      deprecatedGaugeUpdates.clear();
       try {
-        updateMetrics(MoreFutures.get(bundleProcessOperation.getFinalMetrics()));
+        updateMetrics(MoreFutures.get(bundleProcessOperation.getFinalMonitoringInfos()));
+        updateMetricsDeprecated(MoreFutures.get(bundleProcessOperation.getFinalMetrics()));
       } catch (ExecutionException | InterruptedException exn) {
         LOG.info("Failed to get final metrics for bundle", exn);
       }
@@ -538,7 +619,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         T[] newYs = (T[]) new Object[ys.length];
         newXs[0] = xs[0];
         newYs[0] = ys[0];
-        double dx = (xs[numPoints - 1] - xs[0]) / (numPoints / 2);
+        double dx = (xs[numPoints - 1] - xs[0]) / (numPoints / 2.0);
         for (int i = 1; i < numPoints / 2; i++) {
           double x = xs[0] + i * dx;
           newXs[i] = x;
@@ -559,12 +640,15 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     ReadOperation readOperation;
     RemoteGrpcPortWriteOperation grpcWriteOperation;
     RegisterAndProcessBundleOperation bundleProcessOperation;
+
     try {
       readOperation = getReadOperation();
     } catch (Exception exn) {
       readOperation = null;
       LOG.info("Unable to get read operation.", exn);
+      return new NullProgressTracker();
     }
+
     // If there is a exactly one of each of RemoteGrpcPortWriteOperation and
     // RegisterAndProcessBundleOperation we know they have the right topology.
     try {
@@ -581,13 +665,19 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       LOG.debug("Does not have exactly one grpcWRite and bundleProcess operation.", exn);
     }
 
-    if (readOperation != null && grpcWriteOperation != null && bundleProcessOperation != null) {
+    if (grpcWriteOperation != null && bundleProcessOperation != null) {
       return new SingularProcessBundleProgressTracker(
           readOperation, grpcWriteOperation, bundleProcessOperation);
-    } else if (readOperation != null) {
-      return new ReadOperationProgressTracker(readOperation);
     } else {
-      return new NullProgressTracker();
+      return new ReadOperationProgressTracker(readOperation);
     }
+  }
+
+  /** Whether the given error is likely to go away (e.g. the bundle has not started). */
+  private static boolean isTransientProgressError(String msg) {
+    return msg != null
+        && (msg.contains("Process bundle request not yet scheduled")
+            || msg.contains("Unknown process bundle instruction")
+            || msg.contains("unstarted operation"));
   }
 }

@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators.functions;
 
-import com.google.common.collect.Iterables;
+import io.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,7 +44,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFn}. */
 @SuppressWarnings("unchecked")
@@ -97,7 +96,10 @@ public class DoFnFunction<InputT, OutputT>
   public void setup() {
     sideInputReader = new SideInputHandler(sideInputs, InMemoryStateInternals.<Void>forKey(null));
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    doFnInvoker.invokeSetup();
+
+    if (doFnInvoker != null) {
+      doFnInvoker.invokeSetup();
+    }
 
     doFnRunner = doFnRunnerFactory.createRunner(sideInputReader);
 
@@ -107,7 +109,9 @@ public class DoFnFunction<InputT, OutputT>
 
   @Override
   public void teardown() {
-    doFnInvoker.invokeTeardown();
+    if (doFnInvoker != null) {
+      doFnInvoker.invokeTeardown();
+    }
   }
 
   @Override

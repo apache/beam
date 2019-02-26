@@ -174,7 +174,7 @@ cdef class InputStream(object):
     return len(self.all) - self.pos
 
   cpdef bytes read_all(self, bint nested=False):
-    return self.read(self.read_var_int64() if nested else self.size())
+    return self.read(<ssize_t>self.read_var_int64() if nested else self.size())
 
   cpdef libc.stdint.int64_t read_var_int64(self) except? -1:
     """Decode a variable-length encoded long from a stream."""

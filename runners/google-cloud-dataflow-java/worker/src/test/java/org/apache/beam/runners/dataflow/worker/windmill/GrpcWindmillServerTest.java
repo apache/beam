@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.windmill;
 
 import static org.junit.Assert.assertEquals;
@@ -60,11 +59,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.util.MutableHandlerRegistry;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.util.MutableHandlerRegistry;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -300,6 +301,7 @@ public class GrpcWindmillServerTest {
                             JobHeader.newBuilder()
                                 .setJobId("job")
                                 .setProjectId("project")
+                                .setWorkerId("worker")
                                 .build()));
                     sawHeader = true;
                   } else {
@@ -523,7 +525,11 @@ public class GrpcWindmillServerTest {
                   errorCollector.checkThat(
                       request.getHeader(),
                       Matchers.equalTo(
-                          JobHeader.newBuilder().setJobId("job").setProjectId("project").build()));
+                          JobHeader.newBuilder()
+                              .setJobId("job")
+                              .setProjectId("project")
+                              .setWorkerId("worker")
+                              .build()));
                   sawHeader = true;
                   LOG.info("Received header");
                 } else {
@@ -650,6 +656,7 @@ public class GrpcWindmillServerTest {
                             JobHeader.newBuilder()
                                 .setJobId("job")
                                 .setProjectId("project")
+                                .setWorkerId("worker")
                                 .build()));
                     sawHeader = true;
                   } else {
@@ -710,5 +717,113 @@ public class GrpcWindmillServerTest {
         break;
       }
     }
+  }
+
+  @Test
+  public void testThrottleSignal() throws Exception {
+    // This server responds with work items until the throttleMessage limit is hit at which point it
+    // returns RESROUCE_EXHAUSTED errors for throttleTime msecs after which it resumes sending
+    // work items.
+    final int throttleTime = 2000;
+    final int throttleMessage = 15;
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          long throttleStartTime = -1;
+          int messageCount = 0;
+
+          @Override
+          public StreamObserver<StreamingGetWorkRequest> getWorkStream(
+              StreamObserver<StreamingGetWorkResponseChunk> responseObserver) {
+            return new StreamObserver<StreamingGetWorkRequest>() {
+              boolean sawHeader = false;
+
+              @Override
+              public void onNext(StreamingGetWorkRequest request) {
+                messageCount++;
+                // If we are at the throttleMessage limit or we are currently throttling send an
+                // error.
+                if (messageCount == throttleMessage || throttleStartTime != -1) {
+                  // If throttling has not started yet then start it.
+                  if (throttleStartTime == -1) {
+                    throttleStartTime = Instant.now().getMillis();
+                  }
+                  // If throttling has started and it has been throttleTime since we started
+                  // throttling stop throttling.
+                  if (throttleStartTime != -1
+                      && ((Instant.now().getMillis() - throttleStartTime) > throttleTime)) {
+                    throttleStartTime = -1;
+                  }
+                  StatusRuntimeException error =
+                      new StatusRuntimeException(Status.RESOURCE_EXHAUSTED);
+                  responseObserver.onError(error);
+                  return;
+                }
+                // We are not throttling this message so respond as normal.
+                try {
+                  long maxItems;
+                  if (!sawHeader) {
+                    sawHeader = true;
+                    maxItems = request.getRequest().getMaxItems();
+                  } else {
+                    maxItems = request.getRequestExtension().getMaxItems();
+                  }
+
+                  for (int item = 0; item < maxItems; item++) {
+                    long id = ThreadLocalRandom.current().nextLong();
+                    ByteString serializedResponse =
+                        WorkItem.newBuilder()
+                            .setKey(ByteString.copyFromUtf8("somewhat_long_key"))
+                            .setWorkToken(id)
+                            .setShardingKey(id)
+                            .build()
+                            .toByteString();
+
+                    StreamingGetWorkResponseChunk.Builder builder =
+                        StreamingGetWorkResponseChunk.newBuilder()
+                            .setStreamId(id)
+                            .setSerializedWorkItem(serializedResponse)
+                            .setRemainingBytesForWorkItem(0);
+                    try {
+                      responseObserver.onNext(builder.build());
+                    } catch (IllegalStateException e) {
+                      // Client closed stream, we're done.
+                      return;
+                    }
+                  }
+                } catch (Exception e) {
+                  errorCollector.addError(e);
+                }
+              }
+
+              @Override
+              public void onError(Throwable throwable) {}
+
+              @Override
+              public void onCompleted() {
+                responseObserver.onCompleted();
+              }
+            };
+          }
+        });
+
+    // Read the stream of WorkItems until 100 of them are received.
+    CountDownLatch latch = new CountDownLatch(100);
+    GetWorkStream stream =
+        client.getWorkStream(
+            GetWorkRequest.newBuilder().setClientId(10).setMaxItems(3).setMaxBytes(10000).build(),
+            (String computation,
+                @Nullable Instant inputDataWatermark,
+                Instant synchronizedProcessingTime,
+                Windmill.WorkItem workItem) -> {
+              latch.countDown();
+            });
+    // Wait for 100 items or 30 seconds.
+    assertTrue(latch.await(30, TimeUnit.SECONDS));
+    // Confirm that we report at least as much throttle time as our server sent errors for.  We will
+    // actually report more due to backoff in restarting streams.
+    assertTrue(this.client.getAndResetThrottleTime() > throttleTime);
+
+    stream.close();
+    assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 }

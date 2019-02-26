@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTE;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
@@ -29,7 +30,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -39,6 +39,7 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
@@ -50,9 +51,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.DateTime;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
-import org.joda.time.chrono.ISOChronology;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,7 +77,7 @@ public class BigQueryReadWriteIT implements Serializable {
           .addNullableField("c_float", FLOAT)
           .addNullableField("c_double", DOUBLE)
           .addNullableField("c_boolean", BOOLEAN)
-          .addNullableField("c_timestamp", FieldType.DATETIME.withMetadata("TS"))
+          .addNullableField("c_timestamp", CalciteUtils.TIMESTAMP)
           .addNullableField("c_varchar", STRING)
           .addNullableField("c_char", STRING)
           .addNullableField("c_arr", FieldType.array(STRING))
@@ -146,7 +146,7 @@ public class BigQueryReadWriteIT implements Serializable {
                 (float) 1.0,
                 1.0,
                 true,
-                new DateTime(2018, 05, 28, 20, 17, 40, 123, ISOChronology.getInstanceUTC()),
+                parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
                 "varchar",
                 "char",
                 Arrays.asList("123", "456")));
@@ -208,7 +208,7 @@ public class BigQueryReadWriteIT implements Serializable {
                 (float) 1.0,
                 1.0,
                 true,
-                new DateTime(2018, 05, 28, 20, 17, 40, 123, ISOChronology.getInstanceUTC()),
+                parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
                 "varchar",
                 "char",
                 Arrays.asList("123", "456"))));

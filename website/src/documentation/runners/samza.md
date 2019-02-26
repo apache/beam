@@ -35,7 +35,7 @@ The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability
 
 ## Samza Runner prerequisites and setup
 
-The Samza Runner is built on Samza version greater than 0.14.1, and uses Scala version 2.11.
+The Samza Runner is built on Samza version greater than 0.14.1.
 
 ### Specify your dependency
 
@@ -43,7 +43,7 @@ The Samza Runner is built on Samza version greater than 0.14.1, and uses Scala v
 ```java
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-samza_2.11</artifactId>
+  <artifactId>beam-runners-samza</artifactId>
   <version>{{ site.release_latest }}</version>
   <scope>runtime</scope>
 </dependency>

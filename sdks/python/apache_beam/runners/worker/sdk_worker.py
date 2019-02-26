@@ -21,11 +21,13 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+import collections
 import contextlib
 import logging
 import queue
 import sys
 import threading
+import time
 import traceback
 from builtins import object
 from builtins import range
@@ -39,29 +41,38 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
+  SCHEDULING_DELAY_THRESHOLD_SEC = 5*60  # 5 Minutes
 
-  def __init__(self, control_address, worker_count, credentials=None):
+  def __init__(
+      self, control_address, worker_count, credentials=None, worker_id=None,
+      profiler_factory=None):
+    self._alive = True
     self._worker_count = worker_count
     self._worker_index = 0
+    self._worker_id = worker_id
     if credentials is None:
-      logging.info('Creating insecure control channel.')
-      self._control_channel = grpc.insecure_channel(control_address)
+      logging.info('Creating insecure control channel for %s.', control_address)
+      self._control_channel = GRPCChannelFactory.insecure_channel(
+          control_address)
     else:
-      logging.info('Creating secure control channel.')
-      self._control_channel = grpc.secure_channel(control_address, credentials)
+      logging.info('Creating secure control channel for %s.', control_address)
+      self._control_channel = GRPCChannelFactory.secure_channel(
+          control_address, credentials)
     grpc.channel_ready_future(self._control_channel).result(timeout=60)
     logging.info('Control channel established.')
 
     self._control_channel = grpc.intercept_channel(
-        self._control_channel, WorkerIdInterceptor())
+        self._control_channel, WorkerIdInterceptor(self._worker_id))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
         credentials)
-    self._state_handler_factory = GrpcStateHandlerFactory()
+    self._state_handler_factory = GrpcStateHandlerFactory(credentials)
+    self._profiler_factory = profiler_factory
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.
     # Assumption:
@@ -75,7 +86,7 @@ class SdkHarness(object):
     self._fns = {}
     self._responses = queue.Queue()
     self._process_bundle_queue = queue.Queue()
-    self._unscheduled_process_bundle = set()
+    self._unscheduled_process_bundle = {}
     logging.info('Initializing SDKHarness with %s workers.', self._worker_count)
 
   def run(self):
@@ -96,7 +107,8 @@ class SdkHarness(object):
           SdkWorker(
               state_handler_factory=self._state_handler_factory,
               data_channel_factory=self._data_channel_factory,
-              fns=self._fns))
+              fns=self._fns,
+              profiler_factory=self._profiler_factory))
 
     def get_responses():
       while True:
@@ -105,13 +117,21 @@ class SdkHarness(object):
           return
         yield response
 
-    for work_request in control_stub.Control(get_responses()):
-      logging.debug('Got work %s', work_request.instruction_id)
-      request_type = work_request.WhichOneof('request')
-      # Name spacing the request method with 'request_'. The called method
-      # will be like self.request_register(request)
-      getattr(self, SdkHarness.REQUEST_METHOD_PREFIX + request_type)(
-          work_request)
+    self._alive = True
+    monitoring_thread = threading.Thread(target=self._monitor_process_bundle)
+    monitoring_thread.daemon = True
+    monitoring_thread.start()
+
+    try:
+      for work_request in control_stub.Control(get_responses()):
+        logging.debug('Got work %s', work_request.instruction_id)
+        request_type = work_request.WhichOneof('request')
+        # Name spacing the request method with 'request_'. The called method
+        # will be like self.request_register(request)
+        getattr(self, SdkHarness.REQUEST_METHOD_PREFIX + request_type)(
+            work_request)
+    finally:
+      self._alive = False
 
     logging.info('No more requests from control plane')
     logging.info('SDK Harness waiting for in-flight requests to complete')
@@ -161,7 +181,7 @@ class SdkHarness(object):
       work = self._process_bundle_queue.get()
       # add the instuction_id vs worker map for progress reporting lookup
       self._instruction_id_vs_worker[work.instruction_id] = worker
-      self._unscheduled_process_bundle.discard(work.instruction_id)
+      self._unscheduled_process_bundle.pop(work.instruction_id, None)
       try:
         self._execute(lambda: worker.do_instruction(work), work)
       finally:
@@ -172,10 +192,18 @@ class SdkHarness(object):
 
     # Create a task for each process_bundle request and schedule it
     self._process_bundle_queue.put(request)
-    self._unscheduled_process_bundle.add(request.instruction_id)
+    self._unscheduled_process_bundle[request.instruction_id] = time.time()
     self._process_thread_pool.submit(task)
+    logging.debug(
+        "Currently using %s threads." % len(self._process_thread_pool._threads))
+
+  def _request_process_bundle_split(self, request):
+    self._request_process_bundle_action(request)
 
   def _request_process_bundle_progress(self, request):
+    self._request_process_bundle_action(request)
+
+  def _request_process_bundle_action(self, request):
 
     def task():
       instruction_reference = getattr(
@@ -195,14 +223,39 @@ class SdkHarness(object):
 
     self._progress_thread_pool.submit(task)
 
+  def _monitor_process_bundle(self):
+    """
+    Monitor the unscheduled bundles and log if a bundle is not scheduled for
+    more than SCHEDULING_DELAY_THRESHOLD_SEC.
+    """
+    while self._alive:
+      time.sleep(SdkHarness.SCHEDULING_DELAY_THRESHOLD_SEC)
+      # Check for bundles to be scheduled.
+      if self._unscheduled_process_bundle:
+        current_time = time.time()
+        for instruction_id in self._unscheduled_process_bundle:
+          request_time = None
+          try:
+            request_time = self._unscheduled_process_bundle[instruction_id]
+          except KeyError:
+            pass
+          if request_time:
+            scheduling_delay = current_time - request_time
+            if scheduling_delay > SdkHarness.SCHEDULING_DELAY_THRESHOLD_SEC:
+              logging.warn('Unable to schedule instruction %s for %s',
+                           instruction_id, scheduling_delay)
+
 
 class SdkWorker(object):
 
-  def __init__(self, state_handler_factory, data_channel_factory, fns):
+  def __init__(self, state_handler_factory, data_channel_factory, fns,
+               profiler_factory=None):
     self.fns = fns
     self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
-    self.bundle_processors = {}
+    self.active_bundle_processors = {}
+    self.cached_bundle_processors = collections.defaultdict(list)
+    self.profiler_factory = profiler_factory
 
   def do_instruction(self, request):
     request_type = request.WhichOneof('request')
@@ -221,32 +274,73 @@ class SdkWorker(object):
         register=beam_fn_api_pb2.RegisterResponse())
 
   def process_bundle(self, request, instruction_id):
-    process_bundle_desc = self.fns[request.process_bundle_descriptor_reference]
-    state_handler = self.state_handler_factory.create_state_handler(
-        process_bundle_desc.state_api_service_descriptor)
-    self.bundle_processors[
-        instruction_id] = processor = bundle_processor.BundleProcessor(
-            process_bundle_desc,
-            state_handler,
-            self.data_channel_factory)
-    try:
-      with state_handler.process_instruction_id(instruction_id):
-        processor.process_bundle(instruction_id)
-    finally:
-      del self.bundle_processors[instruction_id]
+    with self.get_bundle_processor(
+        instruction_id,
+        request.process_bundle_descriptor_reference) as bundle_processor:
+      with self.maybe_profile(instruction_id):
+        delayed_applications = bundle_processor.process_bundle(instruction_id)
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=instruction_id,
+          process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+              residual_roots=delayed_applications,
+              metrics=bundle_processor.metrics(),
+              monitoring_infos=bundle_processor.monitoring_infos()))
 
-    return beam_fn_api_pb2.InstructionResponse(
-        instruction_id=instruction_id,
-        process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-            metrics=processor.metrics()))
+  @contextlib.contextmanager
+  def get_bundle_processor(self, instruction_id, bundle_descriptor_id):
+    try:
+      # pop() is threadsafe
+      processor = self.cached_bundle_processors[bundle_descriptor_id].pop()
+      state_handler = processor.state_handler
+    except IndexError:
+      process_bundle_desc = self.fns[bundle_descriptor_id]
+      state_handler = self.state_handler_factory.create_state_handler(
+          process_bundle_desc.state_api_service_descriptor)
+      processor = bundle_processor.BundleProcessor(
+          process_bundle_desc,
+          state_handler,
+          self.data_channel_factory)
+    try:
+      self.active_bundle_processors[instruction_id] = processor
+      with state_handler.process_instruction_id(instruction_id):
+        yield processor
+    finally:
+      del self.active_bundle_processors[instruction_id]
+    # Outside the finally block as we only want to re-use on success.
+    processor.reset()
+    self.cached_bundle_processors[bundle_descriptor_id].append(processor)
+
+  def process_bundle_split(self, request, instruction_id):
+    processor = self.active_bundle_processors.get(request.instruction_reference)
+    if processor:
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=instruction_id,
+          process_bundle_split=processor.try_split(request))
+    else:
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=instruction_id,
+          error='Instruction not running: %s' % instruction_id)
 
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
-    processor = self.bundle_processors.get(request.instruction_reference)
+    processor = self.active_bundle_processors.get(request.instruction_reference)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
-            metrics=processor.metrics() if processor else None))
+            metrics=processor.metrics() if processor else None,
+            monitoring_infos=processor.monitoring_infos() if processor else []))
+
+  @contextlib.contextmanager
+  def maybe_profile(self, instruction_id):
+    if self.profiler_factory:
+      profiler = self.profiler_factory(instruction_id)
+      if profiler:
+        with profiler:
+          yield
+      else:
+        yield
+    else:
+      yield
 
 
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
@@ -269,10 +363,11 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
   Caches the created channels by ``state descriptor url``.
   """
 
-  def __init__(self):
+  def __init__(self, credentials=None):
     self._state_handler_cache = {}
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
+    self._credentials = credentials
 
   def create_state_handler(self, api_service_descriptor):
     if not api_service_descriptor:
@@ -281,14 +376,20 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     if url not in self._state_handler_cache:
       with self._lock:
         if url not in self._state_handler_cache:
-          logging.info('Creating channel for %s', url)
-          grpc_channel = grpc.insecure_channel(
-              url,
-              # Options to have no limits (-1) on the size of the messages
-              # received or sent over the data plane. The actual buffer size is
-              # controlled in a layer above.
-              options=[("grpc.max_receive_message_length", -1),
-                       ("grpc.max_send_message_length", -1)])
+          # Options to have no limits (-1) on the size of the messages
+          # received or sent over the data plane. The actual buffer size is
+          # controlled in a layer above.
+          options = [('grpc.max_receive_message_length', -1),
+                     ('grpc.max_send_message_length', -1)]
+          if self._credentials is None:
+            logging.info('Creating insecure state channel for %s.', url)
+            grpc_channel = GRPCChannelFactory.insecure_channel(
+                url, options=options)
+          else:
+            logging.info('Creating secure state channel for %s.', url)
+            grpc_channel = GRPCChannelFactory.secure_channel(
+                url, self._credentials, options=options)
+          logging.info('State channel established.')
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,
                                                 WorkerIdInterceptor())
@@ -380,14 +481,13 @@ class GrpcStateHandler(object):
     self._done = True
     self._requests.put(self._DONE)
 
-  def blocking_get(self, state_key):
+  def blocking_get(self, state_key, continuation_token=None):
     response = self._blocking_request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
-            get=beam_fn_api_pb2.StateGetRequest()))
-    if response.get.continuation_token:
-      raise NotImplementedError
-    return response.get.data
+            get=beam_fn_api_pb2.StateGetRequest(
+                continuation_token=continuation_token)))
+    return response.get.data, response.get.continuation_token
 
   def blocking_append(self, state_key, data):
     self._blocking_request(

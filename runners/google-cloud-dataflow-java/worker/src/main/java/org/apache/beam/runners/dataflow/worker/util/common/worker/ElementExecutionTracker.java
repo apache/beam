@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
@@ -24,8 +23,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 /** Tracks per-element execution time of a single execution thread. */
 public abstract class ElementExecutionTracker {
   public static final ElementExecutionTracker NO_OP_INSTANCE = new NoopElementTracker();
-  protected static final CounterName COUNTER_NAME =
-      CounterName.named("per-element-processing-time");
+  public static final CounterName COUNTER_NAME = CounterName.named("per-element-processing-time");
 
   /**
    * Indicates that the execution thread has entered the process method for a new input element in

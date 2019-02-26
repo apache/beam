@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.net.HostAndPort;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -42,6 +39,9 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.ManualDockerEnvironmentOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,7 +128,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             .addAll(gcsCredentialArgs())
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             .add("--network=host")
-            // We need to pass on the information about Docker-on-Mac environment (due to missing host networking on Mac)
+            // We need to pass on the information about Docker-on-Mac environment (due to missing
+            // host networking on Mac)
             .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"));
 
     if (!retainDockerContainer) {
@@ -153,8 +154,10 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {
-          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
+          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(1));
         } catch (TimeoutException timeoutEx) {
+          Preconditions.checkArgument(
+              docker.isContainerRunning(containerId), "No container running for id " + containerId);
           LOG.info(
               "Still waiting for startup of environment {} for worker id {}",
               dockerPayload.getContainerImage(),
@@ -204,7 +207,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
    * likely only support the latest version at any time.
    */
   private static class DockerOnMac {
-    // TODO: This host name seems to change with every other Docker release. Do we attempt to keep up
+    // TODO: This host name seems to change with every other Docker release. Do we attempt to keep
+    // up
     // or attempt to document the supported Docker version(s)?
     private static final String DOCKER_FOR_MAC_HOST = "host.docker.internal";
 
@@ -278,7 +282,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       String osName = System.getProperty("os.name").toLowerCase();
       // TODO: Make this more robust?
       // The DOCKER_MAC_CONTAINER environment variable is necessary to detect whether we run on
-      // a container on MacOs. MacOs internally uses a Linux VM which makes it indistinguishable from Linux.
+      // a container on MacOs. MacOs internally uses a Linux VM which makes it indistinguishable
+      // from Linux.
       // We still need to apply port mapping due to missing host networking.
       if (osName.startsWith("mac") || DockerOnMac.RUNNING_INSIDE_DOCKER_ON_MAC) {
         return Platform.MAC;

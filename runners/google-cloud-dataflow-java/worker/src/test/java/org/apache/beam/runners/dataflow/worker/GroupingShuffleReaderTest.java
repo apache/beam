@@ -4,22 +4,20 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * License); you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
-import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.approximateSplitRequestAtPosition;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.consumedParallelismFromProgress;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.positionFromSplitResult;
@@ -35,7 +33,6 @@ import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.Position;
-import com.google.common.collect.Lists;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.DataOutputStream;
@@ -49,19 +46,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.GroupingShuffleReader.GroupingShuffleReaderIterator;
 import org.apache.beam.runners.dataflow.worker.ShuffleSink.ShuffleKind;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterBackedElementByteSizeObserver;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
@@ -82,6 +80,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -100,8 +99,7 @@ public class GroupingShuffleReaderTest {
   private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
   private final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
-  private final ExecutionStateTracker tracker =
-      new ExecutionStateTracker(sampler, ElementExecutionTracker.newForTest());
+  private final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
   private Closeable trackerCleanup;
 
   // As Shuffle records, {@code KV} is encoded as 10 records. Each records uses an integer as key
@@ -145,20 +143,10 @@ public class GroupingShuffleReaderTest {
   }
 
   private void setCurrentExecutionState(String mockOriginalName) {
-    ExecutionStateTracker.ExecutionState state =
-        new ExecutionStateTracker.ExecutionState(nameContextForTest(), "activity") {
-          @Override
-          public void takeSample(long millisSinceLastSample) {}
-
-          @Override
-          public void reportLull(Thread trackedThread, long millis) {}
-
-          @Override
-          public NameContext getStepName() {
-            return NameContext.create(
-                MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME);
-          }
-        };
+    DataflowExecutionState state =
+        new TestDataflowExecutionState(
+            NameContext.create(MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME),
+            "activity");
     tracker.enterState(state);
   }
 
@@ -435,7 +423,7 @@ public class GroupingShuffleReaderTest {
 
   private void expectShuffleReadCounterEquals(
       TestShuffleReadCounterFactory factory, long expectedReadBytes) {
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, expectedReadBytes);
     expectShuffleReadCounterEquals(factory, expectedReadBytesMap);
   }
@@ -443,7 +431,7 @@ public class GroupingShuffleReaderTest {
   private void expectShuffleReadCounterEquals(
       TestShuffleReadCounterFactory factory, Map<String, Long> expectedReadBytesForOriginal) {
     ShuffleReadCounter src = factory.getOnlyShuffleReadCounterOrNull();
-    assertTrue(src != null);
+    assertNotNull(src);
     // If the experiment is enabled then the legacyPerOperationPerDatasetBytesCounter
     // should not be set.
     if (src.legacyPerOperationPerDatasetBytesCounter != null) {
@@ -858,7 +846,7 @@ public class GroupingShuffleReaderTest {
   @Test
   public void testGetApproximateProgress() throws Exception {
     // Store the positions of all KVs returned.
-    List<ByteArrayShufflePosition> positionsList = new ArrayList<ByteArrayShufflePosition>();
+    List<ByteArrayShufflePosition> positionsList = new ArrayList<>();
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BatchModeExecutionContext context = BatchModeExecutionContext.forTesting(options, "testStage");
@@ -973,7 +961,7 @@ public class GroupingShuffleReaderTest {
     }
     assertTrue(shuffleReader.isClosed());
 
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, 48L);
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP2, 32L);
     expectShuffleReadCounterEquals(shuffleReadCounterFactory, expectedReadBytesMap);

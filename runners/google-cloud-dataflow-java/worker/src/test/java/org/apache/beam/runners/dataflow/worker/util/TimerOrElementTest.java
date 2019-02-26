@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -56,7 +55,8 @@ public class TimerOrElementTest {
             "com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder");
     List<CloudObject> component =
         Collections.singletonList(
-            CloudObjects.asCloudObject(KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of())));
+            CloudObjects.asCloudObject(
+                KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()), /*sdkComponents=*/ null));
     Structs.addList(cloudObject, PropertyNames.COMPONENT_ENCODINGS, component);
 
     Coder<?> decoded = CloudObjects.coderFromCloudObject(cloudObject);

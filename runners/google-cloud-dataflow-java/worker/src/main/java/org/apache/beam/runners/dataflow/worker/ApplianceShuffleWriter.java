@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import java.io.IOException;
@@ -53,7 +52,7 @@ public final class ApplianceShuffleWriter implements ShuffleWriter {
   }
 
   @Override
-  public void finalize() {
+  protected void finalize() {
     destroy();
   }
 

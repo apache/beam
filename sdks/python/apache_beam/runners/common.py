@@ -62,6 +62,7 @@ class NameContext(object):
     return self.step_name == other.step_name
 
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __repr__(self):
@@ -104,6 +105,7 @@ class DataflowNameContext(NameContext):
             self.system_name == other.system_name)
 
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):
@@ -150,8 +152,13 @@ class MethodWrapper(object):
                        'a \'RestrictionProvider\'. Received %r instead.'
                        % obj_to_invoke)
 
-    args, _, _, defaults = core.get_function_arguments(
+    fullargspec = core.get_function_arguments(
         obj_to_invoke, method_name)
+
+    # TODO(BEAM-5878) support kwonlyargs on Python 3.
+    args = fullargspec[0]
+    defaults = fullargspec[3]
+
     defaults = defaults if defaults else []
     method_value = getattr(obj_to_invoke, method_name)
     self.method_value = method_value
@@ -204,7 +211,7 @@ class DoFnSignature(object):
     self.start_bundle_method = MethodWrapper(do_fn, 'start_bundle')
     self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
 
-    restriction_provider = self._get_restriction_provider(do_fn)
+    restriction_provider = self.get_restriction_provider()
     self.initial_restriction_method = (
         MethodWrapper(restriction_provider, 'initial_restriction')
         if restriction_provider else None)
@@ -230,7 +237,7 @@ class DoFnSignature(object):
         method = timer_spec._attached_callback
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
 
-  def _get_restriction_provider(self, do_fn):
+  def get_restriction_provider(self):
     result = _find_param_with_default(self.process_method,
                                       default_as_type=RestrictionProvider)
     return result[1] if result else None
@@ -385,8 +392,6 @@ def _find_param_with_default(
         'provided. Received %r and %r.' % (default_as_value, default_as_type))
 
   defaults = method.defaults
-  default_as_value = default_as_value
-  default_as_type = default_as_type
   ret = None
   for i, value in enumerate(defaults):
     if default_as_value and value == default_as_value:
@@ -429,6 +434,9 @@ class PerWindowInvoker(DoFnInvoker):
         (core.DoFn.WindowParam in default_arg_values) or
         signature.is_stateful_dofn())
     self.user_state_context = user_state_context
+    self.is_splittable = signature.is_splittable_dofn()
+    self.restriction_tracker = None
+    self.current_windowed_value = None
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -510,7 +518,16 @@ class PerWindowInvoker(DoFnInvoker):
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
 
+    if self.is_splittable and not restriction_tracker:
+      restriction = self.invoke_initial_restriction(windowed_value.value)
+      restriction_tracker = self.invoke_create_tracker(restriction)
+
     if restriction_tracker:
+      if len(windowed_value.windows) > 1 and self.has_windowed_inputs:
+        # Should never get here due to window explosion in
+        # the upstream pair-with-restriction.
+        raise NotImplementedError(
+            'SDFs in multiply-windowed values with windowed arguments.')
       restriction_tracker_param = _find_param_with_default(
           self.signature.process_method,
           default_as_type=core.RestrictionProvider)[0]
@@ -519,7 +536,17 @@ class PerWindowInvoker(DoFnInvoker):
             'A RestrictionTracker %r was provided but DoFn does not have a '
             'RestrictionTrackerParam defined' % restriction_tracker)
       additional_kwargs[restriction_tracker_param] = restriction_tracker
-    if self.has_windowed_inputs and len(windowed_value.windows) != 1:
+      try:
+        self.current_windowed_value = windowed_value
+        self.restriction_tracker = restriction_tracker
+        return self._invoke_per_window(
+            windowed_value, additional_args, additional_kwargs,
+            output_processor)
+      finally:
+        self.restriction_tracker = None
+        self.current_windowed_value = windowed_value
+
+    elif self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
         self._invoke_per_window(
             WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)),
@@ -596,6 +623,29 @@ class PerWindowInvoker(DoFnInvoker):
     else:
       output_processor.process_outputs(
           windowed_value, self.process_method(*args_for_process))
+
+    if self.is_splittable:
+      deferred_status = self.restriction_tracker.deferred_status()
+      if deferred_status:
+        deferred_restriction, deferred_watermark = deferred_status
+        return (
+            windowed_value.with_value(
+                (windowed_value.value, deferred_restriction)),
+            deferred_watermark)
+
+  def try_split(self, fraction):
+    restriction_tracker = self.restriction_tracker
+    current_windowed_value = self.current_windowed_value
+    if restriction_tracker and current_windowed_value:
+      split = restriction_tracker.try_split(fraction)
+      if split:
+        primary, residual = split
+        element = self.current_windowed_value.value
+        return (
+            (self.current_windowed_value.with_value((element, primary)),
+             None),
+            (self.current_windowed_value.with_value((element, residual)),
+             restriction_tracker.current_watermark()))
 
 
 class DoFnRunner(Receiver):
@@ -674,9 +724,19 @@ class DoFnRunner(Receiver):
 
   def process(self, windowed_value):
     try:
-      self.do_fn_invoker.invoke_process(windowed_value)
+      return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
+
+  def process_with_restriction(self, windowed_value):
+    element, restriction = windowed_value.value
+    return self.do_fn_invoker.invoke_process(
+        windowed_value.with_value(element),
+        restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
+            restriction))
+
+  def try_split(self, fraction):
+    return self.do_fn_invoker.try_split(fraction)
 
   def process_user_timer(self, timer_spec, key, window, timestamp):
     try:

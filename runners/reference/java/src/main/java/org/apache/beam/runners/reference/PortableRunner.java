@@ -17,12 +17,9 @@
  */
 package org.apache.beam.runners.reference;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,9 +35,11 @@ import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingS
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.reference.CloseableResource.CloseException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -50,8 +49,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.ZipFiles;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,6 +139,32 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
   public PipelineResult run(Pipeline pipeline) {
     pipeline.replaceAll(ImmutableList.of(JavaReadViaImpulse.boundedOverride()));
 
+    Runnable cleanup;
+    if (Environments.ENVIRONMENT_LOOPBACK.equals(
+        options.as(PortablePipelineOptions.class).getDefaultEnvironmentType())) {
+      GrpcFnServer<ExternalWorkerService> workerService;
+      try {
+        workerService = new ExternalWorkerService(options).start();
+      } catch (Exception exn) {
+        throw new RuntimeException("Failed to start GrpcFnServer for ExternalWorkerService", exn);
+      }
+      LOG.info("Starting worker service at {}", workerService.getApiServiceDescriptor().getUrl());
+      options
+          .as(PortablePipelineOptions.class)
+          .setDefaultEnvironmentConfig(workerService.getApiServiceDescriptor().getUrl());
+      cleanup =
+          () -> {
+            try {
+              LOG.warn("closing worker service {}", workerService);
+              workerService.close();
+            } catch (Exception exn) {
+              throw new RuntimeException(exn);
+            }
+          };
+    } else {
+      cleanup = null;
+    }
+
     LOG.debug("Initial files to stage: " + filesToStage);
 
     PrepareJobRequest prepareJobRequest =
@@ -152,7 +180,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
     JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(jobServiceChannel);
     try (CloseableResource<JobServiceBlockingStub> wrappedJobService =
-        CloseableResource.of(jobService, (unused) -> jobServiceChannel.shutdown())) {
+        CloseableResource.of(jobService, unused -> jobServiceChannel.shutdown())) {
 
       PrepareJobResponse prepareJobResponse = jobService.prepare(prepareJobRequest);
       LOG.info("PrepareJobResponse: {}", prepareJobResponse);
@@ -187,7 +215,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
       LOG.info("RunJobResponse: {}", runJobResponse);
       ByteString jobId = runJobResponse.getJobIdBytes();
 
-      return new JobServicePipelineResult(jobId, wrappedJobService.transfer());
+      return new JobServicePipelineResult(jobId, wrappedJobService.transfer(), cleanup);
     } catch (CloseException e) {
       throw new RuntimeException(e);
     }

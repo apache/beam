@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import com.google.common.base.MoreObjects;
 import java.io.Closeable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /** A write operation. */
 public class WriteOperation extends ReceivingOperation {

@@ -18,8 +18,6 @@
 package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,11 +29,13 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
-import org.apache.beam.sdk.fn.function.ThrowingFunction;
+import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn.MergeContext;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /**
  * Merges windows using a {@link org.apache.beam.sdk.transforms.windowing.WindowFn}.
@@ -120,12 +120,12 @@ public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
   /** An implementation which uses a {@link WindowFn} to merge windows. */
   private static class MergingViaWindowFnRunner<T, W extends BoundedWindow>
       extends WindowMergingFnRunner<T, W> {
-    private final WindowFn<?, W> windowFn;
+    private final WindowFn<T, W> windowFn;
     private final WindowFn<?, W>.MergeContext mergeContext;
     private Collection<W> currentWindows;
     private List<KV<W, Collection<W>>> mergedWindows;
 
-    private MergingViaWindowFnRunner(WindowFn<?, W> windowFn) {
+    private MergingViaWindowFnRunner(WindowFn<T, W> windowFn) {
       this.windowFn = windowFn;
       this.mergedWindows = new ArrayList<>();
       this.currentWindows = new ArrayList<>();

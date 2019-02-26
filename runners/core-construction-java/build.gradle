@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Core Construction Java"
@@ -33,10 +33,11 @@ test {
 }
 
 dependencies {
-  compile library.java.guava
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-job-management", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_13_1
+  shadow library.java.vendored_guava_20_0
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
   shadow library.java.joda_time
@@ -48,4 +49,22 @@ dependencies {
   shadowTest library.java.jackson_annotations
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
+}
+
+task runExpansionService (type: JavaExec) {
+  main = "org.apache.beam.runners.core.construction.ExpansionService"
+  classpath = sourceSets.main.runtimeClasspath
+  args = [project.findProperty("constructionService.port") ?: "8097"]
+}
+
+task testExpansionService(type: Jar) {
+  dependsOn = [shadowJar, shadowTestJar]
+  manifest {
+    attributes(
+            'Main-Class': 'org.apache.beam.runners.core.construction.TestExpansionService'
+    )
+  }
+  from { configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
+  from sourceSets.main.output
+  from sourceSets.test.output
 }

@@ -26,12 +26,12 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.common.collect.ImmutableList;
 import java.net.MalformedURLException;
 import java.net.URL;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /** Helpers for cloud communication. */
 public class DataflowTransport {
@@ -75,7 +75,8 @@ public class DataflowTransport {
             getJsonFactory(),
             chainHttpRequestInitializer(
                 options.getGcpCredential(),
-                // Do not log 404. It clutters the output and is possibly even required by the caller.
+                // Do not log 404. It clutters the output and is possibly even required by the
+                // caller.
                 new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)

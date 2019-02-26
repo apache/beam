@@ -127,6 +127,11 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
     return new AutoValue_PubsubIOJsonTable.Builder();
   }
 
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.UNBOUNDED;
+  }
+
   /**
    * Table schema, describes Pubsub message schema.
    *

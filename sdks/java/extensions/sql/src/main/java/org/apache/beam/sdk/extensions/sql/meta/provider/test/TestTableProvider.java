@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
@@ -82,16 +82,13 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public Map<String, Table> getTables() {
-    return tables()
-        .entrySet()
-        .stream()
+    return tables().entrySet().stream()
         .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().table));
   }
 
   @Override
   public synchronized BeamSqlTable buildBeamSqlTable(Table table) {
-    InMemoryTable inMemoryTable = new InMemoryTable(tables().get(table.getName()));
-    return inMemoryTable;
+    return new InMemoryTable(tables().get(table.getName()));
   }
 
   public void addRows(String tableName, Row... rows) {
@@ -103,7 +100,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     return tables().get(tableName).rows;
   }
 
-  private static class TableWithRows implements Serializable {
+  /** TableWitRows. */
+  public static class TableWithRows implements Serializable {
     private Table table;
     private List<Row> rows;
     private long tableProviderInstanceId;
@@ -113,10 +111,19 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       this.table = table;
       this.rows = new CopyOnWriteArrayList<>();
     }
+
+    public List<Row> getRows() {
+      return rows;
+    }
   }
 
   private static class InMemoryTable implements BeamSqlTable {
     private TableWithRows tableWithRows;
+
+    @Override
+    public PCollection.IsBounded isBounded() {
+      return PCollection.IsBounded.BOUNDED;
+    }
 
     public InMemoryTable(TableWithRows tableWithRows) {
       this.tableWithRows = tableWithRows;

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import java.util.ArrayList;
@@ -65,6 +64,11 @@ public class TestUnboundedTable extends TestTable {
   public TestUnboundedTable timestampColumnIndex(int idx) {
     this.timestampField = idx;
     return this;
+  }
+
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.UNBOUNDED;
   }
 
   /**

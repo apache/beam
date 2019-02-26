@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
@@ -28,7 +27,6 @@ import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -36,6 +34,7 @@ import java.math.BigInteger;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /** Container class for different types of network nodes. All nodes only have reference equality. */
 public class Nodes {
@@ -206,20 +206,25 @@ public class Nodes {
     public abstract ExecutionLocation getExecutionLocation();
   }
 
-  /** A node that stores {@link InstructionOutput}s. */
+  /** A node that stores {@link InstructionOutput}s with the corresponding . */
   @AutoValue
   public abstract static class InstructionOutputNode extends Node {
-    public static InstructionOutputNode create(InstructionOutput instructionOutput) {
+    public static InstructionOutputNode create(
+        InstructionOutput instructionOutput, String pcollectionId) {
       checkNotNull(instructionOutput);
-      return new AutoValue_Nodes_InstructionOutputNode(instructionOutput);
+      checkNotNull(pcollectionId);
+      return new AutoValue_Nodes_InstructionOutputNode(instructionOutput, pcollectionId);
     }
 
     public abstract InstructionOutput getInstructionOutput();
+
+    public abstract String getPcollectionId();
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this)
           .add("instructionOutput", toStringWithTrimmedLiterals(getInstructionOutput()))
+          .add("pcollectionId", getPcollectionId())
           .toString();
     }
   }
@@ -227,14 +232,18 @@ public class Nodes {
   /** A node that stores {@link OutputReceiver}s. */
   @AutoValue
   public abstract static class OutputReceiverNode extends Node {
-    public static OutputReceiverNode create(OutputReceiver outputReceiver, Coder<?> coder) {
+    public static OutputReceiverNode create(
+        OutputReceiver outputReceiver, Coder<?> coder, String pcollectionId) {
       checkNotNull(outputReceiver);
-      return new AutoValue_Nodes_OutputReceiverNode(outputReceiver, coder);
+      checkNotNull(pcollectionId);
+      return new AutoValue_Nodes_OutputReceiverNode(outputReceiver, coder, pcollectionId);
     }
 
     public abstract OutputReceiver getOutputReceiver();
 
     public abstract Coder<?> getCoder();
+
+    public abstract String getPcollectionId();
   }
 
   /** A node that stores {@link Operation}s. */
@@ -302,6 +311,29 @@ public class Nodes {
     public String toString() {
       // The request may be very large.
       return "RegisterRequestNode";
+    }
+  }
+
+  /** A node that stores {@link org.apache.beam.runners.core.construction.graph.ExecutableStage}. */
+  @AutoValue
+  public abstract static class ExecutableStageNode extends Node {
+    public static ExecutableStageNode create(
+        ExecutableStage executableStage,
+        Map<String, NameContext> ptransformIdToPartialNameContextMap) {
+      checkNotNull(executableStage);
+      checkNotNull(ptransformIdToPartialNameContextMap);
+      return new AutoValue_Nodes_ExecutableStageNode(
+          executableStage, ptransformIdToPartialNameContextMap);
+    }
+
+    public abstract ExecutableStage getExecutableStage();
+
+    public abstract Map<String, NameContext> getPTransformIdToPartialNameContextMap();
+
+    @Override
+    public String toString() {
+      // The request may be very large.
+      return "ExecutableStageNode";
     }
   }
 

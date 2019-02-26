@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.model.Job;
@@ -33,13 +33,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySourceBase.ExtractResult;
@@ -84,6 +79,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -99,6 +95,13 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -382,6 +385,7 @@ public class BigQueryIO {
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
+        .setMethod(Method.DEFAULT)
         .build();
   }
 
@@ -528,6 +532,21 @@ public class BigQueryIO {
   /** Implementation of {@link BigQueryIO#read(SerializableFunction)}. */
   @AutoValue
   public abstract static class TypedRead<T> extends PTransform<PBegin, PCollection<T>> {
+    /** Determines the method used to read data from BigQuery. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public enum Method {
+      /** The default behavior if no method is explicitly set. Currently {@link #EXPORT}. */
+      DEFAULT,
+
+      /**
+       * Export data to Google Cloud Storage in Avro format and read data files from that location.
+       */
+      EXPORT,
+
+      /** Read the contents of a table directly using the BigQuery storage API. */
+      DIRECT_READ,
+    }
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -550,11 +569,19 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryLocation(String location);
 
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setMethod(Method method);
+
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setReadOptions(TableReadOptions readOptions);
+
       abstract TypedRead<T> build();
 
       abstract Builder<T> setParseFn(SerializableFunction<SchemaAndRecord, T> parseFn);
 
       abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Builder<T> setKmsKey(String kmsKey);
     }
 
     @Nullable
@@ -583,8 +610,18 @@ public class BigQueryIO {
     @Nullable
     abstract String getQueryLocation();
 
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    abstract Method getMethod();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Nullable
+    abstract TableReadOptions getReadOptions();
+
     @Nullable
     abstract Coder<T> getCoder();
+
+    @Nullable
+    abstract String getKmsKey();
 
     /**
      * An enumeration type for the priority of a query.
@@ -643,7 +680,8 @@ public class BigQueryIO {
                 coder,
                 getParseFn(),
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
-                getQueryLocation());
+                getQueryLocation(),
+                getKmsKey());
       }
       return source;
     }
@@ -658,19 +696,21 @@ public class BigQueryIO {
       // read is properly specified.
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
 
-      String tempLocation = bqOptions.getTempLocation();
-      checkArgument(
-          !Strings.isNullOrEmpty(tempLocation),
-          "BigQueryIO.Read needs a GCS temp location to store temp files.");
-      if (getBigQueryServices() == null) {
-        try {
-          GcsPath.fromUri(tempLocation);
-        } catch (IllegalArgumentException e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
-                  tempLocation),
-              e);
+      if (getMethod() != Method.DIRECT_READ) {
+        String tempLocation = bqOptions.getTempLocation();
+        checkArgument(
+            !Strings.isNullOrEmpty(tempLocation),
+            "BigQueryIO.Read needs a GCS temp location to store temp files.");
+        if (getBigQueryServices() == null) {
+          try {
+            GcsPath.fromUri(tempLocation);
+          } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                    tempLocation),
+                e);
+          }
         }
       }
 
@@ -689,6 +729,8 @@ public class BigQueryIO {
           BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
           BigQueryHelpers.verifyTablePresence(datasetService, table.get());
         } else if (getQuery() != null) {
+          checkArgument(
+              getMethod() != Method.DIRECT_READ, "Cannot read query results with DIRECT_READ");
           checkArgument(
               getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
           JobService jobService = getBigQueryServices().getJobService(bqOptions);
@@ -732,6 +774,8 @@ public class BigQueryIO {
               BigQueryOptions.class.getSimpleName());
         }
       } else {
+        checkArgument(
+            getMethod() != Method.DIRECT_READ, "Method must not be DIRECT_READ if query is set");
         checkArgument(getQuery() != null, "Either from() or fromQuery() is required");
         checkArgument(
             getFlattenResults() != null, "flattenResults should not be null if query is set");
@@ -741,6 +785,18 @@ public class BigQueryIO {
 
       Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
+
+      if (getMethod() == Method.DIRECT_READ) {
+        return p.apply(
+            org.apache.beam.sdk.io.Read.from(
+                BigQueryStorageTableSource.create(
+                    getTableProvider(),
+                    getReadOptions(),
+                    getParseFn(),
+                    coder,
+                    getBigQueryServices())));
+      }
+
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
       PCollection<T> rows;
@@ -904,6 +960,11 @@ public class BigQueryIO {
       return toBuilder().setCoder(coder).build();
     }
 
+    /** For query sources, use this Cloud KMS key to encrypt any temporary tables created. */
+    public TypedRead<T> withKmsKey(String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
+    }
+
     /** See {@link Read#from(String)}. */
     public TypedRead<T> from(String tableSpec) {
       return from(StaticValueProvider.of(tableSpec));
@@ -968,6 +1029,18 @@ public class BigQueryIO {
       return toBuilder().setQueryLocation(location).build();
     }
 
+    /** See {@link Method}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withMethod(Method method) {
+      return toBuilder().setMethod(method).build();
+    }
+
+    /** Read options, including a list of selected columns and push-down SQL filter text. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withReadOptions(TableReadOptions readOptions) {
+      return toBuilder().setReadOptions(readOptions).build();
+    }
+
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withTemplateCompatibility() {
       return toBuilder().setWithTemplateCompatibility(true).build();
@@ -989,11 +1062,11 @@ public class BigQueryIO {
     List<Long> counts = jobStats.getExtract().getDestinationUriFileCounts();
     if (counts.size() != 1) {
       String errorMessage =
-          (counts.isEmpty()
+          counts.isEmpty()
               ? "No destination uri file count received."
               : String.format(
                   "More than one destination uri file count received. First two are %s, %s",
-                  counts.get(0), counts.get(1)));
+                  counts.get(0), counts.get(1));
       throw new RuntimeException(errorMessage);
     }
     long filesCount = counts.get(0);
@@ -1018,7 +1091,7 @@ public class BigQueryIO {
    * function must be provided to convert each input element into a {@link TableRow} using {@link
    * Write#withFormatFunction(SerializableFunction)}.
    *
-   * <p>In BigQuery, each table has an encosing dataset. The dataset being written must already
+   * <p>In BigQuery, each table has an enclosing dataset. The dataset being written must already
    * exist.
    *
    * <p>By default, tables will be created if they do not exist, which corresponds to a {@link
@@ -1055,6 +1128,9 @@ public class BigQueryIO {
         .setExtendedErrorInfo(false)
         .setSkipInvalidRows(false)
         .setIgnoreUnknownValues(false)
+        .setMaxFilesPerPartition(BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION)
+        .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
+        .setOptimizeWrites(false)
         .build();
   }
 
@@ -1147,6 +1223,10 @@ public class BigQueryIO {
 
     abstract int getNumFileShards();
 
+    abstract int getMaxFilesPerPartition();
+
+    abstract long getMaxBytesPerPartition();
+
     @Nullable
     abstract Duration getTriggeringFrequency();
 
@@ -1166,6 +1246,11 @@ public class BigQueryIO {
     abstract Boolean getSkipInvalidRows();
 
     abstract Boolean getIgnoreUnknownValues();
+
+    @Nullable
+    abstract String getKmsKey();
+
+    abstract Boolean getOptimizeWrites();
 
     abstract Builder<T> toBuilder();
 
@@ -1202,6 +1287,10 @@ public class BigQueryIO {
 
       abstract Builder<T> setNumFileShards(int numFileShards);
 
+      abstract Builder<T> setMaxFilesPerPartition(int maxFilesPerPartition);
+
+      abstract Builder<T> setMaxBytesPerPartition(long maxBytesPerPartition);
+
       abstract Builder<T> setTriggeringFrequency(Duration triggeringFrequency);
 
       abstract Builder<T> setMethod(Method method);
@@ -1217,6 +1306,10 @@ public class BigQueryIO {
       abstract Builder<T> setSkipInvalidRows(Boolean skipInvalidRows);
 
       abstract Builder<T> setIgnoreUnknownValues(Boolean ignoreUnknownValues);
+
+      abstract Builder<T> setKmsKey(String kmsKey);
+
+      abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
       abstract Write<T> build();
     }
@@ -1420,7 +1513,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Specfies a policy for handling fPailed inserts.
+     * Specfies a policy for handling failed inserts.
      *
      * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
      * collections are written using batch load jobs, so we don't get per-element failures.
@@ -1524,6 +1617,19 @@ public class BigQueryIO {
       return toBuilder().setIgnoreUnknownValues(true).build();
     }
 
+    Write<T> withKmsKey(String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
+    }
+
+    /**
+     * If true, enables new codepaths that are expected to use less resources while writing to
+     * BigQuery. Not enabled by default in order to maintain backwards compatibility.
+     */
+    @Experimental
+    public Write<T> withOptimizedWrites() {
+      return toBuilder().setOptimizeWrites(true).build();
+    }
+
     @VisibleForTesting
     /** This method is for test usage only */
     public Write<T> withTestServices(BigQueryServices testServices) {
@@ -1542,6 +1648,24 @@ public class BigQueryIO {
     Write<T> withMaxFileSize(long maxFileSize) {
       checkArgument(maxFileSize > 0, "maxFileSize must be > 0, but was: %s", maxFileSize);
       return toBuilder().setMaxFileSize(maxFileSize).build();
+    }
+
+    @VisibleForTesting
+    Write<T> withMaxFilesPerPartition(int maxFilesPerPartition) {
+      checkArgument(
+          maxFilesPerPartition > 0,
+          "maxFilesPerPartition must be > 0, but was: %s",
+          maxFilesPerPartition);
+      return toBuilder().setMaxFilesPerPartition(maxFilesPerPartition).build();
+    }
+
+    @VisibleForTesting
+    Write<T> withMaxBytesPerPartition(long maxBytesPerPartition) {
+      checkArgument(
+          maxBytesPerPartition > 0,
+          "maxFilesPerPartition must be > 0, but was: %s",
+          maxBytesPerPartition);
+      return toBuilder().setMaxBytesPerPartition(maxBytesPerPartition).build();
     }
 
     @Override
@@ -1604,8 +1728,7 @@ public class BigQueryIO {
       checkArgument(
           1
               == Iterables.size(
-                  allToArgs
-                      .stream()
+                  allToArgs.stream()
                       .filter(Predicates.notNull()::apply)
                       .collect(Collectors.toList())),
           "Exactly one of jsonTableRef, tableFunction, or " + "dynamicDestinations must be set");
@@ -1615,8 +1738,7 @@ public class BigQueryIO {
       checkArgument(
           2
               > Iterables.size(
-                  allSchemaArgs
-                      .stream()
+                  allSchemaArgs.stream()
                       .filter(Predicates.notNull()::apply)
                       .collect(Collectors.toList())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may " + "be set");
@@ -1691,13 +1813,43 @@ public class BigQueryIO {
         throw new RuntimeException(e);
       }
 
-      PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
-          input
-              .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, getFormatFunction()))
-              .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
-
       Method method = resolveMethod(input);
+      if (getOptimizeWrites()) {
+        PCollection<KV<DestinationT, T>> rowsWithDestination =
+            input
+                .apply(
+                    "PrepareWrite",
+                    new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
+                .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
+        return continueExpandTyped(
+            rowsWithDestination,
+            input.getCoder(),
+            destinationCoder,
+            dynamicDestinations,
+            getFormatFunction(),
+            method);
+      } else {
+        PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
+            input
+                .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, getFormatFunction()))
+                .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
+        return continueExpandTyped(
+            rowsWithDestination,
+            TableRowJsonCoder.of(),
+            destinationCoder,
+            dynamicDestinations,
+            SerializableFunctions.identity(),
+            method);
+      }
+    }
 
+    private <DestinationT, ElementT> WriteResult continueExpandTyped(
+        PCollection<KV<DestinationT, ElementT>> input,
+        Coder<ElementT> elementCoder,
+        Coder<DestinationT> destinationCoder,
+        DynamicDestinations<T, DestinationT> dynamicDestinations,
+        SerializableFunction<ElementT, TableRow> toRowFunction,
+        Method method) {
       if (method == Method.STREAMING_INSERTS) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
@@ -1705,20 +1857,22 @@ public class BigQueryIO {
         InsertRetryPolicy retryPolicy =
             MoreObjects.firstNonNull(getFailedInsertRetryPolicy(), InsertRetryPolicy.alwaysRetry());
 
-        StreamingInserts<DestinationT> streamingInserts =
-            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
+        StreamingInserts<DestinationT, ElementT> streamingInserts =
+            new StreamingInserts<>(
+                    getCreateDisposition(), dynamicDestinations, elementCoder, toRowFunction)
                 .withInsertRetryPolicy(retryPolicy)
-                .withTestServices((getBigQueryServices()))
+                .withTestServices(getBigQueryServices())
                 .withExtendedErrorInfo(getExtendedErrorInfo())
                 .withSkipInvalidRows(getSkipInvalidRows())
-                .withIgnoreUnknownValues(getIgnoreUnknownValues());
-        return rowsWithDestination.apply(streamingInserts);
+                .withIgnoreUnknownValues(getIgnoreUnknownValues())
+                .withKmsKey(getKmsKey());
+        return input.apply(streamingInserts);
       } else {
         checkArgument(
             getFailedInsertRetryPolicy() == null,
             "Record-insert retry policies are not supported when using BigQuery load jobs.");
 
-        BatchLoads<DestinationT> batchLoads =
+        BatchLoads<DestinationT, ElementT> batchLoads =
             new BatchLoads<>(
                 getWriteDisposition(),
                 getCreateDisposition(),
@@ -1727,7 +1881,10 @@ public class BigQueryIO {
                 destinationCoder,
                 getCustomGcsTempLocation(),
                 getLoadJobProjectId(),
-                getIgnoreUnknownValues());
+                getIgnoreUnknownValues(),
+                elementCoder,
+                toRowFunction,
+                getKmsKey());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
@@ -1735,6 +1892,9 @@ public class BigQueryIO {
         if (getMaxFileSize() != null) {
           batchLoads.setMaxFileSize(getMaxFileSize());
         }
+        batchLoads.setMaxFilesPerPartition(getMaxFilesPerPartition());
+        batchLoads.setMaxBytesPerPartition(getMaxBytesPerPartition());
+
         // When running in streaming (unbounded mode) we want to retry failed load jobs
         // indefinitely. Failing the bundle is expensive, so we set a fairly high limit on retries.
         if (IsBounded.UNBOUNDED.equals(input.isBounded())) {
@@ -1742,7 +1902,7 @@ public class BigQueryIO {
         }
         batchLoads.setTriggeringFrequency(getTriggeringFrequency());
         batchLoads.setNumFileShards(getNumFileShards());
-        return rowsWithDestination.apply(batchLoads);
+        return input.apply(batchLoads);
       }
     }
 

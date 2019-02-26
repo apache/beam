@@ -122,7 +122,7 @@ import org.joda.time.Instant;
  * and then exits.
  */
 public class TriggerExample {
-  //Numeric value of fixed window duration, in minutes
+  // Numeric value of fixed window duration, in minutes
   public static final int WINDOW_DURATION = 30;
   // Constants used in triggers.
   // Speeding up ONE_MINUTE or FIVE_MINUTES helps you get an early approximation of results.
@@ -189,18 +189,22 @@ public class TriggerExample {
               .apply(
                   "Default",
                   Window
-                      // The default window duration values work well if you're running the default input
+                      // The default window duration values work well if you're running the default
+                      // input
                       // file. You may want to adjust the window duration otherwise.
                       .<KV<String, Integer>>into(
                           FixedWindows.of(Duration.standardMinutes(windowDuration)))
-                      // The default trigger first emits output when the system's watermark passes the end
+                      // The default trigger first emits output when the system's watermark passes
+                      // the end
                       // of the window.
                       .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
                       // Late data is dropped
                       .withAllowedLateness(Duration.ZERO)
                       // Discard elements after emitting each pane.
-                      // With no allowed lateness and the specified trigger there will only be a single
-                      // pane, so this doesn't have a noticeable effect. See concept 2 for more details.
+                      // With no allowed lateness and the specified trigger there will only be a
+                      // single
+                      // pane, so this doesn't have a noticeable effect. See concept 2 for more
+                      // details.
                       .discardingFiredPanes())
               .apply(new TotalFlow("default"));
 
@@ -229,7 +233,8 @@ public class TriggerExample {
                           FixedWindows.of(Duration.standardMinutes(windowDuration)))
                       // Late data is emitted as it arrives
                       .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
-                      // Once the output is produced, the pane is dropped and we start preparing the next
+                      // Once the output is produced, the pane is dropped and we start preparing the
+                      // next
                       // pane for the window
                       .discardingFiredPanes()
                       // Late data is handled up to one day
@@ -264,8 +269,10 @@ public class TriggerExample {
                               AfterProcessingTime.pastFirstElementInPane()
                                   // Speculative every ONE_MINUTE
                                   .plusDelayOf(ONE_MINUTE)))
-                      // After emitting each pane, it will continue accumulating the elements so that each
-                      // approximation includes all of the previous data in addition to the newly arrived
+                      // After emitting each pane, it will continue accumulating the elements so
+                      // that each
+                      // approximation includes all of the previous data in addition to the newly
+                      // arrived
                       // data.
                       .accumulatingFiredPanes()
                       .withAllowedLateness(ONE_DAY))
@@ -414,7 +421,7 @@ public class TriggerExample {
         return;
       }
       if (laneInfo.length < VALID_NUM_FIELDS) {
-        //Skip the invalid input.
+        // Skip the invalid input.
         return;
       }
       String freeway = laneInfo[2];
@@ -522,8 +529,7 @@ public class TriggerExample {
     fields.add(new TableFieldSchema().setName("timing").setType("STRING"));
     fields.add(new TableFieldSchema().setName("event_time").setType("TIMESTAMP"));
     fields.add(new TableFieldSchema().setName("processing_time").setType("TIMESTAMP"));
-    TableSchema schema = new TableSchema().setFields(fields);
-    return schema;
+    return new TableSchema().setFields(fields);
   }
 
   private static Integer tryIntegerParse(String number) {

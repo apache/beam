@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly. */
 @Experimental
@@ -123,28 +124,14 @@ public class RowCoder extends CustomCoder<Row> {
 
   private void verifyDeterministic(Schema schema)
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-    for (Field field : schema.getFields()) {
-      verifyDeterministic(field.getType());
-    }
-  }
 
-  private void verifyDeterministic(FieldType fieldType)
-      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-    switch (fieldType.getTypeName()) {
-      case MAP:
-        throw new NonDeterministicException(
-            this,
-            "Map-valued fields cannot be used in keys as Beam requires deterministic encoding for"
-                + " keys.");
-      case ROW:
-        verifyDeterministic(fieldType.getRowSchema());
-        break;
-      case ARRAY:
-        verifyDeterministic(fieldType.getCollectionElementType());
-        break;
-      default:
-        break;
-    }
+    List<Coder<?>> coders =
+        schema.getFields().stream()
+            .map(Field::getType)
+            .map(RowCoder::coderForFieldType)
+            .collect(Collectors.toList());
+
+    Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
   }
 
   @Override
@@ -184,6 +171,8 @@ public class RowCoder extends CustomCoder<Row> {
 
   private static long estimatedSizeBytes(FieldType typeDescriptor, Object value) {
     switch (typeDescriptor.getTypeName()) {
+      case LOGICAL_TYPE:
+        return estimatedSizeBytes(typeDescriptor.getLogicalType().getBaseType(), value);
       case ROW:
         return estimatedSizeBytes((Row) value);
       case ARRAY:

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.ReaderUtils.readAllFromReader;
@@ -182,8 +181,7 @@ public class ConcatReaderTest {
         @Nullable DataflowExecutionContext executionContext,
         DataflowOperationContext operationContext)
         throws Exception {
-      NativeReader<?> reader = (NativeReader<?>) spec.get(READER_OBJECT);
-      return reader;
+      return (NativeReader<?>) spec.get(READER_OBJECT);
     }
   }
 

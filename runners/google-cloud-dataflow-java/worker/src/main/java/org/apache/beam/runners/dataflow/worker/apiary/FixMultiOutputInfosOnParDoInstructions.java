@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.apiary;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
  * {@link ParDoInstruction}s are meant to always have {@link MultiOutputInfo}s which give names to
@@ -34,9 +33,9 @@ import java.util.function.Supplier;
  * should supply ids outside the ids used within the {@link MapTask} to prevent collisions.
  */
 public class FixMultiOutputInfosOnParDoInstructions implements Function<MapTask, MapTask> {
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
 
-  public FixMultiOutputInfosOnParDoInstructions(Supplier<String> idGenerator) {
+  public FixMultiOutputInfosOnParDoInstructions(IdGenerator idGenerator) {
     this.idGenerator = idGenerator;
   }
 
@@ -51,7 +50,7 @@ public class FixMultiOutputInfosOnParDoInstructions implements Function<MapTask,
         if (numOutputs != Apiary.listOrEmpty(instruction.getParDo().getMultiOutputInfos()).size()) {
           if (numOutputs == 1) {
             parDoInstruction.setMultiOutputInfos(
-                ImmutableList.of(new MultiOutputInfo().setTag(idGenerator.get())));
+                ImmutableList.of(new MultiOutputInfo().setTag(idGenerator.getId())));
           } else {
             throw new IllegalArgumentException(
                 String.format(

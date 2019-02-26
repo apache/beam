@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.io.BaseEncoding;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,7 +35,8 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest.ContentCase;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
 /**
  * An {@link ArtifactStagingServiceImplBase ArtifactStagingService} which stores the bytes of the
@@ -112,19 +109,17 @@ public class InMemoryArtifactStagerService extends ArtifactStagingServiceImplBas
     public void onCompleted() {
       if (writer != null) {
         writer.onCompleted();
-        try {
-          artifactBytes.put(
-              destination
-                  .toBuilder()
-                  .setMd5(
-                      BaseEncoding.base64()
-                          .encode(
-                              MessageDigest.getInstance("MD5").digest(writer.stream.toByteArray())))
-                  .build(),
-              writer.stream.toByteArray());
-        } catch (NoSuchAlgorithmException e) {
-          throw new AssertionError("The Java Spec requires all JVMs to support MD5", e);
-        }
+        artifactBytes.put(
+            destination
+                .toBuilder()
+                .setSha256(
+                    Hashing.sha256()
+                        .newHasher()
+                        .putBytes(writer.stream.toByteArray())
+                        .hash()
+                        .toString())
+                .build(),
+            writer.stream.toByteArray());
       }
       responseObserver.onNext(PutArtifactResponse.getDefaultInstance());
       responseObserver.onCompleted();

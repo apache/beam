@@ -17,14 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Objects;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -48,6 +42,12 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** Static utility methods that create combine function instances. */
 public class CombineFns {
@@ -59,37 +59,37 @@ public class CombineFns {
    *
    * <p>Example:
    *
-   * <pre>{@code
-   * PCollection<Integer> globalLatencies = ...;
+   * <pre>{@code  PCollection<Integer> globalLatencies = ...;
    *
-   * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
-   * TupleTag<Double> meanLatencyTag = new TupleTag<Double>();
+   *  TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
+   *  TupleTag<Double> meanLatencyTag = new TupleTag<Double>();}
    *
-   * SimpleFunction<Integer, Integer> identityFn =
-   *     new SimpleFunction<Integer, Integer>() {
-   *       {@literal @}Override
+   * {@code SimpleFunction<Integer, Integer> identityFn =
+   *     new SimpleFunction<Integer, Integer>() }{
+   *      {@code @Override
    *       public Integer apply(Integer input) {
    *           return input;
-   *       }};
-   * PCollection<CoCombineResult> maxAndMean = globalLatencies.apply(
+   *       }}};
+   *
+   * {@code PCollection<CoCombineResult> maxAndMean = globalLatencies.apply(
    *     Combine.globally(
    *         CombineFns.compose()
    *            .with(identityFn, new MaxIntegerFn(), maxLatencyTag)
-   *            .with(identityFn, new MeanFn<Integer>(), meanLatencyTag)));
+   *            .with(identityFn, new MeanFn<Integer>(), meanLatencyTag)))};
    *
-   * PCollection<T> finalResultCollection = maxAndMean
+   * {@code PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
-   *         new DoFn<CoCombineResult, T>() {
-   *          {@literal @}ProcessElement
-   *           public void processElement(
-   *            {@literal @}Element CoCombineResult e, OutputReceiver<T> r) throws Exception {
-   *             Integer maxLatency = e.get(maxLatencyTag);
-   *             Double meanLatency = e.get(meanLatencyTag);
-   *             .... Do Something ....
-   *             r.output(...some T...);
-   *           }
-   *         }));
-   * }</pre>
+   *         new DoFn<CoCombineResult, T>() }{
+   *            {@code @ProcessElement
+   *             public void processElement(}
+   *                  {@code @Element CoCombineResult e, OutputReceiver<T> r) throws Exception {
+   *                 Integer maxLatency = e.get(maxLatencyTag);
+   *                 Double meanLatency = e.get(meanLatencyTag);
+   *                 .... Do Something ....
+   *                 r.output(...some T...);
+   *              }
+   *         }}));
+   * </pre>
    */
   public static ComposeCombineFnBuilder compose() {
     return new ComposeCombineFnBuilder();

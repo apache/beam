@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
  * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the
@@ -34,7 +34,8 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> allocatePortAndCreateFor(
       ServiceT service, ServerFactory factory) throws IOException {
     ApiServiceDescriptor.Builder apiServiceDescriptor = ApiServiceDescriptor.newBuilder();
-    Server server = factory.allocatePortAndCreate(service, apiServiceDescriptor);
+    Server server =
+        factory.allocateAddressAndCreate(ImmutableList.of(service), apiServiceDescriptor);
     return new GrpcFnServer<>(server, service, apiServiceDescriptor.build());
   }
 
@@ -44,7 +45,18 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
    */
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint, ServerFactory factory) throws IOException {
-    return new GrpcFnServer<>(factory.create(service, endpoint), service, endpoint);
+    return new GrpcFnServer<>(
+        factory.create(ImmutableList.of(service), endpoint), service, endpoint);
+  }
+
+  /** @deprecated This create function is used for Dataflow migration purpose only. */
+  @Deprecated
+  public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
+      ServiceT service, ApiServiceDescriptor endpoint) {
+    return new GrpcFnServer(null, service, endpoint) {
+      @Override
+      public void close() throws Exception {}
+    };
   }
 
   private final Server server;

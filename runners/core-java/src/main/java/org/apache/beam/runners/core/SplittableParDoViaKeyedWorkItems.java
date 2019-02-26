@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -28,9 +26,9 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTrans
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDo.ProcessKeyedElements;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -55,6 +53,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -104,14 +104,16 @@ public class SplittableParDoViaKeyedWorkItems {
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessViaKeyedWorkItems}. */
   public static class OverrideFactory<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
-          PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
+          PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+          PCollectionTuple,
           ProcessKeyedElements<InputT, OutputT, RestrictionT>> {
     @Override
     public PTransformReplacement<
-            PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple>
+            PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
+                    PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+                    PCollectionTuple,
                     ProcessKeyedElements<InputT, OutputT, RestrictionT>>
                 transform) {
       return PTransformReplacement.of(
@@ -131,7 +133,7 @@ public class SplittableParDoViaKeyedWorkItems {
    * method for a splittable {@link DoFn}.
    */
   public static class SplittableProcessViaKeyedWorkItems<InputT, OutputT, RestrictionT>
-      extends PTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
 
     public SplittableProcessViaKeyedWorkItems(
@@ -140,13 +142,13 @@ public class SplittableParDoViaKeyedWorkItems {
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
+    public PCollectionTuple expand(PCollection<KV<byte[], KV<InputT, RestrictionT>>> input) {
       return input
           .apply(new GBKIntoKeyedWorkItems<>())
           .setCoder(
               KeyedWorkItemCoder.of(
-                  StringUtf8Coder.of(),
-                  ((KvCoder<String, KV<InputT, RestrictionT>>) input.getCoder()).getValueCoder(),
+                  ByteArrayCoder.of(),
+                  ((KvCoder<byte[], KV<InputT, RestrictionT>>) input.getCoder()).getValueCoder(),
                   input.getWindowingStrategy().getWindowFn().windowCoder()))
           .apply(new ProcessElements<>(original));
     }
@@ -156,7 +158,7 @@ public class SplittableParDoViaKeyedWorkItems {
   public static class ProcessElements<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       extends PTransform<
-          PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
+          PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
 
     public ProcessElements(ProcessKeyedElements<InputT, OutputT, RestrictionT> original) {
@@ -190,7 +192,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
     @Override
     public PCollectionTuple expand(
-        PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>> input) {
+        PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> input) {
       return ProcessKeyedElements.createPrimitiveOutputFor(
           input,
           original.getFn(),
@@ -216,7 +218,7 @@ public class SplittableParDoViaKeyedWorkItems {
   @VisibleForTesting
   public static class ProcessFn<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
-      extends DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
+      extends DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
      * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
@@ -249,8 +251,8 @@ public class SplittableParDoViaKeyedWorkItems {
     private final Coder<RestrictionT> restrictionCoder;
     private final WindowingStrategy<InputT, ?> inputWindowingStrategy;
 
-    private transient @Nullable StateInternalsFactory<String> stateInternalsFactory;
-    private transient @Nullable TimerInternalsFactory<String> timerInternalsFactory;
+    private transient @Nullable StateInternalsFactory<byte[]> stateInternalsFactory;
+    private transient @Nullable TimerInternalsFactory<byte[]> timerInternalsFactory;
     private transient @Nullable SplittableProcessElementInvoker<
             InputT, OutputT, RestrictionT, TrackerT>
         processElementInvoker;
@@ -274,11 +276,11 @@ public class SplittableParDoViaKeyedWorkItems {
       this.restrictionTag = StateTags.value("restriction", restrictionCoder);
     }
 
-    public void setStateInternalsFactory(StateInternalsFactory<String> stateInternalsFactory) {
+    public void setStateInternalsFactory(StateInternalsFactory<byte[]> stateInternalsFactory) {
       this.stateInternalsFactory = stateInternalsFactory;
     }
 
-    public void setTimerInternalsFactory(TimerInternalsFactory<String> timerInternalsFactory) {
+    public void setTimerInternalsFactory(TimerInternalsFactory<byte[]> timerInternalsFactory) {
       this.timerInternalsFactory = timerInternalsFactory;
     }
 
@@ -326,7 +328,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
     @ProcessElement
     public void processElement(final ProcessContext c) {
-      String key = c.element().key();
+      byte[] key = c.element().key();
       StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
       TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
 

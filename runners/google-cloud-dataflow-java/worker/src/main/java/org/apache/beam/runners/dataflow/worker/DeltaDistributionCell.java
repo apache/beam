@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -54,6 +53,11 @@ public class DeltaDistributionCell implements Distribution, MetricCell<Distribut
   }
 
   @Override
+  public void update(long sum, long count, long min, long max) {
+    update(DistributionData.create(sum, count, min, max));
+  }
+
+  @Override
   public DirtyState getDirty() {
     throw new UnsupportedOperationException(
         String.format("%s doesn't support the getDirty", getClass().getSimpleName()));
@@ -65,7 +69,7 @@ public class DeltaDistributionCell implements Distribution, MetricCell<Distribut
   }
 
   public DistributionData getAndReset() {
-    return value.getAndUpdate((unused) -> DistributionData.EMPTY);
+    return value.getAndUpdate(unused -> DistributionData.EMPTY);
   }
 
   @Override

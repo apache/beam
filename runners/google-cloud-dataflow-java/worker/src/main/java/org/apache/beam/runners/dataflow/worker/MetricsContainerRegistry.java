@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.collect.FluentIterable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 
 /**
  * Manages the instances of {@link MetricsContainer} that have been created for a specific context.
@@ -37,7 +36,7 @@ public abstract class MetricsContainerRegistry<T extends MetricsContainer> {
 
   /** Retrieve (creating if necessary) the {@link MetricsContainer} to use with the given step. */
   public T getContainer(String stepName) {
-    return containers.computeIfAbsent(stepName, (unused) -> createContainer(stepName));
+    return containers.computeIfAbsent(stepName, unused -> createContainer(stepName));
   }
 
   /**

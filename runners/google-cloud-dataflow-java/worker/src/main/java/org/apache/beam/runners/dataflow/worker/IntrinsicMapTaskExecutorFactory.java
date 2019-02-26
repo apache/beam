@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.MapTask;
@@ -29,16 +28,11 @@ import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.WriteInstruction;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -70,15 +64,21 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WriteOperation;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
-import org.apache.beam.runners.fnexecution.data.FnDataService;
-import org.apache.beam.runners.fnexecution.state.StateDelegator;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,9 +99,9 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
   @Override
   public DataflowMapTaskExecutor create(
       InstructionRequestHandler instructionRequestHandler,
-      FnDataService beamFnDataService,
+      GrpcFnServer<GrpcDataService> grpcDataFnServer,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
-      StateDelegator beamFnStateDelegator,
+      GrpcFnServer<GrpcStateService> grpcStateFnServer,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
       String stageName,
@@ -109,7 +109,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       SinkFactory sinkFactory,
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
-      Supplier<String> idGenerator) {
+      IdGenerator idGenerator) {
 
     // TODO: remove this once we trust the code paths
     checkArgument(
@@ -357,7 +357,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
                     cloudOutput.getName()));
         outputReceiver.addOutputCounter(outputCounter);
 
-        return OutputReceiverNode.create(outputReceiver, coder);
+        return OutputReceiverNode.create(outputReceiver, coder, input.getPcollectionId());
       }
     };
   }

@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
@@ -29,41 +29,50 @@ import org.apache.beam.sdk.values.ShardedKey;
  * all the elements in the {@link Iterable} are destined to the same table, they are all written to
  * the same file. Ensures that only one {@link TableRowWriter} is active per bundle.
  */
-class WriteGroupedRecordsToFiles<DestinationT>
+class WriteGroupedRecordsToFiles<DestinationT, ElementT>
     extends DoFn<
-        KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
+        KV<ShardedKey<DestinationT>, Iterable<ElementT>>,
         WriteBundlesToFiles.Result<DestinationT>> {
 
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;
+  private final SerializableFunction<ElementT, TableRow> toRowFunction;
 
-  WriteGroupedRecordsToFiles(PCollectionView<String> tempFilePrefix, long maxFileSize) {
+  WriteGroupedRecordsToFiles(
+      PCollectionView<String> tempFilePrefix,
+      long maxFileSize,
+      SerializableFunction<ElementT, TableRow> toRowFunction) {
     this.tempFilePrefix = tempFilePrefix;
     this.maxFileSize = maxFileSize;
+    this.toRowFunction = toRowFunction;
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) throws Exception {
+  public void processElement(
+      ProcessContext c,
+      @Element KV<ShardedKey<DestinationT>, Iterable<ElementT>> element,
+      OutputReceiver<WriteBundlesToFiles.Result<DestinationT>> o)
+      throws Exception {
     String tempFilePrefix = c.sideInput(this.tempFilePrefix);
     TableRowWriter writer = new TableRowWriter(tempFilePrefix);
     try {
-      for (TableRow tableRow : c.element().getValue()) {
+      for (ElementT tableRow : element.getValue()) {
         if (writer.getByteSize() > maxFileSize) {
           writer.close();
           writer = new TableRowWriter(tempFilePrefix);
           TableRowWriter.Result result = writer.getResult();
-          c.output(
+          o.output(
               new WriteBundlesToFiles.Result<>(
                   result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
         }
-        writer.write(tableRow);
+        writer.write(toRowFunction.apply(tableRow));
       }
     } finally {
       writer.close();
     }
 
     TableRowWriter.Result result = writer.getResult();
-    c.output(
+    o.output(
         new WriteBundlesToFiles.Result<>(
             result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
   }

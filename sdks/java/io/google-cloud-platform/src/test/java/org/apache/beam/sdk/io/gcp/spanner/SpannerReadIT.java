@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Operation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
@@ -102,7 +102,7 @@ public class SpannerReadIT {
     // Delete database if exists.
     databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
 
-    Operation<Database, CreateDatabaseMetadata> op =
+    OperationFuture<Database, CreateDatabaseMetadata> op =
         databaseAdminClient.createDatabase(
             options.getInstanceId(),
             databaseName,
@@ -113,7 +113,7 @@ public class SpannerReadIT {
                     + "  Key           INT64,"
                     + "  Value         STRING(MAX),"
                     + ") PRIMARY KEY (Key)"));
-    op.waitFor();
+    op.get();
     makeTestData();
   }
 

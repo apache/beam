@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators.utils;
 
-import com.google.common.collect.Lists;
+import io.gearpump.streaming.dsl.api.functions.FoldFunction;
+import io.gearpump.streaming.dsl.api.functions.MapFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
+import io.gearpump.streaming.dsl.window.impl.Window;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -30,10 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.gearpump.streaming.dsl.api.functions.FoldFunction;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.dsl.window.impl.Window;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** Utility methods for translators. */
 public class TranslatorUtils {
@@ -144,7 +143,12 @@ public class TranslatorUtils {
     private final String unionTag;
     private final Object value;
 
-    /** Constructs a partial union from the given union tag and value. */
+    /**
+     * Constructs a partial union from the given union tag and value.
+     *
+     * @param unionTag tag of union
+     * @param value value of union
+     */
     public RawUnionValue(String unionTag, Object value) {
       this.unionTag = unionTag;
       this.value = value;

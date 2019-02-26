@@ -38,17 +38,15 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * <p>Example:
  *
- * <pre>{@code
- * class SomeDoFn extends DoFn<String, String> {
+ * <pre><code> class SomeDoFn extends{@literal DoFn<String, String>} {
  *   private Counter counter = Metrics.counter(SomeDoFn.class, "my-counter");
  *
- *   {@literal @}ProcessElement
+ *  {@literal @}ProcessElement
  *   public void processElement(ProcessContext c) {
  *     counter.inc();
  *     Metrics.counter(SomeDoFn.class, "my-counter2").inc();
  *   }
- * }
- * }</pre>
+ * }</code></pre>
  *
  * <p>See {@link MetricResults} (available from the {@code PipelineResults} interface) for an
  * example off how to query metrics.
@@ -98,47 +96,6 @@ public class Metrics {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
 
-  /** Implementation of {@link Counter} that delegates to the instance for the current context. */
-  private static class DelegatingCounter implements Metric, Counter, Serializable {
-    private final MetricName name;
-
-    private DelegatingCounter(MetricName name) {
-      this.name = name;
-    }
-
-    /** Increment the counter. */
-    @Override
-    public void inc() {
-      inc(1);
-    }
-
-    /** Increment the counter by the given amount. */
-    @Override
-    public void inc(long n) {
-      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-      if (container != null) {
-        container.getCounter(name).inc(n);
-      }
-    }
-
-    /* Decrement the counter. */
-    @Override
-    public void dec() {
-      inc(-1);
-    }
-
-    /* Decrement the counter by the given amount. */
-    @Override
-    public void dec(long n) {
-      inc(-1 * n);
-    }
-
-    @Override
-    public MetricName getName() {
-      return name;
-    }
-  }
-
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */
@@ -154,6 +111,14 @@ public class Metrics {
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
         container.getDistribution(name).update(value);
+      }
+    }
+
+    @Override
+    public void update(long sum, long count, long min, long max) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getDistribution(name).update(sum, count, min, max);
       }
     }
 

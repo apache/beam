@@ -32,7 +32,7 @@ job('beam_Release_Python_NightlySnapshot') {
     commonJobProperties.setAutoJob(
             delegate,
             '0 7 * * *',
-            'dev@beam.apache.org')
+            'builds@beam.apache.org')
 
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(

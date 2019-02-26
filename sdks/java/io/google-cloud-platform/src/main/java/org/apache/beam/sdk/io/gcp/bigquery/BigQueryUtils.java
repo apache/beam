@@ -15,20 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +40,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
@@ -98,13 +96,15 @@ public class BigQueryUtils {
                       (long) (Double.parseDouble(str) * 1000), ISOChronology.getInstanceUTC()))
           .build();
 
-  private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
+  // TODO: BigQuery code should not be relying on Calcite metadata fields. If so, this belongs
+  // in the SQL package.
+  private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_LOGICAL_MAPPING =
       ImmutableMap.<String, StandardSQLTypeName>builder()
-          .put("DATE", StandardSQLTypeName.DATE)
-          .put("TIME", StandardSQLTypeName.TIME)
-          .put("TIME_WITH_LOCAL_TZ", StandardSQLTypeName.TIME)
-          .put("TS", StandardSQLTypeName.TIMESTAMP)
-          .put("TS_WITH_LOCAL_TZ", StandardSQLTypeName.TIMESTAMP)
+          .put("SqlDateType", StandardSQLTypeName.DATE)
+          .put("SqlTimeType", StandardSQLTypeName.TIME)
+          .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
+          .put("SqlTimestamp", StandardSQLTypeName.TIMESTAMP)
+          .put("SqlTimestampWithLocalTzType", StandardSQLTypeName.TIMESTAMP)
           .build();
 
   /**
@@ -114,17 +114,19 @@ public class BigQueryUtils {
   private static StandardSQLTypeName toStandardSQLTypeName(FieldType fieldType) {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
 
-    if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getMetadata() != null) {
-      sqlType =
-          BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
-              new String(fieldType.getMetadata(), StandardCharsets.UTF_8));
+    if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getTypeName().isLogicalType()) {
+      StandardSQLTypeName foundType =
+          BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(fieldType.getLogicalType().getIdentifier());
+      if (foundType != null) {
+        return foundType;
+      }
     }
 
     return sqlType;
   }
 
   private static List<TableFieldSchema> toTableFieldSchema(Schema schema) {
-    List<TableFieldSchema> fields = new ArrayList<TableFieldSchema>(schema.getFieldCount());
+    List<TableFieldSchema> fields = new ArrayList<>(schema.getFieldCount());
     for (Field schemaField : schema.getFields()) {
       FieldType type = schemaField.getType();
 
@@ -133,7 +135,7 @@ public class BigQueryUtils {
         field.setDescription(schemaField.getDescription());
       }
 
-      if (!schemaField.getNullable()) {
+      if (!schemaField.getType().getNullable()) {
         field.setMode(Mode.REQUIRED.toString());
       }
       if (TypeName.ARRAY == type.getTypeName()) {
@@ -210,6 +212,7 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(values).build();
   }
 
+  /** Convert a BigQuery TableRow to a Beam Row. */
   public static TableRow toTableRow(Row row) {
     TableRow output = new TableRow();
     for (int i = 0; i < row.getFieldCount(); i++) {
@@ -223,7 +226,7 @@ public class BigQueryUtils {
           type = schemaField.getType().getCollectionElementType().getTypeName();
           if (TypeName.ROW == type) {
             List<Row> rows = (List<Row>) value;
-            List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
+            List<TableRow> tableRows = new ArrayList<>(rows.size());
             for (int j = 0; j < rows.size(); j++) {
               tableRows.add(toTableRow(rows.get(j)));
             }
@@ -264,9 +267,7 @@ public class BigQueryUtils {
             .collect(toMap(i -> bqFields.get(i).getName(), i -> i));
 
     List<Object> rawJsonValues =
-        rowSchema
-            .getFields()
-            .stream()
+        rowSchema.getFields().stream()
             .map(field -> bqFieldIndices.get(field.getName()))
             .map(index -> jsonBqRow.getF().get(index).getV())
             .collect(toList());
@@ -279,15 +280,15 @@ public class BigQueryUtils {
 
   private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
     if (jsonBQValue instanceof String && JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
-      return JSON_VALUE_PARSERS.get((fieldType.getTypeName())).apply((String) jsonBQValue);
+      return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply((String) jsonBQValue);
     }
 
     if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
           .stream()
-          .map(v -> ((Map<String, Object>) v).get("v"))
-          .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
-          .collect(toList());
+              .map(v -> ((Map<String, Object>) v).get("v"))
+              .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
+              .collect(toList());
     }
 
     throw new UnsupportedOperationException(

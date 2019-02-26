@@ -101,6 +101,17 @@ func NewFn(fn interface{}) (*Fn, error) {
 
 	case reflect.Struct:
 		methods := make(map[string]*funcx.Fn)
+		if methodsFuncs, ok := reflectx.WrapMethods(fn); ok {
+			for name, mfn := range methodsFuncs {
+				f, err := funcx.New(mfn)
+				if err != nil {
+					return nil, fmt.Errorf("method %v invalid: %v", name, err)
+				}
+				methods[name] = f
+			}
+			return &Fn{Recv: fn, methods: methods}, nil
+		}
+		// TODO(lostluck): Consider moving this into the reflectx package.
 		for i := 0; i < val.Type().NumMethod(); i++ {
 			m := val.Type().Method(i)
 			if m.PkgPath != "" {

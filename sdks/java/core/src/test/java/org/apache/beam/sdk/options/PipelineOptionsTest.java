@@ -23,11 +23,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.ImmutableMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -42,7 +42,7 @@ public class PipelineOptionsTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   /** Interfaces used for testing that {@link PipelineOptions#as(Class)} functions. */
-  private interface DerivedTestOptions extends BaseTestOptions {
+  public interface DerivedTestOptions extends BaseTestOptions {
     int getDerivedValue();
 
     void setDerivedValue(int derivedValue);
@@ -55,7 +55,8 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
-  private interface ConflictedTestOptions extends BaseTestOptions {
+  /** Test interface. */
+  public interface ConflictedTestOptions extends BaseTestOptions {
     String getDerivedValue();
 
     void setDerivedValue(String derivedValue);
@@ -68,7 +69,8 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
-  private interface BaseTestOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface BaseTestOptions extends PipelineOptions {
     List<Boolean> getBaseValue();
 
     void setBaseValue(List<Boolean> baseValue);
@@ -85,7 +87,8 @@ public class PipelineOptionsTest {
     assertNotNull(options);
   }
 
-  private interface ValueProviderOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface ValueProviderOptions extends PipelineOptions {
     ValueProvider<Boolean> getBool();
 
     void setBool(ValueProvider<Boolean> value);

@@ -15,18 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.base.Verify;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.net.HostAndPort;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -61,7 +52,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
-import org.apache.beam.runners.dataflow.worker.util.FluentBackoff;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
@@ -88,29 +78,48 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequestExtension;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1.io.grpc.CallCredentials;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.auth.MoreCallCredentials;
-import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.GrpcSslContexts;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NegotiationType;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NettyChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.CallCredentials;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.auth.MoreCallCredentials;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.GrpcSslContexts;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.NegotiationType;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** gRPC client for communicating with Windmill Service or Windmill Appliance. */
+/** gRPC client for communicating with Windmill Service. */
+// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6562
+// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6564
+@SuppressFBWarnings({"JLM_JSR166_UTILCONCURRENT_MONITORENTER", "IS2_INCONSISTENT_SYNC"})
 public class GrpcWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
 
   // If a connection cannot be established, gRPC will fail fast so this deadline can be relatively
   // high.
-  private static final long DEFAULT_RPC_DEADLINE_SECONDS = 300;
+  private static final long DEFAULT_UNARY_RPC_DEADLINE_SECONDS = 300;
+  private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
+  // Stream clean close seconds must be set lower than the stream deadline seconds.
+  private static final long DEFAULT_STREAM_CLEAN_CLOSE_SECONDS = 180;
+
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration MAX_BACKOFF = Duration.standardSeconds(30);
   // Internal gRPC batch size is 64KB, so pick something slightly smaller to account for other
@@ -127,10 +136,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private final List<CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1BlockingStub>
       syncStubList = new ArrayList<>();
   private WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub = null;
-  private long deadlineSeconds = DEFAULT_RPC_DEADLINE_SECONDS;
+  private long unaryDeadlineSeconds = DEFAULT_UNARY_RPC_DEADLINE_SECONDS;
   private ImmutableSet<HostAndPort> endpoints;
   private int logEveryNStreamFailures = 20;
   private Duration maxBackoff = MAX_BACKOFF;
+  private final ThrottleTimer getWorkThrottleTimer = new ThrottleTimer();
+  private final ThrottleTimer getDataThrottleTimer = new ThrottleTimer();
+  private final ThrottleTimer commitWorkThrottleTimer = new ThrottleTimer();
   Random rand = new Random();
 
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry =
@@ -141,7 +153,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     this.streamingRpcBatchLimit = options.getWindmillServiceStreamingRpcBatchLimit();
     this.endpoints = ImmutableSet.of();
     if (options.getWindmillServiceEndpoint() != null) {
-      Set<HostAndPort> endpoints = new HashSet<HostAndPort>();
+      Set<HostAndPort> endpoints = new HashSet<>();
       for (String endpoint : Splitter.on(',').split(options.getWindmillServiceEndpoint())) {
         endpoints.add(
             HostAndPort.fromString(endpoint).withDefaultPort(options.getWindmillServicePort()));
@@ -150,7 +162,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     } else if (!streamingEngineEnabled() && options.getLocalWindmillHostport() != null) {
       int portStart = options.getLocalWindmillHostport().lastIndexOf(':');
       String endpoint = options.getLocalWindmillHostport().substring(0, portStart);
-      assert (endpoint.equals("grpc:localhost"));
+      assert ("grpc:localhost".equals(endpoint));
       int port = Integer.parseInt(options.getLocalWindmillHostport().substring(portStart + 1));
       this.endpoints = ImmutableSet.<HostAndPort>of(HostAndPort.fromParts("localhost", port));
       initializeLocalHost(port);
@@ -168,14 +180,14 @@ public class GrpcWindmillServer extends WindmillServerStub {
       if (experiments == null) {
         experiments = new ArrayList<>();
       }
-      experiments.add(StreamingDataflowWorkerOptions.STREAMING_ENGINE_EXPERIMENT);
+      experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
       options.setExperiments(experiments);
     }
     this.stubList.add(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel(name)));
   }
 
   private boolean streamingEngineEnabled() {
-    return StreamingDataflowWorkerOptions.streamingEngineEnabled(this.options);
+    return options.isEnableStreamingEngine();
   }
 
   @Override
@@ -201,7 +213,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private synchronized void initializeLocalHost(int port) throws IOException {
     this.logEveryNStreamFailures = 1;
     this.maxBackoff = Duration.millis(500);
-    this.deadlineSeconds = 10; // For local testing use a short deadline.
+    this.unaryDeadlineSeconds = 10; // For local testing use a short deadline.
     Channel channel = localhostChannel(port);
     if (streamingEngineEnabled()) {
       this.stubList.add(CloudWindmillServiceV1Alpha1Grpc.newStub(channel));
@@ -221,14 +233,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
    */
   private static class VendoredRequestMetadataCallbackAdapter
       implements com.google.auth.RequestMetadataCallback {
-    private final org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth
-            .RequestMetadataCallback
+    private final org.apache.beam.vendor.grpc.v1p13p1.com.google.auth.RequestMetadataCallback
         callback;
 
     private VendoredRequestMetadataCallbackAdapter(
-        org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth
-                .RequestMetadataCallback
-            callback) {
+        org.apache.beam.vendor.grpc.v1p13p1.com.google.auth.RequestMetadataCallback callback) {
       this.callback = callback;
     }
 
@@ -252,8 +261,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
    * delegate to reduce maintenance burden.
    */
   private static class VendoredCredentialsAdapter
-      extends org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth
-          .Credentials {
+      extends org.apache.beam.vendor.grpc.v1p13p1.com.google.auth.Credentials {
     private final com.google.auth.Credentials credentials;
 
     private VendoredCredentialsAdapter(com.google.auth.Credentials credentials) {
@@ -274,8 +282,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     public void getRequestMetadata(
         final URI uri,
         Executor executor,
-        final org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth
-                .RequestMetadataCallback
+        final org.apache.beam.vendor.grpc.v1p13p1.com.google.auth.RequestMetadataCallback
             callback) {
       credentials.getRequestMetadata(
           uri, executor, new VendoredRequestMetadataCallbackAdapter(callback));
@@ -309,7 +316,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     this.syncStubList.clear();
     this.endpoints = ImmutableSet.<HostAndPort>copyOf(endpoints);
     for (HostAndPort endpoint : this.endpoints) {
-      if (endpoint.getHostText().equals("localhost")) {
+      if ("localhost".equals(endpoint.getHostText())) {
         initializeLocalHost(endpoint.getPort());
       } else {
         CallCredentials creds =
@@ -420,7 +427,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncStub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getWork(
                       request
                           .toBuilder()
@@ -432,7 +439,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getWork(request));
     }
   }
@@ -443,7 +450,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncStub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getData(
                       request
                           .toBuilder()
@@ -454,7 +461,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getData(request));
     }
   }
@@ -465,7 +472,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncStub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .commitWork(
                       request
                           .toBuilder()
@@ -476,7 +483,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .commitWork(request));
     }
   }
@@ -511,7 +518,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getConfig(request));
     }
   }
@@ -525,15 +532,23 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .reportStats(request));
     }
+  }
+
+  @Override
+  public long getAndResetThrottleTime() {
+    return getWorkThrottleTimer.getAndResetThrottleTime()
+        + getDataThrottleTimer.getAndResetThrottleTime()
+        + commitWorkThrottleTimer.getAndResetThrottleTime();
   }
 
   private JobHeader makeHeader() {
     return JobHeader.newBuilder()
         .setJobId(options.getJobId())
         .setProjectId(options.getProject())
+        .setWorkerId(options.getWorkerId())
         .build();
   }
 
@@ -587,7 +602,12 @@ public class GrpcWindmillServer extends WindmillServerStub {
     protected abstract void onNewStream();
     /** Returns whether there are any pending requests that should be retried on a stream break. */
     protected abstract boolean hasPendingRequests();
-
+    /**
+     * Called when the stream is throttled due to resource exhausted errors. Will be called for each
+     * resource exhausted error not just the first. onResponse() must stop throttling on reciept of
+     * the first good message.
+     */
+    protected abstract void startThrottleTimer();
     /** Send a request to the server. */
     protected final synchronized void send(RequestT request) {
       requestObserver.onNext(request);
@@ -685,6 +705,14 @@ public class GrpcWindmillServer extends WindmillServerStub {
                 errorCount.get(),
                 t.toString());
           }
+          // If the stream was stopped due to a resource exhausted error then we are throttled.
+          if (t instanceof StatusRuntimeException) {
+            StatusRuntimeException statusExc = (StatusRuntimeException) t;
+            if (statusExc.getStatus() != null
+                && statusExc.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+              startThrottleTimer();
+            }
+          }
           try {
             long sleep = backoff.nextBackOffMillis();
             sleepUntil.set(Instant.now().getMillis() + sleep);
@@ -707,13 +735,17 @@ public class GrpcWindmillServer extends WindmillServerStub {
     }
 
     @Override
-    public final void awaitTermination() throws InterruptedException {
-      finishLatch.await();
+    public final boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
+      return finishLatch.await(time, unit);
     }
 
     @Override
-    public final boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
-      return finishLatch.await(time, unit);
+    public final void closeAfterDefaultTimeout() throws InterruptedException {
+      if (!finishLatch.await(DEFAULT_STREAM_CLEAN_CLOSE_SECONDS, TimeUnit.SECONDS)) {
+        // If the stream did not close due to error in the specified amount of time, half-close
+        // the stream cleanly.
+        close();
+      }
     }
 
     @Override
@@ -735,7 +767,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
                   .getWorkStream(responseObserver));
       this.request = request;
       this.receiver = receiver;
@@ -765,6 +797,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     @Override
     protected void onResponse(StreamingGetWorkResponseChunk chunk) {
+      getWorkThrottleTimer.stop();
       long id = chunk.getStreamId();
 
       WorkItemBuffer buffer = buffers.computeIfAbsent(id, (Long l) -> new WorkItemBuffer());
@@ -804,6 +837,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
                   });
         }
       }
+    }
+
+    @Override
+    protected void startThrottleTimer() {
+      getWorkThrottleTimer.start();
     }
 
     private class WorkItemBuffer {
@@ -902,7 +940,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
                   .getDataStream(responseObserver));
       startStream();
     }
@@ -933,6 +971,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       Preconditions.checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
       Preconditions.checkArgument(
           chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
+      getDataThrottleTimer.stop();
 
       for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
         AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
@@ -942,6 +981,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
           responseStream.complete();
         }
       }
+    }
+
+    @Override
+    protected void startThrottleTimer() {
+      getDataThrottleTimer.start();
     }
 
     @Override
@@ -1139,7 +1183,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
                   .commitWorkStream(responseObserver));
       startStream();
     }
@@ -1169,6 +1213,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     @Override
     protected void onResponse(StreamingCommitResponse response) {
+      commitWorkThrottleTimer.stop();
+
       for (int i = 0; i < response.getRequestIdCount(); ++i) {
         long requestId = response.getRequestId(i);
         PendingRequest done = pending.remove(requestId);
@@ -1179,6 +1225,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
               (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
         }
       }
+    }
+
+    @Override
+    protected void startThrottleTimer() {
+      commitWorkThrottleTimer.start();
     }
 
     @Override
@@ -1402,6 +1453,55 @@ public class GrpcWindmillServer extends WindmillServerStub {
     @Override
     public void close() throws IOException {
       stream.close();
+    }
+  }
+
+  /**
+   * A stopwatch used to track the amount of time spent throttled due to Resource Exhausted errors.
+   * Throttle time is cumulative for all three rpcs types but not for all streams. So if GetWork and
+   * CommitWork are both blocked for x, totalTime will be 2x. However, if 2 GetWork streams are both
+   * blocked for x totalTime will be x. All methods are thread safe.
+   */
+  private static class ThrottleTimer {
+
+    // This is -1 if not currently being throttled or the time in
+    // milliseconds when throttling for this type started.
+    private long startTime = -1;
+    // This is the collected total throttle times since the last poll.  Throttle times are
+    // reported as a delta so this is cleared whenever it gets reported.
+    private long totalTime = 0;
+
+    /**
+     * Starts the timer if it has not been started and does nothing if it has already been started.
+     */
+    public synchronized void start() {
+      if (!throttled()) { // This timer is not started yet so start it now.
+        startTime = Instant.now().getMillis();
+      }
+    }
+
+    /** Stops the timer if it has been started and does nothing if it has not been started. */
+    public synchronized void stop() {
+      if (throttled()) { // This timer has been started already so stop it now.
+        totalTime += Instant.now().getMillis() - startTime;
+        startTime = -1;
+      }
+    }
+
+    /** Returns if the specified type is currently being throttled */
+    public synchronized boolean throttled() {
+      return startTime != -1;
+    }
+
+    /** Returns the combined total of all throttle times and resets those times to 0. */
+    public synchronized long getAndResetThrottleTime() {
+      if (throttled()) {
+        stop();
+        start();
+      }
+      long toReturn = totalTime;
+      totalTime = 0;
+      return toReturn;
     }
   }
 }

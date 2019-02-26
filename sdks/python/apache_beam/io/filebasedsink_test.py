@@ -76,24 +76,20 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
 
 class MyFileBasedSink(filebasedsink.FileBasedSink):
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.'
-                   'TODO: BEAM-5627, TODO:5618')
   def open(self, temp_path):
     # TODO: Fix main session pickling.
     # file_handle = super(MyFileBasedSink, self).open(temp_path)
     file_handle = filebasedsink.FileBasedSink.open(self, temp_path)
-    file_handle.write('[start]')
+    file_handle.write(b'[start]')
     return file_handle
 
   def write_encoded_record(self, file_handle, encoded_value):
-    file_handle.write('[')
+    file_handle.write(b'[')
     file_handle.write(encoded_value)
-    file_handle.write(']')
+    file_handle.write(b']')
 
   def close(self, file_handle):
-    file_handle.write('[end]')
+    file_handle.write(b'[end]')
     # TODO: Fix main session pickling.
     # file_handle = super(MyFileBasedSink, self).close(file_handle)
     file_handle = filebasedsink.FileBasedSink.close(self, file_handle)

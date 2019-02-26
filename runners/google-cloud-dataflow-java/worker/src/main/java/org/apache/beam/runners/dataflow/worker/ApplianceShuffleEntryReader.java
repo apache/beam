@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.Preconditions;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.BatchingShuffleEntryReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.CachingShuffleBatchReader;
@@ -27,6 +25,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 
 /** An implementation of ShuffleEntryReader that uses ApplianceShuffleReader. */
 public class ApplianceShuffleEntryReader implements ShuffleEntryReader {

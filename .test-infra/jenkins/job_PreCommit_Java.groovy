@@ -22,6 +22,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java',
     gradleTask: ':javaPreCommit',
+    gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',
@@ -33,5 +34,21 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
+    recordIssues {
+      tools {
+        errorProne()
+        java()
+        checkStyle {
+          pattern('**/build/reports/checkstyle/*.xml')
+        }
+        findBugs {
+          pattern('**/build/reports/findbugs/*.xml')
+        }
+      }
+      enabledForFailure(true)
+    }
+    jacocoCodeCoverage {
+      execPattern('**/build/jacoco/*.exec')
+    }
   }
 }

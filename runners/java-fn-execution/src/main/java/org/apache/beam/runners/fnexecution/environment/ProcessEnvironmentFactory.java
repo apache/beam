@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -32,11 +30,13 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link EnvironmentFactory} which forks processes based on the given URL in the Environment.
+ * An {@link EnvironmentFactory} which forks processes based on the parameters in the Environment.
  * The returned {@link ProcessEnvironment} has to make sure to stop the processes.
  */
 public class ProcessEnvironmentFactory implements EnvironmentFactory {

@@ -17,14 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
@@ -73,6 +68,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
@@ -225,8 +225,7 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link RestrictionTrackerParameter} is known in this context. */
     public boolean hasRestrictionTrackerParameter() {
-      return extraParameters
-          .stream()
+      return extraParameters.stream()
           .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
 
@@ -237,8 +236,7 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link Parameter.PipelineOptionsParameter} is known in this context. */
     public boolean hasPipelineOptionsParamter() {
-      return extraParameters
-          .stream()
+      return extraParameters.stream()
           .anyMatch(Predicates.instanceOf(Parameter.PipelineOptionsParameter.class)::apply);
     }
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,6 +55,11 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
   @Override
   public void update(long n) {
     update(DistributionData.singleton(n));
+  }
+
+  @Override
+  public void update(long sum, long count, long min, long max) {
+    update(DistributionData.create(sum, count, min, max));
   }
 
   void update(DistributionData data) {

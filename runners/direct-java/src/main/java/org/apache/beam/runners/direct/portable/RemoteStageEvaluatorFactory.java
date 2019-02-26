@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import javax.annotation.Nullable;
@@ -32,6 +30,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * The {@link TransformEvaluatorFactory} which produces {@link TransformEvaluator evaluators} for
@@ -77,7 +76,7 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
               BundleFactoryOutputReceiverFactory.create(
                   bundleFactory, stage.getComponents(), outputs::add),
               StateRequestHandler.unsupported(),
-              BundleProgressHandler.unsupported());
+              BundleProgressHandler.ignored());
       // TODO(BEAM-4680): Add support for timers as inputs to the ULR
       this.mainInput = Iterables.getOnlyElement(bundle.getInputReceivers().values());
     }

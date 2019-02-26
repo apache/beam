@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.MoreObjects;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
@@ -28,6 +26,7 @@ import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * A {@link NativeReader} that reads Ism files.

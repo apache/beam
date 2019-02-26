@@ -43,7 +43,7 @@ def get_typed_value_descriptor(obj):
   Converts a basic type into a @type/value dictionary.
 
   Args:
-    obj: A basestring, bool, int, or float to be converted.
+    obj: A bytes, unicode, bool, int, or float to be converted.
 
   Returns:
     A dictionary containing the keys ``@type`` and ``value`` with the value for
@@ -53,7 +53,7 @@ def get_typed_value_descriptor(obj):
     ~exceptions.TypeError: if the Python object has a type that is not
       supported.
   """
-  if isinstance(obj, (str, unicode)):
+  if isinstance(obj, (bytes, unicode)):
     type_name = 'Text'
   elif isinstance(obj, bool):
     type_name = 'Boolean'
@@ -73,9 +73,9 @@ def to_json_value(obj, with_type=False):
 
   Args:
     obj: Python object to be converted. Can be :data:`None`.
-    with_type: If true then the basic types (``string``, ``int``, ``float``,
-      ``bool``) will be wrapped in ``@type:value`` dictionaries. Otherwise the
-      straight value is encoded into a ``JsonValue``.
+    with_type: If true then the basic types (``bytes``, ``unicode``, ``int``,
+      ``float``, ``bool``) will be wrapped in ``@type:value`` dictionaries.
+      Otherwise the straight value is encoded into a ``JsonValue``.
 
   Returns:
     A ``JsonValue`` object using ``JsonValue``, ``JsonArray`` and ``JsonObject``
@@ -107,6 +107,8 @@ def to_json_value(obj, with_type=False):
     return to_json_value(get_typed_value_descriptor(obj), with_type=False)
   elif isinstance(obj, (str, unicode)):
     return extra_types.JsonValue(string_value=obj)
+  elif isinstance(obj, bytes):
+    return extra_types.JsonValue(string_value=obj.decode('utf8'))
   elif isinstance(obj, bool):
     return extra_types.JsonValue(boolean_value=obj)
   elif isinstance(obj, (int, long)):

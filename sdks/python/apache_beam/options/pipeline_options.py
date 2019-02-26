@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import argparse
+import logging
 from builtins import list
 from builtins import object
 
@@ -106,6 +107,14 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     # have add_argument do most of the work
     self.add_argument(*args, **kwargs)
 
+  # The argparse package by default tries to autocomplete option names. This
+  # results in an "ambiguous option" error from argparse when an unknown option
+  # matching multiple known ones are used. This suppresses that behavior.
+  def error(self, message):
+    if message.startswith('ambiguous option: '):
+      return
+    super(_BeamArgumentParser, self).error(message)
+
 
 class PipelineOptions(HasDisplayData):
   """Pipeline options class used as container for command line options.
@@ -191,7 +200,7 @@ class PipelineOptions(HasDisplayData):
 
     return cls(flags)
 
-  def get_all_options(self, drop_default=False):
+  def get_all_options(self, drop_default=False, add_extra_args_fn=None):
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -200,6 +209,8 @@ class PipelineOptions(HasDisplayData):
     Args:
       drop_default: If set to true, options that are equal to their default
         values, are not returned as part of the result dictionary.
+      add_extra_args_fn: Callback to populate additional arguments, can be used
+        by runner to supply otherwise unknown args.
 
     Returns:
       Dictionary of all args and values.
@@ -213,7 +224,11 @@ class PipelineOptions(HasDisplayData):
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-    known_args, _ = parser.parse_known_args(self._flags)
+    if add_extra_args_fn:
+      add_extra_args_fn(parser)
+    known_args, unknown_args = parser.parse_known_args(self._flags)
+    if unknown_args:
+      logging.warning("Discarding unparseable args: %s", unknown_args)
     result = vars(known_args)
 
     # Apply the overrides if any
@@ -321,6 +336,12 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses stacked WindowedValues within a Bundle for '
         'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
         'avoid it.')
+    parser.add_argument(
+        '--direct_runner_bundle_repeat',
+        type=int,
+        default=0,
+        help='replay every bundle this many extra times, for profiling'
+        'and debugging')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -375,13 +396,28 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
-    parser.add_argument(
-        '--label', '--labels',
-        dest='labels',
-        action='append',
-        default=None,
-        help='Labels that will be applied to this Dataflow job. Labels are key '
-        'value pairs separated by = (e.g. --label key=value).')
+    parser.add_argument('--label', '--labels',
+                        dest='labels',
+                        action='append',
+                        default=None,
+                        help='Labels to be applied to this Dataflow job. '
+                        'Labels are key value pairs separated by = '
+                        '(e.g. --label key=value).')
+    parser.add_argument('--update',
+                        default=False,
+                        action='store_true',
+                        help='Update an existing streaming Cloud Dataflow job. '
+                        'Experimental. '
+                        'See https://cloud.google.com/dataflow/pipelines/'
+                        'updating-a-pipeline')
+    parser.add_argument('--enable_streaming_engine',
+                        default=False,
+                        action='store_true',
+                        help='Enable Windmill Service for this Dataflow job. ')
+    parser.add_argument('--dataflow_kms_key',
+                        default=None,
+                        help='Set a Google Cloud KMS key name to be used in '
+                        'Dataflow state operations (GBK, Streaming).')
 
   def validate(self, validator):
     errors = []
@@ -520,6 +556,14 @@ class WorkerOptions(PipelineOptions):
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.'
     )
+    parser.add_argument(
+        '--dataflow_worker_jar',
+        dest='dataflow_worker_jar',
+        type=str,
+        help='Dataflow worker jar file. If specified, the jar file is staged '
+             'in GCS, then gets loaded by workers. End users usually '
+             'should not use this feature.'
+    )
 
   def validate(self, validator):
     errors = []
@@ -546,6 +590,22 @@ class DebugOptions(PipelineOptions):
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
 
+  def add_experiment(self, experiment):
+    if self.experiments is None:
+      self.experiments = []
+    if experiment not in self.experiments:
+      self.experiments.append(experiment)
+
+  def lookup_experiment(self, key, default=None):
+    if not self.experiments:
+      return default
+    elif key in self.experiments:
+      return True
+    for experiment in self.experiments:
+      if experiment.startswith(key + '='):
+        return experiment.split('=', 1)[1]
+    return default
+
 
 class ProfilingOptions(PipelineOptions):
 
@@ -559,7 +619,12 @@ class ProfilingOptions(PipelineOptions):
                         help='Enable work item heap profiling.')
     parser.add_argument('--profile_location',
                         default=None,
-                        help='GCS path for saving profiler data.')
+                        help='path for saving profiler data.')
+    parser.add_argument('--profile_sample_rate',
+                        type=float,
+                        default=1.0,
+                        help='A number between 0 and 1 indicating the ratio '
+                        'of bundles that should be profiled.')
 
 
 class SetupOptions(PipelineOptions):
@@ -669,22 +734,17 @@ class PortableOptions(PipelineOptions):
               'command.'))
 
 
-class FlinkOptions(PipelineOptions):
+class RunnerOptions(PipelineOptions):
+  """Runner options are provided by the job service.
 
+  The SDK has no a priori knowledge of runner options.
+  It should be able to work with any portable runner.
+  Runner specific options are discovered from the job service endpoint.
+  """
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--flink_master',
-                        type=str,
-                        help=
-                        ('Address of the Flink master where the pipeline '
-                         'should be executed. Can either be of the form '
-                         '\'host:port\' or one of the special values '
-                         '[local], [collection], or [auto].'))
-    parser.add_argument('--parallelism',
-                        type=int,
-                        help=
-                        ('The degree of parallelism to be used when '
-                         'distributing operations onto workers.'))
+    # TODO: help option to display discovered options
+    pass
 
 
 class TestOptions(PipelineOptions):

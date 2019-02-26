@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -60,6 +59,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
  * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
@@ -103,6 +103,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *       provided, will be called on the {@link DoFn} instance.
  *   <li>If a runner will no longer use a {@link DoFn}, the {@link DoFn.Teardown} method, if
  *       provided, will be called on the discarded instance.
+ *   <li>If a bundle requested bundle finalization by registering a {@link
+ *       DoFn.BundleFinalizer.Callback bundle finalization callback}, the callback will be invoked
+ *       after the runner has successfully committed the output of a successful bundle.
  * </ol>
  *
  * <p>Note also that calls to {@link DoFn.Teardown} are best effort, and may not be called before a
@@ -116,26 +119,25 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <p>For example:
  *
- * <pre>{@code
- * PCollection<String> lines = ...;
+ * <pre>{@code PCollection<String> lines = ...;
  * PCollection<String> words =
- *     lines.apply(ParDo.of(new DoFn<String, String>() {
- *        {@literal @}ProcessElement
- *         public void processElement({@literal @}Element String line,
- *           {@literal @}OutputReceiver<String> r) {
+ *     lines.apply(ParDo.of(new DoFn<String, String>() }{
+ *        {@code @ProcessElement
+ *         public void processElement(@Element String line,
+ *           OutputReceiver<String> r) {
  *           for (String word : line.split("[^a-zA-Z']+")) {
  *             r.output(word);
  *           }
- *         }}));
- * PCollection<Integer> wordLengths =
- *     words.apply(ParDo.of(new DoFn<String, Integer>() {
- *        {@literal @}ProcessElement
- *         public void processElement({@literal @}Element String word,
- *           {@literal @}OutputReceiver<Integer> r) {
+ *         }}}));
+ * {@code PCollection<Integer> wordLengths =
+ *     words.apply(ParDo.of(new DoFn<String, Integer>() }{
+ *        {@code @ProcessElement
+ *         public void processElement(@Element String word,
+ *           OutputReceiver<Integer> r) {
  *           Integer length = word.length();
  *           r.output(length);
- *         }}));
- * }</pre>
+ *         }}}));
+ * </pre>
  *
  * <p>Each output element has the same timestamp and is in the same windows as its corresponding
  * input element, and the output {@code PCollection} has the same {@link WindowFn} associated with
@@ -150,8 +152,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <p>For example:
  *
- * <pre>{@code
- * PCollection<String> words =
+ * <pre>{@code PCollection<String> words =
  *     lines.apply("ExtractWords", ParDo.of(new DoFn<String, String>() { ... }));
  * PCollection<Integer> wordLengths =
  *     words.apply("ComputeWordLengths", ParDo.of(new DoFn<String, Integer>() { ... }));
@@ -166,22 +167,21 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * using {@link SingleOutput#withSideInputs}, and their contents accessible to each of the {@link
  * DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}. For example:
  *
- * <pre>{@code
- * PCollection<String> words = ...;
+ * <pre>{@code PCollection<String> words = ...;
  * PCollection<Integer> maxWordLengthCutOff = ...; // Singleton PCollection
  * final PCollectionView<Integer> maxWordLengthCutOffView =
  *     maxWordLengthCutOff.apply(View.<Integer>asSingleton());
  * PCollection<String> wordsBelowCutOff =
- *     words.apply(ParDo.of(new DoFn<String, String>() {
- *        {@literal @}ProcessElement
+ *     words.apply(ParDo.of(new DoFn<String, String>() }{
+ *        {@code @ProcessElement
  *         public void processElement(ProcessContext c) {
- *           String word = c.element();
- *           int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
- *           if (word.length() <= lengthCutOff) {
- *             c.output(word);
- *           }
- *         }}).withSideInputs(maxWordLengthCutOffView));
- * }</pre>
+ *             String word = c.element();
+ *             int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
+ *             if (word.length() <= lengthCutOff) {
+ *                 c.output(word);
+ *             }
+ *         }}}).withSideInputs(maxWordLengthCutOffView));
+ * </pre>
  *
  * <h2>Additional Outputs</h2>
  *
@@ -195,8 +195,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * normal, using {@link WindowedContext#output(Object)}, while an element is added to any additional
  * output {@link PCollection} using {@link WindowedContext#output(TupleTag, Object)}. For example:
  *
- * <pre>{@code
- * PCollection<String> words = ...;
+ * <pre>{@code PCollection<String> words = ...;
  * // Select words whose length is below a cut off,
  * // plus the lengths of words that are above the cut off.
  * // Also select words starting with "MARKER".
@@ -214,8 +213,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *         .of(new DoFn<String, String>() {
  *             // Create a tag for the unconsumed output.
  *             final TupleTag<String> specialWordsTag =
- *                 new TupleTag<String>(){};
- *            {@literal @}ProcessElement
+ *                 new TupleTag<String>(){};}}
+ *            {@code @ProcessElement
  *             public void processElement(@Element String word, MultiOutputReceiver r) {
  *               if (word.length() <= wordLengthCutOff) {
  *                 // Emit this short word to the main output.
@@ -232,13 +231,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *                 // Emit this word to the unconsumed output.
  *                 r.output(specialWordsTag, word);
  *               }
- *             }})
+ *             }}})
  *             // Specify the main and consumed output tags of the
  *             // PCollectionTuple result:
  *         .withOutputTags(wordsBelowCutOffTag,
  *             TupleTagList.of(wordLengthsAboveCutOffTag)
  *                         .and(markedWordsTag)));
- * // Extract the PCollection results, by tag.
+ * // Extract the PCollection results, by tag.{@code
  * PCollection<String> wordsBelowCutOff =
  *     results.get(wordsBelowCutOffTag);
  * PCollection<Integer> wordLengthsAboveCutOff =

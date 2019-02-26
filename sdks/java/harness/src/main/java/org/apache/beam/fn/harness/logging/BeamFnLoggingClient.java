@@ -15,13 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.logging;
 
-import static com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -49,12 +46,14 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.ClientResponseObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
@@ -117,7 +116,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logManager.reset();
     Logger rootLogger = logManager.getLogger(ROOT_LOGGER_NAME);
     for (Handler handler : rootLogger.getHandlers()) {
-      //rootLogger.removeHandler(handler);
+      rootLogger.removeHandler(handler);
     }
 
     // Use the passed in logging options to configure the various logger levels.

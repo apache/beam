@@ -15,21 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExternalPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
@@ -37,28 +35,42 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
 public class Environments {
   private static final ImmutableMap<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
       ImmutableMap.<String, EnvironmentIdExtractor>builder()
           .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, Environments::combineExtractor)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
+              Environments::combineExtractor)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
+              Environments::combineExtractor)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
+              Environments::combineExtractor)
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)
           .put(PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN, Environments::parDoExtractor)
           .put(PTransformTranslation.READ_TRANSFORM_URN, Environments::readExtractor)
           .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, Environments::windowExtractor)
           .build();
 
-  private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = (transform) -> null;
+  private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = transform -> null;
 
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   public static final String ENVIRONMENT_DOCKER = "DOCKER";
   public static final String ENVIRONMENT_PROCESS = "PROCESS";
+  public static final String ENVIRONMENT_EXTERNAL = "EXTERNAL";
   public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
+  public static final String ENVIRONMENT_LOOPBACK = "LOOPBACK"; // Non Public urn for testing
 
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
@@ -82,6 +94,9 @@ public class Environments {
     switch (type) {
       case ENVIRONMENT_EMBEDDED:
         return createEmbeddedEnvironment(config);
+      case ENVIRONMENT_EXTERNAL:
+      case ENVIRONMENT_LOOPBACK:
+        return createExternalEnvironment(config);
       case ENVIRONMENT_PROCESS:
         return createProcessEnvironment(config);
       case ENVIRONMENT_DOCKER:
@@ -96,6 +111,17 @@ public class Environments {
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
         .setPayload(
             DockerPayload.newBuilder().setContainerImage(dockerImageUrl).build().toByteString())
+        .build();
+  }
+
+  private static Environment createExternalEnvironment(String config) {
+    return Environment.newBuilder()
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL))
+        .setPayload(
+            ExternalPayload.newBuilder()
+                .setEndpoint(ApiServiceDescriptor.newBuilder().setUrl(config).build())
+                .build()
+                .toByteString())
         .build();
   }
 

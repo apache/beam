@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -56,6 +55,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
@@ -65,13 +65,15 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @VisibleForTesting
 public class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollectionTuple,
+        PCollection<? extends InputT>,
+        PCollectionTuple,
         PTransform<PCollection<? extends InputT>, PCollectionTuple>> {
   @Override
   public PTransformReplacement<PCollection<? extends InputT>, PCollectionTuple>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<? extends InputT>, PCollectionTuple,
+                  PCollection<? extends InputT>,
+                  PCollectionTuple,
                   PTransform<PCollection<? extends InputT>, PCollectionTuple>>
               application) {
 
@@ -87,7 +89,8 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
   @SuppressWarnings("unchecked")
   private PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementForApplication(
       AppliedPTransform<
-              PCollection<? extends InputT>, PCollectionTuple,
+              PCollection<? extends InputT>,
+              PCollectionTuple,
               PTransform<PCollection<? extends InputT>, PCollectionTuple>>
           application)
       throws IOException {
@@ -188,15 +191,12 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
               // according to what ParDo already does.
               .setWindowingStrategyInternal(inputWindowingStrategy);
 
-      PCollectionTuple outputs =
-          adjustedInput
-              // Explode the resulting iterable into elements that are exactly the ones from
-              // the input
-              .apply(
-              "Stateful ParDo",
-              new StatefulParDo<>(doFn, mainOutputTag, additionalOutputTags, sideInputs));
-
-      return outputs;
+      return adjustedInput
+          // Explode the resulting iterable into elements that are exactly the ones from
+          // the input
+          .apply(
+          "Stateful ParDo",
+          new StatefulParDo<>(doFn, mainOutputTag, additionalOutputTags, sideInputs));
     }
   }
 
@@ -245,16 +245,13 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     @Override
     public PCollectionTuple expand(PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input) {
 
-      PCollectionTuple outputs =
-          PCollectionTuple.ofPrimitiveOutputsInternal(
-              input.getPipeline(),
-              TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
-              // TODO
-              Collections.emptyMap(),
-              input.getWindowingStrategy(),
-              input.isBounded());
-
-      return outputs;
+      return PCollectionTuple.ofPrimitiveOutputsInternal(
+          input.getPipeline(),
+          TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
+          // TODO
+          Collections.emptyMap(),
+          input.getWindowingStrategy(),
+          input.isBounded());
     }
   }
 

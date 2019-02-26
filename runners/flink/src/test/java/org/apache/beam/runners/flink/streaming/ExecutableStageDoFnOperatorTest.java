@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.streaming;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -28,8 +29,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +42,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -54,11 +54,15 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
@@ -83,6 +87,7 @@ public class ExecutableStageDoFnOperatorTest {
   @Mock private FlinkExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private StateRequestHandler stateRequestHandler;
+  @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
   // tests in general ignore the executable stage itself and mock around it.
@@ -102,6 +107,8 @@ public class ExecutableStageDoFnOperatorTest {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
+    when(processBundleDescriptor.getTimerSpecs()).thenReturn(Collections.emptyMap());
+    when(stageBundleFactory.getProcessBundleDescriptor()).thenReturn(processBundleDescriptor);
   }
 
   @Test
@@ -123,13 +130,14 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
-    Exception expected = new Exception();
+    Exception expected = new RuntimeException(new Exception());
     doThrow(expected).when(bundle).close();
     thrown.expectCause(is(expected));
 
     operator.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow(0)));
+    testHarness.close();
   }
 
   @Test
@@ -146,7 +154,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
     WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
     WindowedValue<Integer> two = WindowedValue.valueInGlobalWindow(2);
@@ -208,6 +216,9 @@ public class ExecutableStageDoFnOperatorTest {
     // We use a real StageBundleFactory here in order to exercise the output receiver factory.
     StageBundleFactory stageBundleFactory =
         new StageBundleFactory() {
+
+          private boolean onceEmitted;
+
           @Override
           public RemoteBundle getBundle(
               OutputReceiverFactory receiverFactory,
@@ -222,7 +233,7 @@ public class ExecutableStageDoFnOperatorTest {
               @Override
               public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
                 return ImmutableMap.of(
-                    "pCollectionId",
+                    "input",
                     input -> {
                       /* Ignore input*/
                     });
@@ -230,12 +241,22 @@ public class ExecutableStageDoFnOperatorTest {
 
               @Override
               public void close() throws Exception {
+                if (onceEmitted) {
+                  return;
+                }
                 // Emit all values to the runner when the bundle is closed.
                 receiverFactory.create(mainOutput.getId()).accept(three);
                 receiverFactory.create(additionalOutput1.getId()).accept(four);
                 receiverFactory.create(additionalOutput2.getId()).accept(five);
+                onceEmitted = true;
               }
             };
+          }
+
+          @Override
+          public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
+              getProcessBundleDescriptor() {
+            return processBundleDescriptor;
           }
 
           @Override
@@ -253,11 +274,25 @@ public class ExecutableStageDoFnOperatorTest {
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
         new OneInputStreamOperatorTestHarness<>(operator);
 
+    long watermark = testHarness.getCurrentWatermark() + 1;
     testHarness.open();
 
     testHarness.processElement(new StreamRecord<>(zero));
 
-    assertThat(testHarness.getOutput(), contains(new StreamRecord<>(three)));
+    testHarness.processWatermark(watermark);
+    watermark++;
+    testHarness.processWatermark(watermark);
+
+    assertEquals(watermark, testHarness.getCurrentWatermark());
+    // watermark hold until bundle complete
+    assertEquals(0, testHarness.getOutput().size());
+
+    testHarness.close(); // triggers finish bundle
+
+    assertThat(
+        testHarness.getOutput(),
+        contains(
+            new StreamRecord<>(three), new Watermark(watermark), new Watermark(Long.MAX_VALUE)));
 
     assertThat(
         testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput1)),
@@ -266,8 +301,6 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(
         testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput2)),
         contains(new StreamRecord<>(five)));
-
-    testHarness.close();
   }
 
   @Test
@@ -280,14 +313,31 @@ public class ExecutableStageDoFnOperatorTest {
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
         new OneInputStreamOperatorTestHarness<>(operator);
-    testHarness.open();
 
-    operator.close();
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(bundle.getInputReceivers())
+        .thenReturn(
+            ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
+                .put("input", Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+
+    testHarness.open();
+    testHarness.close();
+
+    verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verify(stageContext).close();
+    // DoFnOperator generates a final watermark, which triggers a new bundle..
+    verify(stageBundleFactory).getBundle(any(), any(), any());
+    verify(bundle).getInputReceivers();
+    verify(bundle).close();
     verifyNoMoreInteractions(stageBundleFactory);
 
-    testHarness.close();
+    // close() will also call dispose(), but call again to verify no new bundle
+    // is created afterwards
+    operator.dispose();
+    verifyNoMoreInteractions(bundle);
   }
 
   @Test
@@ -336,7 +386,10 @@ public class ExecutableStageDoFnOperatorTest {
             stagePayload,
             jobInfo,
             FlinkExecutableStageContext.factory(options),
-            createOutputMap(mainOutput, ImmutableList.of(additionalOutput)));
+            createOutputMap(mainOutput, ImmutableList.of(additionalOutput)),
+            WindowingStrategy.globalDefault(),
+            null,
+            null);
 
     ExecutableStageDoFnOperator<Integer, Integer> clone = SerializationUtils.clone(operator);
     assertNotNull(clone);
@@ -373,7 +426,10 @@ public class ExecutableStageDoFnOperatorTest {
             stagePayload,
             jobInfo,
             contextFactory,
-            createOutputMap(mainOutput, additionalOutputs));
+            createOutputMap(mainOutput, additionalOutputs),
+            WindowingStrategy.globalDefault(),
+            null,
+            null);
 
     Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
     return operator;

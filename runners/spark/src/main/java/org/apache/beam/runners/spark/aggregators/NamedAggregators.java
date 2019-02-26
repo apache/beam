@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.aggregators;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared

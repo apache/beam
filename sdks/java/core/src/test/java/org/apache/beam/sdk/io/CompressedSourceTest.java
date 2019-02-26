@@ -28,11 +28,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.HashMultiset;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
-import com.google.common.primitives.Bytes;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -64,9 +59,15 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -111,6 +112,14 @@ public class CompressedSourceTest {
     source = CompressedSource.from(new ByteSource("input.zip", 1));
     assertFalse(source.isSplittable());
     source = CompressedSource.from(new ByteSource("input.ZIP", 1));
+    assertFalse(source.isSplittable());
+
+    // ZSTD files are not splittable
+    source = CompressedSource.from(new ByteSource("input.zst", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.ZST", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.zstd", 1));
     assertFalse(source.isSplittable());
 
     // DEFLATE files are not splittable
@@ -178,6 +187,13 @@ public class CompressedSourceTest {
   public void testEmptyReadGzip() throws Exception {
     byte[] input = generateInput(0);
     runReadTest(input, CompressionMode.GZIP);
+  }
+
+  /** Test reading empty input with zstd. */
+  @Test
+  public void testEmptyReadZstd() throws Exception {
+    byte[] input = generateInput(0);
+    runReadTest(input, CompressionMode.ZSTD);
   }
 
   private static byte[] compressGzip(byte[] input) throws IOException {
@@ -258,7 +274,14 @@ public class CompressedSourceTest {
     runReadTest(input, CompressionMode.BZIP2);
   }
 
-  /** Test reading according to filepattern when the file is bzipped. */
+  /** Test reading empty input with zstd. */
+  @Test
+  public void testCompressedReadZstd() throws Exception {
+    byte[] input = generateInput(0);
+    runReadTest(input, CompressionMode.ZSTD);
+  }
+
+  /** Test reading according to filepattern when the file is gzipped. */
   @Test
   public void testCompressedAccordingToFilepatternGzip() throws Exception {
     byte[] input = generateInput(100);
@@ -267,12 +290,21 @@ public class CompressedSourceTest {
     verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
   }
 
-  /** Test reading according to filepattern when the file is gzipped. */
+  /** Test reading according to filepattern when the file is bzipped. */
   @Test
   public void testCompressedAccordingToFilepatternBzip2() throws Exception {
     byte[] input = generateInput(100);
     File tmpFile = tmpFolder.newFile("test.bz2");
     writeFile(tmpFile, input, CompressionMode.BZIP2);
+    verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
+  }
+
+  /** Test reading according to filepattern when the file is zstd compressed. */
+  @Test
+  public void testCompressedAccordingToFilepatternZstd() throws Exception {
+    byte[] input = generateInput(100);
+    File tmpFile = tmpFolder.newFile("test.zst");
+    writeFile(tmpFile, input, CompressionMode.ZSTD);
     verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
   }
 
@@ -299,6 +331,11 @@ public class CompressedSourceTest {
     File bzip2File = tmpFolder.newFile(baseName + ".bz2");
     generated = generateInput(1000, 3);
     writeFile(bzip2File, generated, CompressionMode.BZIP2);
+    expected.addAll(Bytes.asList(generated));
+
+    File zstdFile = tmpFolder.newFile(baseName + ".zst");
+    generated = generateInput(1000, 4);
+    writeFile(zstdFile, generated, CompressionMode.ZSTD);
     expected.addAll(Bytes.asList(generated));
 
     String filePattern = new File(tmpFolder.getRoot().toString(), baseName + ".*").toString();
@@ -359,6 +396,18 @@ public class CompressedSourceTest {
     assertFalse(source.isSplittable());
   }
 
+  @Test
+  public void testZstdFileIsNotSplittable() throws Exception {
+    String baseName = "test-input";
+
+    File compressedFile = tmpFolder.newFile(baseName + ".zst");
+    writeFile(compressedFile, generateInput(10), CompressionMode.ZSTD);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    assertFalse(source.isSplittable());
+  }
+
   /**
    * Test reading an uncompressed file with {@link CompressionMode#GZIP}, since we must support this
    * due to properties of services that we read from.
@@ -381,6 +430,16 @@ public class CompressedSourceTest {
     Files.write(input, tmpFile);
     thrown.expectMessage("Stream is not in the BZip2 format");
     verifyReadContents(input, tmpFile, CompressionMode.BZIP2);
+  }
+
+  /** Test reading an uncompressed file with {@link Compression#ZSTD}, and show that we fail. */
+  @Test
+  public void testFalseZstdStream() throws Exception {
+    byte[] input = generateInput(1000);
+    File tmpFile = tmpFolder.newFile("test.zst");
+    Files.write(input, tmpFile);
+    thrown.expectMessage("Decompression error: Unknown frame descriptor");
+    verifyReadContents(input, tmpFile, CompressionMode.ZSTD);
   }
 
   /**
@@ -476,6 +535,8 @@ public class CompressedSourceTest {
         return new BZip2CompressorOutputStream(stream);
       case ZIP:
         return new TestZipOutputStream(stream);
+      case ZSTD:
+        return new ZstdCompressorOutputStream(stream);
       case DEFLATE:
         return new DeflateCompressorOutputStream(stream);
       default:

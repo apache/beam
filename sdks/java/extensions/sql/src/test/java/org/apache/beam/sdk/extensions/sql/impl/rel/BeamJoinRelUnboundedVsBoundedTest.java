@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Arrays;
@@ -109,6 +108,11 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     public SiteLookupTable(Schema schema) {
       super(schema);
+    }
+
+    @Override
+    public PCollection.IsBounded isBounded() {
+      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -277,6 +281,26 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
         "SELECT o1.order_id, o2.site_name FROM "
             + " ORDER_DETAILS o1 "
             + " JOIN SITE_LKP o2 "
+            + " on "
+            + " o1.site_id=o2.site_id "
+            + " WHERE o1.site_id=1";
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.STRING, "site_name")
+                .addRows(1, "SITE1")
+                .getStringRows());
+    pipeline.run();
+  }
+
+  @Test
+  public void testJoinAsLookupSwapped() throws Exception {
+    String sql =
+        "SELECT o1.order_id, o2.site_name FROM "
+            + " SITE_LKP o2 "
+            + " JOIN ORDER_DETAILS o1 "
             + " on "
             + " o1.site_id=o2.site_id "
             + " WHERE o1.site_id=1";

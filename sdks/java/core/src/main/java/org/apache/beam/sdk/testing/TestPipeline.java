@@ -17,17 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +45,12 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -73,7 +73,7 @@ import org.junit.runners.model.Statement;
  *     "--runner=TestDataflowRunner",
  *     "--project=mygcpproject",
  *     "--stagingLocation=gs://mygcsbucket/path"
- *     ]}</pre>
+ * ]}</pre>
  *       Note that the set of pipeline options required is pipeline runner specific.
  *   <li>Jars containing the SDK and test classes must be available on the classpath.
  * </ul>
@@ -83,15 +83,15 @@ import org.junit.runners.model.Statement;
  *
  * <pre><code>
  * {@literal @Rule}
- * public final transient TestPipeline p = TestPipeline.create();
+ *  public final transient TestPipeline p = TestPipeline.create();
  *
  * {@literal @Test}
  * {@literal @Category}(NeedsRunner.class)
- * public void myPipelineTest() throws Exception {
- *   final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
- *   PAssert.that(pCollection).containsInAnyOrder(...);
- *   pipeline.run();
- * }
+ *  public void myPipelineTest() throws Exception {
+ *    final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
+ *    PAssert.that(pCollection).containsInAnyOrder(...);
+ *    pipeline.run();
+ *  }
  * </code></pre>
  *
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing

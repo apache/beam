@@ -23,7 +23,9 @@ The 4.2 spec is available at https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 from __future__ import absolute_import
 
 import logging
+import sys
 import traceback
+import warnings
 from builtins import next
 from builtins import object
 from collections import namedtuple
@@ -32,14 +34,18 @@ from future.utils import iteritems
 from past.builtins import long
 from past.builtins import unicode
 
-import vcf
-
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
+
+if sys.version_info[0] < 3:
+  import vcf
+else:
+  warnings.warn("VCF IO will support Python 3 after migration to Nucleus, "
+                "see: BEAM-5628.")
 
 
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',
@@ -124,6 +130,10 @@ class Variant(object):
   def __eq__(self, other):
     return (isinstance(other, Variant) and
             vars(self) == vars(other))
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return ', '.join(
@@ -218,6 +228,10 @@ class VariantCall(object):
   def __eq__(self, other):
     return ((self.name, self.genotype, self.phaseset, self.info) ==
             (other.name, other.genotype, other.phaseset, other.info))
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return ', '.join(

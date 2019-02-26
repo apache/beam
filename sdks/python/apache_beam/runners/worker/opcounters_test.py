@@ -20,9 +20,7 @@ from __future__ import division
 
 import logging
 import math
-import os
 import random
-import sys
 import unittest
 from builtins import object
 from builtins import range
@@ -109,6 +107,7 @@ class OperationCountersTest(unittest.TestCase):
                                  coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
     opcounts.update_from(GlobalWindows.windowed_value(1))
+    opcounts.update_collect()
     self.verify_counters(opcounts, 1)
 
   def test_update_str(self):
@@ -118,6 +117,7 @@ class OperationCountersTest(unittest.TestCase):
     self.verify_counters(opcounts, 0, float('nan'))
     value = GlobalWindows.windowed_value('abcde')
     opcounts.update_from(value)
+    opcounts.update_collect()
     estimated_size = coder.estimate_size(value)
     self.verify_counters(opcounts, 1, estimated_size)
 
@@ -129,6 +129,7 @@ class OperationCountersTest(unittest.TestCase):
     obj = OldClassThatDoesNotImplementLen()
     value = GlobalWindows.windowed_value(obj)
     opcounts.update_from(value)
+    opcounts.update_collect()
     estimated_size = coder.estimate_size(value)
     self.verify_counters(opcounts, 1, estimated_size)
 
@@ -141,6 +142,7 @@ class OperationCountersTest(unittest.TestCase):
     obj = ObjectThatDoesNotImplementLen()
     value = GlobalWindows.windowed_value(obj)
     opcounts.update_from(value)
+    opcounts.update_collect()
     estimated_size = coder.estimate_size(value)
     self.verify_counters(opcounts, 1, estimated_size)
 
@@ -152,25 +154,25 @@ class OperationCountersTest(unittest.TestCase):
     self.verify_counters(opcounts, 0, float('nan'))
     value = GlobalWindows.windowed_value('abcde')
     opcounts.update_from(value)
+    opcounts.update_collect()
     total_size += coder.estimate_size(value)
     value = GlobalWindows.windowed_value('defghij')
     opcounts.update_from(value)
+    opcounts.update_collect()
     total_size += coder.estimate_size(value)
     self.verify_counters(opcounts, 2, (float(total_size) / 2))
     value = GlobalWindows.windowed_value('klmnop')
     opcounts.update_from(value)
+    opcounts.update_collect()
     total_size += coder.estimate_size(value)
     self.verify_counters(opcounts, 3, (float(total_size) / 3))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_should_sample(self):
     # Order of magnitude more buckets than highest constant in code under test.
     buckets = [0] * 300
     # The seed is arbitrary and exists just to ensure this test is robust.
     # If you don't like this seed, try your own; the test should still pass.
-    random.seed(1717)
+    random.seed(1720)
     # Do enough runs that the expected hits even in the last buckets
     # is big enough to expect some statistical smoothing.
     total_runs = 10 * len(buckets)

@@ -15,15 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
+import java.util.Date;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,6 +29,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
 class S3ResourceId implements ResourceId {
 
@@ -45,19 +45,23 @@ class S3ResourceId implements ResourceId {
   private final String bucket;
   private final String key;
   private final Long size;
+  private final Date lastModified;
 
-  private S3ResourceId(String bucket, String key, @Nullable Long size) {
+  private S3ResourceId(
+      String bucket, String key, @Nullable Long size, @Nullable Date lastModified) {
     checkArgument(!Strings.isNullOrEmpty(bucket), "bucket");
+    checkArgument(!bucket.contains("/"), "bucket must not contain '/': [%s]", bucket);
     this.bucket = bucket;
     this.key = checkNotNull(key, "key");
     this.size = size;
+    this.lastModified = lastModified;
   }
 
   static S3ResourceId fromComponents(String bucket, String key) {
     if (!key.startsWith("/")) {
       key = "/" + key;
     }
-    return new S3ResourceId(bucket, key, null);
+    return new S3ResourceId(bucket, key, null, null);
   }
 
   static S3ResourceId fromUri(String uri) {
@@ -86,7 +90,15 @@ class S3ResourceId implements ResourceId {
   }
 
   S3ResourceId withSize(long size) {
-    return new S3ResourceId(bucket, key, size);
+    return new S3ResourceId(bucket, key, size, lastModified);
+  }
+
+  Optional<Date> getLastModified() {
+    return Optional.fromNullable(lastModified);
+  }
+
+  S3ResourceId withLastModified(Date lastModified) {
+    return new S3ResourceId(bucket, key, size, lastModified);
   }
 
   @Override

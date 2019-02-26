@@ -125,7 +125,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     if writes_output:
       read_output = []
       for file_name in glob.glob(output_location + '*'):
-        with open(file_name, 'r') as f:
+        with open(file_name, 'rb') as f:
           read_output.extend(f.read().splitlines())
 
       self.assertEqual(10, len(read_output))

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.adapter;
 
 import java.io.IOException;
@@ -32,7 +31,7 @@ public class TestCheckpointMark implements UnboundedSource.CheckpointMark, Seria
 
   @Override
   public void finalizeCheckpoint() throws IOException {
-    //DO NOTHING
+    // DO NOTHING
   }
 
   static TestCheckpointMark of(int checkpoint) {

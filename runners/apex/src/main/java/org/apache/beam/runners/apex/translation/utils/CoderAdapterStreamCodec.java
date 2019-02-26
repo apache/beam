@@ -19,13 +19,13 @@ package org.apache.beam.runners.apex.translation.utils;
 
 import com.datatorrent.api.StreamCodec;
 import com.datatorrent.netlet.util.Slice;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** The Apex {@link StreamCodec} adapter for using Beam {@link Coder}. */
 public class CoderAdapterStreamCodec implements StreamCodec<Object>, Serializable {

@@ -56,7 +56,7 @@ public class DistinctExample {
    *
    * <p>Inherits standard configuration options.
    */
-  private interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
     @Default.String("gs://apache-beam-samples/shakespeare/*")
     String getInput();

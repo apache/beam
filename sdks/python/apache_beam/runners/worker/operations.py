@@ -24,6 +24,7 @@ from __future__ import absolute_import
 
 import collections
 import logging
+import sys
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -31,6 +32,7 @@ from builtins import zip
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
@@ -71,6 +73,14 @@ class ConsumerSet(Receiver):
   the other edge.
   ConsumerSet are attached to the outputting Operation.
   """
+  @staticmethod
+  def create(counter_factory, step_name, output_index, consumers, coder):
+    if len(consumers) == 1:
+      return SingletonConsumerSet(
+          counter_factory, step_name, output_index, consumers, coder)
+    else:
+      return ConsumerSet(
+          counter_factory, step_name, output_index, consumers, coder)
 
   def __init__(
       self, counter_factory, step_name, output_index, consumers, coder):
@@ -88,6 +98,14 @@ class ConsumerSet(Receiver):
       cython.cast(Operation, consumer).process(windowed_value)
     self.update_counters_finish()
 
+  def try_split(self, fraction_of_remainder):
+    # TODO(SDF): Consider supporting splitting each consumer individually.
+    # This would never come up in the existing SDF expansion, but might
+    # be useful to support fused SDF nodes.
+    # This would require dedicated delivery of the split results to each
+    # of the consumers separately.
+    return None
+
   def update_counters_start(self, windowed_value):
     self.opcounter.update_from(windowed_value)
 
@@ -98,6 +116,23 @@ class ConsumerSet(Receiver):
     return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
         self.__class__.__name__, self.step_name, self.output_index, self.coder,
         len(self.consumers))
+
+
+class SingletonConsumerSet(ConsumerSet):
+  def __init__(
+      self, counter_factory, step_name, output_index, consumers, coder):
+    assert len(consumers) == 1
+    super(SingletonConsumerSet, self).__init__(
+        counter_factory, step_name, output_index, consumers, coder)
+    self.consumer = consumers[0]
+
+  def receive(self, windowed_value):
+    self.update_counters_start(windowed_value)
+    self.consumer.process(windowed_value)
+    self.update_counters_finish()
+
+  def try_split(self, fraction_of_remainder):
+    return self.consumer.try_split(fraction_of_remainder)
 
 
 class Operation(object):
@@ -127,6 +162,7 @@ class Operation(object):
 
     self.spec = spec
     self.counter_factory = counter_factory
+    self.execution_context = None
     self.consumers = collections.defaultdict(list)
 
     # These are overwritten in the legacy harness.
@@ -142,27 +178,46 @@ class Operation(object):
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
+    # Legacy workers cannot call setup() until after setting additional state
+    # on the operation.
+    self.setup_done = False
+
+  def setup(self):
+    with self.scoped_start_state:
+      self.debug_logging_enabled = logging.getLogger().isEnabledFor(
+          logging.DEBUG)
+      # Everything except WorkerSideInputSource, which is not a
+      # top-level operation, should have output_coders
+      #TODO(pabloem): Define better what step name is used here.
+      if getattr(self.spec, 'output_coders', None):
+        self.receivers = [
+            ConsumerSet.create(
+                self.counter_factory,
+                self.name_context.logging_name(),
+                i,
+                self.consumers[i], coder)
+            for i, coder in enumerate(self.spec.output_coders)]
+    self.setup_done = True
 
   def start(self):
     """Start operation."""
-    self.debug_logging_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
-    # Everything except WorkerSideInputSource, which is not a
-    # top-level operation, should have output_coders
-    #TODO(pabloem): Define better what step name is used here.
-    if getattr(self.spec, 'output_coders', None):
-      self.receivers = [ConsumerSet(self.counter_factory,
-                                    self.name_context.logging_name(),
-                                    i,
-                                    self.consumers[i], coder)
-                        for i, coder in enumerate(self.spec.output_coders)]
+    if not self.setup_done:
+      # For legacy workers.
+      self.setup()
 
   def process(self, o):
     """Process element in operation."""
     pass
 
+  def try_split(self, fraction_of_remainder):
+    return None
+
   def finish(self):
     """Finish operation."""
     pass
+
+  def reset(self):
+    self.metrics_container.reset()
 
   def output(self, windowed_value, output_index=0):
     cython.cast(Receiver, self.receivers[output_index]).receive(windowed_value)
@@ -189,6 +244,62 @@ class Operation(object):
                     if len(self.receivers) == 1
                     else None))),
         user=self.metrics_container.to_runner_api())
+
+  def monitoring_infos(self, transform_id):
+    """Returns the list of MonitoringInfos collected by this operation."""
+    all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
+    all_monitoring_infos.update(
+        self.element_count_monitoring_infos(transform_id))
+    all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
+    return all_monitoring_infos
+
+  def element_count_monitoring_infos(self, transform_id):
+    """Returns the element count MonitoringInfo collected by this operation."""
+    if len(self.receivers) == 1:
+      # If there is exactly one output, we can unambiguously
+      # fix its name later, which we do.
+      # TODO(robertwb): Plumb the actual name here.
+      mi = monitoring_infos.int64_counter(
+          monitoring_infos.ELEMENT_COUNT_URN,
+          self.receivers[0].opcounter.element_counter.value(),
+          ptransform=transform_id,
+          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
+      )
+      return {monitoring_infos.to_key(mi) : mi}
+    return {}
+
+  def user_monitoring_infos(self, transform_id):
+    """Returns the user MonitoringInfos collected by this operation."""
+    return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
+
+  def execution_time_monitoring_infos(self, transform_id):
+    total_time_spent_msecs = (
+        self.scoped_start_state.sampled_msecs_int()
+        + self.scoped_process_state.sampled_msecs_int()
+        + self.scoped_finish_state.sampled_msecs_int())
+    mis = [
+        monitoring_infos.int64_counter(
+            monitoring_infos.START_BUNDLE_MSECS_URN,
+            self.scoped_start_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
+            self.scoped_process_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.FINISH_BUNDLE_MSECS_URN,
+            self.scoped_finish_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.TOTAL_MSECS_URN,
+            total_time_spent_msecs,
+            ptransform=transform_id
+        ),
+    ]
+    return {monitoring_infos.to_key(mi) : mi for mi in mis}
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -254,7 +365,7 @@ class ImpulseReadOperation(Operation):
         name_context, None, counter_factory, state_sampler)
     self.source = source
     self.receivers = [
-        ConsumerSet(
+        ConsumerSet.create(
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(consumers.values())), output_coder)]
 
@@ -365,9 +476,9 @@ class DoOperation(Operation):
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
-  def start(self):
+  def setup(self):
     with self.scoped_start_state:
-      super(DoOperation, self).start()
+      super(DoOperation, self).setup()
 
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
@@ -417,11 +528,17 @@ class DoOperation(Operation):
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
 
+  def start(self):
+    with self.scoped_start_state:
+      super(DoOperation, self).start()
       self.dofn_runner.start()
 
   def process(self, o):
     with self.scoped_process_state:
-      self.dofn_receiver.receive(o)
+      delayed_application = self.dofn_receiver.receive(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
@@ -432,6 +549,15 @@ class DoOperation(Operation):
   def finish(self):
     with self.scoped_finish_state:
       self.dofn_runner.finish()
+      if self.user_state_context:
+        self.user_state_context.commit()
+
+  def reset(self):
+    super(DoOperation, self).reset()
+    for side_input_map in self.side_input_maps:
+      side_input_map.reset()
+    if self.user_state_context:
+      self.user_state_context.reset()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()
@@ -441,6 +567,35 @@ class DoOperation(Operation):
         metrics.processed_elements.measured.output_element_counts[
             str(tag)] = receiver.opcounter.element_counter.value()
     return metrics
+
+  def monitoring_infos(self, transform_id):
+    infos = super(DoOperation, self).monitoring_infos(transform_id)
+    if self.tagged_receivers:
+      for tag, receiver in self.tagged_receivers.items():
+        mi = monitoring_infos.int64_counter(
+            monitoring_infos.ELEMENT_COUNT_URN,
+            receiver.opcounter.element_counter.value(),
+            ptransform=transform_id,
+            tag=str(tag)
+        )
+        infos[monitoring_infos.to_key(mi)] = mi
+    return infos
+
+
+class SdfProcessElements(DoOperation):
+
+  def process(self, o):
+    with self.scoped_process_state:
+      delayed_application = self.dofn_runner.process_with_restriction(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
+
+  def try_split(self, fraction_of_remainder):
+    split = self.dofn_runner.try_split(fraction_of_remainder)
+    if split:
+      primary, residual = split
+      return (self, primary), (self, residual)
 
 
 class DoFnRunnerReceiver(Receiver):
@@ -515,7 +670,7 @@ class PGBKOperation(Operation):
 
   def flush(self, target):
     limit = self.size - target
-    for ix, (kw, vs) in enumerate(self.table.items()):
+    for ix, (kw, vs) in enumerate(list(self.table.items())):
       if ix >= limit:
         break
       del self.table[kw]
@@ -538,6 +693,13 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     self.combine_fn_add_input = self.combine_fn.add_input
+    base_compact = (
+        core.CombineFn.compact if sys.version_info >= (3,)
+        else core.CombineFn.compact.__func__)
+    if self.combine_fn.compact.__func__ is base_compact:
+      self.combine_fn_compact = None
+    else:
+      self.combine_fn_compact = self.combine_fn.compact
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
     # TODO(b/36567833): Bound by in-memory size rather than key count.
@@ -586,8 +748,12 @@ class PGBKCVOperation(Operation):
     self.table = {}
     self.key_count = 0
 
-  def output_key(self, wkey, value):
+  def output_key(self, wkey, accumulator):
     windows, key = wkey
+    if self.combine_fn_compact is None:
+      value = accumulator
+    else:
+      value = self.combine_fn_compact(accumulator)
     if windows is 0:
       self.output(_globally_windowed_value.with_value((key, value)))
     else:

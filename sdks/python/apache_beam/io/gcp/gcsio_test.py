@@ -20,13 +20,16 @@ from __future__ import division
 
 import datetime
 import errno
+import io
 import logging
 import os
 import random
 import sys
+import time
 import unittest
 from builtins import object
 from builtins import range
+from email.message import Message
 
 import httplib2
 import mock
@@ -48,7 +51,7 @@ class FakeGcsClient(object):
 
   def __init__(self):
     self.objects = FakeGcsObjects()
-    # Referenced in GcsIO.batch_copy() and GcsIO.batch_delete().
+    # Referenced in GcsIO.copy_batch() and GcsIO.delete_batch().
     self._http = object()
 
 
@@ -140,19 +143,31 @@ class FakeGcsObjects(object):
 
     self.add_file(f)
 
-  def Copy(self, copy_request):  # pylint: disable=invalid-name
-    src_file = self.get_file(copy_request.sourceBucket,
-                             copy_request.sourceObject)
+  REWRITE_TOKEN = 'test_token'
+
+  def Rewrite(self, rewrite_request):  # pylint: disable=invalid-name
+    if rewrite_request.rewriteToken == self.REWRITE_TOKEN:
+      dest_object = storage.Object()
+      return storage.RewriteResponse(
+          done=True, objectSize=100, resource=dest_object,
+          totalBytesRewritten=100)
+
+    src_file = self.get_file(rewrite_request.sourceBucket,
+                             rewrite_request.sourceObject)
     if not src_file:
       raise HttpError(
           httplib2.Response({'status': '404'}), '404 Not Found',
           'https://fake/url')
-    generation = self.get_last_generation(copy_request.destinationBucket,
-                                          copy_request.destinationObject) + 1
-    dest_file = FakeFile(copy_request.destinationBucket,
-                         copy_request.destinationObject, src_file.contents,
+    generation = self.get_last_generation(rewrite_request.destinationBucket,
+                                          rewrite_request.destinationObject) + 1
+    dest_file = FakeFile(rewrite_request.destinationBucket,
+                         rewrite_request.destinationObject, src_file.contents,
                          generation)
     self.add_file(dest_file)
+    time.sleep(10)  # time.sleep and time.time are mocked below.
+    return storage.RewriteResponse(
+        done=False, objectSize=100, rewriteToken=self.REWRITE_TOKEN,
+        totalBytesRewritten=5)
 
   def Delete(self, delete_request):  # pylint: disable=invalid-name
     # Here, we emulate the behavior of the GCS service in raising a 404 error
@@ -196,9 +211,11 @@ class FakeGcsObjects(object):
 
 class FakeApiCall(object):
 
-  def __init__(self, exception):
+  def __init__(self, exception, response):
     self.exception = exception
     self.is_error = exception is not None
+    # Response for Rewrite:
+    self.response = response
 
 
 class FakeBatchApiRequest(object):
@@ -213,11 +230,12 @@ class FakeBatchApiRequest(object):
     api_calls = []
     for service, method, request in self.operations:
       exception = None
+      response = None
       try:
-        getattr(service, method)(request)
+        response = getattr(service, method)(request)
       except Exception as e:  # pylint: disable=broad-except
         exception = e
-      api_calls.append(FakeApiCall(exception))
+      api_calls.append(FakeApiCall(exception, response))
     return api_calls
 
 
@@ -257,6 +275,9 @@ class TestGCSPathParser(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@mock.patch.multiple('time',
+                     time=mock.MagicMock(side_effect=range(100)),
+                     sleep=mock.MagicMock())
 class TestGCSIO(unittest.TestCase):
 
   def _insert_random_file(self, client, path, size, generation=1, crc32c=None,
@@ -391,13 +412,14 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
-    self.gcs.copy(src_file_name, dest_file_name)
+    self.gcs.copy(src_file_name, dest_file_name, dest_kms_key_name='kms_key')
 
     self.assertTrue(
         gcsio.parse_gcs_path(src_file_name) in self.client.objects.files)
     self.assertTrue(
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
+    # Test copy of non-existent files.
     with self.assertRaisesRegexp(HttpError, r'Not Found'):
       self.gcs.copy('gs://gcsio-test/non-existent',
                     'gs://gcsio-test/non-existent-destination')
@@ -410,10 +432,10 @@ class TestGCSIO(unittest.TestCase):
     file_size = 1024
     num_files = 10
 
-    # Test copy of non-existent files.
     result = self.gcs.copy_batch(
         [(from_name_pattern % i, to_name_pattern % i)
-         for i in range(num_files)])
+         for i in range(num_files)],
+        dest_kms_key_name='kms_key')
     self.assertTrue(result)
     for i, (src, dest, exception) in enumerate(result):
       self.assertEqual(src, from_name_pattern % i)
@@ -520,10 +542,10 @@ class TestGCSIO(unittest.TestCase):
     line_count = 10
     for _ in range(line_count):
       line_length = random.randint(100, 500)
-      line = os.urandom(line_length).replace('\n', ' ') + '\n'
+      line = os.urandom(line_length).replace(b'\n', b' ') + b'\n'
       lines.append(line)
 
-    contents = ''.join(lines)
+    contents = b''.join(lines)
     bucket, name = gcsio.parse_gcs_path(file_name)
     self.client.objects.add_file(FakeFile(bucket, name, contents, 1))
 
@@ -547,13 +569,13 @@ class TestGCSIO(unittest.TestCase):
     # First line is carefully crafted so the newline falls as the last character
     # of the buffer to exercise this code path.
     read_buffer_size = 1024
-    lines.append('x' * 1023 + '\n')
+    lines.append(b'x' * 1023 + b'\n')
 
     for _ in range(1, 1000):
       line_length = random.randint(100, 500)
-      line = os.urandom(line_length).replace('\n', ' ') + '\n'
+      line = os.urandom(line_length).replace(b'\n', b' ') + b'\n'
       lines.append(line)
-    contents = ''.join(lines)
+    contents = b''.join(lines)
 
     file_size = len(contents)
     bucket, name = gcsio.parse_gcs_path(file_name)
@@ -569,11 +591,11 @@ class TestGCSIO(unittest.TestCase):
 
     # Test read at line boundary.
     f.seek(file_size - len(lines[-1]) - 1)
-    self.assertEqual(f.readline(), '\n')
+    self.assertEqual(f.readline(), b'\n')
 
     # Test read at end of file.
     f.seek(file_size)
-    self.assertEqual(f.readline(), '')
+    self.assertEqual(f.readline(), b'')
 
     # Test reads at random positions.
     random.seed(0)
@@ -698,6 +720,23 @@ class TestGCSIO(unittest.TestCase):
       self.assertEqual(
           set(self.gcs.list_prefix(file_pattern).items()),
           set(expected_file_names))
+
+  def test_mime_binary_encoding(self):
+    # This test verifies that the MIME email_generator library works properly
+    # and does not corrupt '\r\n' during uploads (the patch to apitools in
+    # Python 3 is applied in io/gcp/__init__.py).
+    from apitools.base.py.transfer import email_generator
+    if sys.version_info[0] == 3:
+      generator_cls = email_generator.BytesGenerator
+    else:
+      generator_cls = email_generator.Generator
+    output_buffer = io.BytesIO()
+    generator = generator_cls(output_buffer)
+    test_msg = 'a\nb\r\nc\n\r\n\n\nd'
+    message = Message()
+    message.set_payload(test_msg)
+    generator._handle_text(message)
+    self.assertEqual(test_msg.encode('ascii'), output_buffer.getvalue())
 
 
 if __name__ == '__main__':

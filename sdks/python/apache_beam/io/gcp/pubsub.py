@@ -27,6 +27,7 @@ from __future__ import absolute_import
 import re
 from builtins import object
 
+from future.utils import iteritems
 from past.builtins import unicode
 
 from apache_beam import coders
@@ -38,11 +39,10 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
 
-# The protobuf library is only used for running on Dataflow.
 try:
-  from google.cloud.proto.pubsub.v1 import pubsub_pb2
+  from google.cloud import pubsub
 except ImportError:
-  pubsub_pb2 = None
+  pubsub = None
 
 __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
            'WriteStringsToPubSub', 'WriteToPubSub']
@@ -78,6 +78,10 @@ class PubsubMessage(object):
         self.data == other.data and
         self.attributes == other.attributes)
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __repr__(self):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
 
@@ -92,7 +96,7 @@ class PubsubMessage(object):
     Returns:
       A new PubsubMessage object.
     """
-    msg = pubsub_pb2.PubsubMessage()
+    msg = pubsub.types.pubsub_pb2.PubsubMessage()
     msg.ParseFromString(proto_msg)
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
@@ -109,17 +113,17 @@ class PubsubMessage(object):
       https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
       containing the payload of this object.
     """
-    msg = pubsub_pb2.PubsubMessage()
+    msg = pubsub.types.pubsub_pb2.PubsubMessage()
     msg.data = self.data
-    for key, value in self.attributes.iteritems():
+    for key, value in iteritems(self.attributes):
       msg.attributes[key] = value
     return msg.SerializeToString()
 
   @staticmethod
   def _from_message(msg):
-    """Construct from ``google.cloud.pubsub.message.Message``.
+    """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
-    https://google-cloud-python.readthedocs.io/en/latest/pubsub/subscriber/api/message.html
+    https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
     """
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)

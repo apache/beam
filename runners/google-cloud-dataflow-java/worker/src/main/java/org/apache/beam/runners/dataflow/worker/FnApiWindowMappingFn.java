@@ -15,20 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Strings;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
@@ -49,6 +44,7 @@ import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
@@ -61,6 +57,9 @@ import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +93,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
   private static final Cache<CacheKey, BoundedWindow> sideInputMappingCache =
       CacheBuilder.newBuilder().maximumSize(1000).build();
 
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
   private final FnDataService beamFnDataService;
   private final InstructionRequestHandler instructionRequestHandler;
   private final SdkFunctionSpec windowMappingFn;
@@ -103,7 +102,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
   private final ProcessBundleDescriptor processBundleDescriptor;
 
   FnApiWindowMappingFn(
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       InstructionRequestHandler instructionRequestHandler,
       ApiServiceDescriptor dataServiceApiServiceDescriptor,
       FnDataService beamFnDataService,
@@ -224,7 +223,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
 
   private TargetWindowT loadIfNeeded(SdkFunctionSpec windowMappingFn, BoundedWindow mainWindow) {
     try {
-      String processRequestInstructionId = idGenerator.get();
+      String processRequestInstructionId = idGenerator.getId();
       InstructionRequest processRequest =
           InstructionRequest.newBuilder()
               .setInstructionId(processRequestInstructionId)
@@ -271,17 +270,21 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       waitForInboundTermination.awaitCompletion();
       WindowedValue<KV<byte[], TargetWindowT>> sideInputWindow = outputValue.poll();
       checkState(
-          sideInputWindow != null
-              && sideInputWindow.getValue() != null
-              && sideInputWindow.getValue().getValue() != null,
+          sideInputWindow != null,
           "Expected side input window to have been emitted by SDK harness.");
+      checkState(
+          sideInputWindow.getValue() != null,
+          "Side input window emitted by SDK harness was a WindowedValue with no value in it.");
+      checkState(
+          sideInputWindow.getValue().getValue() != null,
+          "Side input window emitted by SDK harness was a WindowedValue<KV<...>> with a null V.");
       checkState(
           outputValue.isEmpty(),
           "Expected only a single side input window to have been emitted by "
               + "the SDK harness but also received %s",
           outputValue);
       return sideInputWindow.getValue().getValue();
-    } catch (Exception e) {
+    } catch (Throwable e) {
       LOG.error("Unable to map main input window {} to side input window.", mainWindow, e);
       throw new IllegalStateException(e);
     }
@@ -297,12 +300,12 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
    */
   private synchronized String registerIfRequired() throws ExecutionException, InterruptedException {
     if (processBundleDescriptorId == null) {
-      String descriptorId = idGenerator.get();
+      String descriptorId = idGenerator.getId();
 
       CompletionStage<InstructionResponse> response =
           instructionRequestHandler.handle(
               InstructionRequest.newBuilder()
-                  .setInstructionId(idGenerator.get())
+                  .setInstructionId(idGenerator.getId())
                   .setRegister(
                       RegisterRequest.newBuilder()
                           .addProcessBundleDescriptor(

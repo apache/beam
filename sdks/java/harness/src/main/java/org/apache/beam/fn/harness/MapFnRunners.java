@@ -15,30 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingFunction;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * Utilities to create {@code PTransformRunners} which execute simple map functions.
@@ -108,22 +104,22 @@ public abstract class MapFnRunners {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener)
         throws IOException {
 
-      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
-          (Collection)
-              pCollectionIdsToConsumers.get(getOnlyElement(pTransform.getOutputsMap().values()));
+      FnDataReceiver<WindowedValue<InputT>> consumer =
+          (FnDataReceiver)
+              pCollectionConsumerRegistry.getMultiplexingConsumer(
+                  getOnlyElement(pTransform.getOutputsMap().values()));
 
-      Mapper<InputT, OutputT> mapper =
-          mapperFactory.create(
-              pTransformId, pTransform, MultiplexingFnDataReceiver.forConsumers(consumers));
+      Mapper<InputT, OutputT> mapper = mapperFactory.create(pTransformId, pTransform, consumer);
 
-      pCollectionIdsToConsumers.put(
+      pCollectionConsumerRegistry.register(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
+          pTransformId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) mapper::map);
       return mapper;
     }

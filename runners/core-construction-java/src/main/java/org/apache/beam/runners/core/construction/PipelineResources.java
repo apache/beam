@@ -17,13 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.core.Base64Variants;
-import com.google.common.base.Strings;
-import com.google.common.hash.Funnels;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -35,6 +30,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
 /** Utilities for working with classpath resources for pipelines. */
 public class PipelineResources {
@@ -81,8 +80,7 @@ public class PipelineResources {
    */
   public static List<String> prepareFilesForStaging(
       List<String> resourcesToStage, String tmpJarLocation) {
-    return resourcesToStage
-        .stream()
+    return resourcesToStage.stream()
         .map(File::new)
         .filter(File::exists)
         .map(
@@ -101,10 +99,10 @@ public class PipelineResources {
   }
 
   private static String calculateDirectoryContentHash(File directoryToStage) {
-    Hasher hasher = Hashing.md5().newHasher();
+    Hasher hasher = Hashing.sha256().newHasher();
     try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
       ZipFiles.zipDirectory(directoryToStage, hashStream);
-      return Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
+      return hasher.hash().toString();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -115,7 +113,7 @@ public class PipelineResources {
         !Strings.isNullOrEmpty(tmpJarLocation),
         "Please provide temporary location for storing the jar files.");
 
-    return String.format("%s%s.jar", tmpJarLocation, contentHash);
+    return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
   }
 
   private static void zipDirectory(File directoryToStage, String uniqueDirectoryPath) {

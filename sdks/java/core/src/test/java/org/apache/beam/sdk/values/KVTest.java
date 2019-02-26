@@ -22,8 +22,8 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Comparator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -31,7 +31,7 @@ import org.junit.runners.JUnit4;
 /** Tests for KV. */
 @RunWith(JUnit4.class)
 public class KVTest {
-  private static final Integer TEST_VALUES[] = {
+  private static final Integer[] TEST_VALUES = {
     null, Integer.MIN_VALUE, -1, 0, 1, Integer.MAX_VALUE
   };
 

@@ -209,12 +209,12 @@ public class AvroCoderTest {
     Pojo value = new Pojo("Hello", 42);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
-    //Serialization of object
+    // Serialization of object
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ObjectOutputStream out = new ObjectOutputStream(bos);
     out.writeObject(coder);
 
-    //De-serialization of object
+    // De-serialization of object
     ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
     ObjectInputStream in = new ObjectInputStream(bis);
     AvroCoder<Pojo> copied = (AvroCoder<Pojo>) in.readObject();
@@ -232,11 +232,11 @@ public class AvroCoderTest {
     Pojo value = new Pojo("Hello", 42);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
-    //Kryo instantiation
+    // Kryo instantiation
     Kryo kryo = new Kryo();
     kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
 
-    //Serialization of object without any memoization
+    // Serialization of object without any memoization
     ByteArrayOutputStream coderWithoutMemoizationBos = new ByteArrayOutputStream();
     try (Output output = new Output(coderWithoutMemoizationBos)) {
       kryo.writeObject(output, coder);

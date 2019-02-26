@@ -35,10 +35,13 @@
           <a href="{{ site.baseurl }}/documentation/">Documentation</a>
         </li>
         <li>
-          <a href="{{ site.baseurl }}/documentation/sdks/java/">SDKS</a>
+          <a href="{{ site.baseurl }}/documentation/sdks/java/">Languages</a>
         </li>
         <li>
           <a href="{{ site.baseurl }}/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="{{ site.baseurl }}/roadmap/">Roadmap</a>
         </li>
         <li>
           <a href="{{ site.baseurl }}/contribute/">Contribute</a>
@@ -59,6 +62,16 @@
             <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
             <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
           </ul>
+        </li>
+        <li>
+          <!--
+            data-proofer-ignore disables link checking from website test automation.
+            GitHub links will not resolve until the markdown source is available on the master branch.
+            New pages would fail validation during development / PR test automation.
+          -->
+          <a href="https://github.com/apache/beam/edit/master/website/src/{{ page.path }}" data-proofer-ignore>
+            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
+          </a>
         </li>
       </ul>
     </div>

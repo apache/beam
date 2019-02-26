@@ -18,6 +18,7 @@
 """Unit tests for the transform.util classes."""
 
 from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import random
@@ -159,6 +160,13 @@ class BatchElementsTest(unittest.TestCase):
     a, b = linear_regression_fn(xs, ys)
     self.assertAlmostEqual(a, 5, delta=0.01)
     self.assertAlmostEqual(b, 7, delta=0.01)
+
+    # Test repeated xs
+    xs = [1 + random.random()] * 100
+    ys = [7 * x + 5 + 0.01 * random.random() for x in xs]
+    a, b = linear_regression_fn(xs, ys)
+    self.assertAlmostEqual(a, 0, delta=0.01)
+    self.assertAlmostEqual(b, sum(ys)/(len(ys) * xs[0]), delta=0.01)
 
     if test_outliers:
       xs = [1 + random.random() for _ in range(100)]

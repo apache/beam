@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.junit.Assert.assertEquals;
@@ -69,6 +68,8 @@ public class SingularProcessBundleProgressTrackerTest {
     RegisterAndProcessBundleOperation process =
         Mockito.mock(RegisterAndProcessBundleOperation.class);
 
+    when(grpcWrite.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
+
     SingularProcessBundleProgressTracker tracker =
         new SingularProcessBundleProgressTracker(read, grpcWrite, process);
 
@@ -77,8 +78,10 @@ public class SingularProcessBundleProgressTrackerTest {
     when(grpcWrite.getElementsSent()).thenReturn(1, 10, 20, 30);
 
     // This test ignores them, directly working on mocked getInputElementsConsumed
-    when(process.getMetrics())
-        .thenReturn(CompletableFuture.completedFuture(BeamFnApi.Metrics.getDefaultInstance()));
+    when(process.getProcessBundleProgress())
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance()));
 
     when(process.getInputElementsConsumed(any(BeamFnApi.Metrics.class)))
         .thenReturn(1.0, 4.0, 10.0)

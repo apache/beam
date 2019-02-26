@@ -4,23 +4,23 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * License); you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ABORT_STATE_NAME;
-import static org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.FINISH_STATE_NAME;
-import static org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.PROCESS_STATE_NAME;
-import static org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.START_STATE_NAME;
+import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.ABORT_STATE_NAME;
+import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.FINISH_STATE_NAME;
+import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.PROCESS_STATE_NAME;
+import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.START_STATE_NAME;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertThat;
@@ -30,13 +30,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.base.Joiner;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext.BatchModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
@@ -44,9 +44,9 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -72,7 +72,7 @@ public class DataflowOperationContextTest {
     @Mock private CounterFactory counterFactory;
     @Mock private MetricsContainer metricsContainer;
 
-    private ExecutionStateRegistry stateRegistry = new BatchModeExecutionStateRegistry();
+    private DataflowExecutionStateRegistry stateRegistry = new BatchModeExecutionStateRegistry();
 
     @Mock private ScopedProfiler scopedProfiler;
 

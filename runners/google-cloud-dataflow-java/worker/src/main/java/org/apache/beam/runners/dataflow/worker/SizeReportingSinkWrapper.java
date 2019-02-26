@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A wrapper for Sink that reports bytes buffered (or written) to {@link DataflowExecutionContext}.

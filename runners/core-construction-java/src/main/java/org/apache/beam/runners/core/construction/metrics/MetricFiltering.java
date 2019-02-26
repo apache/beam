@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.metrics;
 
-import com.google.common.base.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 
 /**
  * Implements matching for metrics filters. Specifically, matching for metric name, namespace, and

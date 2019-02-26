@@ -33,6 +33,14 @@ class PipelineContextTest(unittest.TestCase):
     bytes_coder_ref2 = context.coders.get_id(coders.BytesCoder())
     self.assertEqual(bytes_coder_ref, bytes_coder_ref2)
 
+  def test_deduplication_by_proto(self):
+    context = pipeline_context.PipelineContext()
+    bytes_coder_proto = coders.BytesCoder().to_runner_api(None)
+    bytes_coder_ref = context.coders.get_by_proto(bytes_coder_proto)
+    bytes_coder_ref2 = context.coders.get_by_proto(
+        bytes_coder_proto, deduplicate=True)
+    self.assertEqual(bytes_coder_ref, bytes_coder_ref2)
+
   def test_serialization(self):
     context = pipeline_context.PipelineContext()
     float_coder_ref = context.coders.get_id(coders.FloatCoder())

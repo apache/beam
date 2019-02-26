@@ -86,7 +86,7 @@ public class RedisIOTest {
   @Test
   public void testWriteReadUsingDefaultAppendMethod() throws Exception {
     ArrayList<KV<String, String>> data = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 8000; i++) {
       KV<String, String> kv = KV.of("key " + i, "value " + i);
       data.add(kv);
     }
@@ -184,6 +184,34 @@ public class RedisIOTest {
 
     List<String> values = jedis.lrange(key, 0, -1);
     Assert.assertEquals(value + newValue, String.join("", values));
+  }
+
+  @Test
+  public void testWriteUsingHLLMethod() throws Exception {
+    String key = "key";
+
+    Jedis jedis =
+        RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
+
+    PCollection<KV<String, String>> write =
+        writePipeline.apply(
+            Create.of(
+                KV.of(key, "0"),
+                KV.of(key, "1"),
+                KV.of(key, "2"),
+                KV.of(key, "3"),
+                KV.of(key, "2"),
+                KV.of(key, "4"),
+                KV.of(key, "0"),
+                KV.of(key, "5")));
+
+    write.apply(
+        RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.PFADD));
+
+    writePipeline.run();
+
+    long count = jedis.pfcount(key);
+    Assert.assertEquals(6, count);
   }
 
   @Test

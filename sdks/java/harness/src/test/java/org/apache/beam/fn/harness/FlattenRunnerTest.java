@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
@@ -23,20 +22,20 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
 
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -69,9 +68,13 @@ public class FlattenRunnerTest {
             .build();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register(
         "mainOutputTarget",
+        pTransformId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
     new FlattenRunner.Factory<>()
@@ -86,8 +89,8 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            null /* addStartFunction */,
-            null, /* addFinishFunction */
+            null /* startFunctionRegistry */,
+            null, /* finishFunctionRegistry */
             null /* splitListener */);
 
     mainOutputValues.clear();
@@ -95,10 +98,10 @@ public class FlattenRunnerTest {
         consumers.keySet(),
         containsInAnyOrder("inputATarget", "inputBTarget", "inputCTarget", "mainOutputTarget"));
 
-    Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A1"));
-    Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A2"));
-    Iterables.getOnlyElement(consumers.get("inputBTarget")).accept(valueInGlobalWindow("B"));
-    Iterables.getOnlyElement(consumers.get("inputCTarget")).accept(valueInGlobalWindow("C"));
+    consumers.getMultiplexingConsumer("inputATarget").accept(valueInGlobalWindow("A1"));
+    consumers.getMultiplexingConsumer("inputATarget").accept(valueInGlobalWindow("A2"));
+    consumers.getMultiplexingConsumer("inputBTarget").accept(valueInGlobalWindow("B"));
+    consumers.getMultiplexingConsumer("inputCTarget").accept(valueInGlobalWindow("C"));
     assertThat(
         mainOutputValues,
         contains(
@@ -132,9 +135,13 @@ public class FlattenRunnerTest {
             .build();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register(
         "mainOutputTarget",
+        pTransformId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
     new FlattenRunner.Factory<>()
@@ -149,17 +156,16 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            null /* addStartFunction */,
-            null, /* addFinishFunction */
+            null /* startFunctionRegistry */,
+            null, /* finishFunctionRegistry */
             null /* splitListener */);
 
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));
 
-    assertThat(consumers.get("inputATarget"), hasSize(2));
+    assertThat(consumers.getUnderlyingConsumers("inputATarget"), hasSize(2));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        MultiplexingFnDataReceiver.forConsumers(consumers.get("inputATarget"));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer("inputATarget");
 
     input.accept(WindowedValue.valueInGlobalWindow("A1"));
     input.accept(WindowedValue.valueInGlobalWindow("A2"));

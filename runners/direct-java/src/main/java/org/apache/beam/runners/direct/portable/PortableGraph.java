@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
 import java.util.Collection;
@@ -66,5 +65,9 @@ class PortableGraph implements ExecutableGraph<PTransformNode, PCollectionNode> 
   @Override
   public Collection<PTransformNode> getPerElementConsumers(PCollectionNode pCollection) {
     return queryablePipeline.getPerElementConsumers(pCollection);
+  }
+
+  public QueryablePipeline getQueryablePipeline() {
+    return this.queryablePipeline;
   }
 }

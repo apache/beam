@@ -27,6 +27,7 @@ set -e
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
+LOCAL_PYTHON_VIRTUALENV=${LOCAL_PYTHON_STAGING_DIR}/venv
 LOCAL_WEBSITE_UPDATE_DIR=website_update_dir
 LOCAL_PYTHON_DOC=python_doc
 LOCAL_JAVA_DOC=java_doc
@@ -34,7 +35,7 @@ LOCAL_WEBSITE_REPO=beam_website_repo
 
 USER_REMOTE_URL=
 USER_GITHUB_ID=
-GIT_REPO_URL=https://github.com/apache/beam.git
+GIT_REPO_URL=git@github.com:apache/beam.git
 ROOT_SVN_URL=https://dist.apache.org/repos/dist/dev/beam
 GIT_BEAM_ARCHIVE=https://github.com/apache/beam/archive
 GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
@@ -50,10 +51,10 @@ read RELEASE
 RELEASE_BRANCH=release-${RELEASE}
 echo "Which release candidate number(e.g. 1) are you going to create: "
 read RC_NUM
-echo "Please enter your repo URL forked from apache/beam-site"
-read USER_REMOTE_URL
 echo "Please enter your github username(ID): "
 read USER_GITHUB_ID
+
+USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
 
 echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
@@ -68,12 +69,6 @@ if [[ $confirmation != "y" ]]; then
   exit
 fi
 
-# Check whether we have already created RC1. If so, we need to delete ${RELEASE} dir first
-if [[ ${RC_NUM} != "1" ]]; then
-  echo "Needs to delete ${ROOT_SVN_URL}/${RELEASE} first."
-  svn delete ${ROOT_SVN_URL}/${RELEASE}
-fi
-
 echo "[Current Step]: Build and stage java artifacts"
 echo "Do you want to proceed? [y|N]"
 read confirmation
@@ -84,11 +79,12 @@ if [[ $confirmation = "y" ]]; then
   if [[ -d ${LOCAL_CLONE_DIR} ]]; then
     rm -rf ${LOCAL_CLONE_DIR}
   fi
-  mkdir ${LOCAL_CLONE_DIR}
+  mkdir -p ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
+  RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
 
   echo "-------------Building Java Artifacts with Gradle-------------"
   git config credential.helper store
@@ -102,8 +98,8 @@ if [[ $confirmation = "y" ]]; then
   echo "2. new rc tag has created in github."
 
   echo "-------------Staging Java Artifacts into Maven---------------"
-  ./gradlew publish -PisRelease --no-parallel --no-daemon
-  echo "Please review all artifacts in https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22"
+  ./gradlew publish -PisRelease --no-daemon
+  echo "Please review all artifacts in staging URL. e.g. https://repository.apache.org/content/repositories/orgapachebeam-NNNN/"
   rm -rf ~/${LOCAL_CLONE_DIR}
 fi
 
@@ -116,31 +112,31 @@ if [[ $confirmation = "y" ]]; then
   if [[ -d ${LOCAL_JAVA_STAGING_DIR} ]]; then
     rm -rf ${LOCAL_JAVA_STAGING_DIR}
   fi
-  mkdir ${LOCAL_JAVA_STAGING_DIR}
+  mkdir -p ${LOCAL_JAVA_STAGING_DIR}
   cd ${LOCAL_JAVA_STAGING_DIR}
   svn co ${ROOT_SVN_URL}
-  mkdir beam/${RELEASE}
+  mkdir -p beam/${RELEASE}
   cd beam/${RELEASE}
 
   echo "----------------Downloading Source Release-------------------"
-  echo "Downloading: ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip"
-  wget ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip  -O apache-beam-${RELEASE}-source-release.zip
-
-  echo "----Signing Source Release apache-beam-${RELEASE}-source-release.zip-----"
-  gpg --armor --detach-sig apache-beam-${RELEASE}-source-release.zip
-
-  echo "----Creating Hash Value for  apache-beam-${RELEASE}-source-release.zip----"
-  sha512sum apache-beam-${RELEASE}-source-release.zip > apache-beam-${RELEASE}-source-release.zip.sha512
-
-  svn add .
-  svn status
-  echo "Please confirm these changes are ready to commit: [y|N] "
-  read confirmation
-  if [[ $confirmation != "y" ]]; then
-    echo "Exit without staging source release on dist.apache.org."
-    rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
-    exit
+  SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
+  # Check whether there is an existing dist dir
+  if (svn ls "${SOURCE_RELEASE_ZIP}"); then
+    echo "Removing existing ${SOURCE_RELEASE_ZIP}."
+    svn delete "${SOURCE_RELEASE_ZIP}"
   fi
+
+  echo "Downloading: ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip"
+  wget ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip  -O "${SOURCE_RELEASE_ZIP}"
+
+  echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
+  gpg --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+
+  echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
+  sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
+
+  # The svn commit is interactive already and can be aborted by deleted the commit msg
+  svn add --force .
   svn commit --no-auth-cache
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
@@ -154,7 +150,7 @@ if [[ $confirmation = "y" ]]; then
   if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
     rm -rf ${LOCAL_PYTHON_STAGING_DIR}
   fi
-  mkdir ${LOCAL_PYTHON_STAGING_DIR}
+  mkdir -p ${LOCAL_PYTHON_STAGING_DIR}
   cd ${LOCAL_PYTHON_STAGING_DIR}
 
   echo '-------------------Cloning Beam Release Branch-----------------'
@@ -164,11 +160,13 @@ if [[ $confirmation = "y" ]]; then
 
   echo '-------------------Generating Python Artifacts-----------------'
   cd sdks/python
+  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
+  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
   python setup.py sdist --format=zip
   cd dist
 
   svn co https://dist.apache.org/repos/dist/dev/beam
-  mkdir beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
+  mkdir -p beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
   cp apache-beam-${RELEASE}.zip beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/apache-beam-${RELEASE}.zip
   cd beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
 
@@ -179,7 +177,7 @@ if [[ $confirmation = "y" ]]; then
   sha512sum apache-beam-${RELEASE}.zip > apache-beam-${RELEASE}.zip.sha512
 
   cd ..
-  svn add ${PYTHON_ARTIFACTS_DIR}
+  svn add --force ${PYTHON_ARTIFACTS_DIR}
   svn status
   echo "Please confirm these changes are ready to commit: [y|N] "
   read confirmation
@@ -201,13 +199,15 @@ if [[ $confirmation = "y" ]]; then
   if [[ -d ${LOCAL_WEBSITE_UPDATE_DIR} ]]; then
     rm -rf ${LOCAL_WEBSITE_UPDATE_DIR}
   fi
-  mkdir ${LOCAL_WEBSITE_UPDATE_DIR}
+  mkdir -p ${LOCAL_WEBSITE_UPDATE_DIR}
   cd ${LOCAL_WEBSITE_UPDATE_DIR}
-  mkdir ${LOCAL_PYTHON_DOC}
-  mkdir ${LOCAL_JAVA_DOC}
-  mkdir ${LOCAL_WEBSITE_REPO}
+  mkdir -p ${LOCAL_PYTHON_DOC}
+  mkdir -p ${LOCAL_JAVA_DOC}
+  mkdir -p ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
+  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
+  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
   cd ${LOCAL_PYTHON_DOC}
   pip install tox
   git clone ${GIT_REPO_URL}
@@ -215,6 +215,7 @@ if [[ $confirmation = "y" ]]; then
   git checkout ${RELEASE_BRANCH}
   cd sdks/python && tox -e docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
+  rm -rf ${GENERATED_PYDOC}/.doctrees
 
   echo "----------------------Building Java Doc----------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
@@ -224,28 +225,22 @@ if [[ $confirmation = "y" ]]; then
   ./gradlew :beam-sdks-java-javadoc:aggregateJavadoc
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
-  echo "------------------Updating Beam Website---------------------"
+  echo "------------------Updating Release Docs---------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}
   git clone ${GIT_BEAM_WEBSITE}
   cd ${WEBSITE_ROOT_DIR}
-  git checkout -b updates_release_${RELEASE}
-
-  echo "..........Updating release version in _config.yml..........."
-  sed -i -e "s/release_latest: [0-9].[0-9].[0-9]/release_latest: ${RELEASE}/g" _config.yml
+  git checkout release-docs
+  git checkout -b updates_release_${RELEASE} release-docs
 
   echo "..........Copying generated javadoc into beam-site.........."
-  cp -r ${GENERATE_JAVADOC} src/documentation/sdks/javadoc/${RELEASE}
-  echo "Updating javadoc current.md with latest release version number"
-  sed -i -e "s/[0-9].[0-9].[0-9]/${RELEASE}/g" src/documentation/sdks/javadoc/current.md
+  cp -r ${GENERATE_JAVADOC} javadoc/${RELEASE}
 
   echo "............Copying generated pydoc into beam-site.........."
-  cp -r ${GENERATED_PYDOC} src/documentation/sdks/pydoc/${RELEASE}
-  echo ".....Updating pydoc current.md with latest release version number......"
-  sed -i -e "s/[0-9].[0-9].[0-9]/${RELEASE}/g" src/documentation/sdks/pydoc/current.md
+  cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
 
   git add -A
-  git commit -m "Update beam-site for release ${RELEASE}"
-  git push ${USER_REMOTE_URL}
+  git commit -m "Update beam-site for release ${RELEASE}\n\nContent generated based on commit ${RELEASE_COMMIT}"
+  git push -f ${USER_REMOTE_URL}
 
   if [[ -z `which hub` ]]; then
     echo "You don't have hub installed, do you want to install hub with sudo permission? [y|N]"
@@ -261,7 +256,7 @@ if [[ $confirmation = "y" ]]; then
     fi
   fi
   if [[ -z `which hub` ]]; then
-    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:asf-site
+    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:release-docs
   else
     echo "Without hub, you need to create PR manually."
   fi

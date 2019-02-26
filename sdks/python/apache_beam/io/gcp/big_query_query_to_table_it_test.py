@@ -22,6 +22,7 @@ from __future__ import absolute_import
 
 import datetime
 import logging
+import random
 import time
 import unittest
 
@@ -29,7 +30,7 @@ from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
 from apache_beam.io.gcp import big_query_query_to_table_pipeline
-from apache_beam.io.gcp.bigquery import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryMatcher
 from apache_beam.testing import test_utils
@@ -47,7 +48,7 @@ NEW_TYPES_INPUT_TABLE = 'python_new_types_table'
 NEW_TYPES_OUTPUT_SCHEMA = (
     '{"fields": [{"name": "bytes","type": "BYTES"},'
     '{"name": "date","type": "DATE"},{"name": "time","type": "TIME"}]}')
-NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT date FROM [%s];')
+NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT date FROM `%s`;')
 # There are problems with query time and bytes with current version of bigquery.
 NEW_TYPES_OUTPUT_EXPECTED = [
     (datetime.date(2000, 1, 1),),
@@ -61,8 +62,10 @@ STANDARD_QUERY = (
 NEW_TYPES_QUERY = (
     'SELECT bytes, date, time FROM [%s.%s]')
 DIALECT_OUTPUT_SCHEMA = ('{"fields": [{"name": "fruit","type": "STRING"}]}')
-DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from [%s];')
+DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from `%s`;')
 DIALECT_OUTPUT_EXPECTED = [(u'apple',), (u'orange',)]
+KMS_KEY = 'projects/apache-beam-testing/locations/global/keyRings/beam-it/' \
+          'cryptoKeys/test'
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):
@@ -72,7 +75,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = BIG_QUERY_DATASET_ID + str(int(time.time()))
+    self.dataset_id = '%s%s%d' % (BIG_QUERY_DATASET_ID, str(int(time.time())),
+                                  random.randint(0, 10000))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
 
@@ -147,6 +151,31 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                   'on_success_matcher': all_of(*pipeline_verifiers)}
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
+
+  # TODO(BEAM-6660): Enable this test when ready.
+  @unittest.skip('This test requires BQ Dataflow native source support for ' +
+                 'KMS, which is not available yet.')
+  @attr('IT')
+  def test_big_query_standard_sql_kms_key(self):
+    verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
+    expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
+    pipeline_verifiers = [PipelineStateMatcher(), BigqueryMatcher(
+        project=self.project,
+        query=verify_query,
+        checksum=expected_checksum)]
+    extra_opts = {'query': STANDARD_QUERY,
+                  'output': self.output_table,
+                  'output_schema': DIALECT_OUTPUT_SCHEMA,
+                  'use_standard_sql': True,
+                  'on_success_matcher': all_of(*pipeline_verifiers),
+                  'kms_key': KMS_KEY
+                 }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+    big_query_query_to_table_pipeline.run_bq_pipeline(options)
+
+    table = self.bigquery_client.get_table(
+        self.project, self.dataset_id, 'output_table')
+    self.assertEqual(KMS_KEY, table.encryptionConfiguration.kmsKeyName)
 
   @attr('IT')
   def test_big_query_new_types(self):

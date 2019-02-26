@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -117,7 +116,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
         // TODO: use JobBundleFactoryBase.WrappedSdkHarnessClient.wrapping
         jobBundleFactory =
             SingleEnvironmentInstanceJobBundleFactory.create(
-                environmentFactory, fnDataServer, fnStateServer);
+                environmentFactory, fnDataServer, fnStateServer, null);
       } catch (Exception e) {
         throw new RuntimeException(
             "Running samza in Beam portable mode but failed to create job bundle factory", e);

@@ -38,6 +38,7 @@ from apache_beam.typehints.decorators import _interleave_type_check
 from apache_beam.typehints.decorators import _positional_arg_hints
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
+from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.typehints import is_consistent_with
 
 
@@ -66,7 +67,7 @@ def check_type_hints(f):
             kwargs[var] = new_value
           else:
             args = list(args)
-            for ix, pvar in enumerate(inspect.getargspec(f).args):
+            for ix, pvar in enumerate(getfullargspec(f).args):
               if pvar == var:
                 args[ix] = new_value
                 break

@@ -52,7 +52,7 @@ public class ReifyTest implements Serializable {
     PCollection<KV<String, TimestampedValue<Integer>>> preified =
         pipeline.apply(
             Create.of(
-                KV.of("foo", TimestampedValue.of(0, new Instant((0)))),
+                KV.of("foo", TimestampedValue.of(0, new Instant(0))),
                 KV.of("foo", TimestampedValue.of(1, new Instant(1))),
                 KV.of("bar", TimestampedValue.of(2, new Instant(2))),
                 KV.of("baz", TimestampedValue.of(3, new Instant(3)))));
@@ -85,7 +85,7 @@ public class ReifyTest implements Serializable {
         pipeline.apply(
             Create.timestamped(
                 TimestampedValue.of(
-                    KV.of("foo", TimestampedValue.of(0, new Instant((0)))), new Instant(100)),
+                    KV.of("foo", TimestampedValue.of(0, new Instant(0))), new Instant(100)),
                 TimestampedValue.of(
                     KV.of("foo", TimestampedValue.of(1, new Instant(1))), new Instant(101L)),
                 TimestampedValue.of(

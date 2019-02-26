@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.SerializableCoder;
 
 /** A {@link CloudObjectTranslator} for {@link SerializableCoder}. */
@@ -28,7 +28,7 @@ class SerializableCoderCloudObjectTranslator implements CloudObjectTranslator<Se
   private static final String TYPE_FIELD = "type";
 
   @Override
-  public CloudObject toCloudObject(SerializableCoder target) {
+  public CloudObject toCloudObject(SerializableCoder target, SdkComponents sdkComponents) {
     CloudObject base = CloudObject.forClass(SerializableCoder.class);
     Structs.addString(base, TYPE_FIELD, target.getRecordType().getName());
     return base;

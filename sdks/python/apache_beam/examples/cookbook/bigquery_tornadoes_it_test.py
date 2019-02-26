@@ -41,7 +41,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
 
   # The default checksum is a SHA-1 hash generated from sorted rows reading
   # from expected Bigquery table.
-  DEFAULT_CHECKSUM = '83789a7c1bca7959dcf23d3bc37e9204e594330f'
+  DEFAULT_CHECKSUM = 'd860e636050c559a16a791aff40d6ad809d4daf0'
 
   @attr('IT')
   def test_bigquery_tornadoes_it(self):
@@ -53,7 +53,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
     dataset = 'BigQueryTornadoesIT'
     table = 'monthly_tornadoes_%s' % int(round(time.time() * 1000))
     output_table = '.'.join([dataset, table])
-    query = 'SELECT month, tornado_count FROM [%s]' % output_table
+    query = 'SELECT month, tornado_count FROM `%s`' % output_table
 
     pipeline_verifiers = [PipelineStateMatcher(),
                           BigqueryMatcher(
@@ -64,6 +64,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
                   'on_success_matcher': all_of(*pipeline_verifiers)}
 
     # Register cleanup before pipeline execution.
+    # Note that actual execution happens in reverse order.
     self.addCleanup(utils.delete_bq_table, project, dataset, table)
 
     # Get pipeline options from command argument: --test-pipeline-options,

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.logging;
 
 import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.DEBUG;
@@ -25,9 +24,6 @@ import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOpti
 import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.TRACE;
 import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.WARN;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -37,6 +33,9 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /**
  * Sets up {@link java.util.logging} configuration on the Dataflow worker with a rotating file
@@ -104,7 +103,7 @@ public class DataflowWorkerLoggingInitializer {
     String filepath = System.getProperty(filepathProperty, defaultFilePath);
     int filesizeMb = Integer.parseInt(System.getProperty(FILESIZE_MB_PROPERTY, "1024"));
     DataflowWorkerLoggingHandler handler =
-        new DataflowWorkerLoggingHandler(filepath, filesizeMb * 1024 * 1024);
+        new DataflowWorkerLoggingHandler(filepath, filesizeMb * 1024L * 1024L);
     handler.setLevel(Level.ALL);
     return handler;
   }

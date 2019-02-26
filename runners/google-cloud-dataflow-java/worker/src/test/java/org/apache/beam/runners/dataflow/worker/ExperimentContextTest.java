@@ -15,19 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,7 +37,7 @@ public class ExperimentContextTest {
 
   @Test
   public void testAllExperiments() {
-    Set<String> experimentNames = new HashSet<String>();
+    Set<String> experimentNames = new HashSet<>();
     ExperimentContext ec = ExperimentContext.parseFrom(experimentNames);
     // So far nothing is enabled.
     for (Experiment experiment : Experiment.values()) {

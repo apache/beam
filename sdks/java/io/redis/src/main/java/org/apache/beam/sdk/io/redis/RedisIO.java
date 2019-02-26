@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.io.redis;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
@@ -43,6 +41,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ScanParams;
@@ -444,7 +444,10 @@ public class RedisIO {
        * exist, it is created as empty list before performing the push operations. When key holds a
        * value that is not a list, an error is returned.
        */
-      RPUSH
+      RPUSH,
+
+      /** Use PFADD command. Insert value in a HLL structure. Create key if it doesn't exist */
+      PFADD
     }
 
     @Nullable
@@ -552,6 +555,8 @@ public class RedisIO {
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           pipeline.exec();
+          pipeline.sync();
+          pipeline.multi();
           batchCount = 0;
         }
       }
@@ -566,6 +571,8 @@ public class RedisIO {
           writeUsingSetCommand(record, expireTime);
         } else if (Method.LPUSH == method || Method.RPUSH == method) {
           writeUsingListCommand(record, method, expireTime);
+        } else if (Method.PFADD == method) {
+          writeUsingHLLCommand(record, method, expireTime);
         }
       }
 
@@ -604,6 +611,13 @@ public class RedisIO {
         setExpireTimeWhenRequired(key, expireTime);
       }
 
+      private void writeUsingHLLCommand(KV<String, String> record, Method method, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.pfadd(key, value);
+      }
+
       private void setExpireTimeWhenRequired(String key, Long expireTime) {
         if (expireTime != null) {
           pipeline.pexpire(key, expireTime);
@@ -612,7 +626,10 @@ public class RedisIO {
 
       @FinishBundle
       public void finishBundle() {
-        pipeline.exec();
+        if (pipeline.isInMulti()) {
+          pipeline.exec();
+          pipeline.sync();
+        }
         batchCount = 0;
       }
 

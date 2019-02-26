@@ -15,15 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Supplier;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.util.concurrent.Futures;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -62,7 +55,13 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Futures;
 import org.joda.time.Instant;
 
 /** Implementation of {@link StateInternals} using Windmill to manage the underlying data. */
@@ -113,7 +112,7 @@ class WindmillStateInternals<K> implements StateInternals {
         public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
           WindmillBag<T> result = (WindmillBag<T>) cache.get(namespace, address);
           if (result == null) {
-            result = new WindmillBag<T>(namespace, address, stateFamily, elemCoder, isNewKey);
+            result = new WindmillBag<>(namespace, address, stateFamily, elemCoder, isNewKey);
           }
           result.initializeForWorkItem(reader, scopedReadStateSupplier);
           return result;
@@ -172,7 +171,7 @@ class WindmillStateInternals<K> implements StateInternals {
         public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
           WindmillValue<T> result = (WindmillValue<T>) cache.get(namespace, address);
           if (result == null) {
-            result = new WindmillValue<T>(namespace, address, stateFamily, coder, isNewKey);
+            result = new WindmillValue<>(namespace, address, stateFamily, coder, isNewKey);
           }
           result.initializeForWorkItem(reader, scopedReadStateSupplier);
           return result;
@@ -181,7 +180,6 @@ class WindmillStateInternals<K> implements StateInternals {
     }
   }
 
-  private boolean isNewKey;
   private WindmillStateCache.ForKey cache;
   Supplier<Closeable> scopedReadStateSupplier;
   private StateTable workItemState;
@@ -194,7 +192,6 @@ class WindmillStateInternals<K> implements StateInternals {
       WindmillStateCache.ForKey cache,
       Supplier<Closeable> scopedReadStateSupplier) {
     this.key = key;
-    this.isNewKey = isNewKey;
     this.cache = cache;
     this.scopedReadStateSupplier = scopedReadStateSupplier;
     this.workItemState =
@@ -482,14 +479,14 @@ class WindmillStateInternals<K> implements StateInternals {
       this.stateFamily = stateFamily;
       this.elemCoder = elemCoder;
       if (isNewKey) {
-        this.cachedValues = new ConcatIterables<T>();
+        this.cachedValues = new ConcatIterables<>();
       }
     }
 
     @Override
     public void clear() {
       cleared = true;
-      cachedValues = new ConcatIterables<T>();
+      cachedValues = new ConcatIterables<>();
       localAdditions = new ArrayList<>();
       encodedSize = 0;
     }
@@ -506,7 +503,7 @@ class WindmillStateInternals<K> implements StateInternals {
         Iterable<T> data = persistedData.get();
         if (data instanceof Weighted) {
           // We have a known bounded amount of data; cache it.
-          cachedValues = new ConcatIterables<T>();
+          cachedValues = new ConcatIterables<>();
           cachedValues.extendWith(data);
           encodedSize = ((Weighted) data).getWeight();
           return cachedValues.snapshot();
@@ -609,7 +606,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
       // Don't reuse the localAdditions object; we don't want future changes to it to
       // modify the value of cachedValues.
-      localAdditions = new ArrayList<T>();
+      localAdditions = new ArrayList<>();
 
       return commitBuilder.buildPartial();
     }

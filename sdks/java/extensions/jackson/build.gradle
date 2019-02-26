@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Jackson"
 ext.summary = "Jackson extension provides PTransforms for deserializing and generating JSON strings."
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_databind
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyGoNature()
 applyDockerNature()
 
@@ -25,7 +25,7 @@ description = "Apache Beam :: SDKs :: Java :: Container"
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
+resolveBuildDependencies.dependsOn ":beam-sdks-go:goBuild"
 
 configurations {
   dockerDependency
@@ -53,7 +53,7 @@ task copyDockerfileDependencies(type: Copy) {
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/java/boot'
-  build {
+  goBuild {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']
     outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
@@ -65,5 +65,5 @@ docker {
   files "./build/"
 }
 // Ensure that we build the required resources and copy and file dependencies from related projects
-dockerPrepare.dependsOn build
+dockerPrepare.dependsOn goBuild
 dockerPrepare.dependsOn copyDockerfileDependencies

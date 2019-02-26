@@ -4,13 +4,13 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * License); you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -18,8 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.decodeBase64;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.apache.beam.runners.dataflow.internal.CustomSources.serializeToCloudSource;
 import static org.apache.beam.runners.dataflow.util.Structs.getDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.getObject;
@@ -32,6 +30,8 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
@@ -59,8 +59,6 @@ import com.google.api.services.dataflow.model.SourceSplitOptions;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
 import com.google.api.services.dataflow.model.Step;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,6 +67,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -81,7 +80,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.Pipeline;
@@ -104,7 +102,10 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -450,13 +451,13 @@ public class WorkerCustomSourcesTest {
   public void testReadUnboundedReader() throws Exception {
     CounterSet counterSet = new CounterSet();
     StreamingModeExecutionStateRegistry executionStateRegistry =
-        new StreamingModeExecutionStateRegistry();
+        new StreamingModeExecutionStateRegistry(null);
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
             "computationId",
             new ReaderCache(),
-            /*stateNameMap=*/ null,
+            /*stateNameMap=*/ ImmutableMap.of(),
             /*stateCache=*/ null,
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(

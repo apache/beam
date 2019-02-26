@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -75,6 +74,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -125,14 +125,13 @@ public class DirectRunnerTest implements Serializable {
                 new SimpleFunction<KV<String, Long>, String>() {
                   @Override
                   public String apply(KV<String, Long> input) {
-                    String str = String.format("%s: %s", input.getKey(), input.getValue());
-                    return str;
+                    return String.format("%s: %s", input.getKey(), input.getValue());
                   }
                 }));
 
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
-    DirectPipelineResult result = ((DirectPipelineResult) p.run());
+    DirectPipelineResult result = (DirectPipelineResult) p.run();
     result.waitUntilFinish();
   }
 
@@ -160,8 +159,7 @@ public class DirectRunnerTest implements Serializable {
                 new SimpleFunction<KV<String, Long>, String>() {
                   @Override
                   public String apply(KV<String, Long> input) {
-                    String str = String.format("%s: %s", input.getKey(), input.getValue());
-                    return str;
+                    return String.format("%s: %s", input.getKey(), input.getValue());
                   }
                 }));
 
@@ -176,10 +174,10 @@ public class DirectRunnerTest implements Serializable {
 
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
-    DirectPipelineResult result = ((DirectPipelineResult) p.run());
+    DirectPipelineResult result = (DirectPipelineResult) p.run();
     result.waitUntilFinish();
 
-    DirectPipelineResult otherResult = ((DirectPipelineResult) p.run());
+    DirectPipelineResult otherResult = (DirectPipelineResult) p.run();
     otherResult.waitUntilFinish();
 
     assertThat("Each element should have been processed twice", changed.get(), equalTo(6));
@@ -328,7 +326,8 @@ public class DirectRunnerTest implements Serializable {
 
                   @Teardown
                   public void teardown() {
-                    // just to not have a fast execution hiding an issue until we have a shutdown callback
+                    // just to not have a fast execution hiding an issue until we have a shutdown
+                    // callback
                     try {
                       Thread.sleep(1000);
                     } catch (final InterruptedException e) {

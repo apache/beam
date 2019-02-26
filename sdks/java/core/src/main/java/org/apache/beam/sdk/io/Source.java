@@ -24,6 +24,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.joda.time.Instant;
 
 /**
@@ -54,8 +55,7 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
   /**
    * Checks that this source is valid, before it can be used in a pipeline.
    *
-   * <p>It is recommended to use {@link com.google.common.base.Preconditions} for implementing this
-   * method.
+   * <p>It is recommended to use {@link Preconditions} for implementing this method.
    */
   public void validate() {}
 

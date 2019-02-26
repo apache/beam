@@ -26,11 +26,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -62,12 +60,14 @@ public class JoinExamplesTest {
   static final TableRow[] EVENTS = new TableRow[] {row1, row2, row3};
   static final List<TableRow> EVENT_ARRAY = Arrays.asList(EVENTS);
 
-  private static final KV<String, String> kv1 =
-      KV.of("VM", "Date: 20141212, Actor1: LAOS, url: http://www.chicagotribune.com");
-  private static final KV<String, String> kv2 =
-      KV.of("BE", "Date: 20141213, Actor1: AFGHANISTAN, url: http://cnn.com");
-  private static final KV<String, String> kv3 = KV.of("BE", "Belgium");
-  private static final KV<String, String> kv4 = KV.of("VM", "Vietnam");
+  private static final List<KV<String, String>> PARSED_EVENTS =
+      Arrays.asList(
+          KV.of("VM", "Date: 20141212, Actor1: LAOS, url: http://www.chicagotribune.com"),
+          KV.of("BE", "Date: 20141213, Actor1: AFGHANISTAN, url: http://cnn.com"),
+          KV.of("VM", "Date: 20141212, Actor1: BANGKOK, url: http://cnn.com"));
+
+  private static final List<KV<String, String>> PARSED_COUNTRY_CODES =
+      Arrays.asList(KV.of("BE", "Belgium"), KV.of("VM", "Vietnam"));
 
   private static final TableRow cc1 =
       new TableRow().set("FIPSCC", "VM").set("HumanName", "Vietnam");
@@ -90,20 +90,20 @@ public class JoinExamplesTest {
 
   @Test
   public void testExtractEventDataFn() throws Exception {
-    DoFnTester<TableRow, KV<String, String>> extractEventDataFn =
-        DoFnTester.of(new ExtractEventDataFn());
-    List<KV<String, String>> results = extractEventDataFn.processBundle(EVENTS);
-    Assert.assertThat(results, CoreMatchers.hasItem(kv1));
-    Assert.assertThat(results, CoreMatchers.hasItem(kv2));
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of(EVENT_ARRAY)).apply(ParDo.of(new ExtractEventDataFn()));
+
+    PAssert.that(output).containsInAnyOrder(PARSED_EVENTS);
+    p.run().waitUntilFinish();
   }
 
   @Test
   public void testExtractCountryInfoFn() throws Exception {
-    DoFnTester<TableRow, KV<String, String>> extractCountryInfoFn =
-        DoFnTester.of(new ExtractCountryInfoFn());
-    List<KV<String, String>> results = extractCountryInfoFn.processBundle(CCS);
-    Assert.assertThat(results, CoreMatchers.hasItem(kv3));
-    Assert.assertThat(results, CoreMatchers.hasItem(kv4));
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of(CC_ARRAY)).apply(ParDo.of(new ExtractCountryInfoFn()));
+
+    PAssert.that(output).containsInAnyOrder(PARSED_COUNTRY_CODES);
+    p.run().waitUntilFinish();
   }
 
   @Test

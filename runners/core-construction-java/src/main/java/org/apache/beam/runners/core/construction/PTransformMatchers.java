@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
 
-import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the

@@ -30,9 +30,11 @@ import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.CountingSource.UnboundedCountingSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
@@ -91,7 +93,11 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class, // This test fails if State is unsupported despite no direct usage.
+    DataflowPortabilityApiUnsupported.class
+  })
   public void testBoundedSourceSplits() throws Exception {
     long numElements = 1000;
     long numSplits = 10;
@@ -213,7 +219,11 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class, // This test fails if State is unsupported despite no direct usage.
+    DataflowPortabilityApiUnsupported.class
+  })
   public void testUnboundedSourceSplits() throws Exception {
     long numElements = 1000;
     int numSplits = 10;

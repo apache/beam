@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import static org.apache.beam.sdk.values.Row.toRow;
@@ -26,8 +25,10 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.util.NlsString;
@@ -91,28 +92,35 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
+  /**
+   * Attempt to cast an object to a specified Schema.Field.Type.
+   *
+   * @throws IllegalArgumentException if the value cannot be cast to that type.
+   * @return The casted object in Schema.Field.Type.
+   */
   public static Object autoCastField(Schema.Field field, Object rawObj) {
     if (rawObj == null) {
-      if (!field.getNullable()) {
+      if (!field.getType().getNullable()) {
         throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));
       }
       return null;
     }
 
-    TypeName type = field.getType().getTypeName();
-    if (type.isStringType()) {
+    FieldType type = field.getType();
+    if (CalciteUtils.isStringType(type)) {
       if (rawObj instanceof NlsString) {
         return ((NlsString) rawObj).getValue();
       } else {
         return rawObj;
       }
-    } else if (type.isDateType()) {
-      return DateTime.parse(rawObj.toString());
-    } else if (type.isNumericType()
+    } else if (CalciteUtils.isDateTimeType(type)) {
+      // Internal representation of DateType in Calcite is convertible to Joda's Datetime.
+      return new DateTime(rawObj);
+    } else if (type.getTypeName().isNumericType()
         && ((rawObj instanceof String)
-            || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {
+            || (rawObj instanceof BigDecimal && type.getTypeName() != TypeName.DECIMAL))) {
       String raw = rawObj.toString();
-      switch (type) {
+      switch (type.getTypeName()) {
         case BYTE:
           return Byte.valueOf(raw);
         case INT16:
