@@ -64,7 +64,11 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    return waitUntilFinish();
+    if (!finished) {
+      app.waitUntilFinish(java.time.Duration.ofMillis(duration.getMillis()));
+      finished = true;
+    }
+    return State.DONE;
   }
 
   @Override
