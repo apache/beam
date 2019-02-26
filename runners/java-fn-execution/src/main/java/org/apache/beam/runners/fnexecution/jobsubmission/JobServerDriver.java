@@ -31,6 +31,15 @@ import org.slf4j.LoggerFactory;
 /** Shared code for starting and serving an {@link InMemoryJobService}. */
 public abstract class JobServerDriver implements Runnable {
 
+  private static final Logger LOG = LoggerFactory.getLogger(JobServerDriver.class);
+
+  @VisibleForTesting public ServerConfiguration configuration;
+
+  private final ServerFactory jobServerFactory;
+  private final ServerFactory artifactServerFactory;
+  private volatile GrpcFnServer<InMemoryJobService> jobServer;
+  private volatile GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
+
   protected abstract JobInvoker createJobInvoker();
 
   protected InMemoryJobService createJobService() throws IOException {
@@ -46,15 +55,6 @@ public abstract class JobServerDriver implements Runnable {
         },
         invoker);
   }
-
-  private static final Logger LOG = LoggerFactory.getLogger(JobServerDriver.class);
-
-  @VisibleForTesting public ServerConfiguration configuration;
-
-  private final ServerFactory jobServerFactory;
-  private final ServerFactory artifactServerFactory;
-  private volatile GrpcFnServer<InMemoryJobService> jobServer;
-  private volatile GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
 
   /** Configuration for the jobServer. */
   public static class ServerConfiguration {
