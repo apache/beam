@@ -187,7 +187,8 @@ class TfIdf(beam.PTransform):
     return word_to_uri_and_tfidf
 
 
-def run(argv=None):
+# TODO: try to similarly fix all no_xdist tests
+def run(argv=None, save_main_session=True):
   """Main entry point; defines and runs the tfidf pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument('--uris',
@@ -200,7 +201,7 @@ def run(argv=None):
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   with beam.Pipeline(options=pipeline_options) as p:
 
     # Read documents specified by the uris command line option.

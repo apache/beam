@@ -28,7 +28,7 @@ from apache_beam.examples import wordcount_debugging
 from apache_beam.testing.util import open_shards
 
 
-class WordCountTest(unittest.TestCase):
+class WordCountDebuggingTest(unittest.TestCase):
 
   SAMPLE_TEXT = 'xx yy Flourish\n zz Flourish Flourish stomach\n aa\n bb cc dd'
 
@@ -49,9 +49,10 @@ class WordCountTest(unittest.TestCase):
   def test_basics(self):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     expected_words = [('Flourish', 3), ('stomach', 1)]
-    wordcount_debugging.run([
-        '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path])
+    wordcount_debugging.run(
+        ['--input=%s*' % temp_path,
+         '--output=%s.result' % temp_path],
+        save_main_session=False)
 
     # Parse result file and compare.
     results = self.get_results(temp_path)

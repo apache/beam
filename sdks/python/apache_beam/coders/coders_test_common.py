@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import logging
+import pytest
 import math
 import sys
 import unittest
@@ -47,6 +48,9 @@ class CustomCoder(coders.Coder):
     return int(encoded) - 1
 
 
+# These tests need to all be run in the same process due to the checks
+# tearDownClass.
+@pytest.mark.no_xdist
 class CodersTest(unittest.TestCase):
 
   # These class methods ensure that we test each defined coder in both

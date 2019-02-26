@@ -82,6 +82,9 @@ SUITE=""
 # provided.
 TEST_OPTS="--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it --nocapture"
 
+PYTEST=false
+PYTEST_OPTS="--log-cli-level=info --color=yes -k test_wordcount_it"
+
 while [[ $# -gt 0 ]]
 do
 key="$1"
@@ -148,6 +151,16 @@ case $key in
         ;;
     --suite)
         SUITE="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --pytest)
+        PYTEST="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --pytest_opts)
+        PYTEST_OPTS="$2"
         shift # past argument
         shift # past value
         ;;
@@ -240,11 +253,26 @@ fi
 # Run tests and validate that jobs finish successfully.
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
-echo ">>>   test options: $TEST_OPTS"
-# TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't support
-#   suite names.
-python setup.py nosetests \
-  --test-pipeline-options="$PIPELINE_OPTS" \
-  --with-xunitmp --xunitmp-file=$XUNIT_FILE \
-  --ignore-files '.*py3.py$' \
-  $TEST_OPTS
+
+if [[ "$PYTEST" = true ]]; then
+    echo ">>>   pytest options: $PYTEST_OPTS"
+    suite_name="it-$SUITE"
+    # TODO: remove
+    set -x
+    python setup.py pytest --addopts=" \
+        -o junit_suite_name=$suite_name \
+        --junitxml=pytest-$suite_name.xml \
+        $PYTEST_OPTS \
+        --test-pipeline-options='$PIPELINE_OPTS'"
+    # TODO: remove
+    #python setup.py pytest --addopts="-o junit_suite_name={envname} --junitxml=pytest_{envname}.xml -m 'not no_xdist' -n 8 --pyargs {posargs}"
+else
+    echo ">>>   test options: $TEST_OPTS"
+    # TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't
+    #   support suite names.
+    python setup.py nosetests \
+      --test-pipeline-options="$PIPELINE_OPTS" \
+      --with-xunitmp --xunitmp-file=$XUNIT_FILE \
+      --ignore-files '.*py3.py$' \
+      $TEST_OPTS
+fi

@@ -20,6 +20,7 @@
 This module contains nose plugin hooks that configures Beam tests which
 includes ValidatesRunner test and E2E integration test.
 
+TODO(BEAM-3713): Remove this module once nose is removed.
 """
 
 from __future__ import absolute_import

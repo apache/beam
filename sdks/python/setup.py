@@ -136,6 +136,8 @@ REQUIRED_TEST_PACKAGES = [
     'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
     'tenacity>=5.0.2,<6.0',
+    'pytest>=4.4.0,<5.0',
+    'pytest-xdist>=1.29.0,<2',
     ]
 
 GCP_REQUIREMENTS = [
@@ -202,10 +204,12 @@ setuptools.setup(
         'apache_beam/transforms/cy_combiners.py',
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
-    ]),
+    ],
+        nthreads=4),
     install_requires=REQUIRED_PACKAGES,
     python_requires=python_requires,
     test_suite='nose.collector',
+    setup_requires=['pytest_runner'],
     tests_require=REQUIRED_TEST_PACKAGES,
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],

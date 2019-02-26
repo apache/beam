@@ -38,6 +38,9 @@ class PrecommitJobBuilder {
   /** If defined, set of path expressions used to trigger the job on commit. */
   List<String> triggerPathPatterns = []
 
+  /** Whether to trigger on new PR commits. Useful to set to false when testing new jobs. */
+  boolean commitTriggering = true
+
   /**
    * Define a set of pre-commit jobs.
    *
@@ -45,7 +48,9 @@ class PrecommitJobBuilder {
    */
   void build(Closure additionalCustomization = {}) {
     defineCronJob additionalCustomization
-    defineCommitJob additionalCustomization
+    if (commitTriggering) {
+      defineCommitJob additionalCustomization
+    }
     definePhraseJob additionalCustomization
   }
 

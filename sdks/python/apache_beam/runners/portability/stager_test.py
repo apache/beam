@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import logging
+import pytest
 import os
 import shutil
 import sys
@@ -160,6 +161,8 @@ class StagerTest(unittest.TestCase):
                      self.stager.stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
+  # xdist adds unpicklable modules to the main session.
+  @pytest.mark.no_xdist
   def test_with_main_session(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()

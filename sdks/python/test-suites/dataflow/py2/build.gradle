@@ -33,6 +33,15 @@ def basicTestOpts = [
     "--process-timeout=4500", // timeout of whole command execution
 ]
 
+// TODO: do colors look okay in jenkins?
+// TODO: log-cli-level value?
+// TODO: verify same tests run
+def basicPytestOpts = [
+    "--numprocesses=8",  // run tests in parallel
+    "--color=yes",
+    "--log-cli-level=info",
+]
+
 task preCommitIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
@@ -41,19 +50,12 @@ task preCommitIT {
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
-    // Basic integration tests to run in PreCommit
-    def precommitTests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-        "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
-    ]
-    def testOpts = [
-        "--tests=${precommitTests.join(',')}",
-        "--nocapture",    // Print stdout instantly
-        "--processes=2",    // Number of tests running in parallel
-        "--process-timeout=1800",   // Timeout of whole command execution
+    def testOpts = basicPytestOpts + [
+        "-m 'it_precommit and not no_dataflow'",
     ]
     def cmdArgs = mapToArgString([
-        "test_opts": testOpts,
+        "pytest": true,
+        "pytest_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "preCommitIT-df"
@@ -80,11 +82,36 @@ task postCommitIT {
         "test_opts": testOpts,
         "worker_jar": dataflowWorkerJar,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "suite": "postCommitIT-df"
+        "suite": "postCommitIT-df",
     ])
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+// TODO(BEAM-3713): Temporary pytest task that should eventually replace the
+//   equivalent nose-based task.
+// Run PostCommit integration tests on default runner (TestDataflowRunner)
+// TODO: remove
+task postCommitITPytest(dependsOn: ['installGcpTest', 'sdist']) {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    def pytestOpts = basicPytestOpts + ["-m 'it_postcommit and not no_dataflow'"]
+    def cmdArgs = project.mapToArgString([
+        "pytest_opts": pytestOpts,
+        "pytest": true,
+        "suite": "postcommit_dataflow_py2",
+        ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
     }
   }
 }

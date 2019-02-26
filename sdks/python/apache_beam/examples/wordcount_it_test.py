@@ -23,6 +23,7 @@ import logging
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -44,6 +45,8 @@ class WordCountIT(unittest.TestCase):
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
   @attr('IT')
+  @pytest.mark.it_precommit
+  @pytest.mark.it_postcommit
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
@@ -81,7 +84,8 @@ class WordCountIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    run_wordcount(test_pipeline.get_full_options_as_args(**extra_opts))
+    run_wordcount(test_pipeline.get_full_options_as_args(**extra_opts),
+                  save_main_session=False)
 
 
 if __name__ == '__main__':

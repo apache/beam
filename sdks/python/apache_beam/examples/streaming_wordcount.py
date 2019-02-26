@@ -33,7 +33,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   """Build and run the pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
@@ -54,7 +54,7 @@ def run(argv=None):
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   pipeline_options.view_as(StandardOptions).streaming = True
   p = beam.Pipeline(options=pipeline_options)
 

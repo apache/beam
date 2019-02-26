@@ -314,7 +314,7 @@ def format_output(element):
   return result
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   parser = argparse.ArgumentParser()
   parser.add_argument('--input',
                       dest='input',
@@ -326,7 +326,7 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   with beam.Pipeline(options=pipeline_options) as p:
     # Parse input file

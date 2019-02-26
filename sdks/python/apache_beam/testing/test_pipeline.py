@@ -62,6 +62,11 @@ class TestPipeline(Pipeline):
     pipeline.run()
   """
 
+  # Command line options read in by pytest.
+  # If this is not None, will use as default value for --test-pipeline-options.
+  pytest_test_pipeline_options = None
+  pytest_not_use_test_runner_api = None
+
   def __init__(self,
                runner=None,
                options=None,
@@ -119,35 +124,45 @@ class TestPipeline(Pipeline):
     """Parse value of command line argument: --test-pipeline-options to get
     pipeline options.
 
+    Will try these sources in order:
+    - argv argument
+    - TestPipeline.pytest_* class variables
+    - sys.argv
+
     Args:
-      argv: An iterable of command line arguments to be used. If not specified
-        then sys.argv will be used as input for parsing arguments.
+      argv: An iterable of command line arguments to be used.
 
     Returns:
       An argument list of options that can be parsed by argparser or directly
       build a pipeline option.
     """
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--test-pipeline-options',
-                        type=str,
-                        action='store',
-                        help='only run tests providing service options')
-    parser.add_argument('--not-use-test-runner-api',
-                        action='store_true',
-                        default=False,
-                        help='whether not to use test-runner-api')
-    known, unused_argv = parser.parse_known_args(argv)
+    if TestPipeline.pytest_test_pipeline_options is None or argv is not None:
+      parser = argparse.ArgumentParser()
+      parser.add_argument('--test-pipeline-options',
+                          type=str,
+                          action='store',
+                          help='only run tests providing service options')
+      parser.add_argument('--not-use-test-runner-api',
+                          action='store_true',
+                          default=False,
+                          help='whether not to use test-runner-api')
+      known, unused_argv = parser.parse_known_args(argv)
+      test_pipeline_options = known.test_pipeline_options
+      not_use_test_runner_api = known.not_use_test_runner_api
+    else:
+      test_pipeline_options = TestPipeline.pytest_test_pipeline_options
+      not_use_test_runner_api = TestPipeline.pytest_not_use_test_runner_api
 
-    if self.is_integration_test and not known.test_pipeline_options:
+    if self.is_integration_test and not test_pipeline_options:
       # Skip integration test when argument '--test-pipeline-options' is not
       # specified since nose calls integration tests when runs unit test by
       # 'setup.py test'.
       raise SkipTest('IT is skipped because --test-pipeline-options '
                      'is not specified')
 
-    self.not_use_test_runner_api = known.not_use_test_runner_api
-    return shlex.split(known.test_pipeline_options) \
-      if known.test_pipeline_options else []
+    self.not_use_test_runner_api = not_use_test_runner_api
+    return shlex.split(test_pipeline_options) \
+      if test_pipeline_options else []
 
   def get_full_options_as_args(self, **extra_opts):
     """Get full pipeline options as an argument list.

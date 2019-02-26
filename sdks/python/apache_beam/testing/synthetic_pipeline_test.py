@@ -210,7 +210,7 @@ class SyntheticPipelineTest(unittest.TestCase):
       output_location = tempfile.NamedTemporaryFile().name
       args.append('--output=%s' % output_location)
 
-    synthetic_pipeline.run(args)
+    synthetic_pipeline.run(args, save_main_session=False)
 
     # Verify output
     if writes_output:

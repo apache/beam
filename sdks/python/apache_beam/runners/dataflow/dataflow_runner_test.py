@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import json
+import pytest
 import sys
 import unittest
 from builtins import object
@@ -210,6 +211,8 @@ class DataflowRunnerTest(unittest.TestCase):
                                  r'source is not currently available'):
       p.run()
 
+  @pytest.mark.skipif(sys.version_info >= (3, 7),
+                      reason='TODO(BEAM-8095): Segfaults in Python 3.7')
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,

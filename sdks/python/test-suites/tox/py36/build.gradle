@@ -39,6 +39,17 @@ test.dependsOn testPy36Cython
 // project.
 testPy36Cython.mustRunAfter testPython36, testPy36Gcp
 
+// TODO(BEAM-3713): Temporary pytest tasks that should eventually replace
+//  nose-based test tasks.
+toxTask "testPy36GcpPytest", "py36-gcp-pytest"
+toxTask "testPython36Pytest", "py36-pytest"
+toxTask "testPy36CythonPytest", "py36-cython-pytest"
+task pytest() {
+  dependsOn "testPy36GcpPytest"
+  dependsOn "testPython36Pytest"
+  dependsOn "testPy36CythonPytest"
+}
+
 task preCommitPy36() {
     dependsOn "testPython36"
     dependsOn "testPy36Gcp"
