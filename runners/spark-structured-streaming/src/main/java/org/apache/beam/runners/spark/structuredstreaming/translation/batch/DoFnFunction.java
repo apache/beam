@@ -63,8 +63,6 @@ public class DoFnFunction<InputT, OutputT>
   private final Coder<InputT> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
 
-  private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
-
   public DoFnFunction(
       DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
