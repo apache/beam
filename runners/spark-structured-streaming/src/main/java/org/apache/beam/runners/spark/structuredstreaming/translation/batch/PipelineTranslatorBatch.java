@@ -26,8 +26,16 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTra
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.Window;
 
 /**
  * {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in batch mode. This contains
@@ -41,7 +49,7 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @SuppressWarnings("rawtypes")
-  private static final Map<String, TransformTranslator> TRANSFORM_TRANSLATORS = new HashMap<>();
+  private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSFORM_TRANSLATORS = new HashMap<>();
 
   //TODO the ability to have more than one TransformTranslator per URN
   // that could be dynamically chosen by a predicated that evaluates based on PCollection
@@ -50,29 +58,21 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
   // And https://github.com/seznam/euphoria/blob/master/euphoria-spark/src/main/java/cz/seznam/euphoria/spark/SparkFlowTranslator.java#L106
 
   static {
-    TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
-    TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.COMBINE_GLOBALLY_TRANSFORM_URN, new CombineGloballyTranslatorBatch());
-    TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch());
-    TRANSFORM_TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Combine.Globally.class, new CombineGloballyTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
-        new CreatePCollectionViewTranslatorBatch());
+    TRANSFORM_TRANSLATORS
+        .put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());
   }
 
   public PipelineTranslatorBatch(SparkPipelineOptions options) {
@@ -87,7 +87,6 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
     if (transform == null) {
       return null;
     }
-    @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
-    return (urn == null) ? null : TRANSFORM_TRANSLATORS.get(urn);
+    return TRANSFORM_TRANSLATORS.get(transform.getClass());
   }
 }
