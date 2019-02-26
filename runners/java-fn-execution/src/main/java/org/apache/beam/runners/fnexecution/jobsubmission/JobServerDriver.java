@@ -23,6 +23,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
+import org.apache.beam.runners.fnexecution.expansion.ExpansionService;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
@@ -37,13 +38,18 @@ public abstract class JobServerDriver implements Runnable {
 
   private final ServerFactory jobServerFactory;
   private final ServerFactory artifactServerFactory;
+  private final ServerFactory expansionServerFactory;
+
   private volatile GrpcFnServer<InMemoryJobService> jobServer;
   private volatile GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
+  private volatile GrpcFnServer<ExpansionService> expansionServer;
 
   protected abstract JobInvoker createJobInvoker();
 
   protected InMemoryJobService createJobService() throws IOException {
     artifactStagingServer = createArtifactStagingService();
+    expansionServer = createExpansionService();
+
     JobInvoker invoker = createJobInvoker();
     return InMemoryJobService.create(
         artifactStagingServer.getApiServiceDescriptor(),
@@ -71,6 +77,11 @@ public abstract class JobServerDriver implements Runnable {
         usage = "The artifact service port. 0 to use a dynamic port. (Default: 8098)")
     private int artifactPort = 8098;
 
+    @Option(
+        name = "--expansion-port",
+        usage = "The Java expansion service port. 0 to use a dynamic port. (Default: 8097)")
+    private int expansionPort = 8097;
+
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
     private String artifactStagingPath =
         Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
@@ -97,6 +108,10 @@ public abstract class JobServerDriver implements Runnable {
       return artifactPort;
     }
 
+    public int getExpansionPort() {
+      return expansionPort;
+    }
+
     public String getArtifactStagingPath() {
       return artifactStagingPath;
     }
@@ -118,13 +133,19 @@ public abstract class JobServerDriver implements Runnable {
     return ServerFactory.createWithPortSupplier(() -> configuration.artifactPort);
   }
 
+  protected static ServerFactory createExpansionServerFactory(ServerConfiguration configuration) {
+    return ServerFactory.createWithPortSupplier(() -> configuration.expansionPort);
+  }
+
   protected JobServerDriver(
       ServerConfiguration configuration,
       ServerFactory jobServerFactory,
-      ServerFactory artifactServerFactory) {
+      ServerFactory artifactServerFactory,
+      ServerFactory expansionServerFactory) {
     this.configuration = configuration;
     this.jobServerFactory = jobServerFactory;
     this.artifactServerFactory = artifactServerFactory;
+    this.expansionServerFactory = expansionServerFactory;
   }
 
   // This method is executed by TestPortableRunner via Reflection
@@ -171,6 +192,15 @@ public abstract class JobServerDriver implements Runnable {
         LOG.error("Error while closing the artifactStagingServer.", e);
       }
     }
+    if (expansionServer != null) {
+      try {
+        expansionServer.close();
+        LOG.info("Expansion stopped on {}", expansionServer.getApiServiceDescriptor().getUrl());
+        expansionServer = null;
+      } catch (Exception e) {
+        LOG.error("Error while closing the Expansion Service.", e);
+      }
+    }
   }
 
   protected String createSessionToken(String session) {
@@ -212,5 +242,25 @@ public abstract class JobServerDriver implements Runnable {
         "ArtifactStagingService started on {}",
         artifactStagingService.getApiServiceDescriptor().getUrl());
     return artifactStagingService;
+  }
+
+  private GrpcFnServer<ExpansionService> createExpansionService() throws IOException {
+    ExpansionService service = new ExpansionService();
+    GrpcFnServer<ExpansionService> expansionServiceGrpcFnServer;
+    if (configuration.expansionPort == 0) {
+      expansionServiceGrpcFnServer =
+          GrpcFnServer.allocatePortAndCreateFor(service, expansionServerFactory);
+    } else {
+      Endpoints.ApiServiceDescriptor descriptor =
+          Endpoints.ApiServiceDescriptor.newBuilder()
+              .setUrl(configuration.host + ":" + configuration.expansionPort)
+              .build();
+      expansionServiceGrpcFnServer =
+          GrpcFnServer.create(service, descriptor, expansionServerFactory);
+    }
+    LOG.info(
+        "Java ExpansionService started on {}",
+        expansionServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
+    return expansionServiceGrpcFnServer;
   }
 }
