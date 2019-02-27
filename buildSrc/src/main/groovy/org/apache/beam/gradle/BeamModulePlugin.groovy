@@ -1474,6 +1474,26 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      def generatedProtoMainJavaDir = "${project.buildDir}/generated/source/proto/main/java"
+      def generatedProtoTestJavaDir = "${project.buildDir}/generated/source/proto/test/java"
+      def generatedGrpcMainJavaDir = "${project.buildDir}/generated/source/proto/main/grpc"
+      def generatedGrpcTestJavaDir = "${project.buildDir}/generated/source/proto/test/grpc"
+      project.idea {
+        module {
+          sourceDirs += project.file(generatedProtoMainJavaDir)
+          generatedSourceDirs += project.file(generatedProtoMainJavaDir)
+
+          testSourceDirs += project.file(generatedProtoTestJavaDir)
+          generatedSourceDirs += project.file(generatedProtoTestJavaDir)
+
+          sourceDirs += project.file(generatedGrpcMainJavaDir)
+          generatedSourceDirs += project.file(generatedGrpcMainJavaDir)
+
+          testSourceDirs += project.file(generatedGrpcTestJavaDir)
+          generatedSourceDirs += project.file(generatedGrpcTestJavaDir)
+        }
+      }
+
       project.dependencies GrpcVendoring.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_13_1 }
     }
 

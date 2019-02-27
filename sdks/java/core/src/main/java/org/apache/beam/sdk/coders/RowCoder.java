@@ -69,6 +69,11 @@ public class RowCoder extends CustomCoder<Row> {
           .build();
 
   private final Schema schema;
+
+  public UUID getId() {
+    return id;
+  }
+
   private final UUID id;
   @Nullable private transient Coder<Row> delegateCoder = null;
 

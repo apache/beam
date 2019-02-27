@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -77,6 +78,8 @@ public class Schema implements Serializable {
   }
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
+  private Map<String, Integer> physicalFieldLocation = Maps.newHashMap();
+
   private final List<Field> fields;
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
   // is correct.
@@ -210,6 +213,7 @@ public class Schema implements Serializable {
         throw new IllegalArgumentException(
             "Duplicate field " + field.getName() + " added to schema");
       }
+      physicalFieldLocation.put(field.getName(), index);
       fieldIndices.put(field.getName(), index++);
     }
     this.hashCode = Objects.hash(fieldIndices, fields);
@@ -222,6 +226,14 @@ public class Schema implements Serializable {
   /** Set this schema's UUID. All schemas with the same UUID must be guaranteed to be identical. */
   public void setUUID(UUID uuid) {
     this.uuid = uuid;
+  }
+
+  public Map<String, Integer> getPhysicalFieldLocations() {
+    return physicalFieldLocation;
+  }
+
+  public void setPhysicalFieldLocation(Map<String, Integer> physicalFieldLocation) {
+    this.physicalFieldLocation = physicalFieldLocation;
   }
 
   /** Get this schema's UUID. */
