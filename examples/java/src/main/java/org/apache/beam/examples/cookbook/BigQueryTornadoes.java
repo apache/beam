@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -139,6 +140,12 @@ public class BigQueryTornadoes {
 
     void setInput(String value);
 
+    @Description("Mode to use when reading from BigQuery")
+    @Default.Enum("EXPORT")
+    TypedRead.Method getReadMethod();
+
+    void setReadMethod(TypedRead.Method value);
+
     @Description(
         "BigQuery table to write to, specified as "
             + "<project_id>:<dataset_id>.<table_id>. The dataset must already exist.")
@@ -151,23 +158,36 @@ public class BigQueryTornadoes {
   static void runBigQueryTornadoes(Options options) {
     Pipeline p = Pipeline.create(options);
 
-    // Build the read options proto for the read operation.
-    TableReadOptions tableReadOptions =
-        TableReadOptions.newBuilder()
-            .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
-            .build();
-
     // Build the table schema for the output table.
     List<TableFieldSchema> fields = new ArrayList<>();
     fields.add(new TableFieldSchema().setName("month").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("tornado_count").setType("INTEGER"));
     TableSchema schema = new TableSchema().setFields(fields);
 
-    p.apply(
-            BigQueryIO.readTableRows()
-                .from(options.getInput())
-                .withMethod(Method.DIRECT_READ)
-                .withReadOptions(tableReadOptions))
+    PCollection<TableRow> rowsFromBigQuery;
+
+    if (options.getReadMethod() == Method.DIRECT_READ) {
+      // Build the read options proto for the read operation.
+      TableReadOptions tableReadOptions =
+          TableReadOptions.newBuilder()
+              .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
+              .build();
+
+      rowsFromBigQuery =
+          p.apply(
+              BigQueryIO.readTableRows()
+                  .from(options.getInput())
+                  .withMethod(Method.DIRECT_READ)
+                  .withReadOptions(tableReadOptions));
+    } else {
+      rowsFromBigQuery =
+          p.apply(
+              BigQueryIO.readTableRows()
+                  .from(options.getInput())
+                  .withMethod(options.getReadMethod()));
+    }
+
+    rowsFromBigQuery
         .apply(new CountTornadoes())
         .apply(
             BigQueryIO.writeTableRows()
