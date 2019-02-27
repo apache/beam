@@ -25,7 +25,6 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.Win
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;

@@ -91,6 +91,19 @@ public final class RowHelpers {
     return new MapFunction<Row, T>() {
       @Override
       public T call(Row value) throws Exception {
+        return extractObjectFromRow(value);
+      }
+    };
+  }
+
+  /**
+   * Extracts an Object from a Row was serialized to bytes using
+   * kryo.
+   *
+   */
+
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  public static <T> T extractObjectFromRow(Row value) {
         //there is only one value put in each Row by the InputPartitionReader
         byte[] bytes = (byte[]) value.get(0);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
@@ -101,7 +114,4 @@ public final class RowHelpers {
         input.close();
         return object;
       }
-    };
   }
-
-}

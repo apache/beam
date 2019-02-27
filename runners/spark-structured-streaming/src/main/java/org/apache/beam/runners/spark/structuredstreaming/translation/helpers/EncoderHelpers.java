@@ -26,9 +26,9 @@ import scala.Tuple2;
 /** {@link Encoders} utility class. */
 public class EncoderHelpers {
 
-  // 1. use actual classes and not objects to avoid Spark fallback to GenericRowWithSchema.
-  // 2. use raw objects because only raw classes can be used with kryo. Cast to Class<T> to allow
-  // the type inference mechanism to infer Encoder<WindowedValue<T>> to get back the type checking
+  // 1. use actual class and not object to avoid Spark fallback to GenericRowWithSchema.
+  // 2. use raw class because only raw classes can be used with kryo. Cast to Class<T> to allow
+  // the type inference mechanism to infer for ex Encoder<WindowedValue<T>> to get back the type checking
 
   /*
    --------- Encoders for internal spark runner objects
