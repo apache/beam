@@ -20,6 +20,8 @@ rootProject.name = "beam"
 
 include ":release"
 
+include "beam-examples-kotlin"
+project(":beam-examples-kotlin").dir = file("examples/kotlin")
 include "beam-examples-java"
 project(":beam-examples-java").dir = file("examples/java")
 include "beam-model-fn-execution"
