@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import static org.apache.beam.model.fnexecution.v1.BeamFnApi.labelProps;
+import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 import static org.hamcrest.CoreMatchers.is;
@@ -30,13 +30,13 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.CounterData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.DoubleDistributionData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.DoubleDistributionData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.Metric;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.DistributionCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
@@ -193,7 +193,7 @@ public class FlinkMetricContainerTest {
             .setMetric(
                 Metric.newBuilder()
                     .setDistributionData(
-                        BeamFnApi.DistributionData.newBuilder()
+                        MetricsApi.DistributionData.newBuilder()
                             .setIntDistributionData(
                                 IntDistributionData.newBuilder()
                                     .setSum(30)
@@ -209,7 +209,7 @@ public class FlinkMetricContainerTest {
             .setMetric(
                 Metric.newBuilder()
                     .setDistributionData(
-                        BeamFnApi.DistributionData.newBuilder()
+                        MetricsApi.DistributionData.newBuilder()
                             .setDoubleDistributionData(
                                 DoubleDistributionData.newBuilder()
                                     .setSum(30)

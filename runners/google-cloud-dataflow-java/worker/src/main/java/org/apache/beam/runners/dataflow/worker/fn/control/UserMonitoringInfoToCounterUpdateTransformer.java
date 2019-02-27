@@ -17,15 +17,16 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs.Enum;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs.Enum;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
@@ -54,11 +55,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
   }
 
   static final String BEAM_METRICS_USER_PREFIX =
-      Enum.USER_COUNTER
-          .getValueDescriptor()
-          .getOptions()
-          .getExtension(BeamFnApi.monitoringInfoSpec)
-          .getUrn();
+      Enum.USER_COUNTER.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec).getUrn();
 
   private Optional<String> validate(MonitoringInfo monitoringInfo) {
     Optional<String> validatorResult = specValidator.validate(monitoringInfo);

@@ -591,6 +591,7 @@ class DebugOptions(PipelineOptions):
          'before enabling any experiments.'))
 
   def add_experiment(self, experiment):
+    # pylint: disable=access-member-before-definition
     if self.experiments is None:
       self.experiments = []
     if experiment not in self.experiments:
