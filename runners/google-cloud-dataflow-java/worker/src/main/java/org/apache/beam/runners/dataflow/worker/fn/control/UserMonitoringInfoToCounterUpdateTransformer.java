@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -26,7 +27,6 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs.Enum;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
@@ -54,9 +54,6 @@ class UserMonitoringInfoToCounterUpdateTransformer
     this.specValidator = specMonitoringInfoValidator;
   }
 
-  static final String BEAM_METRICS_USER_PREFIX =
-      Enum.USER_COUNTER.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec).getUrn();
-
   private Optional<String> validate(MonitoringInfo monitoringInfo) {
     Optional<String> validatorResult = specValidator.validate(monitoringInfo);
     if (validatorResult.isPresent()) {
@@ -64,11 +61,11 @@ class UserMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
+    if (!urn.startsWith(USER_COUNTER_URN_PREFIX)) {
       throw new RuntimeException(
           String.format(
               "Received unexpected counter urn. Expected urn starting with: %s, received: %s",
-              BEAM_METRICS_USER_PREFIX, urn));
+              USER_COUNTER_URN_PREFIX, urn));
     }
 
     final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
@@ -97,11 +94,11 @@ class UserMonitoringInfoToCounterUpdateTransformer
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
     String urn = monitoringInfo.getUrn();
 
-    final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
+    final String ptransform = monitoringInfo.getLabelsMap().get(PTRANSFORM_LABEL);
 
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
 
-    String nameWithNamespace = urn.substring(BEAM_METRICS_USER_PREFIX.length()).replace("^:", "");
+    String nameWithNamespace = urn.substring(USER_COUNTER_URN_PREFIX.length()).replace("^:", "");
 
     final int lastColonIndex = nameWithNamespace.lastIndexOf(':');
     String counterName = nameWithNamespace.substring(lastColonIndex + 1);
@@ -125,6 +122,6 @@ class UserMonitoringInfoToCounterUpdateTransformer
 
   /** @return MonitoringInfo urns prefix that this transformer can convert to CounterUpdates. */
   public String getSupportedUrnPrefix() {
-    return BEAM_METRICS_USER_PREFIX;
+    return USER_COUNTER_URN_PREFIX;
   }
 }

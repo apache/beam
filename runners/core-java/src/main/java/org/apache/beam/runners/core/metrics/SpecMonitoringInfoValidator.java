@@ -37,7 +37,7 @@ public class SpecMonitoringInfoValidator {
             // Filtering default value for "unknown" Enums. Coming from proto implementation.
             .filter(x -> !x.name().equals("UNRECOGNIZED"))
             .map(x -> x.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec))
-            .toArray(size -> new MonitoringInfoSpec[size]);
+            .toArray(MonitoringInfoSpec[]::new);
   }
 
   /**
