@@ -293,6 +293,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       case DOUBLE:
       case STRING:
       case BOOLEAN:
+      case BYTES:
         return beamValue;
       case ARRAY:
         return ((List<?>) beamValue)
