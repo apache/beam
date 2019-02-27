@@ -20,10 +20,12 @@ package org.apache.beam.examples.cookbook;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /**
  * An example that reads the public samples of weather data from BigQuery, counts the number of
@@ -148,13 +151,23 @@ public class BigQueryTornadoes {
   static void runBigQueryTornadoes(Options options) {
     Pipeline p = Pipeline.create(options);
 
+    // Build the read options proto for the read operation.
+    TableReadOptions tableReadOptions =
+        TableReadOptions.newBuilder()
+            .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
+            .build();
+
     // Build the table schema for the output table.
     List<TableFieldSchema> fields = new ArrayList<>();
     fields.add(new TableFieldSchema().setName("month").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("tornado_count").setType("INTEGER"));
     TableSchema schema = new TableSchema().setFields(fields);
 
-    p.apply(BigQueryIO.readTableRows().from(options.getInput()))
+    p.apply(
+            BigQueryIO.readTableRows()
+                .from(options.getInput())
+                .withMethod(Method.DIRECT_READ)
+                .withReadOptions(tableReadOptions))
         .apply(new CountTornadoes())
         .apply(
             BigQueryIO.writeTableRows()
