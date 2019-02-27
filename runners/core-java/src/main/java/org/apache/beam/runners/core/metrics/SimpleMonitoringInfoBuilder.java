@@ -17,17 +17,19 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
+import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+
 import java.time.Instant;
 import java.util.HashMap;
 import javax.annotation.Nullable;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoLabelProps;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoLabelProps;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoTypeUrns;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoUrns;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
@@ -91,7 +93,7 @@ public class SimpleMonitoringInfoBuilder {
       // the proto files.
       if (!val.name().equals("UNRECOGNIZED")) {
         MonitoringInfoSpec spec =
-            val.getValueDescriptor().getOptions().getExtension(BeamFnApi.monitoringInfoSpec);
+            val.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec);
         SimpleMonitoringInfoBuilder.specs.put(spec.getUrn(), spec);
       }
     }
@@ -100,7 +102,7 @@ public class SimpleMonitoringInfoBuilder {
   /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */
   private static String getLabelString(MonitoringInfoLabels label) {
     MonitoringInfoLabelProps props =
-        label.getValueDescriptor().getOptions().getExtension(BeamFnApi.labelProps);
+        label.getValueDescriptor().getOptions().getExtension(labelProps);
     return props.getName();
   }
 
