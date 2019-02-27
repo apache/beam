@@ -676,7 +676,6 @@ message Schema {
       Schema row_schema = 5;
       LogicalType logical_type = 6;
     }
-    map<string, bytes> metadata = 7;
   }
 
   message Field {
