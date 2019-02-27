@@ -160,7 +160,10 @@ public class JdbcIO {
    * @param <T> Type of the data to be read.
    */
   public static <T> Read<T> read() {
-    return new AutoValue_JdbcIO_Read.Builder<T>().setFetchSize(DEFAULT_FETCH_SIZE).build();
+    return new AutoValue_JdbcIO_Read.Builder<T>()
+        .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setOutputParallelization(true)
+        .build();
   }
 
   /**
@@ -173,6 +176,7 @@ public class JdbcIO {
   public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
     return new AutoValue_JdbcIO_ReadAll.Builder<ParameterT, OutputT>()
         .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setOutputParallelization(true)
         .build();
   }
 
@@ -399,6 +403,8 @@ public class JdbcIO {
 
     abstract int getFetchSize();
 
+    abstract boolean getOutputParallelization();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -414,6 +420,8 @@ public class JdbcIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setFetchSize(int fetchSize);
+
+      abstract Builder<T> setOutputParallelization(boolean outputParallelization);
 
       abstract Read<T> build();
     }
@@ -457,6 +465,14 @@ public class JdbcIO {
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
+    /**
+     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+     * default is to parallelize and should only be changed if this is known to be unnecessary.
+     */
+    public Read<T> withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(getQuery() != null, "withQuery() is required");
@@ -474,6 +490,7 @@ public class JdbcIO {
                   .withCoder(getCoder())
                   .withRowMapper(getRowMapper())
                   .withFetchSize(getFetchSize())
+                  .withOutputParallelization(getOutputParallelization())
                   .withParameterSetter(
                       (element, preparedStatement) -> {
                         if (getStatementPreparator() != null) {
@@ -515,6 +532,8 @@ public class JdbcIO {
 
     abstract int getFetchSize();
 
+    abstract boolean getOutputParallelization();
+
     abstract Builder<ParameterT, OutputT> toBuilder();
 
     @AutoValue.Builder
@@ -532,6 +551,8 @@ public class JdbcIO {
       abstract Builder<ParameterT, OutputT> setCoder(Coder<OutputT> coder);
 
       abstract Builder<ParameterT, OutputT> setFetchSize(int fetchSize);
+
+      abstract Builder<ParameterT, OutputT> setOutputParallelization(boolean outputParallelization);
 
       abstract ReadAll<ParameterT, OutputT> build();
     }
@@ -582,19 +603,33 @@ public class JdbcIO {
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
+    /**
+     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+     * default is to parallelize and should only be changed if this is known to be unnecessary.
+     */
+    public ReadAll<ParameterT, OutputT> withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
+    }
+
     @Override
     public PCollection<OutputT> expand(PCollection<ParameterT> input) {
-      return input
-          .apply(
-              ParDo.of(
-                  new ReadFn<>(
-                      getDataSourceConfiguration(),
-                      getQuery(),
-                      getParameterSetter(),
-                      getRowMapper(),
-                      getFetchSize())))
-          .setCoder(getCoder())
-          .apply(new Reparallelize<>());
+      PCollection<OutputT> output =
+          input
+              .apply(
+                  ParDo.of(
+                      new ReadFn<>(
+                          getDataSourceConfiguration(),
+                          getQuery(),
+                          getParameterSetter(),
+                          getRowMapper(),
+                          getFetchSize())))
+              .setCoder(getCoder());
+
+      if (getOutputParallelization()) {
+        output = output.apply(new Reparallelize<>());
+      }
+
+      return output;
     }
 
     @Override
