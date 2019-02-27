@@ -248,11 +248,21 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    if sys.version_info[0] == 3:
+    if sys.version_info[0:2] == (3, 5):
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
            '/python3-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 6):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python36-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 7):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python37-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
     else:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -266,11 +276,21 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    if sys.version_info[0] == 3:
+    if sys.version_info[0:2] == (3, 5):
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
            '/python3:' + names.BEAM_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 6):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python36:' + names.BEAM_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 7):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python37:' + names.BEAM_CONTAINER_VERSION))
     else:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
