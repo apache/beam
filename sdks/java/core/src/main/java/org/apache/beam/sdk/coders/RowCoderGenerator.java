@@ -105,7 +105,7 @@ public abstract class RowCoderGenerator {
   private static final Map<TypeName, StackManipulation> CODER_MAP;
 
   // Cache for Coder class that are already generated.
-  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newConcurrentMap();
+  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newHashMap();
 
   static {
     // Initialize the CODER_MAP with the StackManipulations to create the primitive coders.
@@ -124,29 +124,33 @@ public abstract class RowCoderGenerator {
 
   @SuppressWarnings("unchecked")
   public static Coder<Row> generate(Schema schema, UUID coderId) {
-    return generatedCoders.computeIfAbsent(
-        coderId,
-        h -> {
-          TypeDescription.Generic coderType =
-              TypeDescription.Generic.Builder.parameterizedType(Coder.class, Row.class).build();
-          DynamicType.Builder<Coder> builder =
-              (DynamicType.Builder<Coder>) BYTE_BUDDY.subclass(coderType);
-          builder = createComponentCoders(schema, builder);
-          builder = implementMethods(schema, builder);
-          try {
-            return builder
+    // Using ConcurrentHashMap::computeIfAbsent here would deadlock in case of nested
+    // coders. Using HashMap::computeIfAbsent generates ConcurrentModificationExceptions in Java 11.
+    Coder<Row> rowCoder = generatedCoders.get(coderId);
+    if (rowCoder == null) {
+      TypeDescription.Generic coderType =
+          TypeDescription.Generic.Builder.parameterizedType(Coder.class, Row.class).build();
+      DynamicType.Builder<Coder> builder =
+          (DynamicType.Builder<Coder>) BYTE_BUDDY.subclass(coderType);
+      builder = createComponentCoders(schema, builder);
+      builder = implementMethods(schema, builder);
+      try {
+        rowCoder =
+            builder
                 .make()
                 .load(Coder.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded()
                 .getDeclaredConstructor()
                 .newInstance();
-          } catch (InstantiationException
-              | IllegalAccessException
-              | NoSuchMethodException
-              | InvocationTargetException e) {
-            throw new RuntimeException("Unable to generate coder for schema " + schema);
-          }
-        });
+      } catch (InstantiationException
+          | IllegalAccessException
+          | NoSuchMethodException
+          | InvocationTargetException e) {
+        throw new RuntimeException("Unable to generate coder for schema " + schema);
+      }
+      generatedCoders.put(coderId, rowCoder);
+    }
+    return rowCoder;
   }
 
   private static DynamicType.Builder<Coder> implementMethods(
@@ -351,6 +355,7 @@ public abstract class RowCoderGenerator {
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
     } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
       Coder<Row> nestedCoder = generate(fieldType.getRowSchema(), UUID.randomUUID());
+      RowCoder.of(fieldType.getRowSchema());
       return rowCoder(nestedCoder.getClass());
     } else {
       StackManipulation primitiveCoder = coderForPrimitiveType(fieldType.getTypeName());
