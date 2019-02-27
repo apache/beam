@@ -87,7 +87,7 @@ def run(argv=None):
     rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
     counts = count_tornadoes(rows)
 
-    if p.options.get_all_options()['temp_location'].startswith('gs://'):
+    if 'temp_location' in p.options.get_all_options():
       location = p.options.get_all_options()['temp_location']
     else:
       location = known_args.gcs_location
