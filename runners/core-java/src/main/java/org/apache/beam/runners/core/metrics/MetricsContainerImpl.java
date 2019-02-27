@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.MetricUpdatesProtos.toProto;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -139,51 +139,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractUpdates(counters), extractUpdates(distributions), extractUpdates(gauges));
   }
 
-  /**
-   * @param metricUpdate
-   * @return The MonitoringInfo generated from the metricUpdate.
-   */
-  @Nullable
-  private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-    MetricName metricName = metricUpdate.getKey().metricName();
-    if (metricName instanceof MonitoringInfoMetricName) {
-      MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
-      // Represents a specific MonitoringInfo for a specific URN.
-      builder.setUrn(monitoringInfoName.getUrn());
-      for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
-        builder.setLabel(e.getKey(), e.getValue());
-      }
-    } else { // Note: (metricName instanceof MetricName) is always True.
-      // Represents a user counter.
-      builder.setUrnForUserMetric(
-          metricUpdate.getKey().metricName().getNamespace(),
-          metricUpdate.getKey().metricName().getName());
-      // Drop if the stepname is not set. All user counters must be
-      // defined for a PTransform. They must be defined on a container bound to a step.
-      if (this.stepName == null) {
-        return null;
-      }
-      builder.setPTransformLabel(metricUpdate.getKey().stepName());
-    }
-    builder.setInt64Value(metricUpdate.getUpdate());
-    builder.setTimestampToNow();
-    return builder.build();
-  }
-
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
-  public Iterable<MonitoringInfo> getMonitoringInfos() {
-    // Extract user metrics and store as MonitoringInfos.
-    ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
-    MetricUpdates metricUpdates = this.getUpdates();
-
-    for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
-      MonitoringInfo mi = counterUpdateToMonitoringInfo(metricUpdate);
-      if (mi != null) {
-        monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
-      }
-    }
-    return monitoringInfos;
+  public List<MonitoringInfo> getMonitoringInfos() {
+    return toProto(getUpdates());
   }
 
   private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {

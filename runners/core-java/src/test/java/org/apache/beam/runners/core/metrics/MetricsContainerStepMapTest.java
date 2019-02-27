@@ -17,8 +17,13 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.StreamSupport.stream;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.clearTimestamp;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
@@ -27,7 +32,9 @@ import static org.junit.Assert.assertThat;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -178,13 +185,30 @@ public class MetricsContainerStepMapTest {
   }
 
   @Test
-  public void testUserMetricDroppedOnUnbounded() {
+  public void testSystemMetricInUnboundedContainer() {
     MetricsContainerStepMap testObject = new MetricsContainerStepMap();
-    CounterCell c1 = testObject.getUnboundContainer().getCounter(MetricName.named("ns", "name1"));
+    Map<String, String> labels = new HashMap<>();
+    labels.put(PCOLLECTION_LABEL, "pcoll");
+    CounterCell c1 =
+        testObject
+            .getUnboundContainer()
+            .getCounter(MonitoringInfoMetricName.named(ELEMENT_COUNT_URN, labels));
     c1.inc(5);
 
-    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
-    assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
+    MonitoringInfo[] expected = {
+      clearTimestamp(
+          new SimpleMonitoringInfoBuilder()
+              .setUrn(ELEMENT_COUNT_URN)
+              .setInt64TypeUrn()
+              .setPCollectionLabel("pcoll")
+              .setInt64Value(5)
+              .build())
+    };
+    assertThat(
+        stream(testObject.getMonitoringInfos().spliterator(), false)
+            .map(SimpleMonitoringInfoBuilder::clearTimestamp)
+            .collect(toList()),
+        containsInAnyOrder(expected));
   }
 
   @Test
@@ -217,7 +241,7 @@ public class MetricsContainerStepMapTest {
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actual.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actual.add(clearTimestamp(mi));
     }
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }

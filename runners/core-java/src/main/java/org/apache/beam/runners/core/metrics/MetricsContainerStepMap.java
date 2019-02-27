@@ -159,9 +159,7 @@ public class MetricsContainerStepMap implements Serializable {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<>();
     for (MetricsContainerImpl container : getMetricsContainers()) {
-      for (MonitoringInfo mi : container.getMonitoringInfos()) {
-        monitoringInfos.add(mi);
-      }
+      monitoringInfos.addAll(container.getMonitoringInfos());
     }
     return monitoringInfos;
   }
