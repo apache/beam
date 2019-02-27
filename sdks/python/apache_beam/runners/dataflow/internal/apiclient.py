@@ -878,11 +878,15 @@ def get_default_container_image_for_current_sdk(job_type):
     """
   if sys.version_info[0] == 2:
     version_suffix = ''
-  elif sys.version_info[0] == 3:
+  elif sys.version_info[0:2] == (3, 5):
     version_suffix = '3'
+  elif sys.version_info[0:2] == (3, 6):
+    version_suffix = '36'
+  elif sys.version_info[0:2] == (3, 7):
+    version_suffix = '37'
   else:
-    raise Exception('Dataflow only supports Python versions 2 and 3, got: %s'
-                    % sys.version_info[0])
+    raise Exception('Dataflow only supports Python versions 2 and 3.5+, got: %s'
+                    % str(sys.version_info[0:2]))
 
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
   if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
