@@ -69,29 +69,25 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  private static class IntegerCombineFn extends Combine.CombineFn<Integer, Integer, Integer> {
+  private static class IntegerCombineFn extends Combine.CombineFn<Integer, Long, Long> {
 
     @Override
-    public Integer createAccumulator() {
-      return 0;
-    }
+    public Long createAccumulator() { return 0L; }
 
     @Override
-    public Integer addInput(Integer accumulator, Integer input) {
-      return accumulator + input;
-    }
+    public Long addInput(Long accumulator, Integer input) { return accumulator + input; }
 
     @Override
-    public Integer mergeAccumulators(Iterable<Integer> accumulators) {
-      Integer result = 0;
-      for (Integer value : accumulators) {
+    public Long mergeAccumulators(Iterable<Long> accumulators) {
+      Long result = 0L;
+      for (Long value : accumulators) {
         result += value;
       }
       return result;
     }
 
     @Override
-    public Integer extractOutput(Integer accumulator) {
+    public Long extractOutput(Long accumulator) {
       return accumulator;
     }
   }
