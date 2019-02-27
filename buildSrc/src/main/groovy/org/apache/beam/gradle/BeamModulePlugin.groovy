@@ -730,6 +730,9 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'propdeps-maven'
       project.apply plugin: 'propdeps-idea'
 
+      // Defines Targets for sonarqube analysis reporting.
+      project.apply plugin: "org.sonarqube"
+
       // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
       // suppressions.
       project.apply plugin: 'checkstyle'

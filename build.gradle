@@ -30,6 +30,7 @@ plugins {
   // Enable gradle-based release management
   id 'net.researchgate.release' version '2.6.0'
   id 'org.apache.beam.module'
+  id "org.sonarqube" version "2.7"
 }
 
 // Add performanceTest task to this build.gradle file
