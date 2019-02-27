@@ -1141,10 +1141,11 @@ public class KafkaIO {
         String runner = options.getRunner().getName();
         if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
             || runner.startsWith("org.apache.beam.runners.dataflow.")
-            || runner.startsWith("org.apache.beam.runners.spark.")) {
+            || runner.startsWith("org.apache.beam.runners.spark.")
+            || runner.startsWith("org.apache.beam.runners.flink.")) {
           return;
         }
-        throw new UnsupportedOperationException(
+        LOG.warn(
             runner
                 + " is not whitelisted among runners compatible with Kafka exactly-once sink. "
                 + "This implementation of exactly-once sink relies on specific checkpoint guarantees. "
