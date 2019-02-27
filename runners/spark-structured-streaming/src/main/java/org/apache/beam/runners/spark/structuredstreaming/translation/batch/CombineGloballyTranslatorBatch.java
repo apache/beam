@@ -53,19 +53,30 @@ class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
 
     Dataset<WindowedValue<InputT>> inputDataset = context.getDataset(input);
 
+    System.out.println("****** inputDataset ******" + inputDataset.schema());
+
     Dataset<InputT> unWindowedDataset =
         inputDataset.map(
-            WindowingHelpers.unwindowMapFunction(), EncoderHelpers.windowedValueEncoder());
+            WindowingHelpers.unwindowMapFunction(), EncoderHelpers.genericEncoder());
+
+    System.out.println("****** unWindowedDataset ******" + unWindowedDataset.schema());
 
     Dataset<Row> combinedRowDataset = unWindowedDataset
         .agg(new AggregatorCombinerGlobally<>(combineFn).toColumn());
 
-    Dataset<Object> combinedDataset = combinedRowDataset
-        .map(RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.kvEncoder());
+    System.out.println("*****combinedRowDataset*******" + combinedRowDataset.schema());
+
+    Dataset<OutputT> combinedDataset = combinedRowDataset
+        .map(RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.genericEncoder());
+
+    System.out.println("****** combinedDataset ******" + combinedDataset.schema());
 
     // Window the result into global window.
-    Dataset<WindowedValue<Object>> outputDataset = combinedDataset
+    Dataset<WindowedValue<OutputT>> outputDataset = combinedDataset
         .map(WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
+
+    System.out.println("****** outputDataset ******" + outputDataset.schema());
+
     context.putDataset(output, outputDataset);
   }
 }
