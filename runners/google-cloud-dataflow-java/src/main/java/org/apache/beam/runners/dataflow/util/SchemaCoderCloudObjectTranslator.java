@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.common.collect.Maps;
@@ -17,18 +34,21 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 
-
+/** New class. */
 public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<SchemaCoder> {
   private static String SCHEMA = "schema";
   private static String TO_ROW_FUNCTION = "toRowFunction";
   private static String FROM_ROW_FUNCTION = "fromRowFunction";
 
   private static RunnerApi.Schema toProto(Schema schema) {
-    RunnerApi.Schema.Builder builder = RunnerApi.Schema.newBuilder()
-        .setId(schema.getUUID().toString());
+    RunnerApi.Schema.Builder builder =
+        RunnerApi.Schema.newBuilder().setId(schema.getUUID().toString());
     for (Field field : schema.getFields()) {
-      RunnerApi.Schema.Field protoField = toProto(field, schema.indexOf(field.getName()),
-          schema.getPhysicalFieldLocations().get(field.getName()));
+      RunnerApi.Schema.Field protoField =
+          toProto(
+              field,
+              schema.indexOf(field.getName()),
+              schema.getPhysicalFieldLocations().get(field.getName()));
       builder.addFields(protoField);
     }
     return builder.build();
@@ -45,8 +65,8 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
   }
 
   private static RunnerApi.Schema.FieldType toProto(FieldType fieldType) {
-    RunnerApi.Schema.FieldType.Builder builder = RunnerApi.Schema.FieldType.newBuilder()
-        .setTypeName(toProto(fieldType.getTypeName()));
+    RunnerApi.Schema.FieldType.Builder builder =
+        RunnerApi.Schema.FieldType.newBuilder().setTypeName(toProto(fieldType.getTypeName()));
     switch (fieldType.getTypeName()) {
       case ROW:
         builder.setRowSchema(toProto(fieldType.getRowSchema()));
@@ -57,21 +77,23 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
         break;
 
       case MAP:
-        builder.setMapType(RunnerApi.Schema.MapType.newBuilder()
-            .setKeyType(toProto(fieldType.getMapKeyType()))
-            .setValueType(toProto(fieldType.getMapValueType()))
-            .build());
+        builder.setMapType(
+            RunnerApi.Schema.MapType.newBuilder()
+                .setKeyType(toProto(fieldType.getMapKeyType()))
+                .setValueType(toProto(fieldType.getMapValueType()))
+                .build());
         break;
 
       case LOGICAL_TYPE:
         LogicalType logicalType = fieldType.getLogicalType();
-        builder.setLogicalType(RunnerApi.Schema.LogicalType.newBuilder()
-            .setId(logicalType.getIdentifier())
-            .setArgs(logicalType.getArgument())
-            .setBaseType(toProto(logicalType.getBaseType()))
-            .setSerializedClass(ByteString.copyFrom(
-                SerializableUtils.serializeToByteArray(logicalType)))
-            .build());
+        builder.setLogicalType(
+            RunnerApi.Schema.LogicalType.newBuilder()
+                .setId(logicalType.getIdentifier())
+                .setArgs(logicalType.getArgument())
+                .setBaseType(toProto(logicalType.getBaseType()))
+                .setSerializedClass(
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(logicalType)))
+                .build());
         break;
 
       default:
@@ -82,8 +104,8 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
 
   private static final RunnerApi.Schema.TypeName toProto(TypeName typeName) {
     switch (typeName) {
-    case BYTE:
-      return RunnerApi.Schema.TypeName.BYTE;
+      case BYTE:
+        return RunnerApi.Schema.TypeName.BYTE;
 
       case INT16:
         return RunnerApi.Schema.TypeName.INT16;
@@ -163,14 +185,17 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
         fieldType = FieldType.array(fieldTypeFromProto(protoFieldType.getCollectionElementType()));
         break;
       case MAP:
-        fieldType = FieldType.map(
-            fieldTypeFromProto(protoFieldType.getMapType().getKeyType()),
-            fieldTypeFromProto(protoFieldType.getMapType().getValueType()));
+        fieldType =
+            FieldType.map(
+                fieldTypeFromProto(protoFieldType.getMapType().getKeyType()),
+                fieldTypeFromProto(protoFieldType.getMapType().getValueType()));
         break;
       case LOGICAL_TYPE:
-        LogicalType logicalType = (LogicalType)
-            SerializableUtils.deserializeFromByteArray(
-                protoFieldType.getLogicalType().getSerializedClass().toByteArray(), "logicalType");
+        LogicalType logicalType =
+            (LogicalType)
+                SerializableUtils.deserializeFromByteArray(
+                    protoFieldType.getLogicalType().getSerializedClass().toByteArray(),
+                    "logicalType");
         fieldType = FieldType.logicalType(logicalType);
         break;
       default:
@@ -234,41 +259,50 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
     }
   }
 
+  /** new class. */
   @Override
   public CloudObject toCloudObject(SchemaCoder target, SdkComponents sdkComponents) {
     System.out.println("CONVERTING SCHEMA CODER TO CLOUD OBJECT");
     CloudObject base = CloudObject.forClass(SchemaCoder.class);
 
-    Structs.addString(base, TO_ROW_FUNCTION,
+    Structs.addString(
+        base,
+        TO_ROW_FUNCTION,
         StringUtils.byteArrayToJsonString(
             SerializableUtils.serializeToByteArray(target.getToRowFunction())));
-    Structs.addString(base, FROM_ROW_FUNCTION,
+    Structs.addString(
+        base,
+        FROM_ROW_FUNCTION,
         StringUtils.byteArrayToJsonString(
             SerializableUtils.serializeToByteArray(target.getFromRowFunction())));
-    Structs.addString(base, SCHEMA, StringUtils.byteArrayToJsonString(
-        toProto(target.getSchema()).toByteArray()));
+    Structs.addString(
+        base, SCHEMA, StringUtils.byteArrayToJsonString(toProto(target.getSchema()).toByteArray()));
     return base;
   }
 
+  /** new class. */
   @Override
   public SchemaCoder fromCloudObject(CloudObject cloudObject) {
     System.out.println("CONVERTING CLOUD OBJECT TO SCHEMA CODER");
     try {
-    SerializableFunction toRowFunction = (SerializableFunction)
-        SerializableUtils
-        .deserializeFromByteArray(
-        StringUtils.jsonStringToByteArray(
-            Structs.getString(cloudObject, TO_ROW_FUNCTION)), "toRowFunction");
-    SerializableFunction fromRowFunction = (SerializableFunction)
-        SerializableUtils
-            .deserializeFromByteArray(
-                StringUtils.jsonStringToByteArray(
-                    Structs.getString(cloudObject, FROM_ROW_FUNCTION)), "fromRowFunction");
-    RunnerApi.Schema protoSchema = RunnerApi.Schema.parseFrom(
-        StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, SCHEMA)));
-    Schema schema = fromProto(protoSchema);
+      SerializableFunction toRowFunction =
+          (SerializableFunction)
+              SerializableUtils.deserializeFromByteArray(
+                  StringUtils.jsonStringToByteArray(
+                      Structs.getString(cloudObject, TO_ROW_FUNCTION)),
+                  "toRowFunction");
+      SerializableFunction fromRowFunction =
+          (SerializableFunction)
+              SerializableUtils.deserializeFromByteArray(
+                  StringUtils.jsonStringToByteArray(
+                      Structs.getString(cloudObject, FROM_ROW_FUNCTION)),
+                  "fromRowFunction");
+      RunnerApi.Schema protoSchema =
+          RunnerApi.Schema.parseFrom(
+              StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, SCHEMA)));
+      Schema schema = fromProto(protoSchema);
 
-    return SchemaCoder.of(schema, toRowFunction, fromRowFunction);
+      return SchemaCoder.of(schema, toRowFunction, fromRowFunction);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
