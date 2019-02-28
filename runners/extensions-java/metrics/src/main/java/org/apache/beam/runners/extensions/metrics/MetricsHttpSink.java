@@ -35,6 +35,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import javax.xml.ws.http.HTTPException;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.metrics.MetricKey;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsOptions;
@@ -74,12 +76,58 @@ public class MetricsHttpSink implements MetricsSink {
   }
 
   /**
-   * JSON serializer for {@link MetricResult}; serialize "attempted", optional "committed", "step"
-   * and "name" fields.
+   * JSON serializer for {@link MetricName}; simple {namespace,name} for user-metrics, full URN for
+   * system metrics.
+   */
+  public static class MetricNameSerializer extends StdSerializer<MetricName> {
+    public MetricNameSerializer(Class<MetricName> t) {
+      super(t);
+    }
+
+    @Override
+    public void serialize(MetricName value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeStartObject();
+      gen.writeObjectField("name", value.name());
+      gen.writeObjectField("namespace", value.namespace());
+      gen.writeEndObject();
+    }
+  }
+
+  /**
+   * JSON serializer for {@link MetricKey}; output a {@link MetricName "name"} object and a "step"
+   * or "pcollection" field with the corresponding label.
+   */
+  public static class MetricKeySerializer extends StdSerializer<MetricKey> {
+    public MetricKeySerializer(Class<MetricKey> t) {
+      super(t);
+    }
+
+    public void inline(MetricKey value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeObjectField("name", value.metricName());
+      gen.writeObjectField("step", value.stepName());
+    }
+
+    @Override
+    public void serialize(MetricKey value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeStartObject();
+      inline(value, gen, provider);
+      gen.writeEndObject();
+    }
+  }
+
+  /**
+   * JSON serializer for {@link MetricResult}; conform to an older format where the {@link MetricKey
+   * key's} {@link MetricName name} and "step" (ptransform) are inlined.
    */
   public static class MetricResultSerializer extends StdSerializer<MetricResult> {
+    private final MetricKeySerializer keySerializer;
+
     public MetricResultSerializer(Class<MetricResult> t) {
       super(t);
+      keySerializer = new MetricKeySerializer(MetricKey.class);
     }
 
     @Override
@@ -90,14 +138,15 @@ public class MetricsHttpSink implements MetricsSink {
       if (value.hasCommitted()) {
         gen.writeObjectField("committed", value.getCommitted());
       }
-      gen.writeObjectField("name", value.getName());
-      gen.writeObjectField("step", value.getStep());
+      keySerializer.inline(value.getKey(), gen, provider);
       gen.writeEndObject();
     }
   }
 
   private String serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     SimpleModule module = new JodaModule();
+    module.addSerializer(new MetricNameSerializer(MetricName.class));
+    module.addSerializer(new MetricKeySerializer(MetricKey.class));
     module.addSerializer(new MetricResultSerializer(MetricResult.class));
     objectMapper.registerModule(module);
     objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);

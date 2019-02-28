@@ -102,10 +102,6 @@ public class SamzaMetricsContainer {
   }
 
   private static String getMetricName(MetricResult<?> metricResult) {
-    return metricResult.getStep()
-        + DELIMITER
-        + metricResult.getName().getNamespace()
-        + DELIMITER
-        + metricResult.getName().getName();
+    return metricResult.getKey().toString();
   }
 }
