@@ -151,12 +151,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse progress) {
-            container.updateMetrics(stageName, progress.getMonitoringInfosList());
+            container.updateMetrics(progress.getMonitoringInfosList());
           }
 
           @Override
           public void onCompleted(ProcessBundleResponse response) {
-            container.updateMetrics(stageName, response.getMonitoringInfosList());
+            container.updateMetrics(response.getMonitoringInfosList());
           }
         };
   }

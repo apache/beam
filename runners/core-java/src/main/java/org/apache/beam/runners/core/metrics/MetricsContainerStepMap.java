@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricKey;
@@ -53,7 +54,7 @@ public class MetricsContainerStepMap implements Serializable {
   }
 
   /** Returns the container for the given step name. */
-  public MetricsContainerImpl getContainer(String stepName) {
+  public MetricsContainerImpl getContainer(@Nullable String stepName) {
     if (stepName == null) {
       // TODO(BEAM-6538): Disallow this in the future, some tests rely on an empty step name today.
       return getUnboundContainer();
