@@ -120,6 +120,7 @@ if __name__ == '__main__':
             '--artifacts-dir', tmp_dir,
             '--job-port', str(port),
             '--artifact-port', '0',
+            '--expansion-port', '0',
         ]
       finally:
         rmtree(tmp_dir)

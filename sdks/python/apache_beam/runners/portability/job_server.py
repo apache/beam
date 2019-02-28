@@ -37,10 +37,12 @@ class DockerizedJobServer(object):
   def __init__(self, job_host="localhost",
                job_port=None,
                artifact_port=None,
+               expansion_port=None,
                harness_port_range=(8100, 8200),
                max_connection_retries=5):
     self.job_host = job_host
     self.job_port = job_port
+    self.expansion_port = expansion_port
     self.artifact_port = artifact_port
     self.harness_port_range = harness_port_range
     self.max_connection_retries = max_connection_retries
@@ -58,12 +60,15 @@ class DockerizedJobServer(object):
            "-v", ':'.join([docker_path, "/bin/docker"]),
            "-v", "/var/run/docker.sock:/var/run/docker.sock"]
 
-    self.job_port, self.artifact_port = \
-        DockerizedJobServer._pick_port(self.job_port, self.artifact_port)
+    self.job_port, self.artifact_port, self.expansion_port = \
+      DockerizedJobServer._pick_port(self.job_port,
+                                     self.artifact_port,
+                                     self.expansion_port)
 
     args = ['--job-host', self.job_host,
             '--job-port', str(self.job_port),
-            '--artifact-port', str(self.artifact_port)]
+            '--artifact-port', str(self.artifact_port),
+            '--expansion-port', str(self.expansion_port)]
 
     if sys.platform == "darwin":
       # Docker-for-Mac doesn't support host networking, so we need to explictly
@@ -73,6 +78,7 @@ class DockerizedJobServer(object):
       cmd += ["-e", "DOCKER_MAC_CONTAINER=1"]
       cmd += ["-p", "{}:{}".format(self.job_port, self.job_port)]
       cmd += ["-p", "{}:{}".format(self.artifact_port, self.artifact_port)]
+      cmd += ["-p", "{}:{}".format(self.expansion_port, self.expansion_port)]
       cmd += ["-p", "{0}-{1}:{0}-{1}".format(
           self.harness_port_range[0], self.harness_port_range[1])]
     else:
