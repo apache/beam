@@ -72,7 +72,6 @@ function verify_hash() {
   wget https://dist.apache.org/repos/dist/dev/beam/KEYS
   gpg --import KEYS
   gpg --verify $ASC_FILE_NAME $BEAM_PYTHON_SDK
-  echo "test place 1"
   gsutil version -l
 }
 

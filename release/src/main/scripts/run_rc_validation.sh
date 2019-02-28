@@ -305,10 +305,10 @@ if [[ $confirmation = "y" ]]; then
 
   for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
   do
-    rm -rf ./beam_env
+    rm -rf ./beam_env_${py_version}
     echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env -p $py_version
-    . beam_env/bin/activate
+    virtualenv beam_env_${py_version} -p $py_version
+    . beam_env_${py_version}/bin/activate
 
     echo "--------------------------Installing Python SDK-------------------------------"
     pip install apache-beam-${RELEASE}.zip
