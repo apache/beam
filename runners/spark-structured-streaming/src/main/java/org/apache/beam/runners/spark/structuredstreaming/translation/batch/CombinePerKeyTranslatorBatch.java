@@ -54,7 +54,7 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
 
     Dataset<KV<K, InputT>> keyedDataset =
         inputDataset.map(
-            WindowingHelpers.unwindowMapFunction(), EncoderHelpers.windowedValueEncoder());
+            WindowingHelpers.unwindowMapFunction(), EncoderHelpers.kvEncoder());
 
     KeyValueGroupedDataset<K, KV<K, InputT>> groupedDataset =
         keyedDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
