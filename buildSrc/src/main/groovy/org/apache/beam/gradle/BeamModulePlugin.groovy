@@ -1578,7 +1578,12 @@ class BeamModulePlugin implements Plugin<Project> {
       // we use the hash value.
       project.ext.envdir = "/export/content/data/tmp/py-beam" // "${project.rootProject.buildDir}/gradleenv/${project.name.hashCode()}"
       def pythonRootDir = "${project.rootDir}/sdks/python"
+
+      // LI configs for python path
       def envdir = "/export/content/data/tmp/py-beam"
+      def python2path = "/export/apps/python/2.7.13/bin/python2.7"
+      def python3path = "/export/apps/python/3.5/bin/python3.5/"
+
 
       // This is current supported Python3 version. It should match the one in
       // sdks/python/container/py3/Dockerfile
@@ -1588,10 +1593,12 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def virtualenvCmd = [
             'virtualenv',
-            "${envdir}",
+            "${envdir}"
           ]
           if (project.hasProperty('python3')) {
-            virtualenvCmd += '--python=python' + PYTHON3_VERSION
+            virtualenvCmd += '--python=' + python3path
+          } else {
+            virtualenvCmd += '--python=' + python2path
           }
           project.exec { commandLine virtualenvCmd }
           project.exec {
