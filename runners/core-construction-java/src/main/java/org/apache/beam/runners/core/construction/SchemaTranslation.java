@@ -60,7 +60,7 @@ public class SchemaTranslation {
           toProto(
               field,
               schema.indexOf(field.getName()),
-              schema.getPhysicalFieldLocations().get(field.getName()));
+              schema.getEncodingPositions().get(field.getName()));
       builder.addFields(protoField);
     }
     return builder.build();
@@ -124,7 +124,7 @@ public class SchemaTranslation {
       encodingLocationMap.put(protoField.getName(), protoField.getEncodingPosition());
     }
     Schema schema = builder.build();
-    schema.setPhysicalFieldLocation(encodingLocationMap);
+    schema.setEncodingPositions(encodingLocationMap);
     schema.setUUID(UUID.fromString(protoSchema.getId()));
 
     return schema;

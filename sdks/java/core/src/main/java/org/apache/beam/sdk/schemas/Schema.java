@@ -78,7 +78,7 @@ public class Schema implements Serializable {
   }
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
-  private Map<String, Integer> physicalFieldLocation = Maps.newHashMap();
+  private Map<String, Integer> encodingPositions = Maps.newHashMap();
 
   private final List<Field> fields;
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
@@ -213,7 +213,7 @@ public class Schema implements Serializable {
         throw new IllegalArgumentException(
             "Duplicate field " + field.getName() + " added to schema");
       }
-      physicalFieldLocation.put(field.getName(), index);
+      encodingPositions.put(field.getName(), index);
       fieldIndices.put(field.getName(), index++);
     }
     this.hashCode = Objects.hash(fieldIndices, fields);
@@ -228,12 +228,14 @@ public class Schema implements Serializable {
     this.uuid = uuid;
   }
 
-  public Map<String, Integer> getPhysicalFieldLocations() {
-    return physicalFieldLocation;
+  /** Gets the encoding positions for this schema. */
+  public Map<String, Integer> getEncodingPositions() {
+    return encodingPositions;
   }
 
-  public void setPhysicalFieldLocation(Map<String, Integer> physicalFieldLocation) {
-    this.physicalFieldLocation = physicalFieldLocation;
+  /** Sets the encoding positions for this schema. */
+  public void setEncodingPositions(Map<String, Integer> encodingPositions) {
+    this.encodingPositions = encodingPositions;
   }
 
   /** Get this schema's UUID. */
