@@ -28,10 +28,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricFiltering;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -140,9 +140,7 @@ class DataflowMetrics extends MetricResults {
       } else if (committed.getDistribution() != null && attempted.getDistribution() != null) {
         // distribution metric
         DistributionResult value = getDistributionValue(committed);
-        distributionResults.add(
-            MetricResult.create(
-                metricKey.metricName(), metricKey.stepName(), !isStreamingJob, value));
+        distributionResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
          * In Dataflow batch jobs, only COMMITTED metrics are available, but
          * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
@@ -151,9 +149,7 @@ class DataflowMetrics extends MetricResults {
       } else if (committed.getScalar() != null && attempted.getScalar() != null) {
         // counter metric
         Long value = getCounterValue(committed);
-        counterResults.add(
-            MetricResult.create(
-                metricKey.metricName(), metricKey.stepName(), !isStreamingJob, value));
+        counterResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
          * In Dataflow batch jobs, only COMMITTED metrics are available, but
          * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
