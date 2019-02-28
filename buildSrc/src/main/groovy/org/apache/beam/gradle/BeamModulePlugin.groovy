@@ -797,7 +797,9 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which can apply code formatting to source.
       // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
       project.apply plugin: "com.diffplug.gradle.spotless"
-
+      // scan CVE
+      project.apply plugin: "net.ossindex.audit"
+      project.audit { rateLimitAsError = false }
       // Spotless can be removed from the 'check' task by passing -PdisableSpotlessCheck=true on the Gradle
       // command-line. This is useful for pre-commit which runs spotless separately.
       def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
