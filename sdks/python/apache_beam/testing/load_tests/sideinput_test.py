@@ -123,7 +123,7 @@ import apache_beam as beam
 from apache_beam.pvalue import AsIter
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
 
 load_test_enabled = False
@@ -174,23 +174,16 @@ class SideInputTest(unittest.TestCase):
     self.iterations = int(self.iterations)
 
     self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
-    metrics_project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
-    metrics_dataset = self.pipeline.get_option('metrics_dataset')
 
-    check = metrics_project_id and self.metrics_namespace and metrics_dataset \
-            is not None
-    if not self.metrics_monitor:
+    if not self.metrics_monitor or str(self.metrics_monitor) != 'true':
       logging.info('Metrics will not be collected')
-    elif check:
-      self.metrics_monitor = MetricsMonitor(
-          project_name=metrics_project_id,
-          table=self.metrics_namespace,
-          dataset=metrics_dataset,
-      )
     else:
-      raise ValueError('One or more of parameters for collecting metrics '
-                       'are empty.')
+      self.metrics_monitor = MetricsReader(
+          project_name=self.pipeline.get_option('project'),
+          bq_table=self.metrics_namespace,
+          bq_dataset=self.pipeline.get_option('metrics_dataset'),
+      )
 
   def testSideInput(self):
     def join_fn(element, side_input, iterations):
