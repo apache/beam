@@ -39,19 +39,95 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 
 if not (platform.system() == 'Windows' and sys.version_info[0] == 2):
   import pyarrow as pa
   import pyarrow.parquet as pq
 
-__all__ = ['ReadFromParquet', 'ReadAllFromParquet', 'WriteToParquet']
+__all__ = ['ReadFromParquet', 'ReadAllFromParquet', 'ReadFromParquetBatched',
+           'ReadAllFromParquetBatched', 'WriteToParquet']
+
+
+class _ArrowTableToRowDictionaries(DoFn):
+  """ A DoFn that consumes an Arrow table and yields a python dictionary for
+  each row in the table."""
+  def process(self, table):
+    num_rows = table.num_rows
+    data_items = table.to_pydict().items()
+    for n in range(num_rows):
+      row = {}
+      for column, values in data_items:
+        row[column] = values[n]
+      yield row
+
+
+class ReadFromParquetBatched(PTransform):
+  """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
+     Parquet files as a `PCollection` of `pyarrow.Table`. This `PTransform` is
+     currently experimental. No backward-compatibility guarantees."""
+
+  def __init__(self, file_pattern=None, min_bundle_size=0,
+               validate=True, columns=None):
+    """ Initializes :class:`~ReadFromParquetBatched`
+
+    An alternative to :class:`~ReadFromParquet` that yields each row group from
+    the Parquet file as a `pyarrow.Table`.  These Table instances can be
+    processed directly, or converted to a pandas DataFrame for processing.  For
+    more information on supported types and schema, please see the pyarrow
+    documentation.
+
+    .. testcode::
+
+      with beam.Pipeline() as p:
+        dataframes = p \\
+            | 'Read' >> beam.io.ReadFromParquetBatched('/mypath/mypqfiles*') \\
+            | 'Convert to pandas' >> beam.Map(lambda table: table.to_pandas())
+
+    .. NOTE: We're not actually interested in this error; but if we get here,
+       it means that the way of calling this transform hasn't changed.
+
+    .. testoutput::
+      :hide:
+
+      Traceback (most recent call last):
+       ...
+      IOError: No files found based on the file pattern
+
+    See also: :class:`~ReadFromParquet`.
+
+    Args:
+      file_pattern (str): the file glob to read
+      min_bundle_size (int): the minimum size in bytes, to be considered when
+        splitting the input into bundles.
+      validate (bool): flag to verify that the files exist during the pipeline
+        creation time.
+      columns (List[str]): list of columns that will be read from files.
+        A column name may be a prefix of a nested field, e.g. 'a' will select
+        'a.b', 'a.c', and 'a.d.e'
+    """
+
+    super(ReadFromParquetBatched, self).__init__()
+    self._source = _create_parquet_source(
+        file_pattern,
+        min_bundle_size,
+        validate=validate,
+        columns=columns,
+    )
+
+  def expand(self, pvalue):
+    return pvalue.pipeline | Read(self._source)
+
+  def display_data(self):
+    return {'source_dd': self._source}
 
 
 class ReadFromParquet(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
-     Parquet files. This `PTransform` is currently experimental. No
-     backward-compatibility guarantees."""
+     Parquet files as a `PCollection` of dictionaries. This `PTransform` is
+     currently experimental. No backward-compatibility guarantees."""
 
   def __init__(self, file_pattern=None, min_bundle_size=0,
                validate=True, columns=None):
@@ -86,8 +162,9 @@ class ReadFromParquet(PTransform):
     that are of simple types will be mapped into corresponding Python types.
     Records that are of complex types like list and struct will be mapped to
     Python list and dictionary respectively. For more information on supported
-    types and schema, please see the pyarrow document.
+    types and schema, please see the pyarrow documentation.
 
+    See also: :class:`~ReadFromParquetBatched`.
 
     Args:
       file_pattern (str): the file glob to read
@@ -98,29 +175,29 @@ class ReadFromParquet(PTransform):
       columns (List[str]): list of columns that will be read from files.
         A column name may be a prefix of a nested field, e.g. 'a' will select
         'a.b', 'a.c', and 'a.d.e'
-"""
+    """
     super(ReadFromParquet, self).__init__()
     self._source = _create_parquet_source(
         file_pattern,
         min_bundle_size,
         validate=validate,
-        columns=columns
+        columns=columns,
     )
 
   def expand(self, pvalue):
-    return pvalue.pipeline | Read(self._source)
+    return pvalue | Read(self._source) | ParDo(_ArrowTableToRowDictionaries())
 
   def display_data(self):
     return {'source_dd': self._source}
 
 
-class ReadAllFromParquet(PTransform):
+class ReadAllFromParquetBatched(PTransform):
   """A ``PTransform`` for reading ``PCollection`` of Parquet files.
 
    Uses source ``_ParquetSource`` to read a ``PCollection`` of Parquet files or
-   file patterns and produce a ``PCollection`` of Parquet records. This
-   ``PTransform`` is currently experimental. No backward-compatibility
-   guarantees.
+   file patterns and produce a ``PCollection`` of ``pyarrow.Table``, one for
+   each Parquet file row group. This ``PTransform`` is currently experimental.
+   No backward-compatibility guarantees.
   """
 
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
@@ -140,7 +217,7 @@ class ReadAllFromParquet(PTransform):
                        may be a prefix of a nested field, e.g. 'a' will select
                        'a.b', 'a.c', and 'a.d.e'
     """
-    super(ReadAllFromParquet, self).__init__()
+    super(ReadAllFromParquetBatched, self).__init__()
     source_from_file = partial(
         _create_parquet_source,
         min_bundle_size=min_bundle_size,
@@ -156,6 +233,14 @@ class ReadAllFromParquet(PTransform):
     return pvalue | self.label >> self._read_all_files
 
 
+class ReadAllFromParquet(PTransform):
+  def __init__(self, **kwargs):
+    self._read_batches = ReadAllFromParquetBatched(**kwargs)
+
+  def expand(self, pvalue):
+    return pvalue | self._read_batches | ParDo(_ArrowTableToRowDictionaries())
+
+
 def _create_parquet_source(file_pattern=None,
                            min_bundle_size=0,
                            validate=False,
@@ -165,7 +250,7 @@ def _create_parquet_source(file_pattern=None,
         file_pattern=file_pattern,
         min_bundle_size=min_bundle_size,
         validate=validate,
-        columns=columns
+        columns=columns,
     )
 
 
@@ -244,13 +329,7 @@ class _ParquetSource(filebasedsource.FileBasedSource):
         else:
           next_block_start = range_tracker.stop_position()
 
-        num_rows = table.num_rows
-        data_items = table.to_pydict().items()
-        for n in range(num_rows):
-          row = {}
-          for column, values in data_items:
-            row[column] = values[n]
-          yield row
+        yield table
 
 
 class WriteToParquet(PTransform):

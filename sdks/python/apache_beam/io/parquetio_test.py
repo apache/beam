@@ -36,7 +36,9 @@ from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.parquetio import ReadAllFromParquet
+from apache_beam.io.parquetio import ReadAllFromParquetBatched
 from apache_beam.io.parquetio import ReadFromParquet
+from apache_beam.io.parquetio import ReadFromParquetBatched
 from apache_beam.io.parquetio import WriteToParquet
 from apache_beam.io.parquetio import _create_parquet_sink
 from apache_beam.io.parquetio import _create_parquet_source
@@ -113,6 +115,23 @@ class TestParquet(unittest.TestCase):
       col_list.append(column)
     return col_list
 
+  def _records_as_arrow(self, schema=None, count=None):
+    if schema is None:
+      schema = self.SCHEMA
+
+    if count is None:
+      count = len(self.RECORDS)
+
+    len_records = len(self.RECORDS)
+    data = []
+    for i in range(count):
+      data.append(self.RECORDS[i % len_records])
+    col_data = self._record_to_columns(data, schema)
+    col_array = [
+        pa.array(c, schema.types[cn]) for cn, c in enumerate(col_data)
+    ]
+    return pa.Table.from_arrays(col_array, schema.names)
+
   def _write_data(self,
                   directory=None,
                   schema=None,
@@ -120,26 +139,12 @@ class TestParquet(unittest.TestCase):
                   row_group_size=1000,
                   codec='none',
                   count=None):
-    if schema is None:
-      schema = self.SCHEMA
-
     if directory is None:
       directory = self.temp_dir
 
-    if count is None:
-      count = len(self.RECORDS)
-
     with tempfile.NamedTemporaryFile(
         delete=False, dir=directory, prefix=prefix) as f:
-      len_records = len(self.RECORDS)
-      data = []
-      for i in range(count):
-        data.append(self.RECORDS[i % len_records])
-      col_data = self._record_to_columns(data, schema)
-      col_array = [
-          pa.array(c, schema.types[cn]) for cn, c in enumerate(col_data)
-      ]
-      table = pa.Table.from_arrays(col_array, schema.names)
+      table = self._records_as_arrow(schema, count)
       pq.write_table(
           table, f, row_group_size=row_group_size, compression=codec,
           use_deprecated_int96_timestamps=True
@@ -177,12 +182,12 @@ class TestParquet(unittest.TestCase):
 
   def test_read_without_splitting(self):
     file_name = self._write_data()
-    expected_result = self.RECORDS
+    expected_result = [self._records_as_arrow()]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 
   def test_read_with_splitting(self):
     file_name = self._write_data()
-    expected_result = self.RECORDS
+    expected_result = [self._records_as_arrow()]
     self._run_parquet_test(file_name, None, 100, True, expected_result)
 
   def test_source_display_data(self):
@@ -205,12 +210,19 @@ class TestParquet(unittest.TestCase):
       ReadFromParquet(
           file_name,
           validate=False)
-    dd = DisplayData.create_from(read)
+    read_batched = \
+      ReadFromParquetBatched(
+          file_name,
+          validate=False)
 
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
         DisplayDataItemMatcher('file_pattern', file_name)]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+    hc.assert_that(DisplayData.create_from(read).items,
+                   hc.contains_inanyorder(*expected_items))
+    hc.assert_that(DisplayData.create_from(read_batched).items,
+                   hc.contains_inanyorder(*expected_items))
 
   def test_sink_display_data(self):
     file_name = 'some_parquet_sink'
@@ -271,6 +283,8 @@ class TestParquet(unittest.TestCase):
       path = dst.name
       # pylint: disable=c-extension-no-member
       with self.assertRaises(pl.ArrowInvalid):
+        # Should throw an error "ArrowInvalid: Casting from timestamp[ns] to
+        # timestamp[us] would lose data"
         with TestPipeline() as p:
           _ = p \
           | Create(self.RECORDS) \
@@ -292,6 +306,21 @@ class TestParquet(unittest.TestCase):
             | ReadFromParquet(path) \
             | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+  def test_batched_read(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with TestPipeline() as p:
+        _ = p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA, num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+            p \
+            | ReadFromParquetBatched(path)
+        assert_that(readback, equal_to([self._records_as_arrow()]))
 
   @parameterized.expand([
       param(compression_type='snappy'),
@@ -318,18 +347,28 @@ class TestParquet(unittest.TestCase):
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
   def test_read_reentrant(self):
-    file_name = self._write_data()
+    file_name = self._write_data(count=6, row_group_size=3)
     source = _create_parquet_source(file_name)
     source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_without_splitting_multiple_row_group(self):
-    file_name = self._write_data(count=12000)
-    expected_result = self.RECORDS * 2000
+    file_name = self._write_data(count=12000, row_group_size=1000)
+    # We expect 12000 elements, split into batches of 1000 elements. Create
+    # a list of pa.Table instances to model this expecation
+    expected_result = [
+        pa.Table.from_batches([batch]) for batch in self._records_as_arrow(
+            count=12000).to_batches(chunksize=1000)
+    ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 
   def test_read_with_splitting_multiple_row_group(self):
-    file_name = self._write_data(count=12000)
-    expected_result = self.RECORDS * 2000
+    file_name = self._write_data(count=12000, row_group_size=1000)
+    # We expect 12000 elements, split into batches of 1000 elements. Create
+    # a list of pa.Table instances to model this expecation
+    expected_result = [
+        pa.Table.from_batches([batch]) for batch in self._records_as_arrow(
+            count=12000).to_batches(chunksize=1000)
+    ]
     self._run_parquet_test(file_name, None, 10000, True, expected_result)
 
   def test_dynamic_work_rebalancing(self):
@@ -370,9 +409,11 @@ class TestParquet(unittest.TestCase):
   def test_int96_type_conversion(self):
     file_name = self._write_data(
         count=120, row_group_size=20, schema=self.SCHEMA96)
+    orig = self._records_as_arrow(count=120, schema=self.SCHEMA96)
     expected_result = [
-        self._convert_to_timestamped_record(x) for x in self.RECORDS
-    ] * 20
+        pa.Table.from_batches([batch])
+        for batch in orig.to_batches(chunksize=20)
+    ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 
   def test_split_points(self):
@@ -397,16 +438,17 @@ class TestParquet(unittest.TestCase):
     # When reading records of the first group, range_tracker.split_points()
     # should return (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
     self.assertEqual(
-        split_points_report[:10],
-        [(0, RangeTracker.SPLIT_POINTS_UNKNOWN)] * 10)
-
-    # When reading records of last group, range_tracker.split_points() should
-    # return (3, 1)
-    self.assertEqual(split_points_report[-10:], [(3, 1)] * 10)
+        split_points_report,
+        [(0, RangeTracker.SPLIT_POINTS_UNKNOWN),
+         (1, RangeTracker.SPLIT_POINTS_UNKNOWN),
+         (2, RangeTracker.SPLIT_POINTS_UNKNOWN),
+         (3, 1),
+        ])
 
   def test_selective_columns(self):
     file_name = self._write_data()
-    expected_result = [{'name': r['name']} for r in self.RECORDS]
+    orig = self._records_as_arrow()
+    expected_result = [pa.Table.from_arrays([orig.column('name')])]
     self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
   def test_sink_transform_multiple_row_group(self):
@@ -430,6 +472,13 @@ class TestParquet(unittest.TestCase):
           | ReadAllFromParquet(),
           equal_to(self.RECORDS))
 
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([path]) \
+          | ReadAllFromParquetBatched(),
+          equal_to([self._records_as_arrow()]))
+
   def test_read_all_from_parquet_many_single_files(self):
     path1 = self._write_data()
     path2 = self._write_data()
@@ -440,6 +489,12 @@ class TestParquet(unittest.TestCase):
           | Create([path1, path2, path3]) \
           | ReadAllFromParquet(),
           equal_to(self.RECORDS * 3))
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([path1, path2, path3]) \
+          | ReadAllFromParquetBatched(),
+          equal_to([self._records_as_arrow()] * 3))
 
   def test_read_all_from_parquet_file_pattern(self):
     file_pattern = self._write_pattern(5)
@@ -449,6 +504,12 @@ class TestParquet(unittest.TestCase):
           | Create([file_pattern]) \
           | ReadAllFromParquet(),
           equal_to(self.RECORDS * 5))
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern]) \
+          | ReadAllFromParquetBatched(),
+          equal_to([self._records_as_arrow()] * 5))
 
   def test_read_all_from_parquet_many_file_patterns(self):
     file_pattern1 = self._write_pattern(5)
@@ -460,6 +521,12 @@ class TestParquet(unittest.TestCase):
           | Create([file_pattern1, file_pattern2, file_pattern3]) \
           | ReadAllFromParquet(),
           equal_to(self.RECORDS * 10))
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern1, file_pattern2, file_pattern3]) \
+          | ReadAllFromParquetBatched(),
+          equal_to([self._records_as_arrow()] * 10))
 
 
 if __name__ == '__main__':
