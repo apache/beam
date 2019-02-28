@@ -22,7 +22,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.Enc
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.spark.sql.Encoder;
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.expressions.Aggregator;
 
 public class AggregatorCombinerGlobally<InputT, AccumT, OutputT>
@@ -42,8 +42,8 @@ public class AggregatorCombinerGlobally<InputT, AccumT, OutputT>
   @Override
   public AccumT reduce(AccumT accumulator, InputT input) {
     // we receive a GenericRowWithSchema from spark containing an InputT
-    GenericRowWithSchema genericRow = (GenericRowWithSchema) input;
-    InputT t = RowHelpers.<InputT>extractObjectFromRow(genericRow);
+    Row row = (Row) input;
+    InputT t = RowHelpers.extractObjectFromRow(row);
     return combineFn.addInput(accumulator, t);
   }
 
