@@ -190,6 +190,15 @@ class Environment(object):
       if ('use_multiple_sdk_containers' not in debug_options_experiments and
           'no_use_multiple_sdk_containers' not in debug_options_experiments):
         self.debug_options.experiments.append('use_multiple_sdk_containers')
+    # FlexRS
+    if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
+      self.proto.flexResourceSchedulingGoal = (
+          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+          FLEXRS_COST_OPTIMIZED)
+    elif self.google_cloud_options.flexrs_goal == 'SPEED_OPTIMIZED':
+      self.proto.flexResourceSchedulingGoal = (
+          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+          FLEXRS_SPEED_OPTIMIZED)
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
