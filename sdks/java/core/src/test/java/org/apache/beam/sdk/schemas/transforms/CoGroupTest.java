@@ -23,8 +23,9 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.TestUtils.KvMatcher;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -361,7 +362,7 @@ public class CoGroupTest {
         pipeline.apply(
             "Create3", Create.of(Row.withSchema(CG_SCHEMA_3).addValues("user1", 17, "us").build()));
 
-    thrown.expect(IllegalStateException.class);
+    thrown.expect(IllegalArgumentException.class);
     PCollection<KV<Row, Row>> joined =
         PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
             .apply(
@@ -408,15 +409,10 @@ public class CoGroupTest {
     for (Row row1 : inputs1) {
       for (Row row2 : inputs2) {
         for (Row row3 : inputs3) {
-          boolean shouldJoin = true;
-          for (int i = 0; i < keys1.length && shouldJoin; ++i) {
-            shouldJoin =
-                Stream.of(row1.getValue(keys1[i]), row2.getValue(keys2[i]), row3.getValue(keys3[i]))
-                        .distinct()
-                        .count()
-                    == 1;
-          }
-          if (shouldJoin) {
+          List key1 = Arrays.stream(keys1).map(row1::getValue).collect(Collectors.toList());
+          List key2 = Arrays.stream(keys2).map(row2::getValue).collect(Collectors.toList());
+          List key3 = Arrays.stream(keys3).map(row3::getValue).collect(Collectors.toList());
+          if (key1.equals(key2) && key2.equals(key3)) {
             joined.add(Row.withSchema(expectedSchema).addValues(row1, row2, row3).build());
           }
         }
@@ -688,6 +684,22 @@ public class CoGroupTest {
             .build());
 
     PAssert.that(joined).containsInAnyOrder(expectedJoinedRows);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnmatchedTags() {
+    PCollection<Row> pc1 = pipeline.apply("Create1", Create.empty(CG_SCHEMA_1));
+    PCollection<Row> pc2 = pipeline.apply("Create2", Create.empty(CG_SCHEMA_2));
+
+    thrown.expect(IllegalArgumentException.class);
+
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2)
+        .apply(
+            CoGroup.join("pc1", By.fieldNames("user"))
+                .join("pc3", By.fieldNames("user3"))
+                .crossProductJoin());
     pipeline.run();
   }
 

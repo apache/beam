@@ -201,7 +201,7 @@ public class CoGbkResult {
     return innerGetOnly(tag, defaultValue, true);
   }
 
-  /** Like {@link #getOnly(TupleTag, Object)} but uisng a String instead of a TupleTag. */
+  /** Like {@link #getOnly(TupleTag, Object)} but using a String instead of a TupleTag. */
   @Nullable
   public <V> V getOnly(String tag, @Nullable V defaultValue) {
     return getOnly(new TupleTag<>(tag), defaultValue);

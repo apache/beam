@@ -544,8 +544,8 @@ public abstract class Row implements Serializable {
       if (schema.getFieldCount() != values.size()) {
         throw new IllegalArgumentException(
             String.format(
-                "Field count in Schema (%s) and values (%s) must match",
-                schema.getFieldNames(), values));
+                "Field count in Schema (%s) (%d) and values (%s) (%d)  must match",
+                schema.getFieldNames(), schema.getFieldCount(), values, values.size()));
       }
       for (int i = 0; i < values.size(); ++i) {
         Object value = values.get(i);
