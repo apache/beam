@@ -619,6 +619,10 @@ class BigQueryWrapper(object):
                                          dataset_id=dataset_id,
                                          table_id=table_id,
                                          schema=schema or found_table.schema)
+      logging.info('Created table %s.%s.%s with schema %s. Result: %s.',
+                   project_id, dataset_id, table_id,
+                   schema or found_table.schema,
+                   created_table)
       # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
       # the table before this point.
       if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
