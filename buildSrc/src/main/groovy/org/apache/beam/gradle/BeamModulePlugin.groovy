@@ -349,7 +349,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.27.0"
     def google_auth_version = "0.12.0"
     def grpc_version = "1.17.1"
-    def protobuf_version = "3.6.0"
+    def protobuf_version = "3.7.0-rc1"
     def guava_version = "20.0"
     def netty_version = "4.1.30.Final"
     def proto_google_common_protos_version = "1.12.0"
