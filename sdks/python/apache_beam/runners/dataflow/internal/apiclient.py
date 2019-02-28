@@ -957,10 +957,10 @@ def _verify_interpreter_version_is_supported(pipeline_options):
   if sys.version_info[0] == 2:
     return
 
-  if sys.version_info[0] == 3 and sys.version_info[1] == 5:
-    if sys.version_info[2] < 3:
+  if sys.version_info[0:2] in [(3, 5), (3, 6)]:
+    if sys.version_info[0:3] < (3, 5, 3):
       warnings.warn(
-          'You are using an early release of Python 3.5. It is recommended '
+          'You are using an early release for Python 3.5. It is recommended '
           'to use Python 3.5.3 or higher with Dataflow '
           'runner.')
     return
@@ -972,7 +972,7 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
   raise Exception(
       'Dataflow runner currently supports Python versions '
-      '2.7 and 3.5. To ignore this requirement and start a job using a '
+      '2.7, 3.5 and 3.6. To ignore this requirement and start a job using a '
       'different version of Python 3 interpreter, pass '
       '--experiment ignore_py3_minor_version pipeline option.')
 
