@@ -99,6 +99,44 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(env.proto.workerPools[0].subnetwork,
                      '/regions/MY/subnetworks/SUBNETWORK')
 
+  def test_flexrs_blank(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(env.proto.flexResourceSchedulingGoal, None)
+
+  def test_flexrs_cost(self):
+    pipeline_options = PipelineOptions(
+        ['--flexrs_goal', 'COST_OPTIMIZED',
+         '--temp_location', 'gs://any-location/temp'])
+
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.flexResourceSchedulingGoal,
+        (dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+         FLEXRS_COST_OPTIMIZED))
+
+  def test_flexrs_speed(self):
+    pipeline_options = PipelineOptions(
+        ['--flexrs_goal', 'SPEED_OPTIMIZED',
+         '--temp_location', 'gs://any-location/temp'])
+
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.flexResourceSchedulingGoal,
+        (dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+         FLEXRS_SPEED_OPTIMIZED))
+
   def test_invalid_default_job_name(self):
     # Regexp for job names in dataflow.
     regexp = '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'
