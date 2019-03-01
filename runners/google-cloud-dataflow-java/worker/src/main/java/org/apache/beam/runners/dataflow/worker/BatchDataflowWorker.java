@@ -348,6 +348,7 @@ public class BatchDataflowWorker implements Closeable {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(network));
         }
+
         worker =
             mapTaskExecutorFactory.create(
                 sdkWorkerHarness.getControlClientHandler(),

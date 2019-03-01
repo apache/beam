@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -37,7 +38,8 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
   final Map<String, MonitoringInfoToCounterUpdateTransformer> counterTransformers = new HashMap<>();
 
   public FnApiMonitoringInfoToCounterUpdateTransformer(
-      Map<String, DataflowStepContext> stepContextMap) {
+      Map<String, DataflowStepContext> stepContextMap,
+      Map<String, NameContext> sdkPCollectionIdToNameContext) {
     SpecMonitoringInfoValidator specValidator = new SpecMonitoringInfoValidator();
     this.userCounterTransformer =
         new UserMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
@@ -47,6 +49,10 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
     for (String urn : msecTransformer.getSupportedUrns()) {
       this.counterTransformers.put(urn, msecTransformer);
     }
+    this.counterTransformers.put(
+        ElementCountMonitoringInfoToCounterUpdateTransformer.getSupportedUrn(),
+        new ElementCountMonitoringInfoToCounterUpdateTransformer(
+            specValidator, sdkPCollectionIdToNameContext));
   }
 
   /** Allows for injection of user and generic counter transformers for more convenient testing. */

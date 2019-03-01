@@ -289,14 +289,16 @@ public class Nodes {
         BeamFnApi.RegisterRequest request,
         Map<String, NameContext> ptransformIdToPartialNameContextMap,
         Map<String, Iterable<SideInputInfo>> ptransformIdToSideInputInfoMap,
-        Map<String, Iterable<PCollectionView<?>>> pTransformIdToPCollectionViewMap) {
+        Map<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViewMap,
+        Map<String, NameContext> pcollectionToPartialNameContextMap) {
       checkNotNull(request);
       checkNotNull(ptransformIdToPartialNameContextMap);
       return new AutoValue_Nodes_RegisterRequestNode(
           request,
           ptransformIdToPartialNameContextMap,
           ptransformIdToSideInputInfoMap,
-          pTransformIdToPCollectionViewMap);
+          ptransformIdToPCollectionViewMap,
+          pcollectionToPartialNameContextMap);
     }
 
     public abstract BeamFnApi.RegisterRequest getRegisterRequest();
@@ -306,6 +308,8 @@ public class Nodes {
     public abstract Map<String, Iterable<SideInputInfo>> getPTransformIdToSideInputInfoMap();
 
     public abstract Map<String, Iterable<PCollectionView<?>>> getPTransformIdToPCollectionViewMap();
+
+    public abstract Map<String, NameContext> getPCollectionToPartialNameContextMap();
 
     @Override
     public String toString() {

@@ -174,6 +174,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext)
         .supportsRestart();
   }
@@ -215,6 +216,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     // Ensure that the first time we start we send the register and process bundle requests
@@ -320,6 +322,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -423,6 +426,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -493,6 +497,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -613,6 +618,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of("testPTransformId", mockStepContext),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -740,6 +746,7 @@ public class RegisterAndProcessBundleOperationTest {
                     FullWindowedValueCoder.of(
                         KvCoder.of(ByteArrayCoder.of(), StringUtf8Coder.of()),
                         GlobalWindow.Coder.INSTANCE))),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -791,6 +798,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
     abortReference.set(operation::abort);
     operation.start();
@@ -838,6 +846,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
     abortReference.set(operation::abort);
     operation.start();
@@ -875,6 +884,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     assertEquals(
@@ -897,6 +907,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.getProcessBundleInstructionId(); // this generates and caches bundleId
