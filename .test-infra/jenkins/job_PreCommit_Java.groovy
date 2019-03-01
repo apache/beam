@@ -42,7 +42,7 @@ builder.build {
           pattern('**/build/reports/checkstyle/*.xml')
         }
         findBugs {
-          pattern('**/build/reports/findbugs/*.xml')
+          pattern('**/build/reports/spotbugs/*.xml')
         }
       }
       enabledForFailure(true)
