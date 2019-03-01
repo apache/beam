@@ -947,6 +947,7 @@ bigquery_v2_messages.TableSchema):
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
           kms_key=self.kms_key,
+          retry_strategy=self.insert_retry_strategy,
           test_client=self.test_client)
 
       # TODO: Use utility functions from BQTools
