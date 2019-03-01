@@ -133,6 +133,8 @@ public class FlinkSavepointTest implements Serializable {
     runSavepointAndRestore(false);
   }
 
+  // TODO(ryan): make these fail when an exception is thrown (in the runner, I
+  //  think?), instead of just timing out
   @Test(timeout = 60_000)
   public void testSavepointRestorePortable() throws Exception {
     runSavepointAndRestore(true);
