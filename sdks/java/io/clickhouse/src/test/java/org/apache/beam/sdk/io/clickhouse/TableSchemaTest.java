@@ -136,6 +136,18 @@ public class TableSchemaTest {
   }
 
   @Test
+  public void testParseFixedString() {
+    assertEquals(ColumnType.fixedString(16), ColumnType.parse("FixedString(16)"));
+  }
+
+  @Test
+  public void testParseNullableFixedString() {
+    assertEquals(
+        ColumnType.fixedString(16).withNullable(true),
+        ColumnType.parse("Nullable(FixedString(16))"));
+  }
+
+  @Test
   public void testParseNullableInt32() {
     assertEquals(
         ColumnType.nullable(TableSchema.TypeName.INT32), ColumnType.parse("Nullable(Int32)"));

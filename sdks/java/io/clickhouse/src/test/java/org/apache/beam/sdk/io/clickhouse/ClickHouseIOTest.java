@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.sql.ResultSet;
@@ -24,6 +25,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -156,7 +158,10 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f11", FieldType.INT64),
             Schema.Field.of("f12", FieldType.INT64),
             Schema.Field.of("f13", FieldType.STRING),
-            Schema.Field.of("f14", FieldType.STRING));
+            Schema.Field.of("f14", FieldType.STRING),
+            Schema.Field.of("f15", FieldType.STRING),
+            Schema.Field.of("f16", FieldType.BYTES),
+            Schema.Field.of("f17", FieldType.logicalType(LogicalTypes.FixedBytes.of(3))));
     Row row1 =
         Row.withSchema(schema)
             .addValue(new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC))
@@ -174,6 +179,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             .addValue(12L)
             .addValue("abc")
             .addValue("cde")
+            .addValue("qwe")
+            .addValue(new byte[] {'a', 's', 'd'})
+            .addValue(new byte[] {'z', 'x', 'c'})
             .build();
 
     executeSql(
@@ -192,7 +200,10 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f11 UInt32,"
             + "f12 UInt64,"
             + "f13 Enum8('abc' = 1, 'cde' = 2),"
-            + "f14 Enum16('abc' = -1, 'cde' = -2)"
+            + "f14 Enum16('abc' = -1, 'cde' = -2),"
+            + "f15 FixedString(3),"
+            + "f16 FixedString(3),"
+            + "f17 FixedString(3)"
             + ") ENGINE=Log");
 
     pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_primitive_types"));
@@ -217,6 +228,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
       assertEquals("12", rs.getString("f12"));
       assertEquals("abc", rs.getString("f13"));
       assertEquals("cde", rs.getString("f14"));
+      assertArrayEquals(new byte[] {'q', 'w', 'e'}, rs.getBytes("f15"));
+      assertArrayEquals(new byte[] {'a', 's', 'd'}, rs.getBytes("f16"));
+      assertArrayEquals(new byte[] {'z', 'x', 'c'}, rs.getBytes("f17"));
     }
   }
 

@@ -73,29 +73,30 @@ TOKEN :
 
 TOKEN :
 {
-    < ARRAY    : "ARRAY" >
-  | < DATE     : "DATE" >
-  | < DATETIME : "DATETIME" >
-  | < ENUM8    : "ENUM8" >
-  | < ENUM16   : "ENUM16" >
-  | < FLOAT32  : "FLOAT32" >
-  | < FLOAT64  : "FLOAT64" >
-  | < STRING   : "STRING" >
-  | < INT8     : "INT8" >
-  | < INT16    : "INT16" >
-  | < INT32    : "INT32" >
-  | < INT64    : "INT64" >
-  | < UINT8    : "UINT8" >
-  | < UINT16   : "UINT16" >
-  | < UINT32   : "UINT32" >
-  | < UINT64   : "UINT64" >
-  | < NULLABLE : "NULLABLE" >
-  | < LPAREN   : "(" >
-  | < RPAREN   : ")" >
-  | < CAST     : "CAST" >
-  | < AS       : "AS" >
-  | < COMMA    : "," >
-  | < EQ       : "=" >
+    < ARRAY       : "ARRAY" >
+  | < DATE        : "DATE" >
+  | < DATETIME    : "DATETIME" >
+  | < ENUM8       : "ENUM8" >
+  | < ENUM16      : "ENUM16" >
+  | < FIXEDSTRING : "FIXEDSTRING" >
+  | < FLOAT32     : "FLOAT32" >
+  | < FLOAT64     : "FLOAT64" >
+  | < STRING      : "STRING" >
+  | < INT8        : "INT8" >
+  | < INT16       : "INT16" >
+  | < INT32       : "INT32" >
+  | < INT64       : "INT64" >
+  | < UINT8       : "UINT8" >
+  | < UINT16      : "UINT16" >
+  | < UINT32      : "UINT32" >
+  | < UINT64      : "UINT64" >
+  | < NULLABLE    : "NULLABLE" >
+  | < LPAREN      : "(" >
+  | < RPAREN      : ")" >
+  | < CAST        : "CAST" >
+  | < AS          : "AS" >
+  | < COMMA       : "," >
+  | < EQ          : "=" >
 }
 
 public ColumnType columnType() :
@@ -194,9 +195,17 @@ private TypeName typeName() :
 private ColumnType primitive() :
 {
     TypeName type;
+    String size;
 }
 {
-    (type = typeName()) { return ColumnType.of(type); }
+    (
+      (type = typeName()) { return ColumnType.of(type); }
+    |
+      (<FIXEDSTRING> <LPAREN> ( size = integer() ) <RPAREN>) {
+        return ColumnType.fixedString(Integer.valueOf(size));
+      }
+    )
+
 }
 
 private ColumnType nullable() :
