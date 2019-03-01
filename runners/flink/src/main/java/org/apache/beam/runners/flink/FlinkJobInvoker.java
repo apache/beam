@@ -20,9 +20,8 @@ package org.apache.beam.runners.flink;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
@@ -31,39 +30,30 @@ import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Job Invoker for the {@link FlinkRunner}. */
-public class FlinkJobInvoker implements JobInvoker {
+public class FlinkJobInvoker extends JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
   public static FlinkJobInvoker create(FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
-    ThreadFactory threadFactory =
-        new ThreadFactoryBuilder()
-            .setNameFormat("flink-runner-job-invoker")
-            .setDaemon(true)
-            .build();
-    ListeningExecutorService executorService =
-        MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(threadFactory));
-    return new FlinkJobInvoker(executorService, serverConfig);
+    return new FlinkJobInvoker(serverConfig);
   }
 
-  private final ListeningExecutorService executorService;
   private final FlinkJobServerDriver.FlinkServerConfiguration serverConfig;
 
-  private FlinkJobInvoker(
-      ListeningExecutorService executorService,
-      FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
-    this.executorService = executorService;
+  private FlinkJobInvoker(FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
+    super("flink-runner-job-invoker");
     this.serverConfig = serverConfig;
   }
 
   @Override
-  public JobInvocation invoke(
-      RunnerApi.Pipeline pipeline, Struct options, @Nullable String retrievalToken)
+  protected JobInvocation invokeWithExecutor(
+      RunnerApi.Pipeline pipeline,
+      Struct options,
+      @Nullable String retrievalToken,
+      ListeningExecutorService executorService)
       throws IOException {
     // TODO: How to make Java/Python agree on names of keys and their values?
     LOG.trace("Parsing pipeline options");
@@ -85,7 +75,7 @@ public class FlinkJobInvoker implements JobInvoker {
 
     flinkOptions.setRunner(null);
 
-    return FlinkJobInvocation.create(
+    return createJobInvocation(
         invocationId,
         retrievalToken,
         executorService,
@@ -93,5 +83,18 @@ public class FlinkJobInvoker implements JobInvoker {
         flinkOptions,
         serverConfig.getFlinkConfDir(),
         detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
+  }
+
+  static JobInvocation createJobInvocation(
+      String invocationId,
+      String retrievalToken,
+      ListeningExecutorService executorService,
+      RunnerApi.Pipeline pipeline,
+      FlinkPipelineOptions flinkOptions,
+      @Nullable String confDir,
+      List<String> filesToStage) {
+    FlinkPipelineRunner pipelineRunner =
+        new FlinkPipelineRunner(invocationId, retrievalToken, flinkOptions, confDir, filesToStage);
+    return new JobInvocation(invocationId, executorService, pipeline, pipelineRunner);
   }
 }
