@@ -619,6 +619,7 @@ class _ParDoEvaluator(_TransformEvaluator):
         step_name=self._applied_ptransform.full_label,
         state=DoFnState(self._counter_factory),
         user_state_context=self.user_state_context)
+    self.runner.setup()
     self.runner.start()
 
   def process_timer(self, timer_firing):
@@ -634,6 +635,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     self.runner.finish()
+    self.runner.teardown()
     bundles = list(self._tagged_receivers.values())
     result_counters = self._counter_factory.get_counters()
     if self.user_state_context:

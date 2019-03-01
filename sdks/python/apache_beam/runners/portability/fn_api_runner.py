@@ -847,7 +847,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     pass
 
   def stop_worker(self):
-    pass
+    self.worker.teardown()
 
   def done(self):
     pass

@@ -150,6 +150,10 @@ class SdkHarness(object):
     # Stop all the workers and clean all the associated resources
     self._data_channel_factory.close()
     self._state_handler_factory.close()
+    while not self.workers.empty():
+      worker = self.workers.get()
+      worker.teardown()
+
     logging.info('Done consuming work.')
 
   def _execute(self, task, request):
@@ -424,6 +428,11 @@ class SdkWorker(object):
         yield
     else:
       yield
+
+  def teardown(self):
+    for processors in self.cached_bundle_processors.values():
+      for processor in processors:
+        processor.teardown()
 
 
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):

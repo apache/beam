@@ -240,6 +240,9 @@ class Operation(object):
     """Finish operation."""
     pass
 
+  def teardown(self):
+    pass
+
   def reset(self):
     self.metrics_container.reset()
 
@@ -569,6 +572,7 @@ class DoOperation(Operation):
           state=state,
           user_state_context=self.user_state_context,
           operation_name=self.name_context.metrics_name())
+      self.dofn_runner.setup()
 
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
@@ -603,6 +607,10 @@ class DoOperation(Operation):
       self.dofn_runner.finish()
       if self.user_state_context:
         self.user_state_context.commit()
+
+  def teardown(self):
+    with self.scoped_finish_state:
+      self.dofn_runner.teardown()
 
   def reset(self):
     super(DoOperation, self).reset()

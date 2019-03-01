@@ -746,6 +746,10 @@ class BundleProcessor(object):
         monitoring_info.labels['TAG'] = actual_output_tags[0]
     return monitoring_info
 
+  def teardown(self):
+    for op in self.ops.values():
+      op.teardown()
+
 
 class ExecutionContext(object):
   def __init__(self):

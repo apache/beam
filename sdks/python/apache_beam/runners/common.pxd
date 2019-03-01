@@ -43,6 +43,8 @@ cdef class DoFnSignature(object):
   cdef public MethodWrapper process_method
   cdef public MethodWrapper start_bundle_method
   cdef public MethodWrapper finish_bundle_method
+  cdef public MethodWrapper setup_lifecycle_method
+  cdef public MethodWrapper teardown_lifecycle_method
   cdef public MethodWrapper initial_restriction_method
   cdef public MethodWrapper restriction_coder_method
   cdef public MethodWrapper create_tracker_method
