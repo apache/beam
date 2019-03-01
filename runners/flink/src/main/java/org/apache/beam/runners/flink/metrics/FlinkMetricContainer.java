@@ -135,14 +135,14 @@ public class FlinkMetricContainer {
             }
           }
         });
-    updateMetrics(stepName);
+    updateFlinkMetrics(stepName);
   }
 
   /**
    * Update Flink's internal metrics ({@link this#flinkCounterCache}) with the latest metrics for a
    * given step.
    */
-  void updateMetrics(String stepName) {
+  void updateFlinkMetrics(String stepName) {
     MetricResults metricResults = asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(stepName).build());

@@ -104,7 +104,7 @@ public class FlinkMetricContainerTest {
     counter.inc();
 
     assertThat(flinkCounter.getCount(), is(0L));
-    container.updateMetrics("step");
+    container.updateFlinkMetrics("step");
     assertThat(flinkCounter.getCount(), is(2L));
   }
 
@@ -121,10 +121,10 @@ public class FlinkMetricContainerTest {
 
     assertThat(flinkGauge.getValue(), is(GaugeResult.empty()));
     // first set will install the mocked gauge
-    container.updateMetrics("step");
+    container.updateFlinkMetrics("step");
     gauge.set(1);
     gauge.set(42);
-    container.updateMetrics("step");
+    container.updateFlinkMetrics("step");
     assertThat(flinkGauge.getValue().getValue(), is(42L));
   }
 
@@ -269,12 +269,12 @@ public class FlinkMetricContainerTest {
 
     assertThat(flinkGauge.getValue(), is(DistributionResult.IDENTITY_ELEMENT));
     // first set will install the mocked distribution
-    container.updateMetrics("step");
+    container.updateFlinkMetrics("step");
     distribution.update(42);
     distribution.update(-23);
     distribution.update(0);
     distribution.update(1);
-    container.updateMetrics("step");
+    container.updateFlinkMetrics("step");
     assertThat(flinkGauge.getValue().getMax(), is(42L));
     assertThat(flinkGauge.getValue().getMin(), is(-23L));
     assertThat(flinkGauge.getValue().getCount(), is(4L));
