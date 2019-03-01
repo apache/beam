@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.joda.time.Days;
 import org.joda.time.Instant;
@@ -50,6 +51,18 @@ public class ClickHouseWriter {
       throws IOException {
 
     switch (columnType.typeName()) {
+      case FIXEDSTRING:
+        byte[] bytes;
+
+        if (value instanceof String) {
+          bytes = ((String) value).getBytes(Charsets.UTF_8);
+        } else {
+          bytes = ((byte[]) value);
+        }
+
+        stream.writeBytes(bytes);
+        break;
+
       case FLOAT32:
         stream.writeFloat32((Float) value);
         break;

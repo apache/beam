@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 
 /** A descriptor for ClickHouse table schema. */
@@ -72,6 +73,10 @@ public abstract class TableSchema implements Serializable {
 
       case STRING:
         return Schema.FieldType.STRING;
+
+      case FIXEDSTRING:
+        int size = columnType.fixedStringSize(); // non-null for fixed strings
+        return Schema.FieldType.logicalType(LogicalTypes.FixedBytes.of(size));
 
       case FLOAT32:
         return Schema.FieldType.FLOAT;
@@ -147,6 +152,7 @@ public abstract class TableSchema implements Serializable {
     DATETIME,
     ENUM8,
     ENUM16,
+    FIXEDSTRING,
     FLOAT32,
     FLOAT64,
     INT8,
@@ -208,6 +214,9 @@ public abstract class TableSchema implements Serializable {
     public abstract Map<String, Integer> enumValues();
 
     @Nullable
+    public abstract Integer fixedStringSize();
+
+    @Nullable
     public abstract ColumnType arrayElementType();
 
     public ColumnType withNullable(boolean nullable) {
@@ -220,6 +229,14 @@ public abstract class TableSchema implements Serializable {
 
     public static ColumnType nullable(TypeName typeName) {
       return ColumnType.builder().typeName(typeName).nullable(true).build();
+    }
+
+    public static ColumnType fixedString(int size) {
+      return ColumnType.builder()
+          .typeName(TypeName.FIXEDSTRING)
+          .nullable(false)
+          .fixedStringSize(size)
+          .build();
     }
 
     public static ColumnType enum8(Map<String, Integer> enumValues) {
@@ -288,9 +305,10 @@ public abstract class TableSchema implements Serializable {
             return Integer.valueOf(value);
           case INT64:
             return Long.valueOf(value);
-          case STRING:
-          case ENUM8:
           case ENUM16:
+          case ENUM8:
+          case FIXEDSTRING:
+          case STRING:
             return value;
           case UINT8:
             return Short.valueOf(value);
@@ -324,6 +342,8 @@ public abstract class TableSchema implements Serializable {
       public abstract Builder nullable(boolean nullable);
 
       public abstract Builder enumValues(Map<String, Integer> enumValues);
+
+      public abstract Builder fixedStringSize(Integer size);
 
       public abstract ColumnType build();
     }
