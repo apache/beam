@@ -131,23 +131,24 @@ public class FlinkMetricContainerTest {
   @Test
   public void testMonitoringInfoUpdate() {
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = container.getMetricsContainer("step");
 
     SimpleCounter userCounter = new SimpleCounter();
     when(metricGroup.counter("step.ns1.metric1")).thenReturn(userCounter);
 
-    SimpleMonitoringInfoBuilder userCountBuilder = new SimpleMonitoringInfoBuilder();
-    userCountBuilder.setUrnForUserMetric("ns1", "metric1");
-    userCountBuilder.setPTransformLabel("step");
-    userCountBuilder.setInt64Value(111);
-    MonitoringInfo userCountMonitoringInfo = userCountBuilder.build();
+    MonitoringInfo userCountMonitoringInfo =
+        new SimpleMonitoringInfoBuilder()
+            .setUrnForUserMetric("ns1", "metric1")
+            .setPTransformLabel("step")
+            .setInt64Value(111)
+            .build();
     assertNotNull(userCountMonitoringInfo);
 
-    SimpleMonitoringInfoBuilder elemCountBuilder = new SimpleMonitoringInfoBuilder();
-    elemCountBuilder.setUrn(ELEMENT_COUNT_URN);
-    elemCountBuilder.setInt64Value(222);
-    elemCountBuilder.setPCollectionLabel("pcoll");
-    MonitoringInfo elemCountMonitoringInfo = elemCountBuilder.build();
+    MonitoringInfo elemCountMonitoringInfo =
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(ELEMENT_COUNT_URN)
+            .setInt64Value(222)
+            .setPCollectionLabel("pcoll")
+            .build();
     assertNotNull(elemCountMonitoringInfo);
 
     assertThat(userCounter.getCount(), is(0L));
@@ -161,15 +162,17 @@ public class FlinkMetricContainerTest {
     MetricsContainer container = flinkContainer.getMetricsContainer("step");
 
     MonitoringInfo intCounter =
-        MonitoringInfo.newBuilder()
-            .setUrn(USER_COUNTER_URN_PREFIX + "ns1:int_counter")
-            .putLabels(PTRANSFORM_LABEL, "step")
-            .setMetric(
-                Metric.newBuilder().setCounterData(CounterData.newBuilder().setInt64Value(111)))
+        new SimpleMonitoringInfoBuilder()
+            .setUrnForUserMetric("ns1", "int_counter")
+            .setPTransformLabel("step")
+            .setInt64TypeUrn()
+            .setInt64Value(111)
             .build();
 
     MonitoringInfo doubleCounter =
         MonitoringInfo.newBuilder()
+            // TODO(ryan): use SimpleMonitoringInfoBuilder helpers, when double counters are
+            // supported (e.g. with a dedicated "type" value)
             .setUrn(USER_COUNTER_URN_PREFIX + "ns2:double_counter")
             .putLabels(PTRANSFORM_LABEL, "step")
             .setMetric(
