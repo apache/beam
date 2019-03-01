@@ -19,13 +19,35 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.spark.sql.Dataset;
 
 class WindowAssignTranslatorBatch<T>
     implements TransformTranslator<PTransform<PCollection<T>, PCollection<T>>> {
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<T>, PCollection<T>> transform, TranslationContext context) {}
+      PTransform<PCollection<T>, PCollection<T>> transform, TranslationContext context) {
+
+    Window.Assign<T> assignTransform = (Window.Assign<T>) transform;
+    @SuppressWarnings("unchecked")
+    final PCollection<T> input = (PCollection<T>) context.getInput();
+    @SuppressWarnings("unchecked")
+    final PCollection<T> output = (PCollection<T>) context.getOutput();
+
+    Dataset<WindowedValue<T>> inputDataset = context.getDataset(input);
+    if (WindowingHelpers.skipAssignWindows(assignTransform, context)) {
+      context.putDataset(output, inputDataset);
+    } else {
+      Dataset<WindowedValue<T>> outputDataset = inputDataset
+          .map(WindowingHelpers.assignWindowsMapFunction(assignTransform.getWindowFn()),
+              EncoderHelpers.windowedValueEncoder());
+      context.putDataset(output, outputDataset);
+    }
+  }
 }
