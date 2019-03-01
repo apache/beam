@@ -102,7 +102,7 @@ def run(argv=None):
     # Count the occurrences of each word.
     counts = (
         lines
-        | 'Split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+        | 'Split' >> (beam.FlatMap(lambda x: re.findall(r'[^\\p{L}]+', x))
                       .with_output_types(unicode))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | 'GroupAndSum' >> beam.CombinePerKey(sum))

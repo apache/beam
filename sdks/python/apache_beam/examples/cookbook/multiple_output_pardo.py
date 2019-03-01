@@ -100,7 +100,7 @@ class SplitLinesToWordsFn(beam.DoFn):
     yield pvalue.TaggedOutput(
         self.OUTPUT_TAG_CHARACTER_COUNT, len(element))
 
-    words = re.findall(r'[A-Za-z\']+', element)
+    words = re.findall(r'[^\\p{L}]+', element)
     for word in words:
       if len(word) <= 3:
         # yield word as an output to the OUTPUT_TAG_SHORT_WORDS tagged

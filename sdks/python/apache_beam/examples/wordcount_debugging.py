@@ -100,7 +100,7 @@ class CountWords(beam.PTransform):
       return (word, sum(ones))
 
     return (pcoll
-            | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+            | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[^\\p{L}]+', x))
                           .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()

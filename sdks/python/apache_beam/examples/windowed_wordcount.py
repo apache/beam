@@ -37,7 +37,7 @@ TABLE_SCHEMA = ('word:STRING, count:INTEGER, '
 
 def find_words(element):
   import re
-  return re.findall(r'[A-Za-z\']+', element)
+  return re.findall(r'[^\\p{L}]+', element)
 
 
 class FormatDoFn(beam.DoFn):

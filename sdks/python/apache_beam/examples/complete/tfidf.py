@@ -71,7 +71,7 @@ class TfIdf(beam.PTransform):
 
     def split_into_words(uri_line):
       (uri, line) = uri_line
-      return [(uri, w.lower()) for w in re.findall(r'[A-Za-z\']+', line)]
+      return [(uri, w.lower()) for w in re.findall(r'[^\\p{L}]+', line)]
 
     uri_to_words = (
         uri_to_content

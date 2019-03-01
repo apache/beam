@@ -52,7 +52,7 @@ def run(argv=None):
 
     (p  # pylint: disable=expression-not-assigned
      | 'read' >> ReadFromText(known_args.input)
-     | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+     | 'split' >> beam.FlatMap(lambda x: re.findall(r'[^\\p{L}]+', x))
      | 'TopPerPrefix' >> TopPerPrefix(5)
      | 'format' >> beam.Map(format_result)
      | 'write' >> WriteToText(known_args.output))

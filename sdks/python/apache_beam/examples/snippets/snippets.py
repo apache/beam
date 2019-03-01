@@ -163,7 +163,7 @@ def model_pipelines(argv):
 
     (p
      | beam.io.ReadFromText(my_options.input)
-     | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+     | beam.FlatMap(lambda x: re.findall(r'[^\\p{L}]+', x))
      | beam.Map(lambda x: (x, 1))
      | beam.combiners.Count.PerKey()
      | beam.io.WriteToText(my_options.output))
@@ -361,7 +361,7 @@ def pipeline_monitoring(renames):
   class ExtractWordsFn(beam.DoFn):
 
     def process(self, element):
-      words = re.findall(r'[A-Za-z\']+', element)
+      words = re.findall(r'[^\\p{L}]+', element)
       for word in words:
         yield word
 
@@ -436,7 +436,7 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_read]
 
       # [START examples_wordcount_minimal_pardo]
-      | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+      | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[^\\p{L}]+', x))
       # [END examples_wordcount_minimal_pardo]
 
       # [START examples_wordcount_minimal_count]
@@ -491,7 +491,7 @@ def examples_wordcount_wordcount(renames):
         return (pcoll
                 # Convert lines of text into individual words.
                 | 'ExtractWords' >> beam.FlatMap(
-                    lambda x: re.findall(r'[A-Za-z\']+', x))
+                    lambda x: re.findall(r'[^\\p{L}]+', x))
 
                 # Count the number of times each word occurs.
                 | beam.combiners.Count.PerElement())
@@ -549,7 +549,7 @@ def examples_wordcount_templated(renames):
   (
       lines
       | 'ExtractWords' >> beam.FlatMap(
-          lambda x: re.findall(r'[A-Za-z\']+', x))
+          lambda x: re.findall(r'[^\\p{L}]+', x))
       | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
       | 'Group' >> beam.GroupByKey()
       | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
@@ -612,7 +612,7 @@ def examples_wordcount_debugging(renames):
         | beam.io.ReadFromText(
             'gs://dataflow-samples/shakespeare/kinglear.txt')
         | 'ExtractWords' >> beam.FlatMap(
-            lambda x: re.findall(r'[A-Za-z\']+', x))
+            lambda x: re.findall(r'[^\\p{L}]+', x))
         | beam.combiners.Count.PerElement()
         | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
@@ -676,7 +676,7 @@ def examples_wordcount_streaming(argv):
         | 'DecodeUnicode' >> beam.FlatMap(
             lambda encoded: encoded.decode('utf-8'))
         | 'ExtractWords' >> beam.FlatMap(
-            lambda x: __import__('re').findall(r'[A-Za-z\']+', x))
+            lambda x: __import__('re').findall(r'[^\\p{L}]+', x))
         | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
         | beam.WindowInto(window.FixedWindows(15, 0))
         | 'Group' >> beam.GroupByKey()
@@ -986,7 +986,7 @@ def model_textio(renames):
   """Using a Read and Write transform to read/write text files."""
   def filter_words(x):
     import re
-    return re.findall(r'[A-Za-z\']+', x)
+    return re.findall(r'[^\\p{L}]+', x)
 
   # [START model_textio_read]
   with beam.Pipeline(options=PipelineOptions()) as p:
