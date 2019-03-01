@@ -186,7 +186,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             sinkRegistry,
             BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
             counterSet,
-            idGenerator)) {
+            idGenerator,
+            null)) {
       // Safe covariant cast not expressible without rawtypes.
       @SuppressWarnings({"rawtypes", "unchecked"})
       List<Object> operations = (List) executor.operations;
@@ -277,7 +278,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             sinkRegistry,
             context,
             counterSet,
-            idGenerator)) {
+            idGenerator,
+            null)) {
       executor.execute();
     }
 

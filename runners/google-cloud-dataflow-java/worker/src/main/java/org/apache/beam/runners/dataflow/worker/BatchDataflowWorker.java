@@ -22,6 +22,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -348,6 +349,10 @@ public class BatchDataflowWorker implements Closeable {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(network));
         }
+
+        Map<String, String> pcollectionDfeSystemToNameMapping =
+            new SystemIdToDfePCollectionNameMappingBuilder().build(workItem);
+
         worker =
             mapTaskExecutorFactory.create(
                 sdkWorkerHarness.getControlClientHandler(),
@@ -361,7 +366,8 @@ public class BatchDataflowWorker implements Closeable {
                 sinkRegistry,
                 executionContext,
                 counterSet,
-                idGenerator);
+                idGenerator,
+                pcollectionDfeSystemToNameMapping);
       } else if (workItem.getSourceOperationTask() != null) {
         worker =
             SourceOperationExecutorFactory.create(

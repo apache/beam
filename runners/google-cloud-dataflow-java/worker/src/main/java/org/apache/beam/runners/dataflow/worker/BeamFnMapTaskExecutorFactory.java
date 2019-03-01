@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -52,6 +53,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.fn.control.ProcessRemoteBundleOperation;
 import org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation;
+import org.apache.beam.runners.dataflow.worker.fn.control.SdkToDfePCollectionNameMappingBuilder;
 import org.apache.beam.runners.dataflow.worker.fn.control.TimerReceiver;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortReadOperation;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
@@ -138,7 +140,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       SinkFactory sinkFactory,
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
-      IdGenerator idGenerator) {
+      IdGenerator idGenerator,
+      Map<String, String> pcollectionSystemToNameMapping) {
 
     // TODO: remove this once we trust the code paths
     checkArgument(
@@ -173,7 +176,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
               instructionRequestHandler,
               grpcStateFnServer.getService(),
               stageName,
-              executionContext));
+              executionContext,
+              pcollectionSystemToNameMapping));
       // Swap out all the RemoteGrpcPort nodes with Operation nodes, note that it is expected
       // that the RegisterFnRequest nodes have already been replaced.
       Networks.replaceDirectedNetworkNodes(
@@ -403,7 +407,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       final InstructionRequestHandler instructionRequestHandler,
       final StateDelegator beamFnStateDelegator,
       final String stageName,
-      final DataflowExecutionContext<?> executionContext) {
+      final DataflowExecutionContext<?> executionContext,
+      Map<String, String> pcollectionSystemToNameMapping) {
     return new TypeSafeNodeFunction<RegisterRequestNode>(RegisterRequestNode.class) {
       @Override
       public Node typedApply(RegisterRequestNode input) {
@@ -438,16 +443,25 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             ptransformIdToSideInputIdToPCollectionView =
                 buildPTransformIdToSideInputIdToPCollectionView(input);
 
+        BeamFnApi.RegisterRequest registerRequest = input.getRegisterRequest();
+        List<BeamFnApi.ProcessBundleDescriptor> descriptorList =
+            registerRequest.getProcessBundleDescriptorList();
+
+        Map<String, String> sdkToDfePCollectionName =
+            new SdkToDfePCollectionNameMappingBuilder()
+                .build(descriptorList, pcollectionSystemToNameMapping);
+
         return OperationNode.create(
             new RegisterAndProcessBundleOperation(
                 idGenerator,
                 instructionRequestHandler,
                 beamFnStateDelegator,
-                input.getRegisterRequest(),
+                registerRequest,
                 ptransformIdToOperationContexts,
                 ptransformIdToStepContext.build(),
                 ptransformIdToSideInputReaders,
                 ptransformIdToSideInputIdToPCollectionView,
+                sdkToDfePCollectionName,
                 // TODO: Set NameContext properly for these operations.
                 executionContext.createOperationContext(
                     NameContext.create(stageName, stageName, stageName, stageName))));

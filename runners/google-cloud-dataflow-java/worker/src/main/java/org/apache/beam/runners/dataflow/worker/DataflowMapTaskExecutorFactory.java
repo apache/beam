@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.MapTask;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -49,5 +50,6 @@ public interface DataflowMapTaskExecutorFactory {
       SinkFactory sinkFactory,
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
-      IdGenerator idGenerator);
+      IdGenerator idGenerator,
+      Map<String, String> pcollectionSystemToNameMapping);
 }

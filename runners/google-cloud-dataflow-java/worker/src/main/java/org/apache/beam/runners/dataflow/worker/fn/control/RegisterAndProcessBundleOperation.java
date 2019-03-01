@@ -100,6 +100,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private final Table<String, String, PCollectionView<?>>
       ptransformIdToSideInputIdToPCollectionView;
   private final ConcurrentHashMap<StateKey, BagState<ByteString>> userStateData;
+  private final Map<String, String> sdkToDfePCollectionMapping;
 
   private @Nullable CompletionStage<InstructionResponse> registerFuture;
   private @Nullable CompletionStage<InstructionResponse> processBundleResponse;
@@ -118,6 +119,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       Map<String, DataflowStepContext> ptransformIdToSystemStepContext,
       Map<String, SideInputReader> ptransformIdToSideInputReader,
       Table<String, String, PCollectionView<?>> ptransformIdToSideInputIdToPCollectionView,
+      Map<String, String> sdkToDfePCollectionMapping,
       OperationContext context) {
     super(EMPTY_RECEIVERS, context);
     this.idGenerator = idGenerator;
@@ -126,6 +128,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
     this.registerRequest = registerRequest;
     this.ptransformIdToSideInputReader = ptransformIdToSideInputReader;
     this.ptransformIdToSideInputIdToPCollectionView = ptransformIdToSideInputIdToPCollectionView;
+    this.sdkToDfePCollectionMapping = sdkToDfePCollectionMapping;
     ImmutableMap.Builder<String, DataflowStepContext> userStepContextsMap = ImmutableMap.builder();
     for (Map.Entry<String, DataflowStepContext> entry :
         ptransformIdToSystemStepContext.entrySet()) {
@@ -299,6 +302,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
       cancelIfNotNull(processBundleResponse);
       super.abort();
     }
+  }
+
+  public Map<String, String> getSdkToDfePCollectionMapping() {
+    return this.sdkToDfePCollectionMapping;
   }
 
   public Map<String, DataflowStepContext> getPtransformIdToUserStepContext() {

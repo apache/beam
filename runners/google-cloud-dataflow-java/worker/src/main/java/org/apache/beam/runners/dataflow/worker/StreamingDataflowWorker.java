@@ -1204,7 +1204,8 @@ public class StreamingDataflowWorker {
                 sinkRegistry,
                 context,
                 pendingDeltaCounters,
-                idGenerator);
+                idGenerator,
+                new HashMap<>());
         ReadOperation readOperation = mapTaskExecutor.getReadOperation();
         // Disable progress updates since its results are unused  for streaming
         // and involves starting a thread.

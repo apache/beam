@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
@@ -109,7 +110,8 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       SinkFactory sinkFactory,
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
-      IdGenerator idGenerator) {
+      IdGenerator idGenerator,
+      Map<String, String> notUsed) {
 
     // TODO: remove this once we trust the code paths
     checkArgument(
