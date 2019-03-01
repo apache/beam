@@ -126,6 +126,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --dataflow_endpoint)
+        DATAFLOW_ENDPOINT="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --pipeline_opts)
         PIPELINE_OPTS="$2"
         shift # past argument
@@ -206,6 +211,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
     )
   fi
 
+  if [[ ! -z "$DATAFLOW_ENDPOINT" ]]; then
+    opts+=("--dataflow_endpoint=$DATAFLOW_ENDPOINT")
+  fi
+
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
 
 fi
@@ -214,6 +223,7 @@ fi
 # Run tests and validate that jobs finish successfully.
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
+echo ">>>   test options: $TEST_OPTS"
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
   $TEST_OPTS
