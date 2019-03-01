@@ -115,6 +115,11 @@ dependencies {
   // Dependencies that are bundled in when we bundle Calcite
   permitUsedUndeclared "org.codehaus.janino:janino:3.0.9"
   permitUsedUndeclared "org.codehaus.janino:commons-compiler:3.0.9"
+
+  // Dependencies where one or the other appears "used" depending on classpath,
+  // but it doesn't matter which is used
+  permitUsedUndeclared "com.google.code.findbugs:jsr305:3.0.2"
+  permitUnusedDeclared "net.jcip:jcip-annotations:1.0"
 }
 
 // Copy Caclcite templates and our own template into the build directory
