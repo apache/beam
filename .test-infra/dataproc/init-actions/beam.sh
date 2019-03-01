@@ -17,57 +17,31 @@
 #
 #    Pulls SDK Harness' images as specified in init action's metadata (see below).
 #
-#    NOTE: In order to be able to pull particular images, they must be present
-#    in the repository in the following locations (by convention):
+#    NOTE: In order to be able to pull particular images, their urls must be passed in metadata
+#    in the form of list, like this:
 #
-#    <beam image repository>/python
-#    <beam image repository>/java
-#    <beam image repository>/go
+#    beam-images-to-pull=gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION> gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION>
 #
 set -euxo pipefail
 
-readonly BEAM_IMAGE_ENABLE_PULL_DEFAULT=false
-readonly BEAM_PYTHON_IMAGE_ENABLE_PULL_METADATA_KEY="beam-python-image-enable-pull"
-readonly BEAM_GO_IMAGE_ENABLE_PULL_METADATA_KEY="beam-go-image-enable-pull"
-readonly BEAM_JAVA_IMAGE_ENABLE_PULL_METADATA_KEY="beam-java-image-enable-pull"
-readonly BEAM_IMAGE_VERSION_METADATA_KEY="beam-image-version"
-readonly BEAM_IMAGE_VERSION_DEFAULT="master"
-readonly BEAM_IMAGE_REPOSITORY_KEY="beam-image-repository"
-readonly BEAM_IMAGE_REPOSITORY_DEFAULT="apache.bintray.io/beam"
+readonly BEAM_IMAGES_TO_PULL_METADATA_KEY="beam-images-to-pull"
+readonly BEAM_IMAGES_TO_PULL_DEFAULT="apache.bintray.io/beam/python:master"
+
 
 function pull_images() {
-  local beam_image_version="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_IMAGE_VERSION_METADATA_KEY}" \
-    || echo "${BEAM_IMAGE_VERSION_DEFAULT}")"
-  local image_repo="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_IMAGE_REPOSITORY_KEY}" \
-    || echo "${BEAM_IMAGE_REPOSITORY_DEFAULT}")"
 
-  local pull_python_image="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_PYTHON_IMAGE_ENABLE_PULL_METADATA_KEY}" \
-    || echo "${BEAM_IMAGE_ENABLE_PULL_DEFAULT}")"
+  local beam_images_to_pull="$(/usr/share/google/get_metadata_value \
+    "attributes/${BEAM_IMAGES_TO_PULL_METADATA_KEY}" \
+    || echo "${BEAM_IMAGES_TO_PULL_DEFAULT}")"
 
-  local pull_java_image="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_JAVA_IMAGE_ENABLE_PULL_METADATA_KEY}" \
-    || echo "${BEAM_IMAGE_ENABLE_PULL_DEFAULT}")"
+  for image in $beam_images_to_pull
+  do
+    echo "Pulling image: ${image}"
 
-  local pull_go_image="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_GO_IMAGE_ENABLE_PULL_METADATA_KEY}" \
-    || echo "${BEAM_IMAGE_ENABLE_PULL_DEFAULT}")"
-
-  # Pull beam images with `sudo -i` since if pulling from GCR, yarn will be
-  # configured with GCR authorization
-  if ${pull_python_image} ; then
-    sudo -u yarn -i docker pull "${image_repo}/python:${beam_image_version}"
-  fi
-
-  if ${pull_java_image} ; then
-    sudo -u yarn -i docker pull "${image_repo}/java:${beam_image_version}"
-  fi
-  
-  if ${pull_go_image} ; then
-    sudo -u yarn -i docker pull "${image_repo}/go:${beam_image_version}"
-  fi
+    # Pull beam images with `sudo -i` since if pulling from GCR, yarn will be
+    # configured with GCR authorization
+    sudo -u yarn -i docker pull ${image}
+  done
 }
 
 function main() {
