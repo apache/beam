@@ -17,55 +17,43 @@
 #    Runs init actions for Docker, Portability framework (Beam) and Flink cluster
 #    and opens an SSH tunnel to connect with Flink easily and run Beam jobs.
 #
-#    Pass the following command line args to run this script:
-#    $1: Cluster name
-#    $2: GCS bucket url for Dataproc resources (init actions)
-#    $3: SDK Harness' images repository from which images will be downloaded
-#    $4: SDK Harness' images to pull on dataproc workers (python,java,go)
-#    $5: Url to Flink .tar archive to be installed on the cluster
-#    $6: Number of Flink workers
-#    $7: Number of Flink slots per worker
-#    $8: Detached mode: should the SSH tunnel run in detached mode?
+#    Provide the following environment to run this script:
+#
+#    CLUSTER_NAME: Cluster name
+#    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
+#    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (accepts 1 or more urls)
+#    FLINK_DOWNLOAD_URL: Url to Flink .tar archive to be installed on the cluster
+#    FLINK_NUM_WORKERS: Number of Flink workers
+#    TASK_MANAGER_SLOTS: Number of Flink slots per worker
+#    DETACHED_MODE: Detached mode: should the SSH tunnel run in detached mode?
 #
 #    Example usage:
 #
-#    ./create_flink_cluster.sh \
-#    flink \
-#    gs://<GCS_BUCKET>/flink \
-#    gcr.io/<IMAGE_REPOSITORY_PATH> \
-#    python,go,java \
-#    http://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.12.tgz \
-#    2 \
-#    1 \
-#    false
+#    CLUSTER_NAME=flink \
+#    GCS_BUCKET=gs://<GCS_BUCKET>/flink \
+#    HARNESS_IMAGES_TO_PULL='gcr.io/<IMAGE_REPOSITORY>/python:latest gcr.io/<IMAGE_REPOSITORY>/java:latest' \
+#    FLINK_DOWNLOAD_URL=http://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.12.tgz \
+#    FLINK_NUM_WORKERS=2 \
+#    TASK_MANAGER_SLOTS=1 \
+#    DETACHED_MODE=false \
+#    ./create_flink_cluster.sh
 #
 set -Eeuxo pipefail
 
 DATAPROC_VERSION=1.2
 
-CLUSTER_NAME=$1
 MASTER_NAME="$CLUSTER_NAME-m"
 
 # GCS properties
-GCS_BUCKET=$2
 INIT_ACTIONS_FOLDER_NAME="init-actions"
 FLINK_INIT="$GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME/flink.sh"
 BEAM_INIT="$GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME/beam.sh"
 DOCKER_INIT="$GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME/docker.sh"
 
-# Portability options
-HARNESS_IMAGES_REPOSITORY_URL=$3
-HARNESS_IMAGES_TO_PULL=$4
-
 # Flink properties
-FLINK_DOWNLOAD_URL=$5
 FLINK_LOCAL_PORT=8081
-FLINK_NUM_WORKERS=$6
-TASK_MANAGER_SLOTS=$7
 TASK_MANAGER_MEM=10240
 YARN_APPLICATION_MASTER=""
-
-DETACHED_MODE=$8
 
 function upload_init_actions() {
   echo "Uploading initialization actions to GCS bucket: $GCS_BUCKET"
@@ -113,25 +101,18 @@ function start_tunnel() {
 }
 
 function create_cluster() {
-  local download_python_harness_image=$([[ $HARNESS_IMAGES_TO_PULL == *"python"* ]] && echo "true" || echo "false")
-  local download_java_harness_image=$([[ $HARNESS_IMAGES_TO_PULL == *"java"* ]] && echo "true" || echo "false")
-  local download_go_harness_image=$([[ $HARNESS_IMAGES_TO_PULL == *"go"* ]] && echo "true" || echo "false")
-
-  echo ${download_go_harness_image}
-
-  local metadata="beam-image-repository=${HARNESS_IMAGES_REPOSITORY_URL},"
-  metadata+="beam-image-version=latest,"
-  metadata+="beam-python-image-enable-pull=${download_python_harness_image},"
-  metadata+="beam-java-image-enable-pull=${download_java_harness_image},"
-  metadata+="beam-go-image-enable-pull=${download_go_harness_image},"
+  local metadata="beam-images-to-pull=${HARNESS_IMAGES_TO_PULL},"
   metadata+="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true"
 
-  echo "Starting dataproc cluster."
+
+  local image_version=${DATAPROC_VERSION:=1.2}
+
+  echo "Starting dataproc cluster. Dataproc version: $image_version"
 
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
-  gcloud dataproc clusters create $CLUSTER_NAME --num-workers=$FLINK_NUM_WORKERS --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata $metadata, --image-version=$DATAPROC_VERSION
+  gcloud dataproc clusters create $CLUSTER_NAME --num-workers=$FLINK_NUM_WORKERS --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata "${metadata}", --image-version=$image_version
 }
 
 function main() {
