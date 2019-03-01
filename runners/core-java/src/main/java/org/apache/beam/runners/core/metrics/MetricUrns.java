@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.MetricName;
 
 /** Utility for parsing a URN to a {@link MetricName}. */
@@ -29,9 +30,12 @@ public class MetricUrns {
    *
    * <p>Should be consistent with {@code parse_namespace_and_name} in monitoring_infos.py.
    */
-  public static MetricName parseUrn(String urn) {
+  @Nullable
+  public static MetricName parseUserUrn(String urn) {
     if (urn.startsWith(USER_COUNTER_URN_PREFIX)) {
       urn = urn.substring(USER_COUNTER_URN_PREFIX.length());
+    } else {
+      return null;
     }
     // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
     String[] pieces = urn.split(":", 2);

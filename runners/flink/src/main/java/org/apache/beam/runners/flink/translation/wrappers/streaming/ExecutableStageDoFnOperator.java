@@ -190,12 +190,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse progress) {
-            flinkMetricContainer.updateMetrics(stepName, progress.getMonitoringInfosList());
+            flinkMetricContainer.updateMetrics(progress.getMonitoringInfosList());
           }
 
           @Override
           public void onCompleted(ProcessBundleResponse response) {
-            flinkMetricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
+            flinkMetricContainer.updateMetrics(response.getMonitoringInfosList());
           }
         };
 
