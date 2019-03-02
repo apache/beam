@@ -61,6 +61,10 @@ def run_bq_pipeline(argv=None):
 
   p = TestPipeline(options=PipelineOptions(pipeline_args))
 
+  if 'temp_location' in p.options.get_all_options():
+    location = p.options.get_all_options()['temp_location']
+  else:
+    location = known_args.bq_temp_location
   # pylint: disable=expression-not-assigned
   # pylint: disable=bad-continuation
   (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
@@ -71,7 +75,7 @@ def run_bq_pipeline(argv=None):
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-           gs_location=known_args.bq_temp_location))
+           gs_location=location))
 
   result = p.run()
   result.wait_until_finish()
