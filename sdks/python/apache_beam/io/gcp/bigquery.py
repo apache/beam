@@ -120,19 +120,24 @@ to BigQuery.
 from __future__ import absolute_import
 
 import collections
+import itertools
 import json
 import logging
+import time
 from builtins import object
 from builtins import zip
 
 from future.utils import itervalues
 from past.builtins import unicode
 
+import apache_beam as beam
 from apache_beam import coders
+from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -140,6 +145,8 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
 __all__ = [
@@ -535,22 +542,25 @@ bigquery_v2_messages.TableSchema` object.
 
 
 class BigQueryWriteFn(DoFn):
-  """A ``DoFn`` that streams writes to BigQuery once the table is created.
-  """
+  """A ``DoFn`` that streams writes to BigQuery once the table is created."""
 
-  def __init__(self, table_id, dataset_id, project_id, batch_size, schema,
-               create_disposition, write_disposition, kms_key, test_client):
+  DEFAULT_MAX_BUFFERED_ROWS = 2000
+  DEFAULT_MAX_BATCH_SIZE = 500
+
+  FAILED_ROWS = 'FailedRows'
+
+  def __init__(
+      self,
+      batch_size,
+      create_disposition=None,
+      write_disposition=None,
+      kms_key=None,
+      test_client=None,
+      max_buffered_rows=None,
+      retry_strategy=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
-      table_id: The ID of the table. The ID must contain only letters
-        (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is
-        None then the table argument must contain the entire table reference
-        specified as: 'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'.
-      dataset_id: The ID of the dataset containing this table or null if the
-        table reference is specified entirely by the table argument.
-      project_id: The ID of the project containing this table or null if the
-        table reference is specified entirely by the table argument.
       batch_size: Number of rows to be written to BQ per streaming API insert.
       schema: The schema to be used if the BigQuery table to write has to be
         created. This can be either specified as a 'bigquery.TableSchema' object
@@ -572,25 +582,35 @@ class BigQueryWriteFn(DoFn):
       kms_key: Experimental. Optional Cloud KMS key name for use when creating
         new tables.
       test_client: Override the default bigquery client used for testing.
+
+      max_buffered_rows: The maximum number of rows that are allowed to stay
+        buffered when running dynamic destinations. When destinations are
+        dynamic, it is important to keep caches small even when a single
+        batch has not been completely filled up.
+      retry_strategy: The strategy to use when retrying streaming inserts
+        into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
     """
-    self.table_id = table_id
-    self.dataset_id = dataset_id
-    self.project_id = project_id
-    self.schema = schema
     self.test_client = test_client
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self._rows_buffer = []
-    # The default batch size is 500
-    self._max_batch_size = batch_size or 500
+    self._reset_rows_buffer()
+
+    self._total_buffered_rows = 0
     self.kms_key = kms_key
+    self._max_batch_size = batch_size or BigQueryWriteFn.DEFAULT_MAX_BATCH_SIZE
+    self._max_buffered_rows = (max_buffered_rows
+                               or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
+    self._retry_strategy = (
+        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ON_TRANSIENT_ERROR)
 
   def display_data(self):
-    return {'table_id': self.table_id,
-            'dataset_id': self.dataset_id,
-            'project_id': self.project_id,
-            'schema': str(self.schema),
-            'max_batch_size': self._max_batch_size}
+    return {'max_batch_size': self._max_batch_size,
+            'max_buffered_rows': self._max_buffered_rows,
+            'retry_strategy': self._retry_strategy}
+
+  def _reset_rows_buffer(self):
+    self._rows_buffer = collections.defaultdict(lambda: [])
 
   @staticmethod
   def get_table_schema(schema):
@@ -612,37 +632,113 @@ class BigQueryWriteFn(DoFn):
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
   def start_bundle(self):
-    self._rows_buffer = []
-    self.table_schema = self.get_table_schema(self.schema)
+    self._reset_rows_buffer()
 
     self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
         client=self.test_client)
+
+    self._observed_tables = set()
+
+    self._backoff_calculator = iter(retry.FuzzedExponentialIntervals(
+        initial_delay_secs=0.2,
+        num_retries=10000,
+        max_delay_secs=1500))
+
+  def _create_table_if_needed(self, schema, table_reference):
+    str_table_reference = '%s:%s.%s' % (
+        table_reference.projectId,
+        table_reference.datasetId,
+        table_reference.tableId)
+    if str_table_reference in self._observed_tables:
+      return
+
+    logging.debug('Creating or getting table %s with schema %s.',
+                  table_reference, schema)
+
+    table_schema = self.get_table_schema(schema)
+    if table_reference.projectId is None:
+      table_reference.projectId = vp.RuntimeValueProvider.get_value(
+          'project', str, '')
     self.bigquery_wrapper.get_or_create_table(
-        self.project_id, self.dataset_id, self.table_id, self.table_schema,
+        table_reference.projectId,
+        table_reference.datasetId,
+        table_reference.tableId,
+        table_schema,
         self.create_disposition, self.write_disposition)
+    self._observed_tables.add(str_table_reference)
 
   def process(self, element, unused_create_fn_output=None):
-    self._rows_buffer.append(element)
-    if len(self._rows_buffer) >= self._max_batch_size:
-      self._flush_batch()
+    destination = element[0]
+    if isinstance(destination, tuple):
+      schema = destination[1]
+      destination = destination[0]
+      self._create_table_if_needed(
+          schema,
+          bigquery_tools.parse_table_reference(destination))
+
+    row = element[1]
+    self._rows_buffer[destination].append(row)
+    self._total_buffered_rows += 1
+    if len(self._rows_buffer[destination]) >= self._max_batch_size:
+      return self._flush_batch(destination)
+    elif self._total_buffered_rows >= self._max_buffered_rows:
+      return self._flush_all_batches()
 
   def finish_bundle(self):
-    if self._rows_buffer:
-      self._flush_batch()
-    self._rows_buffer = []
+    return self._flush_all_batches()
 
-  def _flush_batch(self):
+  def _flush_all_batches(self):
+    logging.debug('Attempting to flush to all destinations. Total buffered: %s',
+                  self._total_buffered_rows)
+
+    return itertools.chain(*[self._flush_batch(destination)
+                             for destination in list(self._rows_buffer.keys())
+                             if self._rows_buffer[destination]])
+
+  def _flush_batch(self, destination):
+
     # Flush the current batch of rows to BigQuery.
-    passed, errors = self.bigquery_wrapper.insert_rows(
-        project_id=self.project_id, dataset_id=self.dataset_id,
-        table_id=self.table_id, rows=self._rows_buffer)
-    if not passed:
-      raise RuntimeError('Could not successfully insert rows to BigQuery'
-                         ' table [%s:%s.%s]. Errors: %s'%
-                         (self.project_id, self.dataset_id,
-                          self.table_id, errors))
-    logging.debug("Successfully wrote %d rows.", len(self._rows_buffer))
-    self._rows_buffer = []
+    rows = self._rows_buffer[destination]
+    table_reference = bigquery_tools.parse_table_reference(destination)
+
+    if table_reference.projectId is None:
+      table_reference.projectId = vp.RuntimeValueProvider.get_value(
+          'project', str, '')
+
+    logging.debug('Flushing data to %s. Total %s rows.',
+                  destination, len(rows))
+
+    while True:
+      # TODO: Figure out an insertId to make calls idempotent.
+      passed, errors = self.bigquery_wrapper.insert_rows(
+          project_id=table_reference.projectId,
+          dataset_id=table_reference.datasetId,
+          table_id=table_reference.tableId,
+          rows=rows,
+          skip_invalid_rows=True)
+
+      logging.debug("Passed: %s. Errors are %s", passed, errors)
+      failed_rows = [rows[entry.index] for entry in errors]
+      should_retry = any(
+          bigquery_tools.RetryStrategy.should_retry(
+              self._retry_strategy, entry.errors[0].reason)
+          for entry in errors)
+      rows = failed_rows
+
+      if not should_retry:
+        break
+      else:
+        retry_backoff = next(self._backoff_calculator)
+        logging.info('Sleeping %s seconds before retrying insertion.',
+                     retry_backoff)
+        time.sleep(retry_backoff)
+
+    self._total_buffered_rows -= len(self._rows_buffer[destination])
+    del self._rows_buffer[destination]
+
+    return [pvalue.TaggedOutput(BigQueryWriteFn.FAILED_ROWS,
+                                GlobalWindows.windowed_value(
+                                    (destination, row))) for row in failed_rows]
 
 
 class WriteToBigQuery(PTransform):
@@ -665,7 +761,8 @@ class WriteToBigQuery(PTransform):
                max_files_per_bundle=None,
                test_client=None,
                gs_location=None,
-               method=None):
+               method=None,
+               insert_retry_strategy=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -734,6 +831,8 @@ bigquery_v2_messages.TableSchema`
         data to BigQuery: https://cloud.google.com/bigquery/docs/loading-data.
         DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
         FILE_LOADS on Batch pipelines.
+      insert_retry_strategy: The strategy to use when retrying streaming inserts
+        into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
     """
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
@@ -741,7 +840,7 @@ bigquery_v2_messages.TableSchema`
         create_disposition)
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
-    self.schema = schema
+    self.schema = WriteToBigQuery.get_dict_table_schema(schema)
     self.batch_size = batch_size
     self.kms_key = kms_key
     self.test_client = test_client
@@ -749,6 +848,7 @@ bigquery_v2_messages.TableSchema`
     self.max_file_size = max_file_size
     self.max_files_per_bundle = max_files_per_bundle
     self.method = method or WriteToBigQuery.Method.DEFAULT
+    self.insert_retry_strategy = insert_retry_strategy
 
   @staticmethod
   def get_table_schema_from_string(schema):
@@ -839,23 +939,32 @@ bigquery_v2_messages.TableSchema):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
 
-    if standard_options.streaming or self.method == 'STREAMING_INSERTS':
+    if (standard_options.streaming or
+        self.method == WriteToBigQuery.Method.STREAMING_INSERTS):
       # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
-          table_id=self.table_reference.tableId,
-          dataset_id=self.table_reference.datasetId,
-          project_id=self.table_reference.projectId,
           batch_size=self.batch_size,
-          schema=self.get_dict_table_schema(self.schema),
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
           kms_key=self.kms_key,
+          retry_strategy=self.insert_retry_strategy,
           test_client=self.test_client)
-      return pcoll | 'WriteToBigQuery' >> ParDo(bigquery_write_fn)
+
+      # TODO: Use utility functions from BQTools
+      table_fn = self._get_table_fn()
+
+      outputs = (pcoll
+                 | 'AppendDestination' >> beam.Map(lambda x: (table_fn(x), x))
+                 | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
+                     BigQueryWriteFn.FAILED_ROWS, main='main'))
+
+      return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
+      if standard_options.streaming:
+        raise NotImplementedError(
+            'File Loads to BigQuery are only supported on Batch pipelines.')
+
       from apache_beam.io.gcp import bigquery_file_loads
-      assert not standard_options.streaming, (
-          'File Loads to BigQuery are only supported on Batch pipelines.')
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.get_dict_table_schema(self.schema),
@@ -865,6 +974,14 @@ bigquery_v2_messages.TableSchema):
           max_files_per_bundle=self.max_files_per_bundle,
           gs_location=self.gs_location,
           test_client=self.test_client)
+
+  def _get_table_fn(self):
+    if callable(self.table_reference):
+      return self.table_reference
+    elif not callable(self.table_reference) and self.schema is not None:
+      return lambda x: (self.table_reference, self.schema)
+    else:
+      return lambda x: self.table_reference
 
   def display_data(self):
     res = {}

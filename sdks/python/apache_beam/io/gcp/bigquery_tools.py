@@ -47,6 +47,7 @@ from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import DoFn
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -129,7 +130,8 @@ def parse_table_reference(table, dataset=None, project=None):
       argument.
 
   Returns:
-    A TableReference for the table name that was provided.
+    A TableReference object from the bigquery API. The object has the following
+    attributes: projectId, datasetId, and tableId.
 
   Raises:
     ValueError: if the table reference as a string does not match the expected
@@ -357,15 +359,20 @@ class BigQueryWrapper(object):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_filter)
-  def _insert_all_rows(self, project_id, dataset_id, table_id, rows):
+      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
+  def _insert_all_rows(self, project_id, dataset_id, table_id, rows,
+                       skip_invalid_rows=False):
+    """Calls the insertAll BigQuery API endpoint.
+
+    Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
+      /rest/v2/tabledata/insertAll."""
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
     # required by the InsertAll() method.
     request = bigquery.BigqueryTabledataInsertAllRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id,
         tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
-            # TODO(silviuc): Should have an option for skipInvalidRows?
+            skipInvalidRows=skip_invalid_rows,
             # TODO(silviuc): Should have an option for ignoreUnknownValues?
             rows=rows))
     response = self.client.tabledata.InsertAll(request)
@@ -664,7 +671,8 @@ class BigQueryWrapper(object):
         break
       page_token = response.pageToken
 
-  def insert_rows(self, project_id, dataset_id, table_id, rows):
+  def insert_rows(self, project_id, dataset_id, table_id, rows,
+                  skip_invalid_rows=False):
     """Inserts rows into the specified table.
 
     Args:
@@ -673,6 +681,8 @@ class BigQueryWrapper(object):
       table_id: The table id.
       rows: A list of plain Python dictionaries. Each dictionary is a row and
         each key in it is the name of a field.
+      skip_invalid_rows: If there are rows with insertion errors, whether they
+        should be skipped, and all others should be inserted successfully.
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -702,7 +712,7 @@ class BigQueryWrapper(object):
               insertId=str(self.unique_row_id),
               json=json_object))
     result, errors = self._insert_all_rows(
-        project_id, dataset_id, table_id, final_rows)
+        project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
     return result, errors
 
   def _convert_cell_value_to_dict(self, value, field):
@@ -953,3 +963,42 @@ class RowAsDictJsonCoder(coders.Coder):
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row.decode('utf-8'))
+
+
+class RetryStrategy(object):
+  RETRY_ALWAYS = 'RETRY_ALWAYS'
+  RETRY_NEVER = 'RETRY_NEVER'
+  RETRY_ON_TRANSIENT_ERROR = 'RETRY_ON_TRANSIENT_ERROR'
+
+  _NON_TRANSIENT_ERRORS = {'invalid', 'invalidQuery', 'notImplemented'}
+
+  @staticmethod
+  def should_retry(strategy, error_message):
+    if strategy == RetryStrategy.RETRY_ALWAYS:
+      return True
+    elif strategy == RetryStrategy.RETRY_NEVER:
+      return False
+    elif (strategy == RetryStrategy.RETRY_ON_TRANSIENT_ERROR and
+          error_message not in RetryStrategy._NON_TRANSIENT_ERRORS):
+      return True
+    else:
+      return False
+
+
+class AppendDestinationsFn(DoFn):
+  """Adds the destination to an element, making it a KV pair.
+
+  Outputs a PCollection of KV-pairs where the key is a TableReference for the
+  destination, and the value is the record itself.
+
+  Experimental; no backwards compatibility guarantees.
+  """
+
+  def __init__(self, destination):
+    if callable(destination):
+      self.destination = destination
+    else:
+      self.destination = lambda x: destination
+
+  def process(self, element):
+    yield (self.destination(element), element)
