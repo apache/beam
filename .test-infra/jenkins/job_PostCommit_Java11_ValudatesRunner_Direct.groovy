@@ -19,7 +19,8 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-
+def JAVA_JDK_8=tool name: 'JDK 1.8 (latest)', type: 'hudson.model.JDK'
+def JAVA_JDK_11=tool name: 'JDK 11 (latest)', type: 'hudson.model.JDK'
 // This job runs the suite of ValidatesRunner tests against the Direct
 // runner using Java 8 to build binaries and JRE 11 to run them.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Direct',
@@ -37,8 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Direc
 
     delegate.jdk('1.8')
     // Gradle goals for this job.
-    def JAVA_JDK_8=tool name: 'JDK 1.8 (latest)', type: 'hudson.model.JDK'
-    def JAVA_JDK_11=tool name: 'JDK 11 (latest)', type: 'hudson.model.JDK'
+
     stage('Compile with Java 1.8') {
         withEnv(["Path+JDK=$JAVA_JDK_8/bin","JAVA_HOME=$JAVA_JDK_8"]) {
             gradle {
