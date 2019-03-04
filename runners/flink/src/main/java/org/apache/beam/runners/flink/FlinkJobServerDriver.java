@@ -89,25 +89,21 @@ public class FlinkJobServerDriver extends JobServerDriver {
     return create(
         configuration,
         createJobServerFactory(configuration),
-        createArtifactServerFactory(configuration),
-        createExpansionServerFactory(configuration));
+        createArtifactServerFactory(configuration));
   }
 
   public static FlinkJobServerDriver create(
       FlinkServerConfiguration configuration,
       ServerFactory jobServerFactory,
-      ServerFactory artifactServerFactory,
-      ServerFactory expansionServerFactory) {
-    return new FlinkJobServerDriver(
-        configuration, jobServerFactory, artifactServerFactory, expansionServerFactory);
+      ServerFactory artifactServerFactory) {
+    return new FlinkJobServerDriver(configuration, jobServerFactory, artifactServerFactory);
   }
 
   private FlinkJobServerDriver(
       FlinkServerConfiguration configuration,
       ServerFactory jobServerFactory,
-      ServerFactory artifactServerFactory,
-      ServerFactory expansionServerFactory) {
-    super(configuration, jobServerFactory, artifactServerFactory, expansionServerFactory);
+      ServerFactory artifactServerFactory) {
+    super(configuration, jobServerFactory, artifactServerFactory);
   }
 
   @Override

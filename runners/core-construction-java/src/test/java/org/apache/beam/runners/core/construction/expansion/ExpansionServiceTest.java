@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.expansion;
+package org.apache.beam.runners.core.construction.expansion;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -35,7 +35,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.junit.Test;
 
-/** Tests for {@link org.apache.beam.runners.fnexecution.expansion.ExpansionService}. */
+/** Tests for {@link ExpansionService}. */
 public class ExpansionServiceTest {
 
   private static final String TEST_URN = "test:beam:transforms:count";
