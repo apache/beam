@@ -26,7 +26,8 @@ def smokeTestConfigurations = [
         [
                 title        : 'GroupByKey Python load test Direct',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DIRECT_PYTHON,
+                runner       : CommonTestProperties.Runner.DIRECT,
+                sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
                         publish_to_big_query: true,
                         project             : 'apache-beam-testing',
@@ -44,7 +45,8 @@ def smokeTestConfigurations = [
         [
                 title        : 'GroupByKey Python load test Dataflow',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW_PYTHON,
+                runner       : CommonTestProperties.Runner.DATAFLOW,
+                sdk          : CommonTestProperties.SDK.PYTHON,
                 jobProperties: [
                         job_name            : 'load-tests-python-dataflow-batch-gbk-smoke-' + now,
                         project             : 'apache-beam-testing',
@@ -73,6 +75,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
     for (testConfiguration in smokeTestConfigurations) {
-        loadTestsBuilder.loadTestPython(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
+        loadTestsBuilder.loadTestPython(delegate, testConfiguration.title, testConfiguration.runner,testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }

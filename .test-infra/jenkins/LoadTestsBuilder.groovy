@@ -18,10 +18,11 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
+import CommonTestProperties.SDK
 
 class LoadTestsBuilder {
 
-    static void loadTest(context, String title, Runner runner, Map<String, ?> options, String mainClass) {
+    static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
         options.put('runner', runner.option)
 
         context.steps {
@@ -31,13 +32,13 @@ class LoadTestsBuilder {
                 tasks(':beam-sdks-java-load-tests:run')
                 commonJobProperties.setGradleSwitches(delegate)
                 switches("-PloadTest.mainClass=\"${mainClass}\"")
-                switches("-Prunner=${runner.dependency}")
+                switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
                 switches("-PloadTest.args=\"${parseOptions(options)}\"")
             }
         }
     }
 
-    static void loadTestPython(context, String title, Runner runner, Map<String, ?> options, String mainClass) {
+    static void loadTestPython(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
         options.put('runner', runner.option)
         context.steps {
             shell("echo *** ${title} ***")
@@ -47,7 +48,7 @@ class LoadTestsBuilder {
                 commonJobProperties.setGradleSwitches(delegate)
                 switches("-PloadTest.args=\'${parseOptions(options)}\'")
                 switches("-PloadTest.mainClass=\"${mainClass}\"")
-                switches("-Prunner=\"${runner.dependency}\"")
+                switches("-Prunner=\"${runner.getDepenedencyBySDK(sdk)}\"")
             }
         }
     }
