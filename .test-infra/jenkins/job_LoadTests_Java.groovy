@@ -28,6 +28,7 @@ def loadTestConfigurations = [
                 prCommitStatusName: 'Java GroupByKey Small Load Test Dataflow',
                 prTriggerPhrase   : 'Run GroupByKey Small Java Load Test Dataflow',
                 runner            : CommonTestProperties.Runner.DATAFLOW,
+                sdk               : CommonTestProperties.SDK.JAVA,
                 jobProperties     : [
                         project             : 'apache-beam-testing',
                         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -53,7 +54,7 @@ for (testConfiguration in loadTestConfigurations) {
     ) {
         description(testConfiguration.jobDescription)
         commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-        loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
+        loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }
 
@@ -62,6 +63,7 @@ def smokeTestConfigurations = [
                 title        : 'GroupByKey load test Direct',
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.DIRECT,
+                sdk          : CommonTestProperties.SDK.JAVA,
                 jobProperties: [
                         publishToBigQuery: true,
                         bigQueryDataset  : 'load_test_SMOKE',
@@ -76,6 +78,7 @@ def smokeTestConfigurations = [
                 title        : 'GroupByKey load test Dataflow',
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.DATAFLOW,
+                sdk          : CommonTestProperties.SDK.JAVA,
                 jobProperties: [
                         project          : 'apache-beam-testing',
                         tempLocation     : 'gs://temp-storage-for-perf-tests/smoketests',
@@ -92,6 +95,7 @@ def smokeTestConfigurations = [
                 title        : 'GroupByKey load test Flink',
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.FLINK,
+                sdk          : CommonTestProperties.SDK.JAVA,
                 jobProperties: [
                         publishToBigQuery: true,
                         bigQueryDataset  : 'load_test_SMOKE',
@@ -106,6 +110,7 @@ def smokeTestConfigurations = [
                 title        : 'GroupByKey load test Spark',
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.SPARK,
+                sdk          : CommonTestProperties.SDK.JAVA,
                 jobProperties: [
                         sparkMaster      : 'local[4]',
                         publishToBigQuery: true,
@@ -129,6 +134,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
     for (testConfiguration in smokeTestConfigurations) {
-      loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
+      loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }
