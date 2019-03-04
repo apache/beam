@@ -39,9 +39,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Direc
     // Gradle goals for this job.
     def JAVA_JDK_8=tool name: 'JDK 1.8 (latest)', type: 'hudson.model.JDK'
     def JAVA_JDK_11=tool name: 'JDK 11 (latest)', type: 'hudson.model.JDK'
-
-    steps {
-
+    stage('Compile with Java 1.8') {
         withEnv(["Path+JDK=$JAVA_JDK_8/bin","JAVA_HOME=$JAVA_JDK_8"]) {
             gradle {
                 rootBuildScriptDir(commonJobProperties.checkoutDir)
@@ -55,7 +53,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Direc
                 commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
             }
         }
+    }
 
+    stage('Run tests with Java 11') {
         withEnv(["Path+JDK=$JAVA_JDK_11/bin","JAVA_HOME=$JAVA_JDK_11"]) {
             gradle {
                 rootBuildScriptDir(commonJobProperties.checkoutDir)
