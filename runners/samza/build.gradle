@@ -18,8 +18,8 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -30,20 +30,14 @@ description = "Apache Beam :: Runners :: Samza"
  */
 evaluationDependsOn(":beam-sdks-java-core")
 
-repositories {
-  maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
-  }
-}
-
 configurations {
   validatesRunner
 }
 
-def samza_version = "300.141.25.23"
+def samza_version = "0.14.1"
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
@@ -52,20 +46,14 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.commons_compress
-  shadow library.java.commons_lang3
   shadow library.java.commons_io_2x
   shadow library.java.args4j
-  shadow "javax.servlet:javax.servlet-api:3.1.0"
-  shadow "org.rocksdb:rocksdbjni:5.7.3"
-
-  shadow "com.linkedin.samza-li:samza-api:$samza_version"
-  shadow "com.linkedin.samza-li:samza-core_2.10:$samza_version"
-  shadow "com.linkedin.samza-li:samza-kafka_2.10:$samza_version"
-  shadow "com.linkedin.samza-li:samza-kv_2.10:$samza_version"
-  shadow "com.linkedin.samza-li:samza-kv-rocksdb_2.10:$samza_version"
-  shadow "com.linkedin.samza-li:samza-kv-inmemory_2.10:$samza_version"
-
-  shadow "org.scala-lang:scala-library:2.10.7"
+  shadow "org.apache.samza:samza-api:$samza_version"
+  shadow "org.apache.samza:samza-core_2.11:$samza_version"
+  shadow "org.apache.samza:samza-kafka_2.11:$samza_version"
+  shadow "org.apache.samza:samza-kv_2.11:$samza_version"
+  shadow "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
+  shadow "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
   shadow "org.apache.kafka:kafka-clients:0.11.0.2"
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
@@ -74,7 +62,6 @@ dependencies {
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
-
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
