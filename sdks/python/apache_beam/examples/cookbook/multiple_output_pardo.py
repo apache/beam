@@ -26,6 +26,7 @@ This is a slightly modified version of the basic wordcount example. In this
 example words are divided into 2 buckets as shorts words (3 characters in length
 or less) and words (all other words). There will be 3 output files:::
 
+
   [OUTPUT]-chars        :   Character count for the input.
   [OUTPUT]-short-words  :   Word count for short words only.
   [OUTPUT]-words        :   Word count for all other words.
