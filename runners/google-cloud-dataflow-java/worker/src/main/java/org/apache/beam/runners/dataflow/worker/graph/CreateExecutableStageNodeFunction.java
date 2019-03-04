@@ -86,8 +86,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into a
@@ -96,9 +94,6 @@ import org.slf4j.LoggerFactory;
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(CreateExecutableStageNodeFunction.class);
-
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
 
   private static final String DATA_OUTPUT_URN = "urn:org.apache.beam:sink:runner:0.1";
