@@ -21,34 +21,22 @@ import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 
 class LoadTestsBuilder {
-
     static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
+        String task
+        if (sdk == SKD.JAVA) task = ':beam-sdks-java-load-tests:run'
+        else if (sdk == SKD.PYTHON) task = ':beam-sdks-python-load-tests:run'
+
         options.put('runner', runner.option)
 
         context.steps {
             shell("echo *** ${title} ***")
             gradle {
                 rootBuildScriptDir(commonJobProperties.checkoutDir)
-                tasks(':beam-sdks-java-load-tests:run')
+                tasks(task)
                 commonJobProperties.setGradleSwitches(delegate)
                 switches("-PloadTest.mainClass=\"${mainClass}\"")
                 switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
                 switches("-PloadTest.args=\"${parseOptions(options)}\"")
-            }
-        }
-    }
-
-    static void loadTestPython(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
-        options.put('runner', runner.option)
-        context.steps {
-            shell("echo *** ${title} ***")
-            gradle {
-                rootBuildScriptDir(commonJobProperties.checkoutDir)
-                tasks(':beam-sdks-python-load-tests:run')
-                commonJobProperties.setGradleSwitches(delegate)
-                switches("-PloadTest.args=\'${parseOptions(options)}\'")
-                switches("-PloadTest.mainClass=\"${mainClass}\"")
-                switches("-Prunner=\"${runner.getDepenedencyBySDK(sdk)}\"")
             }
         }
     }
