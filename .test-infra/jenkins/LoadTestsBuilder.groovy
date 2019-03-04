@@ -18,26 +18,30 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
+import CommonTestProperties.SDK
 
 class LoadTestsBuilder {
+    static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
+        String task
+        if (sdk == SKD.JAVA) task = ':beam-sdks-java-load-tests:run'
+        else if (sdk == SKD.PYTHON) task = ':beam-sdks-python-load-tests:run'
 
-    static void loadTest(context, String title, Runner runner, Map<String, Object> options, String mainClass) {
         options.put('runner', runner.option)
 
         context.steps {
             shell("echo *** ${title} ***")
             gradle {
                 rootBuildScriptDir(commonJobProperties.checkoutDir)
-                tasks(':beam-sdks-java-load-tests:run')
+                tasks(task)
                 commonJobProperties.setGradleSwitches(delegate)
                 switches("-PloadTest.mainClass=\"${mainClass}\"")
-                switches("-Prunner=${runner.dependency}")
+                switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
                 switches("-PloadTest.args=\"${parseOptions(options)}\"")
             }
         }
     }
 
-    private static String parseOptions(Map<String, Object> options) {
-        options.collect { "--${it.key}=${it.value.toString()}".replace('\"', '\\"') }.join(' ')
+    private static String parseOptions(Map<String, ?> options) {
+        options.collect { "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'') }.join(' ')
     }
 }
