@@ -98,25 +98,6 @@ def _bq_uuid(seed=None):
     return str(hashlib.md5(seed.encode('utf8')).hexdigest())
 
 
-class _AppendDestinationsFn(beam.DoFn):
-  """Adds the destination to an element, making it a KV pair.
-
-  Outputs a PCollection of KV-pairs where the key is a TableReference for the
-  destination, and the value is the record itself.
-
-  Experimental; no backwards compatibility guarantees.
-  """
-
-  def __init__(self, destination):
-    if callable(destination):
-      self.destination = destination
-    else:
-      self.destination = lambda x: destination
-
-  def process(self, element):
-    yield (self.destination(element), element)
-
-
 class _ShardDestinations(beam.DoFn):
   """Adds a shard number to the key of the KV element.
 
@@ -524,7 +505,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     outputs = (
         pcoll
         | "ApplyGlobalWindow" >> beam.WindowInto(beam.window.GlobalWindows())
-        | "AppendDestination" >> beam.ParDo(_AppendDestinationsFn(
+        | "AppendDestination" >> beam.ParDo(bigquery_tools.AppendDestinationsFn(
             self.destination))
         | beam.ParDo(
             WriteRecordsToFile(max_files_per_bundle=self.max_files_per_bundle,
