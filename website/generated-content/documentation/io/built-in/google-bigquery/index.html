@@ -813,21 +813,10 @@ two fields (source and quote) of type string.</p>
                     <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"REQUIRED"</span><span class="o">)));</span>
 </code></pre>
 </div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="kn">import</span> <span class="n">bigquery</span>
-
-<span class="n">table_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">()</span>
-
-<span class="n">source_field</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
-<span class="n">source_field</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">'source'</span>
-<span class="n">source_field</span><span class="o">.</span><span class="nb">type</span> <span class="o">=</span> <span class="s">'STRING'</span>
-<span class="n">source_field</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s">'NULLABLE'</span>
-<span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">source_field</span><span class="p">)</span>
-
-<span class="n">quote_field</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
-<span class="n">quote_field</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">'quote'</span>
-<span class="n">quote_field</span><span class="o">.</span><span class="nb">type</span> <span class="o">=</span> <span class="s">'STRING'</span>
-<span class="n">quote_field</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s">'REQUIRED'</span>
-<span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">quote_field</span><span class="p">)</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">table_schema</span> <span class="o">=</span> <span class="p">{</span><span class="s">'fields'</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'source'</span><span class="p">,</span> <span class="s">'type'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span> <span class="s">'mode'</span><span class="p">:</span> <span class="s">'NULLABLE'</span><span class="p">},</span>
+    <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'quote'</span><span class="p">,</span> <span class="s">'type'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span> <span class="s">'mode'</span><span class="p">:</span> <span class="s">'REQUIRED'</span><span class="p">}</span>
+<span class="p">]}</span>
 </code></pre>
 </div>
 
