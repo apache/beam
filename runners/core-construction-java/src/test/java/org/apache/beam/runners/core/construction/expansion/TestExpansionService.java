@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.expansion;
+package org.apache.beam.runners.core.construction.expansion;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
@@ -25,7 +25,9 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
-/** An {@link ExpansionService} useful for tests. */
+/**
+ * An {@link org.apache.beam.runners.core.construction.expansion.ExpansionService} useful for tests.
+ */
 public class TestExpansionService {
 
   private static final String TEST_COUNT_URN = "pytest:beam:transforms:count";
