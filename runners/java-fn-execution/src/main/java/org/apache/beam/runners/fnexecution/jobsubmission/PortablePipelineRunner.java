@@ -22,5 +22,15 @@ import org.apache.beam.sdk.PipelineResult;
 
 /** Runs a portable Beam pipeline on some execution engine. */
 public interface PortablePipelineRunner {
+  /**
+   * Running a portable pipeline generally requires three steps:
+   *
+   * <ol>
+   *   <li>Fuse all user code into {@link
+   *       org.apache.beam.runners.core.construction.graph.ExecutableStage} before translation.
+   *   <li>Translate the pipeline from Beam transforms to the execution engine's native transforms.
+   *   <li>Compute the results of the translated pipeline.
+   * </ol>
+   */
   PipelineResult run(RunnerApi.Pipeline pipeline) throws Exception;
 }
