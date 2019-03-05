@@ -108,7 +108,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating dataflow client, %v", err)
 	}
-	err = cleanDataflowJobs(client, "apache-beam-testing", 12.0)
+	// Cancel any jobs older than 3 hours.
+	err = cleanDataflowJobs(client, "apache-beam-testing", 3.0)
 	if err != nil {
 		log.Fatalf("Error cleaning dataflow jobs, %v", err)
 	}

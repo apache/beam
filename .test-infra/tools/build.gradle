@@ -32,6 +32,8 @@ golang {
   packagePath = 'github.com/apache/beam/testing/tools'
 }
 
+check.dependsOn goTest
+
 task cancelStaleDataflowJobs(type: com.github.blindpirate.gogradle.Go) {
   dependsOn goVendor
   go('get golang.org/x/oauth2/google')
