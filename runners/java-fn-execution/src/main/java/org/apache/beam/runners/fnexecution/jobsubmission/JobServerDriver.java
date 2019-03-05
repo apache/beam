@@ -20,10 +20,11 @@ package org.apache.beam.runners.fnexecution.jobsubmission;
 import java.io.IOException;
 import java.nio.file.Paths;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.construction.expansion.ExpansionServer;
+import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
-import org.apache.beam.runners.fnexecution.expansion.ExpansionService;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
@@ -38,11 +39,10 @@ public abstract class JobServerDriver implements Runnable {
 
   private final ServerFactory jobServerFactory;
   private final ServerFactory artifactServerFactory;
-  private final ServerFactory expansionServerFactory;
 
   private volatile GrpcFnServer<InMemoryJobService> jobServer;
   private volatile GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
-  private volatile GrpcFnServer<ExpansionService> expansionServer;
+  private volatile ExpansionServer expansionServer;
 
   protected abstract JobInvoker createJobInvoker();
 
@@ -133,19 +133,13 @@ public abstract class JobServerDriver implements Runnable {
     return ServerFactory.createWithPortSupplier(() -> configuration.artifactPort);
   }
 
-  protected static ServerFactory createExpansionServerFactory(ServerConfiguration configuration) {
-    return ServerFactory.createWithPortSupplier(() -> configuration.expansionPort);
-  }
-
   protected JobServerDriver(
       ServerConfiguration configuration,
       ServerFactory jobServerFactory,
-      ServerFactory artifactServerFactory,
-      ServerFactory expansionServerFactory) {
+      ServerFactory artifactServerFactory) {
     this.configuration = configuration;
     this.jobServerFactory = jobServerFactory;
     this.artifactServerFactory = artifactServerFactory;
-    this.expansionServerFactory = expansionServerFactory;
   }
 
   // This method is executed by TestPortableRunner via Reflection
@@ -195,7 +189,8 @@ public abstract class JobServerDriver implements Runnable {
     if (expansionServer != null) {
       try {
         expansionServer.close();
-        LOG.info("Expansion stopped on {}", expansionServer.getApiServiceDescriptor().getUrl());
+        LOG.info(
+            "Expansion stopped on {}:{}", expansionServer.getHost(), expansionServer.getPort());
         expansionServer = null;
       } catch (Exception e) {
         LOG.error("Error while closing the Expansion Service.", e);
@@ -244,23 +239,14 @@ public abstract class JobServerDriver implements Runnable {
     return artifactStagingService;
   }
 
-  private GrpcFnServer<ExpansionService> createExpansionService() throws IOException {
-    ExpansionService service = new ExpansionService();
-    GrpcFnServer<ExpansionService> expansionServiceGrpcFnServer;
-    if (configuration.expansionPort == 0) {
-      expansionServiceGrpcFnServer =
-          GrpcFnServer.allocatePortAndCreateFor(service, expansionServerFactory);
-    } else {
-      Endpoints.ApiServiceDescriptor descriptor =
-          Endpoints.ApiServiceDescriptor.newBuilder()
-              .setUrl(configuration.host + ":" + configuration.expansionPort)
-              .build();
-      expansionServiceGrpcFnServer =
-          GrpcFnServer.create(service, descriptor, expansionServerFactory);
-    }
+  private ExpansionServer createExpansionService() throws IOException {
+    ExpansionServer expansionServer =
+        ExpansionServer.create(
+            new ExpansionService(), configuration.host, configuration.expansionPort);
     LOG.info(
-        "Java ExpansionService started on {}",
-        expansionServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
-    return expansionServiceGrpcFnServer;
+        "Java ExpansionService started on {}:{}",
+        expansionServer.getHost(),
+        expansionServer.getPort());
+    return expansionServer;
   }
 }
