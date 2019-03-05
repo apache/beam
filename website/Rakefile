@@ -6,14 +6,14 @@ task :test do
   HTMLProofer.check_directory("./generated-local-content", {
     :typhoeus => {
       :timeout => 120,
-      :connecttimeout => 90,
+    },
+    :hydra => {
+      :max_concurrency => 5,
     },
     :allow_hash_href => true,
     :check_html => true,
     :file_ignore => [/v2/],
     :url_ignore => [
-	/jira.apache.org/,
-	/issues.apache.org/,
         /104.154.241.245/  # Preccommit dashboard is down [BEAM-6455].
         # To ignore link checking for a URL, i.e. if it is temporariliy down,
         # add a URL regex below with a tracking JIRA issue. For example:
