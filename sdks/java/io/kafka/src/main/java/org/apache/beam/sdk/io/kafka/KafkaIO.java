@@ -1141,7 +1141,8 @@ public class KafkaIO {
         String runner = options.getRunner().getName();
         if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
             || runner.startsWith("org.apache.beam.runners.dataflow.")
-            || runner.startsWith("org.apache.beam.runners.spark.")) {
+            || runner.startsWith("org.apache.beam.runners.spark.")
+            || runner.startsWith("org.apache.beam.runners.flink.")) {
           return;
         }
         throw new UnsupportedOperationException(
