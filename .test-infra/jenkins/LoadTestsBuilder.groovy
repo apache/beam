@@ -23,8 +23,8 @@ import CommonTestProperties.SDK
 class LoadTestsBuilder {
     static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
         String task
-        if (sdk == SKD.JAVA) task = ':beam-sdks-java-load-tests:run'
-        else if (sdk == SKD.PYTHON) task = ':beam-sdks-python-load-tests:run'
+        if (sdk == SDK.JAVA) task = ':beam-sdks-java-load-tests:run'
+        else if (sdk == SDK.PYTHON) task = ':beam-sdks-python-load-tests:run'
 
         options.put('runner', runner.option)
 
