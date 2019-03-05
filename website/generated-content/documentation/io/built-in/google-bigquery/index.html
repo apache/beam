@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Google BigQuery IO</title>
+  <title>Google BigQuery I/O connector</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -302,6 +302,7 @@
     <ul>
       <li><a href="#reading-from-a-table">Reading from a table</a></li>
       <li><a href="#reading-with-a-query-string">Reading with a query string</a></li>
+      <li><a href="#storage-api">Using the BigQuery Storage API</a></li>
     </ul>
   </li>
   <li><a href="#writing-to-bigquery">Writing to BigQuery</a>
@@ -345,7 +346,7 @@ limitations under the License.
 
 <p><a href="/documentation/io/built-in/">Built-in I/O Transforms</a></p>
 
-<h1 id="google-bigquery-io">Google BigQuery IO</h1>
+<h1 id="google-bigquery-io-connector">Google BigQuery I/O connector</h1>
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
@@ -497,11 +498,20 @@ schema</a> covers schemas in more detail.</p>
 
 <h2 id="reading-from-bigquery">Reading from BigQuery</h2>
 
-<p>BigQueryIO allows you to read from a BigQuery table, or read the results of
-an arbitrary SQL query string. When you apply a BigQueryIO read transform,
-Beam invokes a <a href="https://cloud.google.com/bigquery/docs/exporting-data">BigQuery export request</a>.
-Beam’s use of this API is subject to BigQuery’s <a href="https://cloud.google.com/bigquery/quota-policy#export">Quota</a>
+<p>BigQueryIO allows you to read from a BigQuery table, or read the results of an
+arbitrary SQL query string. By default, Beam invokes a <a href="https://cloud.google.com/bigquery/docs/exporting-data">BigQuery export
+request</a> when you apply a
+BigQueryIO read transform. However, the Beam SDK for Java (version 2.11.0 and
+later) adds support for the beta release of the <a href="https://cloud.google.com/bigquery/docs/reference/storage/">BigQuery Storage API</a>
+as an <a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html">experimental feature</a>.
+See <a href="#storage-api">Using the BigQuery Storage API</a> for more information and a
+list of limitations.</p>
+
+<blockquote>
+  <p>Beam’s use of BigQuery APIs is subject to BigQuery’s
+<a href="https://cloud.google.com/bigquery/quota-policy">Quota</a>
 and <a href="https://cloud.google.com/bigquery/pricing">Pricing</a> policies.</p>
+</blockquote>
 
 <!-- Java specific -->
 
@@ -621,12 +631,79 @@ in the following example:</p>
 </code></pre>
 </div>
 
+<h3 id="storage-api">Using the BigQuery Storage API</h3>
+
+<p>The <a href="https://cloud.google.com/bigquery/docs/reference/storage/">BigQuery Storage API</a>
+allows you to directly access tables in BigQuery storage. As a result, your
+pipeline can read from BigQuery storage faster than previously possible.</p>
+
+<p>The Beam SDK for Java (version 2.11.0 and later) adds support for the beta
+release of the BigQuery Storage API as an <a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html">experimental feature</a>.
+Beam’s support for the BigQuery Storage API has the following limitations:</p>
+
+<ul>
+  <li>The SDK for Python does not support the BigQuery Storage API.</li>
+  <li>You must read from a table. Reading with a query string is not currently
+supported.</li>
+  <li>Dynamic work re-balancing is not currently supported. As a result, reads might
+be less efficient in the presence of stragglers.</li>
+</ul>
+
+<p>Because this is currently a Beam experimental feature, export based reads are
+recommended for production jobs.</p>
+
+<h4 id="enabling-the-api">Enabling the API</h4>
+
+<p>The BigQuery Storage API is distinct from the existing BigQuery API. You must
+<a href="https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api">enable the BigQuery Storage API</a>
+for your Google Cloud Platform project.</p>
+
+<h4 id="updating-your-code">Updating your code</h4>
+
+<p>Use the following methods when you read from a table:</p>
+
+<ul>
+  <li>Required: Specify <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method-">withMethod(Method.DIRECT_READ)</a> to use the BigQuery Storage API for
+the read operation.</li>
+  <li>Optional: To use features such as <a href="https://cloud.google.com/bigquery/docs/reference/storage/">column projection and column filtering</a>,
+you must also specify a <a href="https://googleapis.github.io/google-cloud-java/google-api-grpc/apidocs/index.html?com/google/cloud/bigquery/storage/v1beta1/ReadOptions.TableReadOptions.html">TableReadOptions</a>
+proto using the <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withReadOptions-com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions-">withReadOptions</a> method.</li>
+</ul>
+
+<p>The following code snippet is from the <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java">BigQueryTornadoes
+example</a>.
+When the example’s read method option is set to <code class="highlighter-rouge">DIRECT_READ</code>, the pipeline uses
+the BigQuery Storage API and column projection to read public samples of weather
+data from a BigQuery table. You can view the <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java">full source code on
+GitHub</a>.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>   <span class="n">TableReadOptions</span> <span class="n">tableReadOptions</span> <span class="o">=</span>
+       <span class="n">TableReadOptions</span><span class="o">.</span><span class="na">newBuilder</span><span class="o">()</span>
+           <span class="o">.</span><span class="na">addAllSelectedFields</span><span class="o">(</span><span class="n">Lists</span><span class="o">.</span><span class="na">newArrayList</span><span class="o">(</span><span class="s">"month"</span><span class="o">,</span> <span class="s">"tornado"</span><span class="o">))</span>
+           <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+
+   <span class="n">rowsFromBigQuery</span> <span class="o">=</span>
+       <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="n">BigQueryIO</span><span class="o">.</span><span class="na">readTableRows</span><span class="o">()</span>
+               <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">())</span>
+               <span class="o">.</span><span class="na">withMethod</span><span class="o">(</span><span class="n">Method</span><span class="o">.</span><span class="na">DIRECT_READ</span><span class="o">)</span>
+               <span class="o">.</span><span class="na">withReadOptions</span><span class="o">(</span><span class="n">tableReadOptions</span><span class="o">));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The SDK for Python does not support the BigQuery Storage API.</span>
+</code></pre>
+</div>
+
 <h2 id="writing-to-bigquery">Writing to BigQuery</h2>
 
 <p>BigQueryIO allows you to write to BigQuery tables. If you are using the Beam SDK
-for Java, you can also write different rows to different tables. BigQueryIO
-write transforms use APIs that are subject to BigQuery’s <a href="https://cloud.google.com/bigquery/quota-policy#export">Quota</a>
-and <a href="https://cloud.google.com/bigquery/pricing">Pricing</a> policies.</p>
+for Java, you can also write different rows to different tables.</p>
+
+<blockquote>
+  <p>BigQueryIO write transforms use APIs that are subject to BigQuery’s
+<a href="https://cloud.google.com/bigquery/quota-policy">Quota</a> and
+<a href="https://cloud.google.com/bigquery/pricing">Pricing</a> policies.</p>
+</blockquote>
 
 <p>When you apply a write transform, you must provide the following information
 for the destination table(s):</p>
