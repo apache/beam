@@ -243,7 +243,7 @@ public class QueueingBeamFnDataClientTest {
     }
   }
 
-  @Test(timeout = 10000)
+  @Test(timeout = 100000)
   public void testBundleProcessorThrowsExecutionExceptionWhenUserCodeThrows() throws Exception {
     CountDownLatch waitForClientToConnect = new CountDownLatch(1);
     // Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
@@ -329,6 +329,11 @@ public class QueueingBeamFnDataClientTest {
 
       // Fail all InboundObservers if any of the downstream consumers fail.
       // This allows the ProcessBundlerHandler to unblock everything and fail properly.
+
+      // Wait for these threads to terminate
+      sendElementsFuture.get();
+      drainElementsFuture.get();
+
       boolean intentionallyFailedA = false;
       try {
         readFutureA.awaitCompletion();
@@ -346,14 +351,9 @@ public class QueueingBeamFnDataClientTest {
         if (e.getCause() instanceof RuntimeException) {
           intentionallyFailedB = true;
         }
-      } catch (Exception e) {
-        intentionallyFailedB = true;
       }
       assertTrue(intentionallyFailedB);
 
-      // Wait for these threads to terminate
-      sendElementsFuture.get();
-      drainElementsFuture.get();
     } finally {
       server.shutdownNow();
     }
