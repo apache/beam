@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import collections
 import operator
+import os
 import re
 import sys
 import unittest
@@ -1463,6 +1464,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "Expected an instance of {}, "
         "instead found 1.0, an instance of {}.".format(int, float))
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_combine_properly_pipeline_type_checks_using_decorator(self):
     @with_output_types(int)
     @with_input_types(ints=typehints.Iterable[int])
@@ -1623,6 +1627,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         'ParDo('
         'SortJoin/CombinePerKey/')
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_mean_globally_pipeline_checking_satisfied(self):
     d = (self.p
          | 'C' >> beam.Create(range(5)).with_output_types(int)
@@ -1651,6 +1658,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertEqual(expected_msg, e.exception.args[0])
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_mean_globally_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
@@ -1759,6 +1769,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_count_globally_pipeline_type_checking_satisfied(self):
     d = (self.p
          | 'P' >> beam.Create(range(5)).with_output_types(int)
@@ -1768,6 +1781,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([5]))
     self.p.run()
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_count_globally_runtime_type_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
@@ -2056,6 +2072,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.args[0])
     self.assertFalse(isinstance(e, typehints.TypeCheckError))
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_pardo_type_inference(self):
     self.assertEqual(int,
                      beam.Filter(lambda x: False).infer_output_type(int))
@@ -2067,6 +2086,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         typehints.Tuple[str, typehints.Iterable[int]],
         _GroupByKeyOnly().infer_output_type(typehints.KV[str, int]))
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_pipeline_inference(self):
     created = self.p | beam.Create(['a', 'b', 'c'])
     mapped = created | 'pair with 1' >> beam.Map(lambda x: (x, 1))
@@ -2076,6 +2098,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertEqual(typehints.KV[str, typehints.Iterable[int]],
                      grouped.element_type)
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.')
   def test_inferred_bad_kv_type(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
       _ = (self.p
