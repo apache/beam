@@ -366,11 +366,14 @@ class TestDataflowMetrics(unittest.TestCase):
     expected_counters = [
         MetricResult(
             MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn', 'empty_lines')),
+                      MetricName('__main__.WordExtractingDoFn', 'empty_lines'),
+                      labels={'step': 's2'}
+                     ),
             1080, 1080),
         MetricResult(
             MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn', 'words')),
+                      MetricName('__main__.WordExtractingDoFn', 'words'),
+                      labels={'step': 's2'}),
             26181, 26185),
         ]
     self.assertEqual(sorted(query_result['counters'],

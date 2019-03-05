@@ -40,6 +40,8 @@ class TestMetricKey(unittest.TestCase):
     self.assertEqual(hash(test_object), hash(same_labels))
     self.assertEqual(hash(test_object), hash(same_label_reference))
 
+  def test_inequality_for_key_with_labels(self):
+    test_labels = {'label1', 'value1'}
     test_object = MetricKey(
         'step', MetricName('namespace', 'name'), labels=test_labels)
     no_labels = MetricKey('step', MetricName('namespace', 'name'))
@@ -55,7 +57,6 @@ class TestMetricKey(unittest.TestCase):
     self.assertNotEqual(hash(test_object), hash(diff_label_value))
 
   def test_equality_for_key_with_no_labels(self):
-    test_labels = {'label1', 'value1'}
     test_object = MetricKey('step', MetricName('namespace', 'name'))
     same = MetricKey('step', MetricName('namespace', 'name'))
     self.assertEqual(test_object, same)

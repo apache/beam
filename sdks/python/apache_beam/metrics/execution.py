@@ -49,8 +49,10 @@ from apache_beam.runners.worker import statesampler
 class MetricKey(object):
   """Key used to identify instance of metric cell.
 
-  Metrics are internally keyed by the name of the step they're associated with
-  and the name of the metric.
+  Metrics are internally keyed by the name of the step they're associated with,
+  the name and namespace (if it is a user defined metric) of the the metric,
+  and any extra label metadata added by the runner specific metric collection
+  service.
   """
   def __init__(self, step, metric, labels=None):
     """Initializes ``MetricKey``.
