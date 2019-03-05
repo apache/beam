@@ -66,21 +66,19 @@ class MetricKey(object):
 
   def __eq__(self, other):
     return (self.step == other.step and
-            self.metric == other.metric)
+            self.metric == other.metric and
+            self.labels == other.labels)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):
-    return hash((self.step, self.metric))
+    return hash((self.step, self.metric, frozenset(self.labels)))
 
   def __repr__(self):
     return 'MetricKey(step={}, metric={}, labels={})'.format(
         self.step, self.metric, self.labels)
-
-  def __hash__(self):
-    return hash((self.step, self.metric))
 
 
 class MetricResult(object):
