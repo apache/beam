@@ -13,6 +13,7 @@ task :test do
     :file_ignore => [/v2/],
     :url_ignore => [
 	/jira.apache.org/,
+	/issues.apache.org/,
         /104.154.241.245/  # Preccommit dashboard is down [BEAM-6455].
         # To ignore link checking for a URL, i.e. if it is temporariliy down,
         # add a URL regex below with a tracking JIRA issue. For example:
