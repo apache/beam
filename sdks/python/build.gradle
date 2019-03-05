@@ -76,20 +76,23 @@ lint.dependsOn lintPy27
 toxTask "lintPy27_3", "py27-lint3"
 lint.dependsOn lintPy27_3
 
-toxTask "lintPy3", "py3-lint"
-lint.dependsOn lintPy3
+toxTask "lintPy35", "py35-lint"
+lint.dependsOn lintPy35
 
 toxTask "testPy2Gcp", "py27-gcp"
 test.dependsOn testPy2Gcp
 
-toxTask "testPy3Gcp", "py3-gcp"
-test.dependsOn testPy3Gcp
+toxTask "testPy35Gcp", "py35-gcp"
+test.dependsOn testPy35Gcp
 
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
 
-toxTask "testPython3", "py3"
-test.dependsOn testPython3
+toxTask "testPython35", "py35"
+test.dependsOn testPython35
+
+toxTask "testPython36", "py36"
+test.dependsOn testPython36
 
 toxTask "testPy2Cython", "py27-cython"
 test.dependsOn testPy2Cython
@@ -98,12 +101,12 @@ test.dependsOn testPy2Cython
 // project.
 testPy2Cython.mustRunAfter testPython2, testPy2Gcp
 
-toxTask "testPy3Cython", "py3-cython"
-test.dependsOn testPy3Cython
-// Ensure that testPy3Cython runs exclusively to other tests. This line is not
+toxTask "testPy35Cython", "py35-cython"
+test.dependsOn testPy35Cython
+// Ensure that testPy35Cython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testPy3Cython.mustRunAfter testPython3, testPy3Gcp
+testPy35Cython.mustRunAfter testPython35, testPy35Gcp
 
 toxTask "docs", "docs"
 assemble.dependsOn docs
@@ -113,11 +116,12 @@ toxTask "cover", "cover"
 task preCommit() {
   dependsOn "docs"
   dependsOn "testPy2Cython"
-  dependsOn "testPy3Cython"
+  dependsOn "testPy35Cython"
   dependsOn "testPython2"
-  dependsOn "testPython3"
+  dependsOn "testPython35"
+  dependsOn "testPython36"
   dependsOn "testPy2Gcp"
-  dependsOn "testPy3Gcp"
+  dependsOn "testPy35Gcp"
   dependsOn "lint"
   dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
