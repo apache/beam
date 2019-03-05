@@ -26,6 +26,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import compute_hash
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -33,7 +34,7 @@ from apache_beam.testing.util import equal_to
 class AutocompleteTest(unittest.TestCase):
 
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
-  KINGLEAR_HASH_SUM = 3104188901048578415956
+  KINGLEAR_CHECKSUM = '6dfea1c7c324cd78022a4099fb3705f6634c0623'
   KINGLEAR_INPUT = 'gs://dataflow-samples/shakespeare/kinglear.txt'
 
   def test_top_prefixes(self):
@@ -60,9 +61,9 @@ class AutocompleteTest(unittest.TestCase):
       result = words | autocomplete.TopPerPrefix(10)
       # values must be hashable for now
       result = result | beam.Map(lambda k_vs: (k_vs[0], tuple(k_vs[1])))
-      checksum = result | beam.Map(hash) | beam.CombineGlobally(sum)
+      checksum = result | beam.CombineGlobally(compute_hash)
 
-      assert_that(checksum, equal_to([self.KINGLEAR_HASH_SUM]))
+      assert_that(checksum, equal_to([self.KINGLEAR_CHECKSUM]))
 
 
 if __name__ == '__main__':

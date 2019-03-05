@@ -52,7 +52,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 class GameStatsIT(unittest.TestCase):
 
   # Input events containing user, team, score, processing time, window start.
-  INPUT_EVENT = 'user1,teamA,10,%d,2015-11-02 09:09:28.224'
+  INPUT_EVENT = b'user1,teamA,10,%d,2015-11-02 09:09:28.224'
   INPUT_TOPIC = 'game_stats_it_input_topic'
   INPUT_SUB = 'game_stats_it_input_subscription'
 
