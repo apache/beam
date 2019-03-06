@@ -2086,8 +2086,7 @@ public class StreamingDataflowWorkerTest {
         new StreamingDataflowWorker.ComputationState(
             "computation",
             defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
-            mockExecutor,
-            ImmutableMap.of());
+            mockExecutor);
 
     ByteString key1 = ByteString.copyFromUtf8("key1");
     ByteString key2 = ByteString.copyFromUtf8("key2");
