@@ -126,9 +126,15 @@ public class CassandraIOTest implements Serializable {
 
   @AfterClass
   public static void stopCassandra() {
-    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
-    session.close();
-    cluster.close();
+    if (cluster != null && session != null) {
+      EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
+      session.close();
+      cluster.close();
+    } else {
+      if (cluster != null) {
+        cluster.close();
+      }
+    }
   }
 
   @Before
