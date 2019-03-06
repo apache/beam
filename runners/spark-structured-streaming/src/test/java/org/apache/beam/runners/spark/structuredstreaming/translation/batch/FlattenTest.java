@@ -32,7 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test class for beam to spark source translation. */
+/** Test class for beam to spark flatten translation. */
 @RunWith(JUnit4.class)
 public class FlattenTest implements Serializable {
   private static Pipeline pipeline;
