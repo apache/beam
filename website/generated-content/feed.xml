@@ -20,6 +20,131 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam 2.11.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.11.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#2110-2019-02-26&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.11.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12344775&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
+
+&lt;h3 id=&quot;dependency-upgradeschanges&quot;&gt;Dependency Upgrades/Changes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Java: antlr: 4.7&lt;/li&gt;
+  &lt;li&gt;Java: antlr_runtime: 4.7&lt;/li&gt;
+  &lt;li&gt;Java: bigdataoss_gcsio: 1.9.16&lt;/li&gt;
+  &lt;li&gt;Java: bigdataoss_util: 1.9.16&lt;/li&gt;
+  &lt;li&gt;Java: bigtable_client_core: 1.8.0&lt;/li&gt;
+  &lt;li&gt;Java: cassandra-driver-core: 3.6.0&lt;/li&gt;
+  &lt;li&gt;Java: cassandra-driver-mapping: 3.6.0&lt;/li&gt;
+  &lt;li&gt;Java: commons-compress: 1.18&lt;/li&gt;
+  &lt;li&gt;Java: gax_grpc: 1.38.0&lt;/li&gt;
+  &lt;li&gt;Java: google_api_common: 1.7.0&lt;/li&gt;
+  &lt;li&gt;Java: google_api_services_dataflow: v1b3-rev20190126-1.27.0&lt;/li&gt;
+  &lt;li&gt;Java: google_cloud_bigquery_storage: 0.79.0-alpha&lt;/li&gt;
+  &lt;li&gt;Java: google_cloud_bigquery_storage_proto: 0.44.0&lt;/li&gt;
+  &lt;li&gt;Java: google_auth_library_credentials: 0.12.0&lt;/li&gt;
+  &lt;li&gt;Java: google_auth_library_oauth2_http: 0.12.0&lt;/li&gt;
+  &lt;li&gt;Java: google_cloud_core: 1.61.0&lt;/li&gt;
+  &lt;li&gt;Java: google_cloud_core_grpc: 1.61.0&lt;/li&gt;
+  &lt;li&gt;Java: google_cloud_spanner: 1.6.0&lt;/li&gt;
+  &lt;li&gt;Java: grpc_all: 1.17.1&lt;/li&gt;
+  &lt;li&gt;Java: grpc_auth: 1.17.1&lt;/li&gt;
+  &lt;li&gt;Java: grpc_core: 1.17.1&lt;/li&gt;
+  &lt;li&gt;Java: grpc_google_cloud_pubsub_v1: 1.17.1&lt;/li&gt;
+  &lt;li&gt;Java: grpc_protobuf: 1.17.1&lt;/li&gt;
+  &lt;li&gt;Java: grpc_protobuf_lite: 1.17.1&lt;/li&gt;
+  &lt;li&gt;Java: grpc_netty: 1.17.1&lt;/li&gt;
+  &lt;li&gt;Java: grpc_stub: 1.17.1&lt;/li&gt;
+  &lt;li&gt;Java: netty_handler: 4.1.30.Final&lt;/li&gt;
+  &lt;li&gt;Java: netty_tcnative_boringssl_static: 2.0.17.Final&lt;/li&gt;
+  &lt;li&gt;Java: netty_transport_native_epoll: 4.1.30.Final&lt;/li&gt;
+  &lt;li&gt;Java: proto_google_cloud_spanner_admin_database_v1: 1.6.0&lt;/li&gt;
+  &lt;li&gt;Java: zstd_jni: 1.3.8-3&lt;/li&gt;
+  &lt;li&gt;Python: futures&amp;gt;=3.2.0,&amp;lt;4.0.0; python_version &amp;lt; “3.0”&lt;/li&gt;
+  &lt;li&gt;Python: pyvcf&amp;gt;=0.6.8,&amp;lt;0.7.0; python_version &amp;lt; “3.0”&lt;/li&gt;
+  &lt;li&gt;Python: google-apitools&amp;gt;=0.5.26,&amp;lt;0.5.27&lt;/li&gt;
+  &lt;li&gt;Python: google-cloud-core==0.28.1’&lt;/li&gt;
+  &lt;li&gt;Python: google-cloud-bigtable==0.31.1&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Portable Flink runner support for running cross-language transforms.&lt;/li&gt;
+  &lt;li&gt;Add Cloud KMS support to GCS copies.&lt;/li&gt;
+  &lt;li&gt;Add parameters for offsetConsumer in KafkaIO.read().&lt;/li&gt;
+  &lt;li&gt;Allow setting compression codec in ParquetIO write.&lt;/li&gt;
+  &lt;li&gt;Cassandra: PasswordDecrypter: Delay decryption / Avoid serialization.&lt;/li&gt;
+  &lt;li&gt;Add kms_key to BigQuery transforms, pass to Dataflow.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Python 3 (experimental) suppport for DirectRunner and DataflowRunner.&lt;/li&gt;
+  &lt;li&gt;Add ZStandard compression support for Java SD&lt;/li&gt;
+  &lt;li&gt;Python: Add CombineFn.compact, similar to Java.&lt;/li&gt;
+  &lt;li&gt;SparkRunner: GroupByKey optimized for non-merging windows.&lt;/li&gt;
+  &lt;li&gt;SparkRunner: Add bundleSize parameter to control splitting of Spark sources&lt;/li&gt;
+  &lt;li&gt;FlinkRunner: Portable runner savepoint / upgrade support.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;deprecations&quot;&gt;Deprecations&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Deprecate MongoDb &lt;code class=&quot;highlighter-rouge&quot;&gt;withKeepAlive&lt;/code&gt; because it is deprecated in the Mongo driver.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed
+to the 2.11.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Ahmet Altay, Alex Amato. Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin
+Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath, Charles Chen, Craig Chambers
+Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov
+Hai Lu, Heejong Lee, Ismaël Mejía, J Ross Thomson, Jan Lukavsky, Jason Kuster, Jean-Baptiste Onofré
+Jeff Klukas, João Cabrita, Juan Rael, Juta Staes, Kasia Kucharczyk, Kengo Seki, Kenneth Jung
+Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Marek Simunek, Mark Liu
+Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Pedersen
+Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Robbe Sneyders
+Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle
+Scott Wegner, Tanay Tummalapalli, Thomas Weise, Tianyang Hu, Tyler Akidau, Udi Meiri
+Valentyn Tymofieiev, Xinyu Liu, Xu Mingmin, Łukasz Gajowy.&lt;/p&gt;
+
+</description>
+        <pubDate>Tue, 05 Mar 2019 00:00:01 -0800</pubDate>
+        <link>https://beam.apache.org/blog/2019/03/05/beam-2.11.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/03/05/beam-2.11.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.10.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1038,117 +1163,6 @@ please check the detailed release notes.&lt;/p&gt;
         <pubDate>Tue, 26 Jun 2018 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2018/06/26/beam-2.5.0.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2018/06/26/beam-2.5.0.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam 2.3.0</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are glad to present the new 2.3.0 release of Beam. This release includes
-multiple fixes and new functionalities. &lt;!--more--&gt; For more information
-please check the detailed release notes.&lt;/p&gt;
-
-&lt;h1 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h1&gt;
-
-&lt;h2 id=&quot;beam-moves-to-java-8&quot;&gt;Beam moves to Java 8&lt;/h2&gt;
-
-&lt;p&gt;The supported version of Java for Beam is now Java 8. The code and examples have
-been refactored to use multiple of the advantages of the language, e.g. lambdas,
-streams, improved type inference, etc.&lt;/p&gt;
-
-&lt;h2 id=&quot;spark-runner-is-now-based-on-spark-2x&quot;&gt;Spark runner is now based on Spark 2.x&lt;/h2&gt;
-
-&lt;p&gt;Spark runner moves forward into the Spark 2.x development line, this would allow
-to benefit of improved performance, as well as open the runner for future
-compatibility with the Structured Streaming APIs. Notice that support for Spark
-1.x is finished with this release.&lt;/p&gt;
-
-&lt;h2 id=&quot;amazon-web-services-s3-filesystem-support&quot;&gt;Amazon Web Services S3 Filesystem support&lt;/h2&gt;
-
-&lt;p&gt;Beam already supported AWS S3 via HadoopFileSystem, but this version brings a
-native implementation with the corresponding performance advantages of the S3
-filesystem.&lt;/p&gt;
-
-&lt;h2 id=&quot;general-purpose-writing-to-files&quot;&gt;General-purpose writing to files&lt;/h2&gt;
-
-&lt;p&gt;This release contains a new transform, FileIO.write() / writeDynamic() that
-implements a general-purpose fluent and Java8-friendly API for writing to files
-using a FileIO.Sink. This API has similar capabilities to DynamicDestinations
-APIs from Beam 2.2 but is much easier to use and extend. The DynamicDestinations
-APIs for writing to files are deprecated by it, as is FileBasedSink.&lt;/p&gt;
-
-&lt;h2 id=&quot;splittable-dofn-support-on-the-python-sdk&quot;&gt;Splittable DoFn support on the Python SDK&lt;/h2&gt;
-
-&lt;p&gt;This release adds the Splittable DoFn API for Python SDK and adds Splittable
-DoFn support for Python streaming DirectRunner.&lt;/p&gt;
-
-&lt;h2 id=&quot;portability&quot;&gt;Portability&lt;/h2&gt;
-
-&lt;p&gt;Progress continues to being able to execute Python on runners other then Google
-Cloud Dataflow and the Go SDK on any runner.&lt;/p&gt;
-
-&lt;h1 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h1&gt;
-
-&lt;h2 id=&quot;sdks&quot;&gt;SDKs&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;MapElements and FlatMapElements support using side inputs using the new
-interface Contextful.Fn. For library authors, this interface is the
-recommended choice for user-code callbacks that may use side inputs.&lt;/li&gt;
-  &lt;li&gt;Introduces the family of Reify transforms for converting between explicit and
-implicit representations of various Beam entities.&lt;/li&gt;
-  &lt;li&gt;Introduces two transforms for approximate sketching of data: Count-Min Sketch
-(approximate element frequency estimation) and HyperLogLog (approximate
-cardinality estimation).&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;runners&quot;&gt;Runners&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Staging files on Dataflow shows progress&lt;/li&gt;
-  &lt;li&gt;Flink runner is based now on Flink version 1.4.0&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;ios&quot;&gt;IOs&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;BigtableIO now supports ValueProvider configuration&lt;/li&gt;
-  &lt;li&gt;BigQueryIO supports writing bounded collections to tables with partition
-decorators&lt;/li&gt;
-  &lt;li&gt;KafkaIO moves to version 1.0 (it is still backwards compatible with versions &amp;gt;= 0.9.x.x)&lt;/li&gt;
-  &lt;li&gt;Added IO source for VCF files (Python)&lt;/li&gt;
-  &lt;li&gt;Added support for backoff on deadlocks in JdbcIO.write() and connection
-improvement&lt;/li&gt;
-  &lt;li&gt;Improved performance of KinesisIO.read()&lt;/li&gt;
-  &lt;li&gt;Many improvements to TikaIO&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h1&gt;
-
-&lt;p&gt;According to git shortlog, the following 78 people contributed to the 2.3.0 release. Thank you to all contributors!&lt;/p&gt;
-
-&lt;p&gt;Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Ankur Goenka, Anton Kedin, Arnaud Fournier, Asha Rostamianfar, Ben Chambers, Ben Sidhom, Bill Neubauer, Brian Foo, cclauss, Chamikara Jayalath, Charles Chen, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, David Sabater, David Sabater Dinter, Dawid Wysakowicz, Dmytro Ivanov, Etienne Chauchot, Eugene Kirpichov, Exprosed, Grzegorz Kołakowski, Henning Rohde, Holden Karau, Huygaa Batsaikhan, Ilya Figotin, Innocent Djiofack, Ismaël Mejía, Itamar Ostricher, Jacky, Jacob Marble, James Xu, Jean-Baptiste Onofré, Jeremie Lenfant-Engelmann, Kamil Szewczyk, Kenneth Knowles, Lukasz Cwik, Łukasz Gajowy, Luke Zhu, Mairbek Khadikov, María García Herrero, Marian Dvorsky, Mark Liu, melissa, Miles Saul, mingmxu, Motty Gruda, nerdynick, Neville Li, Nigel Kilmer, Pablo, Pawel Kaczmarczyk, Petr Shevtsov, Rafal Wojdyla, Raghu Angadi, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Ryan Niemocienski, Ryan Skraba, Sam Whittle, Scott Wegner, Shashank Prabhakara, Solomon Duskis, Thomas Groh, Thomas Weise, Udi Meiri, Valentyn Tymofieiev, wtanaka.com, XuMingmin, zhouhai02, Zohar Yahav, 琨瑜.&lt;/p&gt;
-
-</description>
-        <pubDate>Mon, 19 Feb 2018 00:00:01 -0800</pubDate>
-        <link>https://beam.apache.org/blog/2018/02/19/beam-2.3.0.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2018/02/19/beam-2.3.0.html</guid>
         
         
         <category>blog</category>
