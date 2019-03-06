@@ -32,6 +32,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -360,7 +361,7 @@ public class CoGroup {
         // The key schema contains the field names from the first PCollection specified.
         FieldAccessDescriptor resolved =
             fieldAccessDescriptor.withOrderByFieldInsertionOrder().resolve(schema);
-        Schema currentKeySchema = Select.getOutputSchema(schema, resolved);
+        Schema currentKeySchema = SelectHelpers.getOutputSchema(schema, resolved);
         if (keySchema == null) {
           keySchema = currentKeySchema;
         } else {
@@ -394,7 +395,8 @@ public class CoGroup {
                   new DoFn<T, KV<Row, Row>>() {
                     @ProcessElement
                     public void process(@Element Row row, OutputReceiver<KV<Row, Row>> o) {
-                      o.output(KV.of(Select.selectRow(row, keyFields, schema, keySchema), row));
+                      o.output(
+                          KV.of(SelectHelpers.selectRow(row, keyFields, schema, keySchema), row));
                     }
                   }))
           .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(schema)));
