@@ -108,6 +108,11 @@ class ConsumerSet(Receiver):
     return None
 
   def current_element_progress(self):
+    """Returns the progress of the current element.
+
+    This progress should be an instance of
+    apache_beam.io.iobase.RestrictionProgress, or None if progress is unknown.
+    """
     # TODO(SDF): Could implement this as a weighted average, if it becomes
     # useful to split on.
     return None
@@ -608,6 +613,8 @@ class SdfProcessElements(DoOperation):
           self.element_start_output_bytes = self._total_output_bytes()
           for receiver in self.tagged_receivers.values():
             receiver.opcounter.restart_sampling()
+        # Actually processing the element can be expensive; do it without
+        # the lock.
         delayed_application = self.dofn_runner.process_with_restriction(o)
         if delayed_application:
           self.execution_context.delayed_applications.append(

@@ -107,6 +107,9 @@ class OffsetRestrictionTracker(RestrictionTracker):
     with self._lock:
       if self._current_position is None:
         fraction = 0.0
+      elif self._range.stop == self._range.start:
+        # If self._current_position is not None, we must be done.
+        fraction = 1.0
       else:
         fraction = (
             float(self._current_position - self._range.start)
