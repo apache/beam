@@ -97,7 +97,8 @@ class SchemaAggregateFn {
           @Nullable Schema inputSchema) {
         if (inputSchema != null) {
           this.fieldsToAggregate = fieldsToAggregate.resolve(inputSchema);
-          this.inputSubSchema = SelectHelpers.getOutputSchema(inputSchema, this.fieldsToAggregate);
+          this.inputSubSchema = SelectHelpers.getOutputSchema(inputSchema, this
+              .fieldsToAggregate, true);
           this.unnestedInputSubSchema = Unnest.getUnnestedSchema(inputSubSchema);
           this.needsUnnesting = !inputSchema.equals(unnestedInputSubSchema);
         } else {
@@ -245,7 +246,8 @@ class SchemaAggregateFn {
                 row,
                 fieldAggregation.fieldsToAggregate,
                 row.getSchema(),
-                fieldAggregation.inputSubSchema);
+                fieldAggregation.inputSubSchema,
+                true);
         if (fieldAggregation.needsUnnesting) {
           selected = Unnest.unnestRow(selected, fieldAggregation.unnestedInputSubSchema);
         }
@@ -271,7 +273,8 @@ class SchemaAggregateFn {
             row,
             fieldAggregation.fieldsToAggregate,
             row.getSchema(),
-            fieldAggregation.inputSubSchema);
+            fieldAggregation.inputSubSchema,
+            true);
       }
     }
 
