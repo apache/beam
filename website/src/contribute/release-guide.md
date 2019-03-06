@@ -1059,6 +1059,8 @@ Announce the release on the announce@apache.org mailing list.
 
 Major or otherwise important releases should have a blog post. Write one if needed for this particular release. Minor releases that don’t introduce new major functionality don’t necessarily need to be blogged.
 
+*Tip:* Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
+
 ### Social media
 
 Tweet, post on Facebook, LinkedIn, and other platforms. Ask other contributors to do the same.
