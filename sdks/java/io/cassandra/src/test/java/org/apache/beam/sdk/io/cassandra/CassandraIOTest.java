@@ -271,6 +271,26 @@ public class CassandraIOTest implements Serializable {
   }
 
   @Test
+  public void testReadWithValueProvider() throws Exception {
+    insertRecords();
+
+    PCollection<Scientist> output =
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(pipeline.newProvider(Arrays.asList(CASSANDRA_HOST)))
+                .withPort(pipeline.newProvider(CASSANDRA_PORT))
+                .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
+                .withTable(pipeline.newProvider(CASSANDRA_TABLE))
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class)
+                .withWhere(pipeline.newProvider("person_id=10")));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
   public void testWrite() {
     ArrayList<Scientist> scientists = buildScientists(NUM_ROWS);
 
