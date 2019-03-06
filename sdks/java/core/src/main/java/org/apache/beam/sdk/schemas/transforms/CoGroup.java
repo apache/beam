@@ -396,7 +396,8 @@ public class CoGroup {
                     @ProcessElement
                     public void process(@Element Row row, OutputReceiver<KV<Row, Row>> o) {
                       o.output(
-                          KV.of(SelectHelpers.selectRow(row, keyFields, schema, keySchema, true),
+                          KV.of(
+                              SelectHelpers.selectRow(row, keyFields, schema, keySchema, true),
                               row));
                     }
                   }))

@@ -111,8 +111,8 @@ public class SelectHelpers {
       // We have walked through any containers, and are at a row type. Extract the subschema
       // for the row, preserving nullable attributes.
       checkArgument(inputFieldType.getTypeName().isCompositeType());
-      return FieldType.row(getOutputSchema(inputFieldType.getRowSchema(), fieldAccessDescriptor,
-          unnest))
+      return FieldType.row(
+              getOutputSchema(inputFieldType.getRowSchema(), fieldAccessDescriptor, unnest))
           .withNullable(inputFieldType.getNullable());
     }
 
@@ -123,7 +123,7 @@ public class SelectHelpers {
         FieldType componentType = checkNotNull(inputFieldType.getCollectionElementType());
         FieldType outputComponent =
             getOutputSchemaHelper(
-                componentType, fieldAccessDescriptor, qualifiers, unnest,qualifierPosition + 1)
+                    componentType, fieldAccessDescriptor, qualifiers, unnest, qualifierPosition + 1)
                 .withNullable(componentType.getNullable());
         return FieldType.array(outputComponent).withNullable(inputFieldType.getNullable());
       case MAP:
@@ -132,7 +132,7 @@ public class SelectHelpers {
         FieldType valueType = checkNotNull(inputFieldType.getMapValueType());
         FieldType outputValueType =
             getOutputSchemaHelper(
-                valueType, fieldAccessDescriptor, qualifiers, unnest, qualifierPosition + 1)
+                    valueType, fieldAccessDescriptor, qualifiers, unnest, qualifierPosition + 1)
                 .withNullable(valueType.getNullable());
         return FieldType.map(keyType, outputValueType).withNullable(inputFieldType.getNullable());
       default:
@@ -226,45 +226,45 @@ public class SelectHelpers {
     Qualifier qualifier = qualifiers.get(qualifierPosition);
     switch (qualifier.getKind()) {
       case LIST:
-      {
-        FieldType nestedInputType = checkNotNull(inputType.getCollectionElementType());
-        FieldType nestedOutputType = checkNotNull(outputType.getCollectionElementType());
-        List<Object> list = (List) value;
-        List selectedList = Lists.newArrayListWithCapacity(list.size());
-        for (Object o : list) {
-          Object selected =
-              selectRowHelper(
-                  qualifiers,
-                  qualifierPosition + 1,
-                  o,
-                  fieldAccessDescriptor,
-                  nestedInputType,
-                  nestedOutputType,
-                  unnest);
-          selectedList.add(selected);
+        {
+          FieldType nestedInputType = checkNotNull(inputType.getCollectionElementType());
+          FieldType nestedOutputType = checkNotNull(outputType.getCollectionElementType());
+          List<Object> list = (List) value;
+          List selectedList = Lists.newArrayListWithCapacity(list.size());
+          for (Object o : list) {
+            Object selected =
+                selectRowHelper(
+                    qualifiers,
+                    qualifierPosition + 1,
+                    o,
+                    fieldAccessDescriptor,
+                    nestedInputType,
+                    nestedOutputType,
+                    unnest);
+            selectedList.add(selected);
+          }
+          return selectedList;
         }
-        return selectedList;
-      }
       case MAP:
-      {
-        FieldType nestedInputType = checkNotNull(inputType.getMapValueType());
-        FieldType nestedOutputType = checkNotNull(outputType.getMapValueType());
-        Map<Object, Object> map = (Map) value;
-        Map selectedMap = Maps.newHashMapWithExpectedSize(map.size());
-        for (Map.Entry<Object, Object> entry : map.entrySet()) {
-          Object selected =
-              selectRowHelper(
-                  qualifiers,
-                  qualifierPosition + 1,
-                  entry.getValue(),
-                  fieldAccessDescriptor,
-                  nestedInputType,
-                  nestedOutputType,
-                  unnest);
-          selectedMap.put(entry.getKey(), selected);
+        {
+          FieldType nestedInputType = checkNotNull(inputType.getMapValueType());
+          FieldType nestedOutputType = checkNotNull(outputType.getMapValueType());
+          Map<Object, Object> map = (Map) value;
+          Map selectedMap = Maps.newHashMapWithExpectedSize(map.size());
+          for (Map.Entry<Object, Object> entry : map.entrySet()) {
+            Object selected =
+                selectRowHelper(
+                    qualifiers,
+                    qualifierPosition + 1,
+                    entry.getValue(),
+                    fieldAccessDescriptor,
+                    nestedInputType,
+                    nestedOutputType,
+                    unnest);
+            selectedMap.put(entry.getKey(), selected);
+          }
+          return selectedMap;
         }
-        return selectedMap;
-      }
       default:
         throw new RuntimeException("Unexpected type " + qualifier.getKind());
     }

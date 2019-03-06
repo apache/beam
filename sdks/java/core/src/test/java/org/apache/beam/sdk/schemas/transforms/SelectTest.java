@@ -127,52 +127,6 @@ public class SelectTest {
     }
   }
 
-  /** A pojo matching the schema results from selection field2.*. */
-  @DefaultSchema(JavaFieldSchema.class)
-  static class POJO2NestedAll {
-    POJO1 field2 = new POJO1();
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      POJO2NestedAll that = (POJO2NestedAll) o;
-      return Objects.equals(field2, that.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field2);
-    }
-  }
-
-  /** A pojo matching the schema results from selection field2.field1, field2.field3. */
-  @DefaultSchema(JavaFieldSchema.class)
-  static class POJO2NestedPartial {
-    POJO1Selected field2 = new POJO1Selected();
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      POJO2NestedPartial that = (POJO2NestedPartial) o;
-      return Objects.equals(field2, that.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field2);
-    }
-  }
-
   @Test
   @Category(NeedsRunner.class)
   public void testSelectMissingFieldName() {
@@ -216,24 +170,36 @@ public class SelectTest {
   @Test
   @Category(NeedsRunner.class)
   public void testSelectNestedAll() {
-    PCollection<POJO2NestedAll> pojos =
+    PCollection<POJO1> pojos =
+        pipeline
+            .apply(Create.of(new POJO2()))
+            .apply(Select.fieldNames("field2"))
+            .apply(Convert.to(POJO1.class));
+    PAssert.that(pojos).containsInAnyOrder(new POJO1());
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectNestedAllWildcard() {
+    PCollection<POJO1> pojos =
         pipeline
             .apply(Create.of(new POJO2()))
             .apply(Select.fieldNames("field2.*"))
-            .apply(Convert.to(POJO2NestedAll.class));
-    PAssert.that(pojos).containsInAnyOrder(new POJO2NestedAll());
+            .apply(Convert.to(POJO1.class));
+    PAssert.that(pojos).containsInAnyOrder(new POJO1());
     pipeline.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testSelectNestedPartial() {
-    PCollection<POJO2NestedPartial> pojos =
+    PCollection<POJO1Selected> pojos =
         pipeline
             .apply(Create.of(new POJO2()))
             .apply(Select.fieldNames("field2.field1", "field2.field3"))
-            .apply(Convert.to(POJO2NestedPartial.class));
-    PAssert.that(pojos).containsInAnyOrder(new POJO2NestedPartial());
+            .apply(Convert.to(POJO1Selected.class));
+    PAssert.that(pojos).containsInAnyOrder(new POJO1Selected());
     pipeline.run();
   }
 
@@ -637,6 +603,7 @@ public class SelectTest {
             .apply("convert2", Convert.to(PartialRowNestedArraysAndMaps.class));
 
     PAssert.that(selected).containsInAnyOrder(new PartialRowNestedArraysAndMaps());
+    PAssert.that(selected2).containsInAnyOrder(new PartialRowNestedArraysAndMaps());
     pipeline.run();
   }
 }

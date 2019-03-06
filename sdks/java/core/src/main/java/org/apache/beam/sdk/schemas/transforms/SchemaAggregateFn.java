@@ -97,8 +97,8 @@ class SchemaAggregateFn {
           @Nullable Schema inputSchema) {
         if (inputSchema != null) {
           this.fieldsToAggregate = fieldsToAggregate.resolve(inputSchema);
-          this.inputSubSchema = SelectHelpers.getOutputSchema(inputSchema, this
-              .fieldsToAggregate, true);
+          this.inputSubSchema =
+              SelectHelpers.getOutputSchema(inputSchema, this.fieldsToAggregate, true);
           this.unnestedInputSubSchema = Unnest.getUnnestedSchema(inputSubSchema);
           this.needsUnnesting = !inputSchema.equals(unnestedInputSubSchema);
         } else {
