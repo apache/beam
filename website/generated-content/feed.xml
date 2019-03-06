@@ -79,7 +79,7 @@ For more information on changes in 2.11.0, check out the
   &lt;li&gt;Python: futures&amp;gt;=3.2.0,&amp;lt;4.0.0; python_version &amp;lt; “3.0”&lt;/li&gt;
   &lt;li&gt;Python: pyvcf&amp;gt;=0.6.8,&amp;lt;0.7.0; python_version &amp;lt; “3.0”&lt;/li&gt;
   &lt;li&gt;Python: google-apitools&amp;gt;=0.5.26,&amp;lt;0.5.27&lt;/li&gt;
-  &lt;li&gt;Python: google-cloud-core==0.28.1’&lt;/li&gt;
+  &lt;li&gt;Python: google-cloud-core==0.28.1&lt;/li&gt;
   &lt;li&gt;Python: google-cloud-bigtable==0.31.1&lt;/li&gt;
 &lt;/ul&gt;
 
@@ -98,10 +98,10 @@ For more information on changes in 2.11.0, check out the
 
 &lt;ul&gt;
   &lt;li&gt;Python 3 (experimental) suppport for DirectRunner and DataflowRunner.&lt;/li&gt;
-  &lt;li&gt;Add ZStandard compression support for Java SD&lt;/li&gt;
+  &lt;li&gt;Add ZStandard compression support for Java SDK.&lt;/li&gt;
   &lt;li&gt;Python: Add CombineFn.compact, similar to Java.&lt;/li&gt;
   &lt;li&gt;SparkRunner: GroupByKey optimized for non-merging windows.&lt;/li&gt;
-  &lt;li&gt;SparkRunner: Add bundleSize parameter to control splitting of Spark sources&lt;/li&gt;
+  &lt;li&gt;SparkRunner: Add bundleSize parameter to control splitting of Spark sources.&lt;/li&gt;
   &lt;li&gt;FlinkRunner: Portable runner savepoint / upgrade support.&lt;/li&gt;
 &lt;/ul&gt;
 
