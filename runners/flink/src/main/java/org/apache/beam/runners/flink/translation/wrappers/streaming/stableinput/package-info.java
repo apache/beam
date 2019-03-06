@@ -17,7 +17,8 @@
  */
 
 /** Classes for buffering elements for achieving @RequiresStableInput. */
-@ParametersAreNonnullByDefault
+@DefaultAnnotation(NonnullByDefault.class)
 package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput;
 
-import javax.annotation.ParametersAreNonnullByDefault;
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import org.apache.beam.buildtools.NonnullByDefault;
