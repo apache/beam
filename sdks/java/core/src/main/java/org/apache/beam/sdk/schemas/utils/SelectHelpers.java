@@ -38,6 +38,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** Helper methods to select subrows out of rows. */
 public class SelectHelpers {
+  /**
+   * Checks whether a FieldAccessDescriptor selects only a single field. The descriptor is expected
+   * to already be resolved.
+   */
   private static boolean singleFieldSelected(
       Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
     if (fieldAccessDescriptor.getAllFields()) {
@@ -67,6 +71,32 @@ public class SelectHelpers {
   /**
    * Get the output schema resulting from selecting the given {@link FieldAccessDescriptor} from the
    * given schema.
+   *
+   * <p>The unnest field controls the behavior when selecting a single field. For example, consider
+   * the following Java POJOs:
+   *
+   * <pre>{@code
+   *   class UserEvent {
+   *     String userId;
+   *     String eventId;
+   *     int eventType;
+   *     Location location;
+   *  }</pre>
+   *
+   *
+   * <pre>{@code
+   *  class Location {
+   *    double latitude;
+   *     double longtitude;
+   *  }}</pre>
+   *
+   *  <p> If selecting just the location field and unnest is true, then the returned schema will
+   *  match just that of the singular field being selected; in this case the returned schema will
+   *  be that of the Location class. If unnest is false, then the returned schema will match the
+   *  levels of nesting that the original schema had. In this case, it would be an outer schema
+   *  containing a single ROW field named "location" that matched the Location schema.
+   *
+   *  <p>In most cases, the user's expectations matches that when unnest is true.
    */
   public static Schema getOutputSchema(
       Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor, boolean unnest) {
@@ -78,6 +108,7 @@ public class SelectHelpers {
     Schema.Builder builder = new Schema.Builder();
     for (int fieldId : fieldAccessDescriptor.fieldIdsAccessed()) {
       if (selectsNestedSingle) {
+        // The entire nested row is selected, so we can short circuit and return that type.
         return inputSchema.getField(fieldId).getType().getRowSchema();
       }
       builder.addField(inputSchema.getField(fieldId));

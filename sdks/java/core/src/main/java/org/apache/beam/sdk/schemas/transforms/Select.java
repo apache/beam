@@ -64,10 +64,9 @@ import org.apache.beam.sdk.values.Row;
  *
  * <pre>{@code
  * PCollection<UserEvent> events = readUserEvents();
- * PCollection<Row> rows = event.apply(Select.fieldNames("location.*")
+ * PCollection<Row> rows = event.apply(Select.fieldNames("location")
  *                              .apply(Convert.to(Location.class));
  * }</pre>
- *
  */
 @Experimental(Kind.SCHEMAS)
 public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
