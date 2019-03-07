@@ -42,7 +42,7 @@ task postCommitIT(dependsOn: 'installGcpTest') {
     def testOpts = [
         "--tests=${batchTests.join(',')}",
         "--nocapture",    // Print stdout instantly
-        "--processes=4",  // run tests in parallel
+        "--processes=8",  // run tests in parallel
         "--process-timeout=4500", // timeout of whole command execution
     ]
     def argMap = ["runner": "TestDirectRunner",

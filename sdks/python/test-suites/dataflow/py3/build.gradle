@@ -27,7 +27,7 @@ def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
     "--nocapture",  // print stdout instantly
-    "--processes=4",  // run tests in parallel
+    "--processes=8",  // run tests in parallel
     "--process-timeout=4500", // timeout of whole command execution
 ]
 
