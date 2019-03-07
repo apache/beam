@@ -70,7 +70,7 @@ class StreamingWordCountIT(unittest.TestCase):
     """Inject numbers as test data to PubSub."""
     logging.debug('Injecting %d numbers to topic %s', num_messages, topic.name)
     for n in range(num_messages):
-      self.pub_client.publish(self.input_topic.name, str(n))
+      self.pub_client.publish(self.input_topic.name, str(n).encode('utf-8'))
 
   def tearDown(self):
     test_utils.cleanup_subscriptions(self.sub_client,
