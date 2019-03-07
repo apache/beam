@@ -45,12 +45,17 @@ public class MonitoringInfos {
    * or gauge), and gracefully dropping / warning about unexpected and unsupported states.
    */
   public static void forEachMetricType(
-      Metric metric,
-      String type,
-      Timestamp timestamp,
+      MonitoringInfo monitoringInfo,
       Consumer<Long> counterFn,
       Consumer<DistributionResult> distributionFn,
       Consumer<GaugeResult> gaugeFn) {
+    if (!monitoringInfo.hasMetric()) {
+      LOG.info("Skipping metric-less MonitoringInfo: {}", monitoringInfo);
+      return;
+    }
+    Metric metric = monitoringInfo.getMetric();
+    String type = monitoringInfo.getType();
+    Timestamp timestamp = monitoringInfo.getTimestamp();
     Metric.DataCase dataCase = metric.getDataCase();
     switch (dataCase) {
       case COUNTER_DATA:

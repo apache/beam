@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
-import org.apache.beam.model.pipeline.v1.MetricsApi.Metric;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -102,20 +101,13 @@ public class FlinkMetricContainer {
   public void updateMetrics(List<MonitoringInfo> monitoringInfos) {
     monitoringInfos.forEach(
         monitoringInfo -> {
-          if (!monitoringInfo.hasMetric()) {
-            LOG.info("Skipping metric-less MonitoringInfo: {}", monitoringInfo);
-            return;
-          }
           MetricName metricName = MonitoringInfoMetricName.create(monitoringInfo);
           @Nullable String ptransform = monitoringInfo.getLabelsMap().get(PTRANSFORM_LABEL);
           MetricsContainer metricsContainer = getMetricsContainer(ptransform);
-          Metric metric = monitoringInfo.getMetric();
           MetricKey key =
               MetricKey.create(monitoringInfo.getLabelsMap().get(PTRANSFORM_LABEL), metricName);
           forEachMetricType(
-              metric,
-              monitoringInfo.getType(),
-              monitoringInfo.getTimestamp(),
+              monitoringInfo,
               counter -> {
                 metricsContainer.getCounter(metricName).inc(counter);
                 updateCounter(key, counter);

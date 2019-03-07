@@ -59,50 +59,41 @@ public class MetricResultsProtos {
   public static MetricsApi.MetricResults toProto(MetricResults metricResults) {
     MetricsApi.MetricResults.Builder builder = MetricsApi.MetricResults.newBuilder();
     MetricQueryResults results = metricResults.allMetrics();
-    results
-        .getCounters()
-        .forEach(
-            counter ->
-                addMetricResultToBuilder(
-                    builder, counter, SimpleMonitoringInfoBuilder::setInt64Value));
-    results
-        .getDistributions()
-        .forEach(
-            distribution ->
-                addMetricResultToBuilder(
-                    builder, distribution, SimpleMonitoringInfoBuilder::setIntDistributionValue));
-    results
-        .getGauges()
-        .forEach(
-            gauge ->
-                addMetricResultToBuilder(
-                    builder, gauge, SimpleMonitoringInfoBuilder::setGaugeValue));
+    addMetricResultsToBuilder(
+        builder, results.getCounters(), SimpleMonitoringInfoBuilder::setInt64Value);
+    addMetricResultsToBuilder(
+        builder, results.getDistributions(), SimpleMonitoringInfoBuilder::setIntDistributionValue);
+    addMetricResultsToBuilder(
+        builder, results.getGauges(), SimpleMonitoringInfoBuilder::setGaugeValue);
     return builder.build();
   }
 
   /**
-   * Add this {@link MetricResult}'s "attempted" and "committed" values to the corresponding lists
-   * of {@param builder}.
+   * Add a collection of {@link MetricResult}s to a {@link MetricsApi.MetricResults.Builder
+   * MetricResults proto builder}, in terms of a type-specific helper for adding an individual value
+   * to a {@link SimpleMonitoringInfoBuilder MonitoringInfo builder}.
    */
-  private static <T> void addMetricResultToBuilder(
+  private static <T> void addMetricResultsToBuilder(
       MetricsApi.MetricResults.Builder builder,
-      MetricResult<T> metricResult,
+      Iterable<MetricResult<T>> metricResults,
       BiConsumer<SimpleMonitoringInfoBuilder, T> set) {
-    MetricKey metricKey = metricResult.getKey();
-    addMetricToBuilder(
-        builder,
-        metricKey,
-        metricResult.getAttempted(),
-        set,
-        MetricsApi.MetricResults.Builder::addAttempted);
-    T committed = metricResult.getCommittedOrNull();
-    if (committed != null) {
+    for (MetricResult<T> metricResult : metricResults) {
+      MetricKey metricKey = metricResult.getKey();
       addMetricToBuilder(
           builder,
           metricKey,
-          metricResult.getCommitted(),
+          metricResult.getAttempted(),
           set,
-          MetricsApi.MetricResults.Builder::addCommitted);
+          MetricsApi.MetricResults.Builder::addAttempted);
+      T committed = metricResult.getCommittedOrNull();
+      if (committed != null) {
+        addMetricToBuilder(
+            builder,
+            metricKey,
+            metricResult.getCommitted(),
+            set,
+            MetricsApi.MetricResults.Builder::addCommitted);
+      }
     }
   }
 
@@ -122,14 +113,12 @@ public class MetricResultsProtos {
       T value,
       BiConsumer<SimpleMonitoringInfoBuilder, T> set,
       BiConsumer<MetricsApi.MetricResults.Builder, MonitoringInfo> add) {
-    if (value != null) {
-      SimpleMonitoringInfoBuilder partial =
-          new SimpleMonitoringInfoBuilder().setLabelsAndUrnFrom(metricKey);
-      set.accept(partial, value);
-      MonitoringInfo monitoringInfo = partial.build();
-      if (monitoringInfo != null) {
-        add.accept(builder, monitoringInfo);
-      }
+    SimpleMonitoringInfoBuilder partial =
+        new SimpleMonitoringInfoBuilder().setLabelsAndUrnFrom(metricKey);
+    set.accept(partial, value);
+    MonitoringInfo monitoringInfo = partial.build();
+    if (monitoringInfo != null) {
+      add.accept(builder, monitoringInfo);
     }
   }
 
@@ -174,9 +163,7 @@ public class MetricResultsProtos {
     private void addMonitoringInfo(MonitoringInfo monitoringInfo, Boolean committed) {
       MetricKey metricKey = keyFromMonitoringInfo(monitoringInfo);
       forEachMetricType(
-          monitoringInfo.getMetric(),
-          monitoringInfo.getType(),
-          monitoringInfo.getTimestamp(),
+          monitoringInfo,
           counter -> addMetricToResultMap(metricKey, counter, committed, counters),
           distribution -> addMetricToResultMap(metricKey, distribution, committed, distributions),
           gauge -> addMetricToResultMap(metricKey, gauge, committed, gauges));

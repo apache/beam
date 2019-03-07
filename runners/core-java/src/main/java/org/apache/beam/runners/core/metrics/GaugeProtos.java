@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Timestamp;
 import org.joda.time.Instant;
@@ -25,6 +28,8 @@ import org.joda.time.Instant;
 public class GaugeProtos {
   public static GaugeResult fromProto(long value, Timestamp timestamp) {
     return GaugeResult.create(
-        value, new Instant(timestamp.getSeconds() * 1000 + timestamp.getNanos() / 1000));
+        value,
+        new Instant(
+            SECONDS.toMillis(timestamp.getSeconds()) + NANOSECONDS.toMillis(timestamp.getNanos())));
   }
 }

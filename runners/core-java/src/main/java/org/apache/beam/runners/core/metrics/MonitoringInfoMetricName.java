@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static java.util.Collections.unmodifiableMap;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
@@ -88,7 +89,7 @@ public class MonitoringInfoMetricName extends MetricName {
 
   /** @return The labels associated with this MonitoringInfo. */
   public Map<String, String> getLabels() {
-    return this.labels;
+    return unmodifiableMap(this.labels);
   }
 
   /**

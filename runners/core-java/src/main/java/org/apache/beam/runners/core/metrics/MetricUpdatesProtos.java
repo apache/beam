@@ -21,46 +21,50 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricKey;
 
 /** Convert {@link MetricUpdates} to a {@link List} of {@link MonitoringInfo}. */
 public class MetricUpdatesProtos {
   public static List<MonitoringInfo> toProto(MetricUpdates metricUpdates) {
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<>();
-
-    fromMetrics(
+    addMetricUpdates(
         monitoringInfos,
         metricUpdates.counterUpdates(),
         SimpleMonitoringInfoBuilder::setInt64Value);
-    fromMetrics(
+    addMetricUpdates(
         monitoringInfos,
         metricUpdates.distributionUpdates(),
         SimpleMonitoringInfoBuilder::setIntDistributionValue);
-    fromMetrics(
+    addMetricUpdates(
         monitoringInfos, metricUpdates.gaugeUpdates(), SimpleMonitoringInfoBuilder::setGaugeValue);
-
     return monitoringInfos;
   }
 
-  private static <T> MonitoringInfo addMetric(
-      MetricUpdates.MetricUpdate<T> metricUpdate, BiConsumer<SimpleMonitoringInfoBuilder, T> fn) {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-    MetricKey metricKey = metricUpdate.getKey();
-    builder.setLabelsAndUrnFrom(metricKey);
-
-    fn.accept(builder, metricUpdate.getUpdate());
-    return builder.setTimestampToNow().build();
-  }
-
-  private static <T> void fromMetrics(
+  /**
+   * Convert {@link MetricUpdate}s of a given type to {@link MonitoringInfo}s, and add them to a
+   * given list.
+   */
+  private static <T> void addMetricUpdates(
       ArrayList<MonitoringInfo> monitoringInfos,
-      Iterable<MetricUpdates.MetricUpdate<T>> metrics,
-      BiConsumer<SimpleMonitoringInfoBuilder, T> fn) {
-    for (MetricUpdates.MetricUpdate<T> metric : metrics) {
-      MonitoringInfo monitoringInfo = addMetric(metric, fn);
+      Iterable<MetricUpdate<T>> metrics,
+      BiConsumer<SimpleMonitoringInfoBuilder, T> setValue) {
+    for (MetricUpdate<T> metric : metrics) {
+      MonitoringInfo monitoringInfo = updateToProto(metric, setValue);
       if (monitoringInfo != null) {
         monitoringInfos.add(monitoringInfo);
       }
     }
+  }
+
+  /** Convert a {@link MetricUpdate} to a {@link MonitoringInfo}. */
+  private static <T> MonitoringInfo updateToProto(
+      MetricUpdate<T> metricUpdate, BiConsumer<SimpleMonitoringInfoBuilder, T> setValue) {
+    MetricKey metricKey = metricUpdate.getKey();
+    SimpleMonitoringInfoBuilder builder =
+        new SimpleMonitoringInfoBuilder().setLabelsAndUrnFrom(metricKey);
+
+    setValue.accept(builder, metricUpdate.getUpdate());
+    return builder.setTimestampToNow().build();
   }
 }
