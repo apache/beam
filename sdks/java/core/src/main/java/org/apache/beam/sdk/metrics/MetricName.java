@@ -64,12 +64,12 @@ public abstract class MetricName implements Serializable {
     urn = urn.substring(USER_COUNTER_URN_PREFIX.length());
 
     List<String> pieces = Splitter.on(':').splitToList(urn);
-    if (pieces.size() != 2) {
-      throw new IllegalStateException("Invalid metric user-metric URN: " + urn);
+    if (pieces.size() < 1) {
+      throw new IllegalArgumentException("Invalid user-metric URN: " + urn);
     }
+    namespace = String.join("", pieces.subList(0, pieces.size() - 1));
+    name = pieces.get(pieces.size() - 1);
 
-    namespace = pieces.get(0);
-    name = pieces.get(1);
     return true;
   }
 

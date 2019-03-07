@@ -31,6 +31,8 @@ import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricUrns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,12 +103,10 @@ class UserMonitoringInfoToCounterUpdateTransformer
 
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
 
-    String nameWithNamespace = urn.substring(BEAM_METRICS_USER_PREFIX.length()).replace("^:", "");
+    MetricName metricName = MetricUrns.parseUrn(urn);
 
-    final int lastColonIndex = nameWithNamespace.lastIndexOf(':');
-    String counterName = nameWithNamespace.substring(lastColonIndex + 1);
-    String counterNamespace =
-        lastColonIndex == -1 ? "" : nameWithNamespace.substring(0, lastColonIndex);
+    String counterName = metricName.getName();
+    String counterNamespace = metricName.getNamespace();
 
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
     name.setName(

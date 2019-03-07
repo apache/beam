@@ -31,9 +31,11 @@ import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.sdk.metrics.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoLabelProps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
 /** Utility for parsing a URN to a {@link org.apache.beam.sdk.metrics.MetricName}. */
@@ -62,12 +64,14 @@ public class MetricUrns {
     } else {
       return null;
     }
-    // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
-    String[] pieces = urn.split(":", 2);
-    if (pieces.length != 2) {
+
+    List<String> pieces = Splitter.on(':').splitToList(urn);
+    if (pieces.size() < 1) {
       throw new IllegalArgumentException("Invalid user-metric URN: " + urn);
     }
-    return MetricName.named(pieces[0], pieces[1]);
+    String namespace = String.join("", pieces.subList(0, pieces.size() - 1));
+    String name = pieces.get(pieces.size() - 1);
+    return MetricName.named(namespace, name);
   }
 
   /** @return The metric URN for a user metric, with a proper URN prefix. */
