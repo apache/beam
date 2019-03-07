@@ -817,9 +817,11 @@ class EmbeddedWorkerHandler(WorkerHandler):
     super(EmbeddedWorkerHandler, self).__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.worker = sdk_worker.SdkWorker(
-        FnApiRunner.SingletonStateHandlerFactory(self.state),
-        data_plane.InMemoryDataChannelFactory(
-            self.data_plane_handler.inverse()), {})
+        sdk_worker.BundleProcessorCache(
+            FnApiRunner.SingletonStateHandlerFactory(self.state),
+            data_plane.InMemoryDataChannelFactory(
+                self.data_plane_handler.inverse()),
+            {}))
     self._uid_counter = 0
 
   def push(self, request):
