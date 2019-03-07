@@ -16,7 +16,6 @@
 #
 """Tests for apache_beam.runners.worker.health_daemon."""
 
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -27,152 +26,179 @@ import unittest
 import threading
 import time
 
-from apache_beam.options.pipeline_options import PipelineOptions
+
 from apache_beam.runners.worker.health_daemon import HealthDaemon
+from builtins import object
 
-class MockHealthServer:
-    def __init__(self, listening_port, http_status_code=200):
-        self.listening_port = listening_port
-        self.http_status_code = http_status_code
-        self.httpd = None
-        self.ready = False
-        self.port = 0
 
-    def start(self):
-        http_status_code = self.http_status_code
-        class HttpHandler(http.server.BaseHTTPRequestHandler):
-            """HTTP handler for serving stacktraces of all threads."""
+class MockHealthServer(object):
+  """An object that sets up a HTTP server for test purposes"""
 
-            def do_PUT(self):  # pylint: disable=invalid-name
-                """Return all thread stacktraces information for GET request."""
-                self.send_response(http_status_code)
-                self.send_header('Content-Type', 'text/plain')
-                self.end_headers()
+  def __init__(self, listening_port, http_status_code=200):
+    self.listening_port = listening_port
+    self.http_status_code = http_status_code
+    self.httpd = None
+    self.ready = False
+    self.port = 0
 
-            def do_GET(self):  # pylint: disable=invalid-name
-                """Return all thread stacktraces information for GET request."""
-                self.send_response(501)
-                self.send_header('Content-Type', 'text/plain')
-                self.end_headers()
+  def start(self):
+    """Executes the serving loop for the health server"""
+    http_status_code = self.http_status_code
 
-            def log_message(self, f, *args):
-                """Do not log any messages."""
-                pass
+    class HttpHandler(http.server.BaseHTTPRequestHandler):
+      """HTTP handler for serving stacktraces of all threads."""
 
-        self.httpd = http.server.HTTPServer(('localhost', self.listening_port), HttpHandler)
-        logging.info('Health HTTP server running at %s:%s', self.httpd.server_name,
-                     self.httpd.server_port)
-        self.ready = True
-        self.port = self.httpd.server_port
-        self.httpd.serve_forever()
-        logging.info('Health HTTP server is now shutdown')
+      def do_PUT(self):  # pylint: disable=invalid-name
+        """Return all thread stacktraces information for GET request."""
+        self.send_response(http_status_code)
+        self.send_header('Content-Type', 'text/plain')
+        self.end_headers()
 
-    def wait_until_ready(self):
-        while not self.ready:
-            time.sleep(0.1)
-        logging.info('Health HTTP server is now ready')
+      def do_GET(self):  # pylint: disable=invalid-name
+        """Return all thread stacktraces information for GET request."""
+        self.send_response(501)
+        self.send_header('Content-Type', 'text/plain')
+        self.end_headers()
 
-    def shutdown(self):
-        logging.info('Health HTTP server is shutting down')
-        if self.httpd:
-            self.httpd.shutdown()
+      def log_message(self, f, *args):
+        """Do not log any messages."""
+        pass
+
+    self.httpd = http.server.HTTPServer(('localhost', self.listening_port),
+                                        HttpHandler)
+    logging.info('Health HTTP server running at %s:%s', self.httpd.server_name,
+                 self.httpd.server_port)
+    self.ready = True
+    self.port = self.httpd.server_port
+    self.httpd.serve_forever()
+    logging.info('Health HTTP server is now shutdown')
+
+  def wait_until_ready(self):
+    """Waits until the HTTP server is ready to receive connections."""
+    while not self.ready:
+      time.sleep(0.1)
+    logging.info('Health HTTP server is now ready')
+
+  def shutdown(self):
+    """Shuts down the HTTP server."""
+    logging.info('Health HTTP server is shutting down')
+    if self.httpd:
+      self.httpd.shutdown()
 
 
 class MockLoggingHandler(logging.Handler):
-    """Mock logging handler to check for expected logs."""
+  """Mock logging handler to check for expected logs."""
 
-    def __init__(self, *args, **kwargs):
-        self.reset()
-        logging.Handler.__init__(self, *args, **kwargs)
+  def __init__(self, *args, **kwargs):
+    self.reset()
+    logging.Handler.__init__(self, *args, **kwargs)
 
-    def emit(self, record):
-        self.messages[record.levelname.lower()].append(record.getMessage())
+  def emit(self, record):
+    self.messages[record.levelname.lower()].append(record.getMessage())
 
-    def reset(self):
-        self.messages = {
-            'debug': [],
-            'info': [],
-            'warning': [],
-            'error': [],
-            'critical': [],
-        }
+  def reset(self):
+    self.messages = {
+        'debug': [],
+        'info': [],
+        'warning': [],
+        'error': [],
+        'critical': [],
+    }
 
 
 class HealthDaemonTest(unittest.TestCase):
+  """Tests the expected behavior the the HealthDaemon."""
 
-    def setUp(self):
-        self.health_server = None
-        self.health_thread = None
+  def setUp(self):
+    self.health_server = None
+    self.health_thread = None
 
-        self.addCleanup(self.shutDown)
+    self.addCleanup(self.shutDown)
 
-    def shutDown(self):
-        if self.health_server:
-            self.health_server.shutdown()
-            self.health_server = None
+  def shutDown(self):
+    if self.health_server:
+      self.health_server.shutdown()
+      self.health_server = None
 
-        if self.health_thread:
-            self.health_thread.join()
-            self.health_thread = None
+    if self.health_thread:
+      self.health_thread.join()
+      self.health_thread = None
 
-    def start_mock_server(self, health_port, http_status_code):
-        # Set up a local HTTP server to server fake successful responses.
-        self.health_server = health_server = MockHealthServer(health_port,
-                                                              http_status_code=http_status_code)
-        self.health_thread = health_thread = threading.Thread(target=health_server.start)
-        health_thread.daemon = True
-        health_thread.setName('health-server-demon')
-        health_thread.start()
+  def start_mock_server(self, health_port, http_status_code):
+    """Starts the mock HTTP server on the given port returning the given
+       http_status_code.
 
+    Args:
+      health_port(int): Binding port for the debug server.
+        Default is 0 which means any free unsecured port
+      http_status_code(int): HTTP Status Code to return for the PUT method.
 
-        self.health_server.wait_until_ready()
-        return self.health_server.port
+    Returns:
+      The port that the HTTP server is listening on.
+    """
+    # Set up a local HTTP server to server fake successful responses.
+    self.health_server = health_server = MockHealthServer(
+        health_port, http_status_code=http_status_code)
+    self.health_thread = health_thread = threading.Thread(
+        target=health_server.start)
+    health_thread.daemon = True
+    health_thread.setName('health-server-demon')
+    health_thread.start()
 
-    def test_ping_succeeds(self):
-        health_port = self.start_mock_server(health_port=0, http_status_code=200)
+    self.health_server.wait_until_ready()
+    return self.health_server.port
 
-        health_server_conn = HealthDaemon.connect_to_server(health_port)
+  def test_ping_succeeds(self):
+    """Tests that the HealthDaemon can successfully connect to a HealthServer
+       and send a ping."""
+    health_port = self.start_mock_server(health_port=0, http_status_code=200)
 
-        # Create a timeout for 5 seconds from now.
-        timeout = time.time() + 5
-        result = False
-        while not result:
-            result = HealthDaemon.try_health_ping(health_server_conn)
-            time.sleep(0.5)
-            if result or time.time() > timeout:
-                break
+    # Connect to server and assert that the health ping succeeds.
+    health_server_conn = HealthDaemon.connect_to_server(health_port)
+    self.assertTrue(HealthDaemon.try_health_ping(health_server_conn))
 
-        # This fails if we could not connect to the server after 5 seconds.
-        self.assertTrue(result, 'Could not connect to server')
+  def test_ping_fails(self):
+    """Tests that the HealthDaemon can handle a bad HTTP Status Code."""
+    # Set up the mock server to return a 501 METHOD UNIMPLEMENTED.
+    health_port = self.start_mock_server(health_port=0, http_status_code=501)
 
-    def test_ping_fails(self):
-        health_port = self.start_mock_server(health_port=0, http_status_code=501)
+    # Connect to server and assert that the health ping fails.
+    health_server_conn = HealthDaemon.connect_to_server(health_port)
+    self.assertFalse(HealthDaemon.try_health_ping(health_server_conn))
 
-        health_server_conn = HealthDaemon.connect_to_server(health_port)
+  def test_no_server_fails(self):
+    """Tests that the HealthDaemon does not crash when there is no server."""
+    health_port = 0
 
-        # Create a timeout for 5 seconds from now.
-        timeout = time.time() + 1
-        result = False
-        while not result:
-            result = HealthDaemon.try_health_ping(health_server_conn)
-            time.sleep(0.5)
-            if result or time.time() > timeout:
-                break
-        self.assertFalse(result)
+    health_logger = MockLoggingHandler()
+    logging.getLogger().addHandler(health_logger)
 
-    def test_no_server_fails(self):
-        health_port = 0
+    health_server_conn = HealthDaemon.connect_to_server(health_port)
+    result = HealthDaemon.try_health_ping(health_server_conn)
 
-        health_logger = MockLoggingHandler()
-        logging.getLogger().addHandler(health_logger)
+    self.assertFalse(result)
+    self.assertIn('Connection refused by server',
+                  health_logger.messages['error'])
 
-        health_server_conn = HealthDaemon.connect_to_server(health_port)
-        result = HealthDaemon.try_health_ping(health_server_conn)
+  def test_health_daemon_recovers(self):
+    """Tests that the HealthDaemon recovers with a flaky server."""
+    health_port = 8080
 
-        self.assertFalse(result)
-        self.assertIn('Connection refused by server', health_logger.messages['error'])
+    health_logger = MockLoggingHandler()
+    logging.getLogger().addHandler(health_logger)
+
+    health_server_conn = HealthDaemon.connect_to_server(health_port)
+
+    # Test that it will first fail.
+    self.assertFalse(HealthDaemon.try_health_ping(health_server_conn))
+    self.assertIn('Connection refused by server',
+                  health_logger.messages['error'])
+
+    # Test that it can re-use the same connection and succeed.
+    self.start_mock_server(health_port=health_port, http_status_code=200)
+    self.assertTrue(HealthDaemon.try_health_ping(health_server_conn))
 
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
-    unittest.main()
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

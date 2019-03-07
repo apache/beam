@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import http.client
 import logging
 import time
@@ -23,50 +25,98 @@ import errno
 
 from builtins import object
 
+
 class HealthDaemon(object):
-    @staticmethod
-    def connect_to_server(health_http_port, timeout=5):
-        logging.info('Connecting to localhost:{}'.format(health_http_port))
-        return http.client.HTTPConnection('localhost', health_http_port, timeout=timeout)
+  """Sends periodic HTTP PUT /sdk requests to the health server.
 
-    @staticmethod
-    def try_health_ping(health_server):
-        success = False
-        try:
-            health_server.request('PUT', '/sdk')
-            resp = health_server.getresponse()
-            if resp.status == 200:
-                logging.info('Successfully sent health ping to localhost:{}'.format(health_server.port))
-                success = True
-            else:
-                logging.warning('Failed to send health ping to localhost:{} with: HTTP {} {}'.format(
-                    health_server.port, resp.status, resp.reason))
+  The purpose of this class is to communicate to the health server that this
+  SDK Harness is alive. If this SDK Harness does not communicate to the health
+  server after a configured amount of time, the health server will restart the
+  container.
 
-            # Flush the response to close the connection.
-            resp.read()
-        except http.client.HTTPException as e:
-            logging.error('Could not send health ping to localhost:{} with exception: {}'.format(
-                health_server.port, e))
-        except socket.error as e:
-            if e.errno == errno.ECONNREFUSED:
-                logging.error('Connection refused by server')
-            health_server.close()
-        except:
-            logging.error('Unknown error while trying to send health ping. Continuing.')
-            health_server.close()
-        return success
+  Expected Usage:
+    # The HealthDaemon is expected to spin forever, start it on a separate
+    # thread.
+    health_thread = threading.Thread(target=HealthDaemon(8080).start)
 
-    @staticmethod
-    def start(health_http_port=8080):
-        """Executes the serving loop for the status server.
+    # Automatically kill the thread when the program exists.
+    health_thread.daemon = True
+    health_thread.setName('health-client-demon')
 
-        Args:
-          health_http_port(int): Binding port for the debug server.
-            Default is 0 which means any free unsecured port
-        """
-        conn = HealthDaemon.connect_to_server(health_http_port)
-        while True:
-            HealthDaemon.try_health_ping(conn)
+    # Start the HealthDaemon.
+    health_thread.start()
 
-            logging.info('Health Client Daemon sleeping for 15 seconds...')
-            time.sleep(15)
+  """
+
+  def __init__(self, health_http_port):
+    self.health_http_port = health_http_port
+
+  @staticmethod
+  def connect_to_server(health_http_port, timeout=5):
+    """Connects to the health server on the given port.
+
+    Args:
+      health_http_port(int): Binding port for the debug server.
+        Default is 0 which means any free unsecured port
+      timeout(int): Timeout in seconds for all operations.
+
+    Returns:
+      The connection to the health server.
+    """
+
+    logging.info('Connecting to localhost:%s', health_http_port)
+    return http.client.HTTPConnection('localhost', health_http_port,
+                                      timeout=timeout)
+
+  @staticmethod
+  def try_health_ping(health_server):
+    """Attempts to ping the given health server.
+
+    Args:
+      health_server(http.client.HTTPConnection): Connection to the health
+        server.
+
+    Returns:
+      True if the health ping succeeded, false otherwise.
+    """
+
+    success = False
+    try:
+      health_server.request('PUT', '/sdk')
+      resp = health_server.getresponse()
+      if resp.status == 200:
+        logging.info('Successfully sent health ping to localhost:%s',
+                     health_server.port)
+        success = True
+      else:
+        logging.warning(('Failed to send health ping to localhost:%s with: '
+                         'HTTP %s %s'),
+                        health_server.port, resp.status, resp.reason)
+
+      # Flush the response to close the connection.
+      resp.read()
+    except http.client.HTTPException as e:
+      logging.error(('Could not send health ping to localhost:%s with '
+                     'exception: %s'),
+                    health_server.port, e)
+    except socket.error as e:
+      if e.errno == errno.ECONNREFUSED:
+        logging.error('Connection refused by server')
+      health_server.close()
+
+    # We want the HealthDaemon to always try to ping, otherwise the container
+    # will be shut down.
+    except Exception as e:
+      logging.error('Unknown error while trying to send health ping: %s', e)
+      health_server.close()
+    return success
+
+  def start(self):
+    """Tries forever to send a health ping to the health server."""
+
+    conn = HealthDaemon.connect_to_server(self.health_http_port)
+    while True:
+      HealthDaemon.try_health_ping(conn)
+
+      logging.info('Health Client Daemon sleeping for 15 seconds...')
+      time.sleep(15)
