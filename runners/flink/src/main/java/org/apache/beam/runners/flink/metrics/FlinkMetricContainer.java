@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.DistributionData;
@@ -51,7 +52,6 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.util.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,7 +179,7 @@ public class FlinkMetricContainer {
   private <T, FlinkT> void updateMetric(
       MetricKey key,
       Map<String, FlinkT> flinkMetricMap,
-      TriFunction<String, MetricGroup, T, FlinkT> create,
+      BiFunction<String, MetricGroup, FlinkT> create,
       BiConsumer<FlinkT, T> update,
       T value) {
     String flinkMetricName = getFlinkMetricNameString(key);
@@ -187,40 +187,40 @@ public class FlinkMetricContainer {
     // update flink metric
     FlinkT metric = flinkMetricMap.get(flinkMetricName);
     if (metric == null) {
-      metric = create.apply(flinkMetricName, runtimeContext.getMetricGroup(), value);
+      metric = create.apply(flinkMetricName, runtimeContext.getMetricGroup());
       flinkMetricMap.put(flinkMetricName, metric);
     }
     update.accept(metric, value);
   }
 
-  private void updateCounter(MetricKey metricKey, long attempted) {
+  private void updateCounter(MetricKey metricKey, long value) {
     updateMetric(
         metricKey,
         flinkCounterCache,
-        (name, group, value) -> group.counter(name),
-        (counter, value) -> {
+        (name, group) -> group.counter(name),
+        (counter, unused) -> {
           counter.dec(counter.getCount());
           counter.inc(value);
         },
-        attempted);
+        value);
   }
 
-  private void updateDistribution(MetricKey metricKey, DistributionResult attempted) {
+  private void updateDistribution(MetricKey metricKey, DistributionResult value) {
     updateMetric(
         metricKey,
         flinkDistributionGaugeCache,
-        (name, group, value) -> group.gauge(name, new FlinkDistributionGauge(value)),
+        (name, group) -> group.gauge(name, new FlinkDistributionGauge(value)),
         FlinkDistributionGauge::update,
-        attempted);
+        value);
   }
 
-  private void updateGauge(MetricKey metricKey, GaugeResult attempted) {
+  private void updateGauge(MetricKey metricKey, GaugeResult value) {
     updateMetric(
         metricKey,
         flinkGaugeCache,
-        (name, group, value) -> group.gauge(name, new FlinkGauge(value)),
+        (name, group) -> group.gauge(name, new FlinkGauge(value)),
         FlinkGauge::update,
-        attempted);
+        value);
   }
 
   static String getFlinkMetricNameString(MetricKey metricKey) {

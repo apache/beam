@@ -52,17 +52,17 @@ public abstract class MetricName implements Serializable {
     if (namespace != null && name != null) {
       return true;
     }
+
     String urn = urn();
-    if (urn.startsWith(USER_COUNTER_URN_PREFIX)) {
-      urn = urn.substring(USER_COUNTER_URN_PREFIX.length());
-    } else {
+    if (!urn.startsWith(USER_COUNTER_URN_PREFIX)) {
       if (raise) {
         throw new IllegalStateException(
             "Attempting to access namespace/name of a non-user metric: " + urn);
       }
       return false;
     }
-    // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
+    urn = urn.substring(USER_COUNTER_URN_PREFIX.length());
+
     List<String> pieces = Splitter.on(':').splitToList(urn);
     if (pieces.size() != 2) {
       throw new IllegalStateException("Invalid metric user-metric URN: " + urn);

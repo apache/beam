@@ -154,7 +154,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   @Nullable
   private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
     return new SimpleMonitoringInfoBuilder(true)
-        .handleMetricKey(metricUpdate.getKey())
+        .setLabelsAndUrn(metricUpdate.getKey())
         .setInt64Value(metricUpdate.getUpdate())
         .setTimestampToNow()
         .build();

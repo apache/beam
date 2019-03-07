@@ -115,7 +115,7 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  public SimpleMonitoringInfoBuilder handleMetricKey(MetricKey key) {
+  public SimpleMonitoringInfoBuilder setLabelsAndUrn(MetricKey key) {
     builder.setUrn(key.metricName().urn()).putAllLabels(key.labels().map());
     return this;
   }
