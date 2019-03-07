@@ -358,7 +358,7 @@ class TriggerLoadJobs(beam.DoFn):
         table_reference.projectId = vp.RuntimeValueProvider.get_value(
             'project', str, '')
 
-      # Load jobs for a single des5tination are always triggered from the same
+      # Load jobs for a single destination are always triggered from the same
       # worker. This means that we can generate a deterministic numbered job id,
       # and not need to worry.
       job_name = '%s_%s_%s' % (
