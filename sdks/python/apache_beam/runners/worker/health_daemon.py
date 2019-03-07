@@ -17,12 +17,11 @@
 
 from __future__ import absolute_import
 
+import errno
 import http.client
 import logging
-import time
 import socket
-import errno
-
+import time
 from builtins import object
 
 
@@ -49,7 +48,7 @@ class HealthDaemon(object):
   """
 
   def __init__(self, health_http_port):
-    self.health_http_port = health_http_port
+    self._health_http_port = health_http_port
 
   @staticmethod
   def connect_to_server(health_http_port, timeout=5):
@@ -114,7 +113,7 @@ class HealthDaemon(object):
   def start(self):
     """Tries forever to send a health ping to the health server."""
 
-    conn = HealthDaemon.connect_to_server(self.health_http_port)
+    conn = HealthDaemon.connect_to_server(self._health_http_port)
     while True:
       HealthDaemon.try_health_ping(conn)
 

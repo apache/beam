@@ -22,28 +22,26 @@ from __future__ import print_function
 
 import http.server
 import logging
-import unittest
 import threading
 import time
-
+import unittest
+from builtins import object
 
 from apache_beam.runners.worker.health_daemon import HealthDaemon
-from builtins import object
 
 
 class MockHealthServer(object):
   """An object that sets up a HTTP server for test purposes"""
 
   def __init__(self, listening_port, http_status_code=200):
-    self.listening_port = listening_port
-    self.http_status_code = http_status_code
-    self.httpd = None
-    self.ready = False
-    self.port = 0
+    self._http_status_code = http_status_code
+    self._httpd = None
+    self._ready = False
+    self.port = listening_port
 
   def start(self):
     """Executes the serving loop for the health server"""
-    http_status_code = self.http_status_code
+    http_status_code = self._http_status_code
 
     class HttpHandler(http.server.BaseHTTPRequestHandler):
       """HTTP handler for serving stacktraces of all threads."""
@@ -64,26 +62,26 @@ class MockHealthServer(object):
         """Do not log any messages."""
         pass
 
-    self.httpd = http.server.HTTPServer(('localhost', self.listening_port),
-                                        HttpHandler)
-    logging.info('Health HTTP server running at %s:%s', self.httpd.server_name,
-                 self.httpd.server_port)
-    self.ready = True
-    self.port = self.httpd.server_port
-    self.httpd.serve_forever()
+    self._httpd = http.server.HTTPServer(('localhost', self.port),
+                                         HttpHandler)
+    logging.info('Health HTTP server running at %s:%s', self._httpd.server_name,
+                 self._httpd.server_port)
+    self._ready = True
+    self.port = self._httpd.server_port
+    self._httpd.serve_forever()
     logging.info('Health HTTP server is now shutdown')
 
   def wait_until_ready(self):
     """Waits until the HTTP server is ready to receive connections."""
-    while not self.ready:
+    while not self._ready:
       time.sleep(0.1)
     logging.info('Health HTTP server is now ready')
 
   def shutdown(self):
     """Shuts down the HTTP server."""
     logging.info('Health HTTP server is shutting down')
-    if self.httpd:
-      self.httpd.shutdown()
+    if self._httpd:
+      self._httpd.shutdown()
 
 
 class MockLoggingHandler(logging.Handler):
