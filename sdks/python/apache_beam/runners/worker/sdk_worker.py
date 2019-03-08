@@ -94,6 +94,10 @@ class SdkHarness(object):
     no_more_work = object()
 
     # Create workers
+    bundle_processor_cache = BundleProcessorCache(
+        state_handler_factory=self._state_handler_factory,
+        data_channel_factory=self._data_channel_factory,
+        fns=self._fns)
     for _ in range(self._worker_count):
       # SdkHarness manage function registration and share self._fns with all
       # the workers. This is needed because function registration (register)
@@ -104,11 +108,8 @@ class SdkHarness(object):
       # potentially get executed by different worker. Hence we need a
       # centralized function list shared among all the workers.
       self.workers.put(
-          SdkWorker(
-              state_handler_factory=self._state_handler_factory,
-              data_channel_factory=self._data_channel_factory,
-              fns=self._fns,
-              profiler_factory=self._profiler_factory))
+          SdkWorker(bundle_processor_cache,
+                    profiler_factory=self._profiler_factory))
 
     def get_responses():
       while True:
@@ -246,15 +247,47 @@ class SdkHarness(object):
                            instruction_id, scheduling_delay)
 
 
-class SdkWorker(object):
-
-  def __init__(self, state_handler_factory, data_channel_factory, fns,
-               profiler_factory=None):
+class BundleProcessorCache(object):
+  def __init__(self, state_handler_factory, data_channel_factory, fns):
     self.fns = fns
     self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
     self.active_bundle_processors = {}
     self.cached_bundle_processors = collections.defaultdict(list)
+
+  def register(self, bundle_descriptor):
+    self.fns[bundle_descriptor.id] = bundle_descriptor
+
+  def get(self, instruction_id, bundle_descriptor_id):
+    try:
+      # pop() is threadsafe
+      processor = self.cached_bundle_processors[bundle_descriptor_id].pop()
+    except IndexError:
+      processor = bundle_processor.BundleProcessor(
+          self.fns[bundle_descriptor_id],
+          self.state_handler_factory.create_state_handler(
+              self.fns[bundle_descriptor_id].state_api_service_descriptor),
+          self.data_channel_factory)
+    self.active_bundle_processors[
+        instruction_id] = bundle_descriptor_id, processor
+    return processor
+
+  def lookup(self, instruction_id):
+    return self.active_bundle_processors.get(instruction_id, (None, None))[-1]
+
+  def discard(self, instruction_id):
+    del self.active_bundle_processors[instruction_id]
+
+  def release(self, instruction_id):
+    descriptor_id, processor = self.active_bundle_processors.pop(instruction_id)
+    processor.reset()
+    self.cached_bundle_processors[descriptor_id].append(processor)
+
+
+class SdkWorker(object):
+
+  def __init__(self, bundle_processor_cache, profiler_factory=None):
+    self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
 
   def do_instruction(self, request):
@@ -268,50 +301,36 @@ class SdkWorker(object):
 
   def register(self, request, instruction_id):
     for process_bundle_descriptor in request.process_bundle_descriptor:
-      self.fns[process_bundle_descriptor.id] = process_bundle_descriptor
+      self.bundle_processor_cache.register(process_bundle_descriptor)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         register=beam_fn_api_pb2.RegisterResponse())
 
   def process_bundle(self, request, instruction_id):
-    with self.get_bundle_processor(
-        instruction_id,
-        request.process_bundle_descriptor_reference) as bundle_processor:
-      with self.maybe_profile(instruction_id):
-        delayed_applications = bundle_processor.process_bundle(instruction_id)
-      return beam_fn_api_pb2.InstructionResponse(
-          instruction_id=instruction_id,
-          process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-              residual_roots=delayed_applications,
-              metrics=bundle_processor.metrics(),
-              monitoring_infos=bundle_processor.monitoring_infos()))
-
-  @contextlib.contextmanager
-  def get_bundle_processor(self, instruction_id, bundle_descriptor_id):
+    bundle_processor = self.bundle_processor_cache.get(
+        instruction_id, request.process_bundle_descriptor_reference)
     try:
-      # pop() is threadsafe
-      processor = self.cached_bundle_processors[bundle_descriptor_id].pop()
-      state_handler = processor.state_handler
-    except IndexError:
-      process_bundle_desc = self.fns[bundle_descriptor_id]
-      state_handler = self.state_handler_factory.create_state_handler(
-          process_bundle_desc.state_api_service_descriptor)
-      processor = bundle_processor.BundleProcessor(
-          process_bundle_desc,
-          state_handler,
-          self.data_channel_factory)
-    try:
-      self.active_bundle_processors[instruction_id] = processor
-      with state_handler.process_instruction_id(instruction_id):
-        yield processor
-    finally:
-      del self.active_bundle_processors[instruction_id]
-    # Outside the finally block as we only want to re-use on success.
-    processor.reset()
-    self.cached_bundle_processors[bundle_descriptor_id].append(processor)
+      with bundle_processor.state_handler.process_instruction_id(
+          instruction_id):
+        with self.maybe_profile(instruction_id):
+          delayed_applications = bundle_processor.process_bundle(instruction_id)
+          response = beam_fn_api_pb2.InstructionResponse(
+              instruction_id=instruction_id,
+              process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+                  residual_roots=delayed_applications,
+                  metrics=bundle_processor.metrics(),
+                  monitoring_infos=bundle_processor.monitoring_infos()))
+      # TODO(boyuanz): Don't release here if finalize is needed.
+      self.bundle_processor_cache.release(instruction_id)
+      return response
+    except:  # pylint: disable=broad-except
+      # Don't re-use bundle processors on failure.
+      self.bundle_processor_cache.discard(instruction_id)
+      raise
 
   def process_bundle_split(self, request, instruction_id):
-    processor = self.active_bundle_processors.get(request.instruction_reference)
+    processor = self.bundle_processor_cache.lookup(
+        request.instruction_reference)
     if processor:
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
@@ -323,7 +342,8 @@ class SdkWorker(object):
 
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
-    processor = self.active_bundle_processors.get(request.instruction_reference)
+    processor = self.bundle_processor_cache.lookup(
+        request.instruction_reference)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
