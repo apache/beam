@@ -342,6 +342,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
 
     include '**/*IT.class'
     exclude '**/BigQueryIOReadIT.class'
+    exclude '**/BigQueryIOStorageReadIT.class'
     exclude '**/BigQueryIOStorageReadTableRowIT.class'
     exclude '**/PubsubReadIT.class'
     exclude '**/SpannerReadIT.class'
