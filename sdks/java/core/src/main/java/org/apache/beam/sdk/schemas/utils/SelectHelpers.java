@@ -81,7 +81,7 @@ public class SelectHelpers {
    *     String eventId;
    *     int eventType;
    *     Location location;
-   *  }</pre>
+   *  }}</pre>
    *
    *
    * <pre>{@code
