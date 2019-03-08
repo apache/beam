@@ -44,8 +44,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
  * to follow to avoid data to be send to executors repeatedly:
  *
  * <ul>
- *   <li>Input {@link PCollection} of broadcasted side has to be the same instance
- *   <li>Key extractor of broadcasted side has to be the same {@link UnaryFunction} instance
+ *   <li>Input {@link PCollection} of broadcast side has to be the same instance
+ *   <li>Key extractor of broadcast side has to be the same {@link UnaryFunction} instance
  * </ul>
  */
 public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
