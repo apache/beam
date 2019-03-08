@@ -1920,9 +1920,7 @@ public class StreamingDataflowWorker {
       active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));
     }
 
-    if (!active.isEmpty()) {
-      metricTrackingWindmillServer.refreshActiveWork(active);
-    }
+    metricTrackingWindmillServer.refreshActiveWork(active);
   }
 
   /**
