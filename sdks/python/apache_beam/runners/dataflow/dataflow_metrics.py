@@ -52,7 +52,7 @@ def _get_match(proto, filter_fn):
 
 
 # V1b3 MetricStructuredName keys to accept and copy to the MetricKey labels.
-WHITELISTED_LABELS = [
+STRUCTURED_NAME_LABELS = [
     'execution_step', 'original_name', 'output_user_name', 'step']
 
 
@@ -127,7 +127,7 @@ class DataflowMetrics(MetricResults):
 
     labels = dict()
     for kv in metric.name.context.additionalProperties:
-      if kv.key in WHITELISTED_LABELS:
+      if kv.key in STRUCTURED_NAME_LABELS:
         labels[kv.key] = kv.value
     # Package everything besides namespace and name the labels as well,
     # including unmodified step names to assist in integration the exact
@@ -135,7 +135,7 @@ class DataflowMetrics(MetricResults):
     return MetricKey(step, MetricName(namespace, name), labels=labels)
 
   def _populate_metrics(self, response, result, user_metrics=False):
-    """Move user metrics from response to results as MetricResults."""
+    """Move metrics from response to results as MetricResults."""
     if user_metrics:
       metrics = [metric
                  for metric in response.metrics
@@ -180,13 +180,6 @@ class DataflowMetrics(MetricResults):
                                  attempted=attempted,
                                  committed=committed))
 
-  def _populate_metric_results(self, response):
-    """Take a list of metrics, and convert it to a list of MetricResult."""
-    result = []
-    self._populate_metrics(response, result, user_metrics=True)
-    self._populate_metrics(response, result, user_metrics=False)
-    return result
-
   def _get_metric_value(self, metric):
     """Get a metric result object from a MetricUpdate from Dataflow API."""
     if metric is None:
@@ -228,11 +221,17 @@ class DataflowMetrics(MetricResults):
     return job_metrics
 
   def all_metrics(self):
+    """Return all user and system metrics from the dataflow service."""
+    metric_results = []
     response = self._get_metrics_from_dataflow()
-    return  self._populate_metric_results(response)
+    self._populate_metrics(response, metric_results, user_metrics=True)
+    self._populate_metrics(response, metric_results, user_metrics=False)
+    return metric_results
 
   def query(self, filter=None):
-    metric_results = self.all_metrics()
+    metric_results = []
+    response = self._get_metrics_from_dataflow()
+    self._populate_metrics(response, metric_results, user_metrics=True)
     return {self.COUNTERS: [elm for elm in metric_results
                             if self.matches(filter, elm.key)
                             and DataflowMetrics._is_counter(elm)],

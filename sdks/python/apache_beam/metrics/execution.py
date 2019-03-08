@@ -32,7 +32,6 @@ Available classes:
 
 from __future__ import absolute_import
 
-import pprint
 import threading
 from builtins import object
 from collections import defaultdict
@@ -126,7 +125,7 @@ class MetricResult(object):
         self.key, str(self.committed), str(self.attempted))
 
   def __str__(self):
-    return pprint.pformat(self)
+    return repr(self)
 
   @property
   def result(self):
