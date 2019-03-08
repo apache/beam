@@ -117,6 +117,7 @@ Beam Jenkins overview page: [link](https://builds.apache.org/view/A-D/view/Beam/
 | beam_PostRelease_NightlySnapshot | [cron](https://builds.apache.org/job/beam_PostRelease_NightlySnapshot/) | `Run Dataflow PostRelease` | [![Build Status](https://builds.apache.org/job/beam_PostRelease_NightlySnapshot/badge/icon)](https://builds.apache.org/job/beam_PostRelease_NightlySnapshot) |
 | beam_Prober_CommunityMetrics | [cron](https://builds.apache.org/job/beam_Prober_CommunityMetrics/) | `Run Community Metrics Prober` | [![Build Status](https://builds.apache.org/job/beam_Prober_CommunityMetrics/badge/icon)](https://builds.apache.org/job/beam_Prober_CommunityMetrics) |
 | beam_SeedJob | [cron](https://builds.apache.org/job/beam_SeedJob/), [standalone](https://builds.apache.org/job/beam_SeedJob_Standalone/) | `Run Dependency Check` | [![Build Status](https://builds.apache.org/job/beam_SeedJob/badge/icon)](https://builds.apache.org/job/beam_SeedJob) |
+| beam_sonarqube_report | [cron](https://builds.apache.org/job/beam_sonarqube_report/)| N/A | [![Build Status](https://builds.apache.org/job/beam_sonarqube_report/badge/icon)](https://builds.apache.org/job/beam_sonarqube_report/) |
 
 ### Notes:
 
