@@ -17,6 +17,9 @@
 """
 This is GroupByKey load test with Synthetic Source. Besides of the standard
 input options there are additional options:
+* fanout (optional) - number of GBK operations to run in parallel
+* iterations (optional) - number of reiteraations over per-key-grouped
+values to perform
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
@@ -35,6 +38,8 @@ python setup.py nosetests \
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
+    --fanout=1
+    --iterations=1
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -52,6 +57,8 @@ or:
     --project=...
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
+    --fanout=1
+    --iterations=1
     --input_options=\'
       {"num_records": 1,
       "key_size": 1,
@@ -76,6 +83,8 @@ python setup.py nosetests \
         --publish_to_big_query=true
         --metrics_dataset=python_load_tests
         --metrics_table=gbk
+        --fanout=1
+        --iterations=1
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -94,6 +103,8 @@ or:
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
     --temp_location=gs://...
+    --fanout=1
+    --iterations=1
     --input_options=\'
       {"num_records": 1,
       "key_size": 1,
@@ -146,6 +157,17 @@ class GroupByKeyTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = TestPipeline()
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
+    self.fanout = self.pipeline.get_option('fanout')
+    if self.fanout is None:
+      self.fanout = 1
+    else:
+      self.fanout = int(self.fanout)
+
+    self.iterations = self.pipeline.get_option('iterations')
+    if self.iterations is None:
+      self.iterations = 1
+    else:
+      self.iterations = int(self.iterations)
 
     self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
     metrics_project_id = self.pipeline.get_option('project')
@@ -166,18 +188,31 @@ class GroupByKeyTest(unittest.TestCase):
       raise ValueError('One or more of parameters for collecting metrics '
                        'are empty.')
 
+  class UngroupAndReiterate(beam.DoFn):
+    def process(self, element, *args, **kwargs):
+      key, value = element
+      for i in range(self.iterations):
+        for v in value:
+          if i == self.iterations - 1:
+            return (key, v)
+
   def testGroupByKey(self):
-    # pylint: disable=expression-not-assigned
-    (self.pipeline
-     | beam.io.Read(synthetic_pipeline.SyntheticSource(
-         self.parseTestPipelineOptions()))
-     | 'Measure time: Start' >> beam.ParDo(
-         MeasureTime(self.metrics_namespace))
-     | 'GroupByKey' >> beam.GroupByKey()
-     | 'Ungroup' >> beam.FlatMap(
-         lambda elm: [(elm[0], v) for v in elm[1]])
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-    )
+    input = (self.pipeline
+             | beam.io.Read(synthetic_pipeline.SyntheticSource(
+                 self.parseTestPipelineOptions()))
+             | 'Measure time: Start' >> beam.ParDo(
+                 MeasureTime(self.metrics_namespace))
+            )
+
+    for branch in range(self.fanout):
+      # pylint: disable=expression-not-assigned
+      (input
+       | 'GroupByKey %i' % branch >> beam.GroupByKey()
+       | 'Ungroup %i' % branch >> beam.FlatMap(
+           lambda elm: [(elm[0], v) for v in elm[1]])
+       | 'Measure time: End %i' % branch >> beam.ParDo(
+           MeasureTime(self.metrics_namespace))
+      )
 
     result = self.pipeline.run()
     result.wait_until_finish()
