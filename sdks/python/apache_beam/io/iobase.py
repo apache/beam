@@ -1022,11 +1022,13 @@ class _WriteBundleDoFn(core.DoFn):
   """
 
   def __init__(self, sink):
-    self.writer = None
     self.sink = sink
 
   def display_data(self):
     return {'sink_dd': self.sink}
+
+  def start_bundle(self):
+    self.writer = None
 
   def process(self, element, init_result):
     if self.writer is None:
