@@ -17,6 +17,7 @@
 """
 This is Combine load test with Synthetic Source. Besides of the standard
 input options there are additional options:
+* fanout (optional) - number of GBK operations to run in parallel
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
@@ -35,6 +36,7 @@ python setup.py nosetests \
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=combine
+    --fanout=1
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -59,7 +61,8 @@ or:
       "bundle_size_distribution_type": "const",
       "bundle_size_distribution_param": 1,
       "force_initial_num_bundles": 1}\'
-    --runner=DirectRunner' \
+    --runner=DirectRunner
+    --fanout=1' \
 -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
 -Prunner=DirectRunner :beam-sdks-python-load-tests:run
 
@@ -68,6 +71,7 @@ To run test on other runner (ex. Dataflow):
 python setup.py nosetests \
     --test-pipeline-options="
         --runner=TestDataflowRunner
+        --fanout=1
         --project=...
         --staging_location=gs://...
         --temp_location=gs://...
@@ -100,7 +104,8 @@ or:
       "bundle_size_distribution_type": "const",
       "bundle_size_distribution_param": 1,
       "force_initial_num_bundles": 1}\'
-    --runner=TestDataflowRunner' \
+    --runner=TestDataflowRunner
+    --fanout=1' \
 -PloadTest.mainClass=
 apache_beam.testing.load_tests.combine_test \
 -Prunner=
@@ -146,6 +151,11 @@ class CombineTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = TestPipeline()
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
+    self.fanout = self.pipeline.get_option('fanout')
+    if self.fanout is None:
+      self.fanout = 1
+    else:
+      self.fanout = int(self.fanout)
 
     self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
     metrics_project_id = self.pipeline.get_option('project')
@@ -170,17 +180,22 @@ class CombineTest(unittest.TestCase):
       yield element
 
   def testCombineGlobally(self):
-    # pylint: disable=expression-not-assigned
-    (self.pipeline
-     | beam.io.Read(synthetic_pipeline.SyntheticSource(
-         self.parseTestPipelineOptions()))
-     | 'Measure time: Start' >> beam.ParDo(
-         MeasureTime(self.metrics_namespace))
-     | 'Combine with Top' >> beam.CombineGlobally(
-         beam.combiners.TopCombineFn(1000))
-     | 'Consume' >> beam.ParDo(self._GetElement())
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-    )
+    input = (self.pipeline
+             | beam.io.Read(synthetic_pipeline.SyntheticSource(
+                 self.parseTestPipelineOptions()))
+             | 'Measure time: Start' >> beam.ParDo(
+                 MeasureTime(self.metrics_namespace))
+            )
+
+    for branch in range(self.fanout):
+      # pylint: disable=expression-not-assigned
+      (input
+       | 'Combine with Top %i' % branch >> beam.CombineGlobally(
+           beam.combiners.TopCombineFn(1000))
+       | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
+       | 'Measure time: End %i' % branch >> beam.ParDo(
+           MeasureTime(self.metrics_namespace))
+      )
 
     result = self.pipeline.run()
     result.wait_until_finish()

@@ -188,12 +188,12 @@ class GroupByKeyTest(unittest.TestCase):
       raise ValueError('One or more of parameters for collecting metrics '
                        'are empty.')
 
-  class UngroupAndReiterate(beam.DoFn):
-    def process(self, element, *args, **kwargs):
+  class _UngroupAndReiterate(beam.DoFn):
+    def process(self, element, iterations):
       key, value = element
-      for i in range(self.iterations):
+      for i in range(iterations):
         for v in value:
-          if i == self.iterations - 1:
+          if i == iterations - 1:
             return (key, v)
 
   def testGroupByKey(self):
@@ -208,8 +208,8 @@ class GroupByKeyTest(unittest.TestCase):
       # pylint: disable=expression-not-assigned
       (input
        | 'GroupByKey %i' % branch >> beam.GroupByKey()
-       | 'Ungroup %i' % branch >> beam.FlatMap(
-           lambda elm: [(elm[0], v) for v in elm[1]])
+       | 'Ungroup %i' % branch >> beam.ParDo(
+           self._UngroupAndReiterate(), self.iterations)
        | 'Measure time: End %i' % branch >> beam.ParDo(
            MeasureTime(self.metrics_namespace))
       )
