@@ -648,6 +648,14 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([(1, 7), (2, 1), (2, 3), (2, 5), (3, 6)]))
     pipeline.run()
 
+  def test_distinct(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Start' >> beam.Create(
+        [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
+    result = pcoll.apply(beam.Distinct())
+    assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
+    pipeline.run()
+
   def test_remove_duplicates(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(
@@ -742,7 +750,7 @@ def SamplePTransform(pcoll):
   """Sample transform using the @ptransform_fn decorator."""
   map_transform = 'ToPairs' >> beam.Map(lambda v: (v, None))
   combine_transform = 'Group' >> beam.CombinePerKey(lambda vs: None)
-  keys_transform = 'RemoveDuplicates' >> beam.Keys()
+  keys_transform = 'Distinct' >> beam.Keys()
   return pcoll | map_transform | combine_transform | keys_transform
 
 
@@ -807,7 +815,7 @@ class PTransformLabelsTest(unittest.TestCase):
     self.assertTrue('*Sample*' in pipeline.applied_labels)
     self.assertTrue('*Sample*/ToPairs' in pipeline.applied_labels)
     self.assertTrue('*Sample*/Group' in pipeline.applied_labels)
-    self.assertTrue('*Sample*/RemoveDuplicates' in pipeline.applied_labels)
+    self.assertTrue('*Sample*/Distinct' in pipeline.applied_labels)
 
   def test_combine_with_label(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
