@@ -170,23 +170,22 @@ class CombineTest(unittest.TestCase):
       yield element
 
   def testCombineGlobally(self):
-    with self.pipeline as p:
-      # pylint: disable=expression-not-assigned
-      (p
-       | beam.io.Read(synthetic_pipeline.SyntheticSource(
-           self.parseTestPipelineOptions()))
-       | 'Measure time: Start' >> beam.ParDo(
-           MeasureTime(self.metrics_namespace))
-       | 'Combine with Top' >> beam.CombineGlobally(
-           beam.combiners.TopCombineFn(1000))
-       | 'Consume' >> beam.ParDo(self._GetElement())
-       | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-      )
+    # pylint: disable=expression-not-assigned
+    (self.pipeline
+     | beam.io.Read(synthetic_pipeline.SyntheticSource(
+         self.parseTestPipelineOptions()))
+     | 'Measure time: Start' >> beam.ParDo(
+         MeasureTime(self.metrics_namespace))
+     | 'Combine with Top' >> beam.CombineGlobally(
+         beam.combiners.TopCombineFn(1000))
+     | 'Consume' >> beam.ParDo(self._GetElement())
+     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+    )
 
-      result = p.run()
-      result.wait_until_finish()
-      if self.metrics_monitor is not None:
-        self.metrics_monitor.send_metrics(result)
+    result = self.pipeline.run()
+    result.wait_until_finish()
+    if self.metrics_monitor is not None:
+      self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':
