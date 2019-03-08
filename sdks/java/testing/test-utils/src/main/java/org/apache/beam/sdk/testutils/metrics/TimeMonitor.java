@@ -15,32 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.loadtests.metrics;
+package org.apache.beam.sdk.testutils.metrics;
 
-import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.KV;
 
 /**
- * Monitor that records the number of bytes flowing through a PCollection.
+ * Monitor that records processing time distribution in the pipeline.
  *
- * <p>To use: apply a monitor in a desired place in the pipeline. This will capture how many bytes
- * flew through this DoFn. Such information can be then collected and written out and queried using
- * {@link MetricsReader}.
+ * <p>To use: apply a monitor directly after each source and sink transform. This will capture a
+ * distribution of element processing timestamps, which can be collected and queried using {@link
+ * org.apache.beam.sdk.testutils.metrics.MetricsReader}.
  */
-public class ByteMonitor extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
+public class TimeMonitor<T> extends DoFn<T, T> {
 
-  private Counter totalBytes;
+  private Distribution timeDistribution;
 
-  public ByteMonitor(String namespace, String name) {
-    this.totalBytes = Metrics.counter(namespace, name);
+  public TimeMonitor(String namespace, String name) {
+    this.timeDistribution = Metrics.distribution(namespace, name);
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    totalBytes.inc(c.element().getKey().length + c.element().getValue().length);
+    timeDistribution.update(System.currentTimeMillis());
     c.output(c.element());
   }
 }
