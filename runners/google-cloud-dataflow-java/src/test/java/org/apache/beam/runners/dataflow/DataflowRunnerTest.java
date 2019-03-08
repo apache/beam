@@ -348,7 +348,7 @@ public class DataflowRunnerTest implements Serializable {
       assertThat(
           Throwables.getStackTraceAsString(e),
           both(containsString("gs://does/not/exist"))
-              .and(containsString("does not exist or is not writeable")));
+              .and(containsString("Unable to verify that GCS bucket gs://does exists")));
     }
   }
 
