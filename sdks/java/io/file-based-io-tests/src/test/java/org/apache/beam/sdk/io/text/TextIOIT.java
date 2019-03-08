@@ -167,6 +167,7 @@ public class TextIOIT {
     long readEndTime = reader.getEndTimeMetric("endTime");
     double writeTime = (writeEndTime - writeStartTime) / 1e3;
     double readTime = (readEndTime - readStartTime) / 1e3;
+    double runTime = (readEndTime - writeStartTime) / 1e3;
     if (gatherGcsPerformanceMetrics) {
       double copiesPerSec = calculateGcsCopies(result);
 
@@ -177,6 +178,7 @@ public class TextIOIT {
     }
     results.add(NamedTestResult.create(uuid, timestamp.toString(), "read_time", readTime));
     results.add(NamedTestResult.create(uuid, timestamp.toString(), "write_time", writeTime));
+    results.add(NamedTestResult.create(uuid, timestamp.toString(), "run_time", runTime));
 
     return results;
   }
