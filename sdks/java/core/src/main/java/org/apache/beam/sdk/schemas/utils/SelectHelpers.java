@@ -76,27 +76,28 @@ public class SelectHelpers {
    * the following Java POJOs:
    *
    * <pre>{@code
-   *   class UserEvent {
-   *     String userId;
-   *     String eventId;
-   *     int eventType;
-   *     Location location;
-   *  }}</pre>
-   *
+   *  class UserEvent {
+   *    String userId;
+   *    String eventId;
+   *    int eventType;
+   *    Location location;
+   * }
+   * }</pre>
    *
    * <pre>{@code
-   *  class Location {
-   *    double latitude;
-   *     double longtitude;
-   *  }}</pre>
+   * class Location {
+   *   double latitude;
+   *    double longtitude;
+   * }
+   * }</pre>
    *
-   *  <p> If selecting just the location field and unnest is true, then the returned schema will
-   *  match just that of the singular field being selected; in this case the returned schema will
-   *  be that of the Location class. If unnest is false, then the returned schema will match the
-   *  levels of nesting that the original schema had. In this case, it would be an outer schema
-   *  containing a single ROW field named "location" that matched the Location schema.
+   * <p>If selecting just the location field and unnest is true, then the returned schema will match
+   * just that of the singular field being selected; in this case the returned schema will be that
+   * of the Location class. If unnest is false, then the returned schema will match the levels of
+   * nesting that the original schema had. In this case, it would be an outer schema containing a
+   * single ROW field named "location" that matched the Location schema.
    *
-   *  <p>In most cases, the user's expectations matches that when unnest is true.
+   * <p>In most cases, the user's expectations matches that when unnest is true.
    */
   public static Schema getOutputSchema(
       Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor, boolean unnest) {
