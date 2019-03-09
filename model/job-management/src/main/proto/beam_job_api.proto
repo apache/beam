@@ -188,13 +188,13 @@ message GetJobMetricsRequest {
 }
 
 message GetJobMetricsResponse {
-  MetricsResults metrics = 1;
+  MetricResults metrics = 1;
 }
 
 // All metrics for a given job.  Runners may support one or the other or both.
-message MetricsResults {
-  org.apache.beam.model.pipeline.v1.MonitoringInfo attempted = 1;
-  org.apache.beam.model.pipeline.v1.MonitoringInfo committed = 2;
+message MetricResults {
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo attempted = 1;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo committed = 2;
 }
 
 
