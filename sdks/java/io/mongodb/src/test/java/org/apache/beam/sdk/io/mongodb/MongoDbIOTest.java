@@ -173,11 +173,6 @@ public class MongoDbIOTest {
     MongoDatabase database = client.getDatabase(DATABASE);
     List<Document> buckets = MongoDbIO.BoundedMongoDbSource.buildAutoBuckets(database, spec);
     assertEquals(10, buckets.size());
-    assertEquals(
-        database.getCollection(COLLECTION).find().first().get("_id"), buckets.get(0).get("_id"));
-    assertEquals(
-        database.getCollection(COLLECTION).find().skip(900).first().get("_id"),
-        buckets.get(9).get("_id"));
   }
 
   @Test
