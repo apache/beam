@@ -179,12 +179,12 @@ public class CassandraIO {
     public Read<T> withHosts(List<String> hosts) {
       checkArgument(hosts != null, "hosts can not be null");
       checkArgument(!hosts.isEmpty(), "hosts can not be empty");
-      return builder().setHosts(ValueProvider.StaticValueProvider.of(String.join(",",hosts))).build();
+      return builder()
+          .setHosts(ValueProvider.StaticValueProvider.of(String.join(",", hosts)))
+          .build();
     }
 
-    /**
-     * Specify the hosts of the Apache Cassandra instances.
-     */
+    /** Specify the hosts of the Apache Cassandra instances. */
     public Read<T> withHosts(ValueProvider<String> hosts) {
       return builder().setHosts(hosts).build();
     }
@@ -195,9 +195,7 @@ public class CassandraIO {
       return builder().setPort(ValueProvider.StaticValueProvider.of(port)).build();
     }
 
-    /**
-     * Specify the port number of the Apache Cassandra instances.
-     */
+    /** Specify the port number of the Apache Cassandra instances. */
     public Read<T> withPort(ValueProvider<Integer> port) {
       return builder().setPort(port).build();
     }
@@ -208,9 +206,7 @@ public class CassandraIO {
       return builder().setKeyspace(ValueProvider.StaticValueProvider.of(keyspace)).build();
     }
 
-    /**
-     * Specify the Cassandra keyspace where to read data.
-     */
+    /** Specify the Cassandra keyspace where to read data. */
     public Read<T> withKeyspace(ValueProvider<String> keyspace) {
       return builder().setKeyspace(keyspace).build();
     }
@@ -221,9 +217,7 @@ public class CassandraIO {
       return builder().setTable(ValueProvider.StaticValueProvider.of(table)).build();
     }
 
-    /**
-     * Specify the Cassandra table where to read data.
-     */
+    /** Specify the Cassandra table where to read data. */
     public Read<T> withTable(ValueProvider<String> table) {
       return builder().setTable(table).build();
     }
@@ -250,9 +244,7 @@ public class CassandraIO {
       return builder().setUsername(ValueProvider.StaticValueProvider.of(username)).build();
     }
 
-    /**
-     * Specify the username for authentication.
-     */
+    /** Specify the username for authentication. */
     public Read<T> withUsername(ValueProvider<String> username) {
       return builder().setUsername(username).build();
     }
@@ -263,9 +255,7 @@ public class CassandraIO {
       return builder().setPassword(ValueProvider.StaticValueProvider.of(password)).build();
     }
 
-    /**
-     * Specify the clear password for authentication.
-     */
+    /** Specify the clear password for authentication. */
     public Read<T> withPassword(ValueProvider<String> password) {
       return builder().setPassword(password).build();
     }
@@ -295,17 +285,16 @@ public class CassandraIO {
       return builder().setLocalDc(ValueProvider.StaticValueProvider.of(localDc)).build();
     }
 
-    /**
-     * Specify the local DC used for the load balancing.
-     */
+    /** Specify the local DC used for the load balancing. */
     public Read<T> withLocalDc(ValueProvider<String> localDc) {
       return builder().setLocalDc(localDc).build();
     }
 
-
     public Read<T> withConsistencyLevel(String consistencyLevel) {
       checkArgument(consistencyLevel != null, "consistencyLevel can not be null");
-      return builder().setConsistencyLevel(ValueProvider.StaticValueProvider.of(consistencyLevel)).build();
+      return builder()
+          .setConsistencyLevel(ValueProvider.StaticValueProvider.of(consistencyLevel))
+          .build();
     }
 
     public Read<T> withConsistencyLevel(ValueProvider<String> consistencyLevel) {
@@ -355,12 +344,15 @@ public class CassandraIO {
     public Read<T> withMinNumberOfSplits(Integer minNumberOfSplits) {
       checkArgument(minNumberOfSplits != null, "minNumberOfSplits can not be null");
       checkArgument(minNumberOfSplits > 0, "minNumberOfSplits must be greater than 0");
-      return builder().setMinNumberOfSplits(ValueProvider.StaticValueProvider.of(minNumberOfSplits)).build();
+      return builder()
+          .setMinNumberOfSplits(ValueProvider.StaticValueProvider.of(minNumberOfSplits))
+          .build();
     }
 
     /**
-     * It's possible that system.size_estimates isn't populated or that the number of splits computed by Beam is still to low for Cassandra to handle it. This
-     * setting allows to enforce a minimum number of splits in case Beam cannot compute it correctly.
+     * It's possible that system.size_estimates isn't populated or that the number of splits
+     * computed by Beam is still to low for Cassandra to handle it. This setting allows to enforce a
+     * minimum number of splits in case Beam cannot compute it correctly.
      */
     public Read<T> withMinNumberOfSplits(ValueProvider<Integer> minNumberOfSplits) {
       return builder().setMinNumberOfSplits(minNumberOfSplits).build();
@@ -409,7 +401,6 @@ public class CassandraIO {
 
       abstract Read<T> build();
     }
-
   }
 
   @VisibleForTesting
@@ -438,7 +429,7 @@ public class CassandraIO {
         long desiredBundleSizeBytes, PipelineOptions pipelineOptions) {
       try (Cluster cluster =
           getCluster(
-                  spec.hosts(),
+              spec.hosts(),
               spec.port(),
               spec.username(),
               spec.password(),
@@ -538,12 +529,12 @@ public class CassandraIO {
     }
 
     private static String generateRangeQuery(
-            ValueProvider<String> keyspace,
-            ValueProvider<String> table,
-            ValueProvider<String> where,
-            String partitionKey,
-            BigInteger rangeStart,
-            BigInteger rangeEnd) {
+        ValueProvider<String> keyspace,
+        ValueProvider<String> table,
+        ValueProvider<String> where,
+        String partitionKey,
+        BigInteger rangeStart,
+        BigInteger rangeEnd) {
       String query =
           String.format(
               "SELECT * FROM %s.%s WHERE %s;",
@@ -564,7 +555,9 @@ public class CassandraIO {
     }
 
     private static long getNumSplits(
-        long desiredBundleSizeBytes, long estimatedSizeBytes, @Nullable ValueProvider<Integer> minNumberOfSplits) {
+        long desiredBundleSizeBytes,
+        long estimatedSizeBytes,
+        @Nullable ValueProvider<Integer> minNumberOfSplits) {
       long numSplits =
           desiredBundleSizeBytes > 0 ? (estimatedSizeBytes / desiredBundleSizeBytes) : 1;
       if (numSplits <= 0) {
@@ -578,7 +571,7 @@ public class CassandraIO {
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
       try (Cluster cluster =
           getCluster(
-                  spec.hosts(),
+              spec.hosts(),
               spec.port(),
               spec.username(),
               spec.password(),
@@ -588,7 +581,8 @@ public class CassandraIO {
               spec.consistencyLevel())) {
         if (isMurmur3Partitioner(cluster)) {
           try {
-            List<TokenRange> tokenRanges = getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
+            List<TokenRange> tokenRanges =
+                getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
             return getEstimatedSizeBytesFromTokenRanges(tokenRanges);
           } catch (Exception e) {
             LOG.warn("Can't estimate the size", e);
@@ -1079,7 +1073,6 @@ public class CassandraIO {
     }
   }
 
-
   /** Get a Cassandra cluster using hosts and port. */
   private static Cluster getCluster(
       List<String> hosts,
@@ -1116,23 +1109,22 @@ public class CassandraIO {
   }
 
   private static Cluster getCluster(
-          ValueProvider<String> hosts,
-          ValueProvider<Integer> port,
-          ValueProvider<String> username,
-          ValueProvider<String> password,
-          String encryptedPassword,
-          PasswordDecrypter passwordDecrypter,
-          ValueProvider<String> localDc,
-          ValueProvider<String> consistencyLevel) {
+      ValueProvider<String> hosts,
+      ValueProvider<Integer> port,
+      ValueProvider<String> username,
+      ValueProvider<String> password,
+      String encryptedPassword,
+      PasswordDecrypter passwordDecrypter,
+      ValueProvider<String> localDc,
+      ValueProvider<String> consistencyLevel) {
     Cluster.Builder builder =
-            Cluster.builder().addContactPoints(hosts.get().split(",")).withPort(port.get());
-
+        Cluster.builder().addContactPoints(hosts.get().split(",")).withPort(port.get());
 
     if (username != null) {
       String passwordStr = null;
       if (encryptedPassword != null && passwordDecrypter != null) {
         passwordStr = passwordDecrypter.decrypt(encryptedPassword);
-      }else{
+      } else {
         passwordStr = password.get();
       }
       builder.withAuthProvider(new PlainTextAuthProvider(username.get(), passwordStr));
@@ -1147,7 +1139,7 @@ public class CassandraIO {
 
     if (consistencyLevel != null) {
       builder.withQueryOptions(
-              new QueryOptions().setConsistencyLevel(ConsistencyLevel.valueOf(consistencyLevel.get())));
+          new QueryOptions().setConsistencyLevel(ConsistencyLevel.valueOf(consistencyLevel.get())));
     }
 
     return builder.build();

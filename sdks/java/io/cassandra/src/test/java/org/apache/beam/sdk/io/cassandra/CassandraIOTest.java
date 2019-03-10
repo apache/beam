@@ -51,7 +51,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.TokenRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -270,15 +269,15 @@ public class CassandraIOTest implements Serializable {
     insertRecords();
 
     PCollection<Scientist> output =
-            pipeline.apply(
-                    CassandraIO.<Scientist>read()
-                            .withHosts(pipeline.newProvider(CASSANDRA_HOST))
-                            .withPort(pipeline.newProvider(CASSANDRA_PORT))
-                            .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
-                            .withTable(pipeline.newProvider(CASSANDRA_TABLE))
-                            .withCoder(SerializableCoder.of(Scientist.class))
-                            .withEntity(Scientist.class)
-                            .withWhere(pipeline.newProvider("person_id=10")));
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(pipeline.newProvider(CASSANDRA_HOST))
+                .withPort(pipeline.newProvider(CASSANDRA_PORT))
+                .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
+                .withTable(pipeline.newProvider(CASSANDRA_TABLE))
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class)
+                .withWhere(pipeline.newProvider("person_id=10")));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
 
