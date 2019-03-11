@@ -44,31 +44,31 @@ func init() {
 	runtime.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*createFn)(nil)).Elem(), wrapMakerCreateFn)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type,[]byte) (typex.T,error))(nil)).Elem(), funcMakerReflect۰TypeSliceOfByteГTypex۰TError)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte,func(typex.T)) (error))(nil)).Elem(), funcMakerSliceOfByteEmitTypex۰TГError)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.T,func(typex.T)) ())(nil)).Elem(), funcMakerSliceOfTypex۰TEmitTypex۰TГ)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(string,reflect.Type,[]byte) (reflectx.Func))(nil)).Elem(), funcMakerStringReflect۰TypeSliceOfByteГReflectx۰Func)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) (int,typex.T))(nil)).Elem(), funcMakerTypex۰TГIntTypex۰T)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) ([]byte,error))(nil)).Elem(), funcMakerTypex۰TГSliceOfByteError)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X,typex.Y) (typex.X))(nil)).Elem(), funcMakerTypex۰XTypex۰YГTypex۰X)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X,typex.Y) (typex.Y))(nil)).Elem(), funcMakerTypex۰XTypex۰YГTypex۰Y)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X,typex.Y) (typex.Y,typex.X))(nil)).Elem(), funcMakerTypex۰XTypex۰YГTypex۰YTypex۰X)
-	exec.RegisterEmitter(reflect.TypeOf((*func(typex.T) ())(nil)).Elem(), emitMakerTypex۰T)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, []byte) (typex.T, error))(nil)).Elem(), funcMakerReflect۰TypeSliceOfByteГTypex۰TError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(typex.T)) error)(nil)).Elem(), funcMakerSliceOfByteEmitTypex۰TГError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.T, func(typex.T)))(nil)).Elem(), funcMakerSliceOfTypex۰TEmitTypex۰TГ)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(string, reflect.Type, []byte) reflectx.Func)(nil)).Elem(), funcMakerStringReflect۰TypeSliceOfByteГReflectx۰Func)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) (int, typex.T))(nil)).Elem(), funcMakerTypex۰TГIntTypex۰T)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) ([]byte, error))(nil)).Elem(), funcMakerTypex۰TГSliceOfByteError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, typex.Y) typex.X)(nil)).Elem(), funcMakerTypex۰XTypex۰YГTypex۰X)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, typex.Y) typex.Y)(nil)).Elem(), funcMakerTypex۰XTypex۰YГTypex۰Y)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, typex.Y) (typex.Y, typex.X))(nil)).Elem(), funcMakerTypex۰XTypex۰YГTypex۰YTypex۰X)
+	exec.RegisterEmitter(reflect.TypeOf((*func(typex.T))(nil)).Elem(), emitMakerTypex۰T)
 }
 
 func wrapMakerCreateFn(fn interface{}) map[string]reflectx.Func {
 	dfn := fn.(*createFn)
 	return map[string]reflectx.Func{
-		"ProcessElement": reflectx.MakeFunc(func(a0 []byte, a1 func(typex.T)) (error) { return dfn.ProcessElement(a0, a1) }),
+		"ProcessElement": reflectx.MakeFunc(func(a0 []byte, a1 func(typex.T)) error { return dfn.ProcessElement(a0, a1) }),
 	}
 }
 
 type callerReflect۰TypeSliceOfByteГTypex۰TError struct {
-	fn func(reflect.Type,[]byte) (typex.T,error)
+	fn func(reflect.Type, []byte) (typex.T, error)
 }
 
 func funcMakerReflect۰TypeSliceOfByteГTypex۰TError(fn interface{}) reflectx.Func {
-	f := fn.(func(reflect.Type,[]byte) (typex.T,error))
+	f := fn.(func(reflect.Type, []byte) (typex.T, error))
 	return &callerReflect۰TypeSliceOfByteГTypex۰TError{fn: f}
 }
 
@@ -90,11 +90,11 @@ func (c *callerReflect۰TypeSliceOfByteГTypex۰TError) Call2x2(arg0, arg1 inter
 }
 
 type callerSliceOfByteEmitTypex۰TГError struct {
-	fn func([]byte,func(typex.T)) (error)
+	fn func([]byte, func(typex.T)) error
 }
 
 func funcMakerSliceOfByteEmitTypex۰TГError(fn interface{}) reflectx.Func {
-	f := fn.(func([]byte,func(typex.T)) (error))
+	f := fn.(func([]byte, func(typex.T)) error)
 	return &callerSliceOfByteEmitTypex۰TГError{fn: f}
 }
 
@@ -111,16 +111,16 @@ func (c *callerSliceOfByteEmitTypex۰TГError) Call(args []interface{}) []interf
 	return []interface{}{out0}
 }
 
-func (c *callerSliceOfByteEmitTypex۰TГError) Call2x1(arg0, arg1 interface{}) (interface{}) {
+func (c *callerSliceOfByteEmitTypex۰TГError) Call2x1(arg0, arg1 interface{}) interface{} {
 	return c.fn(arg0.([]byte), arg1.(func(typex.T)))
 }
 
 type callerSliceOfTypex۰TEmitTypex۰TГ struct {
-	fn func([]typex.T,func(typex.T)) ()
+	fn func([]typex.T, func(typex.T))
 }
 
 func funcMakerSliceOfTypex۰TEmitTypex۰TГ(fn interface{}) reflectx.Func {
-	f := fn.(func([]typex.T,func(typex.T)) ())
+	f := fn.(func([]typex.T, func(typex.T)))
 	return &callerSliceOfTypex۰TEmitTypex۰TГ{fn: f}
 }
 
@@ -137,16 +137,16 @@ func (c *callerSliceOfTypex۰TEmitTypex۰TГ) Call(args []interface{}) []interfa
 	return []interface{}{}
 }
 
-func (c *callerSliceOfTypex۰TEmitTypex۰TГ) Call2x0(arg0, arg1 interface{}) () {
+func (c *callerSliceOfTypex۰TEmitTypex۰TГ) Call2x0(arg0, arg1 interface{}) {
 	c.fn(arg0.([]typex.T), arg1.(func(typex.T)))
 }
 
 type callerStringReflect۰TypeSliceOfByteГReflectx۰Func struct {
-	fn func(string,reflect.Type,[]byte) (reflectx.Func)
+	fn func(string, reflect.Type, []byte) reflectx.Func
 }
 
 func funcMakerStringReflect۰TypeSliceOfByteГReflectx۰Func(fn interface{}) reflectx.Func {
-	f := fn.(func(string,reflect.Type,[]byte) (reflectx.Func))
+	f := fn.(func(string, reflect.Type, []byte) reflectx.Func)
 	return &callerStringReflect۰TypeSliceOfByteГReflectx۰Func{fn: f}
 }
 
@@ -163,16 +163,16 @@ func (c *callerStringReflect۰TypeSliceOfByteГReflectx۰Func) Call(args []inter
 	return []interface{}{out0}
 }
 
-func (c *callerStringReflect۰TypeSliceOfByteГReflectx۰Func) Call3x1(arg0, arg1, arg2 interface{}) (interface{}) {
+func (c *callerStringReflect۰TypeSliceOfByteГReflectx۰Func) Call3x1(arg0, arg1, arg2 interface{}) interface{} {
 	return c.fn(arg0.(string), arg1.(reflect.Type), arg2.([]byte))
 }
 
 type callerTypex۰TГIntTypex۰T struct {
-	fn func(typex.T) (int,typex.T)
+	fn func(typex.T) (int, typex.T)
 }
 
 func funcMakerTypex۰TГIntTypex۰T(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.T) (int,typex.T))
+	f := fn.(func(typex.T) (int, typex.T))
 	return &callerTypex۰TГIntTypex۰T{fn: f}
 }
 
@@ -194,11 +194,11 @@ func (c *callerTypex۰TГIntTypex۰T) Call1x2(arg0 interface{}) (interface{}, in
 }
 
 type callerTypex۰TГSliceOfByteError struct {
-	fn func(typex.T) ([]byte,error)
+	fn func(typex.T) ([]byte, error)
 }
 
 func funcMakerTypex۰TГSliceOfByteError(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.T) ([]byte,error))
+	f := fn.(func(typex.T) ([]byte, error))
 	return &callerTypex۰TГSliceOfByteError{fn: f}
 }
 
@@ -220,11 +220,11 @@ func (c *callerTypex۰TГSliceOfByteError) Call1x2(arg0 interface{}) (interface{
 }
 
 type callerTypex۰XTypex۰YГTypex۰X struct {
-	fn func(typex.X,typex.Y) (typex.X)
+	fn func(typex.X, typex.Y) typex.X
 }
 
 func funcMakerTypex۰XTypex۰YГTypex۰X(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.X,typex.Y) (typex.X))
+	f := fn.(func(typex.X, typex.Y) typex.X)
 	return &callerTypex۰XTypex۰YГTypex۰X{fn: f}
 }
 
@@ -241,16 +241,16 @@ func (c *callerTypex۰XTypex۰YГTypex۰X) Call(args []interface{}) []interface{
 	return []interface{}{out0}
 }
 
-func (c *callerTypex۰XTypex۰YГTypex۰X) Call2x1(arg0, arg1 interface{}) (interface{}) {
+func (c *callerTypex۰XTypex۰YГTypex۰X) Call2x1(arg0, arg1 interface{}) interface{} {
 	return c.fn(arg0.(typex.X), arg1.(typex.Y))
 }
 
 type callerTypex۰XTypex۰YГTypex۰Y struct {
-	fn func(typex.X,typex.Y) (typex.Y)
+	fn func(typex.X, typex.Y) typex.Y
 }
 
 func funcMakerTypex۰XTypex۰YГTypex۰Y(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.X,typex.Y) (typex.Y))
+	f := fn.(func(typex.X, typex.Y) typex.Y)
 	return &callerTypex۰XTypex۰YГTypex۰Y{fn: f}
 }
 
@@ -267,16 +267,16 @@ func (c *callerTypex۰XTypex۰YГTypex۰Y) Call(args []interface{}) []interface{
 	return []interface{}{out0}
 }
 
-func (c *callerTypex۰XTypex۰YГTypex۰Y) Call2x1(arg0, arg1 interface{}) (interface{}) {
+func (c *callerTypex۰XTypex۰YГTypex۰Y) Call2x1(arg0, arg1 interface{}) interface{} {
 	return c.fn(arg0.(typex.X), arg1.(typex.Y))
 }
 
 type callerTypex۰XTypex۰YГTypex۰YTypex۰X struct {
-	fn func(typex.X,typex.Y) (typex.Y,typex.X)
+	fn func(typex.X, typex.Y) (typex.Y, typex.X)
 }
 
 func funcMakerTypex۰XTypex۰YГTypex۰YTypex۰X(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.X,typex.Y) (typex.Y,typex.X))
+	f := fn.(func(typex.X, typex.Y) (typex.Y, typex.X))
 	return &callerTypex۰XTypex۰YГTypex۰YTypex۰X{fn: f}
 }
 
@@ -298,12 +298,12 @@ func (c *callerTypex۰XTypex۰YГTypex۰YTypex۰X) Call2x2(arg0, arg1 interface{
 }
 
 type emitNative struct {
-	n     exec.ElementProcessor
-	fn    interface{}
+	n  exec.ElementProcessor
+	fn interface{}
 
-	ctx context.Context
-	ws  []typex.Window
-	et  typex.EventTime
+	ctx   context.Context
+	ws    []typex.Window
+	et    typex.EventTime
 	value exec.FullValue
 }
 
@@ -330,6 +330,5 @@ func (e *emitNative) invokeTypex۰T(val typex.T) {
 		panic(err)
 	}
 }
-
 
 // DO NOT MODIFY: GENERATED CODE
