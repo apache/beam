@@ -137,7 +137,6 @@ echo "==============================================================="
 echo "======================Starting Release Build==================="
 git clean -fdx
 ./gradlew clean
-gpg --output ~/doc.sig --sign ~/.bashrc
 # If build fails, we want to catch as much errors as possible once.
 ./gradlew build -PisRelease --scan --stacktrace --no-parallel --continue
 echo "==============================================================="
