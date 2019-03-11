@@ -303,6 +303,7 @@ class TestAvro(unittest.TestCase):
     # interval used by avro during write. Each block has more than 10 records.
     num_blocks = int(math.ceil(14.5 * num_records /
                                avro.datafile.SYNC_INTERVAL))
+    assert num_blocks > 1
 
     # When reading records of the first block, range_tracker.split_points()
     # should return (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
