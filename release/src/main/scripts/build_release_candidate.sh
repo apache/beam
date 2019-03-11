@@ -56,12 +56,19 @@ read USER_GITHUB_ID
 
 USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
 
+echo "================Listing all GPG keys================="
+gpg --list-keys --keyid-format LONG --fingerprint --fingerprint
+echo "Please copy the public key which is associated with your Apache account:"
+
+read SIGNING_KEY
+
 echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
 echo "working on release version: ${RELEASE}"
 echo "working on release branch: ${RELEASE_BRANCH}"
 echo "will create release candidate: RC${RC_NUM}"
 echo "Your forked beam-site URL: ${USER_REMOTE_URL}"
+echo "Your signing key: ${SIGNING_KEY}"
 echo "Please review all environment variables and confirm: [y|N]"
 read confirmation
 if [[ $confirmation != "y" ]]; then
@@ -98,7 +105,8 @@ if [[ $confirmation = "y" ]]; then
   echo "2. new rc tag has created in github."
 
   echo "-------------Staging Java Artifacts into Maven---------------"
-  ./gradlew publish -PisRelease --no-daemon
+  gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
+  ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon
   echo "Please review all artifacts in staging URL. e.g. https://repository.apache.org/content/repositories/orgapachebeam-NNNN/"
   rm -rf ~/${LOCAL_CLONE_DIR}
 fi
@@ -130,7 +138,7 @@ if [[ $confirmation = "y" ]]; then
   wget ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip  -O "${SOURCE_RELEASE_ZIP}"
 
   echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
-  gpg --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+  gpg --local-user ${SIGNING_KEY} --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
 
   echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
   sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
@@ -171,7 +179,7 @@ if [[ $confirmation = "y" ]]; then
   cd beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
 
   echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
-  gpg --armor --detach-sig apache-beam-${RELEASE}.zip
+  gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.zip
 
   echo "------Creating Hash Value for apache-beam-${RELEASE}.zip------"
   sha512sum apache-beam-${RELEASE}.zip > apache-beam-${RELEASE}.zip.sha512
