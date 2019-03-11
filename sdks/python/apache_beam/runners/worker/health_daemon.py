@@ -38,7 +38,7 @@ class HealthDaemon(object):
     # thread.
     health_thread = threading.Thread(target=HealthDaemon(8080).start)
 
-    # Automatically kill the thread when the program exists.
+    # Set "daemon" to automatically kill the thread when the program exists.
     health_thread.daemon = True
     health_thread.setName('health-client-demon')
 
@@ -46,6 +46,8 @@ class HealthDaemon(object):
     health_thread.start()
 
   """
+
+  HEALTH_CHECK_ENDPOINT = '/sdk'
 
   def __init__(self, health_http_port):
     self._health_http_port = health_http_port
@@ -63,7 +65,7 @@ class HealthDaemon(object):
       The connection to the health server.
     """
 
-    logging.info('Connecting to localhost:%s', health_http_port)
+    logging.debug('Connecting to localhost:%s', health_http_port)
     return http.client.HTTPConnection('localhost', health_http_port,
                                       timeout=timeout)
 
@@ -81,11 +83,11 @@ class HealthDaemon(object):
 
     success = False
     try:
-      health_server.request('PUT', '/sdk')
+      health_server.request('PUT', HealthDaemon.HEALTH_CHECK_ENDPOINT)
       resp = health_server.getresponse()
       if resp.status == 200:
-        logging.info('Successfully sent health ping to localhost:%s',
-                     health_server.port)
+        logging.debug('Successfully sent health ping to localhost:%s',
+                      health_server.port)
         success = True
       else:
         logging.warning(('Failed to send health ping to localhost:%s with: '
@@ -107,6 +109,8 @@ class HealthDaemon(object):
     except Exception as e:
       logging.error('Unknown error while trying to send health ping: %s', e)
 
+    # If we failed the HTTP request, reconnect to the server as the underlying
+    # TCP socket connection may have broke.
     if not success:
       logging.error('Trying to reconnect to localhost:%s.', health_server.port)
       health_server.close()
@@ -121,5 +125,5 @@ class HealthDaemon(object):
     while True:
       HealthDaemon.try_health_ping(conn)
 
-      logging.info('Health Client Daemon sleeping for 15 seconds...')
+      logging.debug('Health Client Daemon sleeping for 15 seconds...')
       time.sleep(15)
