@@ -181,19 +181,24 @@ class HealthDaemonTest(unittest.TestCase):
   def test_health_daemon_recovers(self):
     """Tests that the HealthDaemon recovers with a flaky server."""
     health_port = 8080
-
     health_logger = MockLoggingHandler()
     logging.getLogger().addHandler(health_logger)
 
+    # First, test a successful ping.
+    health_port = self.start_mock_server(health_port=health_port,
+                                         http_status_code=200)
     health_server_conn = HealthDaemon.connect_to_server(health_port)
 
-    # Test that it will first fail.
-    self.assertFalse(HealthDaemon.try_health_ping(health_server_conn))
-    self.assertIn('Connection refused by server',
-                  health_logger.messages['error'])
+    self.assertTrue(HealthDaemon.try_health_ping(health_server_conn))
 
-    # Test that it can re-use the same connection and succeed.
-    self.start_mock_server(health_port=health_port, http_status_code=200)
+    # Now, shut down the health server and assert that we fail.
+    self.shutDown()
+    self.assertFalse(HealthDaemon.try_health_ping(health_server_conn))
+
+    # Using the same connection, the HealthDaemon should try to reconnect on its
+    # own. Restart the server and assert that we make a final successful ping.
+    health_port = self.start_mock_server(health_port=health_port,
+                                         http_status_code=200)
     self.assertTrue(HealthDaemon.try_health_ping(health_server_conn))
 
 

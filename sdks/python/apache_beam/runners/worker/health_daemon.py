@@ -101,13 +101,17 @@ class HealthDaemon(object):
     except socket.error as e:
       if e.errno == errno.ECONNREFUSED:
         logging.error('Connection refused by server')
-      health_server.close()
 
     # We want the HealthDaemon to always try to ping, otherwise the container
     # will be shut down.
     except Exception as e:
       logging.error('Unknown error while trying to send health ping: %s', e)
+
+    if not success:
+      logging.error('Trying to reconnect to localhost:%s.', health_server.port)
       health_server.close()
+      health_server = HealthDaemon.connect_to_server(health_server.port)
+
     return success
 
   def start(self):
