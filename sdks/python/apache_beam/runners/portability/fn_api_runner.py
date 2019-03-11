@@ -23,6 +23,7 @@ from __future__ import print_function
 import collections
 import contextlib
 import copy
+import itertools
 import logging
 import os
 import queue
@@ -271,8 +272,9 @@ class FnApiRunner(runner.PipelineRunner):
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
-    return self.run_via_runner_api(pipeline.to_runner_api(
+    self._latest_run_result = self.run_via_runner_api(pipeline.to_runner_api(
         default_environment=self._default_environment))
+    return self._latest_run_result
 
   def run_via_runner_api(self, pipeline_proto):
     return self.run_stages(*self.create_stages(pipeline_proto))
@@ -608,6 +610,13 @@ class FnApiRunner(runner.PipelineRunner):
             self._progress_frequency,
             True).process_bundle(deferred_inputs, data_output)
         last_sent = deferred_inputs
+        result = beam_fn_api_pb2.InstructionResponse(
+            process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+                monitoring_infos=monitoring_infos.consolidate(
+                    itertools.chain(
+                        result.process_bundle.monitoring_infos,
+                        last_result.process_bundle.monitoring_infos))),
+            error=result.error or last_result.error)
       else:
         break
 
@@ -808,9 +817,11 @@ class EmbeddedWorkerHandler(WorkerHandler):
     super(EmbeddedWorkerHandler, self).__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.worker = sdk_worker.SdkWorker(
-        FnApiRunner.SingletonStateHandlerFactory(self.state),
-        data_plane.InMemoryDataChannelFactory(
-            self.data_plane_handler.inverse()), {})
+        sdk_worker.BundleProcessorCache(
+            FnApiRunner.SingletonStateHandlerFactory(self.state),
+            data_plane.InMemoryDataChannelFactory(
+                self.data_plane_handler.inverse()),
+            {}))
     self._uid_counter = 0
 
   def push(self, request):
@@ -1366,6 +1377,7 @@ class FnApiMetrics(metrics.metric.MetricResults):
     self._gauges = {}
     self._user_metrics_only = user_metrics_only
     self._init_metrics_from_monitoring_infos(step_monitoring_infos)
+    self._monitoring_infos = step_monitoring_infos
 
   def _init_metrics_from_monitoring_infos(self, step_monitoring_infos):
     for smi in step_monitoring_infos.values():
@@ -1405,6 +1417,10 @@ class FnApiMetrics(metrics.metric.MetricResults):
     return {self.COUNTERS: counters,
             self.DISTRIBUTIONS: distributions,
             self.GAUGES: gauges}
+
+  def monitoring_infos(self):
+    return [item for sublist in self._monitoring_infos.values() for item in
+            sublist]
 
 
 class RunnerResult(runner.PipelineResult):

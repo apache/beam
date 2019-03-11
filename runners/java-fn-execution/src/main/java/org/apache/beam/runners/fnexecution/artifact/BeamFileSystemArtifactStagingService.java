@@ -134,8 +134,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * @param basePath Base path to upload artifacts.
    * @return Encoded stagingSessionToken.
    */
-  public static String generateStagingSessionToken(String sessionId, String basePath)
-      throws Exception {
+  public static String generateStagingSessionToken(String sessionId, String basePath) {
     StagingSessionToken stagingSessionToken = new StagingSessionToken();
     stagingSessionToken.setSessionId(sessionId);
     stagingSessionToken.setBasePath(basePath);

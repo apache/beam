@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -45,8 +46,7 @@ import org.apache.beam.sdk.values.Row;
  * the need for the user to explicitly extract the keys. For example, consider the following input
  * type:
  *
- * <pre>{@code
- * {@literal @DefaultSchema(JavaFieldSchema.class)}
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * public class UserPurchase {
  *   public String userId;
  *   public String country;
@@ -54,14 +54,13 @@ import org.apache.beam.sdk.values.Row;
  *   public double transactionDuration;
  * }
  *
- * {@literal PCollection<UserPurchase>} purchases = readUserPurchases();
+ * PCollection<UserPurchase> purchases = readUserPurchases();
  * }</pre>
  *
  * <p>You can group all purchases by user and country as follows:
  *
- * <pre>{@code
- * {@literal @DefaultSchema}(JavaFieldSchema.class)
- * {@literal PCollection<KV<Row, Iterable<UserPurchase>>} byUser =
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
+ * PCollection<KV<Row, Iterable<UserPurchase>> byUser =
  *   purchases.apply(Group.byFieldNames("userId', "country"));
  * }</pre>
  *
@@ -75,7 +74,7 @@ import org.apache.beam.sdk.values.Row;
  *          .aggregateField("cost", Sum.ofLongs(), "total_cost")
  *          .aggregateField("cost", Top.<Long>largestLongsFn(10), "top_purchases")
  *          .aggregateField("cost", ApproximateQuantilesCombineFn.create(21),
- *            Field.of("transactionDurations", FieldType.array(FieldType.INT64)));
+ *              Field.of("transactionDurations", FieldType.array(FieldType.INT64)));
  * }</pre>
  *
  * <p>The result will be a new row schema containing the fields total_cost, top_purchases, and
@@ -462,8 +461,8 @@ public class Group {
   /**
    * a {@link PTransform} that groups schema elements based on the given fields.
    *
-   * <p>The output of this transform is a KV where the key type is a {@link Row} containing the
-   * extracted fields.
+   * <p>The output of this transform is a {@link KV} where the key type is a {@link Row} containing
+   * the extracted fields.
    */
   public static class ByFields<InputT>
       extends PTransform<PCollection<InputT>, PCollection<KV<Row, Iterable<InputT>>>> {
@@ -480,7 +479,7 @@ public class Group {
 
     /**
      * Aggregate the grouped data using the specified {@link CombineFn}. The resulting {@link
-     * PCollection} will have type {@literal PCollection<KV<Row, OutputT>>}.
+     * PCollection} will have type {@code PCollection<KV<Row, OutputT>>}.
      */
     public <OutputT> CombineByFields<InputT, OutputT> aggregate(
         CombineFn<InputT, ?, OutputT> combineFn) {
@@ -632,7 +631,7 @@ public class Group {
     public PCollection<KV<Row, Iterable<InputT>>> expand(PCollection<InputT> input) {
       Schema schema = input.getSchema();
       FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
-      keySchema = Select.getOutputSchema(schema, resolved);
+      keySchema = SelectHelpers.getOutputSchema(schema, resolved);
       return input
           .apply(
               "Group by fields",
@@ -643,7 +642,9 @@ public class Group {
                         @Element InputT element,
                         @Element Row row,
                         OutputReceiver<KV<Row, InputT>> o) {
-                      o.output(KV.of(Select.selectRow(row, resolved, schema, keySchema), element));
+                      o.output(
+                          KV.of(
+                              SelectHelpers.selectRow(row, resolved, schema, keySchema), element));
                     }
                   }))
           .setCoder(KvCoder.of(SchemaCoder.of(keySchema), input.getCoder()))
@@ -654,8 +655,8 @@ public class Group {
   /**
    * a {@link PTransform} that does a per0-key combine using a specified {@link CombineFn}.
    *
-   * <p>The output of this transform is a {@literal <KV<Row, OutputT>} where the key type is a
-   * {@link Row} containing the extracted fields.
+   * <p>The output of this transform is a {@code <KV<Row, OutputT>>} where the key type is a {@link
+   * Row} containing the extracted fields.
    */
   public static class CombineByFields<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollection<KV<Row, OutputT>>> {

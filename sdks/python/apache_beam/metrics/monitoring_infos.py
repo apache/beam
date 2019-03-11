@@ -20,7 +20,9 @@
 
 from __future__ import absolute_import
 
+import collections
 import time
+from functools import reduce
 
 from google.protobuf import timestamp_pb2
 
@@ -29,9 +31,9 @@ from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
 from apache_beam.portability import common_urns
-from apache_beam.portability.api.beam_fn_api_pb2 import CounterData
-from apache_beam.portability.api.beam_fn_api_pb2 import Metric
-from apache_beam.portability.api.beam_fn_api_pb2 import MonitoringInfo
+from apache_beam.portability.api.metrics_pb2 import CounterData
+from apache_beam.portability.api.metrics_pb2 import Metric
+from apache_beam.portability.api.metrics_pb2 import MonitoringInfo
 
 ELEMENT_COUNT_URN = common_urns.monitoring_infos.ELEMENT_COUNT.urn
 START_BUNDLE_MSECS_URN = common_urns.monitoring_infos.START_BUNDLE_MSECS.urn
@@ -52,6 +54,11 @@ LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
+
+# TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
+PCOLLECTION_LABEL = 'PCOLLECTION'
+PTRANSFORM_LABEL = 'PTRANSFORM'
+TAG_LABEL = 'TAG'
 
 
 def to_timestamp_proto(timestamp_secs):
@@ -101,9 +108,9 @@ def create_labels(ptransform='', tag=''):
   """
   labels = {}
   if tag:
-    labels['TAG'] = tag
+    labels[TAG_LABEL] = tag
   if ptransform:
-    labels['PTRANSFORM'] = ptransform
+    labels[PTRANSFORM_LABEL] = ptransform
   return labels
 
 
@@ -241,6 +248,47 @@ def to_key(monitoring_info_proto):
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.
   """
-  key_items = [i for i in monitoring_info_proto.labels.items()]
+  key_items = list(monitoring_info_proto.labels.items())
   key_items.append(monitoring_info_proto.urn)
   return frozenset(key_items)
+
+
+_KNOWN_COMBINERS = {
+    SUM_INT64_TYPE: lambda a, b: Metric(
+        counter_data=CounterData(
+            int64_value=
+            a.counter_data.int64_value + b.counter_data.int64_value)),
+    # TODO: Distributions, etc.
+}
+
+
+def max_timestamp(a, b):
+  if a.ToNanoseconds() > b.ToNanoseconds():
+    return a
+  else:
+    return b
+
+
+def consolidate(metrics, key=to_key):
+  grouped = collections.defaultdict(list)
+  for metric in metrics:
+    grouped[key(metric)].append(metric)
+  for values in grouped.values():
+    if len(values) == 1:
+      yield values[0]
+    else:
+      combiner = _KNOWN_COMBINERS.get(values[0].type)
+      if combiner:
+        def merge(a, b):
+          # pylint: disable=cell-var-from-loop
+          return MonitoringInfo(
+              urn=a.urn,
+              type=a.type,
+              labels=dict((label, value) for label, value in a.labels.items()
+                          if b.labels.get(label) == value),
+              metric=combiner(a.metric, b.metric),
+              timestamp=max_timestamp(a.timestamp, b.timestamp))
+        yield reduce(merge, values)
+      else:
+        for value in values:
+          yield value

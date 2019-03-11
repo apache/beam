@@ -110,7 +110,7 @@ func newCombineFn(less interface{}, n int, t reflect.Type, reversed bool) *combi
 	fn := &combineFn{Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, N: n, Type: beam.EncodedType{T: t}, Reversed: reversed}
 	// Running SetupFn at pipeline construction helps validate the
 	// combineFn, and simplify testing.
-	fn.SetupFn()
+	fn.Setup()
 	return fn
 }
 
@@ -182,7 +182,7 @@ type combineFn struct {
 	less reflectx.Func2x1
 }
 
-func (f *combineFn) SetupFn() {
+func (f *combineFn) Setup() {
 	f.enc = beam.NewElementEncoder(f.Type.T)
 	f.dec = beam.NewElementDecoder(f.Type.T)
 }

@@ -72,30 +72,7 @@ function verify_hash() {
   wget https://dist.apache.org/repos/dist/dev/beam/KEYS
   gpg --import KEYS
   gpg --verify $ASC_FILE_NAME $BEAM_PYTHON_SDK
-  echo "test place 1"
   gsutil version -l
-}
-
-
-#######################################
-# Create a new virtualenv and install the SDK
-# Globals:
-#   BEAM_PYTHON_SDK
-# Arguments:
-#   None
-#######################################
-function install_sdk() {
-  print_separator "Creating new virtualenv and installing the SDK"
-  echo "test place 2"
-  gsutil version -l
-  virtualenv temp_virtualenv
-  . temp_virtualenv/bin/activate
-  gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
-  if [[ "$gcloud_version" < "300" ]]; then
-    update_gcloud
-  fi
-  pip install google-compute-engine
-  pip install $BEAM_PYTHON_SDK[gcp]
 }
 
 
@@ -234,6 +211,7 @@ function verify_streaming_wordcount_dataflow() {
 #   VERSION
 # Arguments:
 #   $1 - sdk types: [tar, wheel]
+#   $2 - python interpreter version: [python2.7, python3.5, ...]
 #######################################
 function run_release_candidate_python_quickstart(){
   print_separator "Start Quickstarts Examples"
@@ -242,14 +220,14 @@ function run_release_candidate_python_quickstart(){
   echo $TMPDIR
   pushd $TMPDIR
 
-  download_files $1
+  download_files $1 $2
   # get exact names of sdk and other files
   BEAM_PYTHON_SDK=$(get_sdk_name $1)
   ASC_FILE_NAME=$(get_asc_name $1)
   SHA512_FILE_NAME=$(get_sha512_name $1)
 
   verify_hash
-  install_sdk
+  install_sdk $1 $2
   verify_wordcount_direct
   verify_wordcount_dataflow
   verify_streaming_wordcount_direct

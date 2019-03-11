@@ -237,6 +237,32 @@ class CombineTest(unittest.TestCase):
     assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
     pipeline.run()
 
+  def test_top_no_compact(self):
+
+    class TopCombineFnNoCompact(combine.TopCombineFn):
+
+      def compact(self, accumulator):
+        return accumulator
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
+    result_top = pcoll | 'Top' >> beam.CombineGlobally(
+        TopCombineFnNoCompact(5, key=lambda x: x))
+    result_bot = pcoll | 'Bot' >> beam.CombineGlobally(
+        TopCombineFnNoCompact(4, reverse=True))
+    assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='Assert:Top')
+    assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='Assert:Bot')
+
+    pcoll = pipeline | 'Start-Perkey' >> Create(
+        [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
+    result_ktop = pcoll | 'Top-PerKey' >> beam.CombinePerKey(
+        TopCombineFnNoCompact(5, key=lambda x: x))
+    result_kbot = pcoll | 'Bot-PerKey' >> beam.CombinePerKey(
+        TopCombineFnNoCompact(4, reverse=True))
+    assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='K:Top')
+    assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='K:Bot')
+    pipeline.run()
+
   def test_global_sample(self):
     def is_good_sample(actual):
       assert len(actual) == 1

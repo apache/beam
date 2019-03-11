@@ -48,6 +48,25 @@ python setup.py nosetests \
    " \
     --tests apache_beam.testing.load_tests.sideinput_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=...
+    --metrics_dataset=python_load_tests
+    --metrics_table=side_input
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=DirectRunner' \
+-PloadTest.mainClass=
+apache_beam.testing.load_tests.sideinput_test \
+-Prunner=DirectRunner :beam-sdks-python-load-tests:run
+
 To run test on other runner (ex. Dataflow):
 
 python setup.py nosetests \
@@ -72,6 +91,25 @@ python setup.py nosetests \
         " \
     --tests apache_beam.testing.load_tests.sideinput_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=...
+    --metrics_dataset=python_load_tests
+    --metrics_table=side_input
+    --temp_location=gs://...
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=TestDataflowRunner' \
+-PloadTest.mainClass=
+apache_beam.testing.load_tests.sideinput_test:SideInputTest.test \
+-Prunner=TestDataflowRunner :beam-sdks-python-load-tests:run
 """
 
 from __future__ import absolute_import
@@ -163,36 +201,35 @@ class SideInputTest(unittest.TestCase):
             list.append({key: element[1]+value})
       yield list
 
-    with self.pipeline as p:
-      main_input = (p
-                    | "Read pcoll 1" >> beam.io.Read(
-                        synthetic_pipeline.SyntheticSource(
-                            self._parseTestPipelineOptions()))
-                    | 'Measure time: Start pcoll 1' >> beam.ParDo(
-                        MeasureTime(self.metrics_namespace))
-                   )
+    main_input = (self.pipeline
+                  | "Read pcoll 1" >> beam.io.Read(
+                      synthetic_pipeline.SyntheticSource(
+                          self._parseTestPipelineOptions()))
+                  | 'Measure time: Start pcoll 1' >> beam.ParDo(
+                      MeasureTime(self.metrics_namespace))
+                 )
 
-      side_input = (p
-                    | "Read pcoll 2" >> beam.io.Read(
-                        synthetic_pipeline.SyntheticSource(
-                            self._getSideInput()))
-                    | 'Measure time: Start pcoll 2' >> beam.ParDo(
-                        MeasureTime(self.metrics_namespace))
-                   )
-      # pylint: disable=expression-not-assigned
-      (main_input
-       | "Merge" >> beam.ParDo(
-           join_fn,
-           AsIter(side_input),
-           self.iterations)
-       | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-      )
+    side_input = (self.pipeline
+                  | "Read pcoll 2" >> beam.io.Read(
+                      synthetic_pipeline.SyntheticSource(
+                          self._getSideInput()))
+                  | 'Measure time: Start pcoll 2' >> beam.ParDo(
+                      MeasureTime(self.metrics_namespace))
+                 )
+    # pylint: disable=expression-not-assigned
+    (main_input
+     | "Merge" >> beam.ParDo(
+         join_fn,
+         AsIter(side_input),
+         self.iterations)
+     | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+    )
 
-      result = p.run()
-      result.wait_until_finish()
+    result = self.pipeline.run()
+    result.wait_until_finish()
 
-      if self.metrics_monitor is not None:
-        self.metrics_monitor.send_metrics(result)
+    if self.metrics_monitor is not None:
+      self.metrics_monitor.send_metrics(result)
 
   if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)

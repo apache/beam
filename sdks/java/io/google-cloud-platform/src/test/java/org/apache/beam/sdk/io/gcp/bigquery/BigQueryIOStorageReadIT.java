@@ -52,8 +52,8 @@ public class BigQueryIOStorageReadIT {
           "1G", 11110839L,
           "1T", 11110839000L);
 
-  private static final String DATASET_ID = "big_query_import_export";
-  private static final String TABLE_PREFIX = "parallel_read_";
+  private static final String DATASET_ID = "big_query_storage";
+  private static final String TABLE_PREFIX = "storage_read_";
 
   private BigQueryIOStorageReadOptions options;
 
@@ -94,26 +94,8 @@ public class BigQueryIOStorageReadIT {
   }
 
   @Test
-  public void testBigQueryStorageReadEmpty() throws Exception {
-    setUpTestEnvironment("empty");
-    runBigQueryIOStorageReadPipeline();
-  }
-
-  @Test
-  public void testBigQueryStorageRead1M() throws Exception {
-    setUpTestEnvironment("1M");
-    runBigQueryIOStorageReadPipeline();
-  }
-
-  @Test
   public void testBigQueryStorageRead1G() throws Exception {
     setUpTestEnvironment("1G");
-    runBigQueryIOStorageReadPipeline();
-  }
-
-  @Test
-  public void testBigqueryStorageRead1T() throws Exception {
-    setUpTestEnvironment("1T");
     runBigQueryIOStorageReadPipeline();
   }
 }

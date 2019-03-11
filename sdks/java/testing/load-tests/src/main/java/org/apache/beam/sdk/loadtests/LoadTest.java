@@ -34,10 +34,11 @@ import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
-import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
+import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -57,7 +58,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   private String metricsNamespace;
 
-  protected TimeMonitor<byte[], byte[]> runtimeMonitor;
+  protected TimeMonitor<KV<byte[], byte[]>> runtimeMonitor;
 
   protected OptionsT options;
 

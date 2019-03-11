@@ -30,6 +30,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -89,7 +90,8 @@ public class DefaultParDoFnFactoryTest {
                     WindowingStrategy.globalDefault(),
                     null /* side input views */,
                     null /* input coder */,
-                    new TupleTag<>("output") /* main output */)));
+                    new TupleTag<>("output") /* main output */,
+                    DoFnSchemaInformation.create())));
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, "serialized_fn", serializedFn);
 

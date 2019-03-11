@@ -23,10 +23,10 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
-import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -126,8 +126,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
           .apply(format("Convert to Long: %d", i), MapElements.via(new ByteValueToLong()))
           .apply(format("Combine: %d", i), getPerKeyCombiner(options.getPerKeyCombinerType()))
           .apply(
-              "Collect end time metric",
-              ParDo.of(new TimeMonitor<byte[], Object>(METRICS_NAMESPACE, "runtime")));
+              "Collect end time metric", ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")));
     }
   }
 

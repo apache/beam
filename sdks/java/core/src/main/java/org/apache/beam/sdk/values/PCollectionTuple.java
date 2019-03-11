@@ -92,6 +92,73 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
+   * A version of {@link #of(TupleTag, PCollection)} that takes in a String instead of a {@link
+   * TupleTag}.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
+  public static <T> PCollectionTuple of(String tag, PCollection<T> pc) {
+    return of(new TupleTag<>(tag), pc);
+  }
+
+  /**
+   * A version of {@link #of(String, PCollection)} that takes in two PCollections of the same type.
+   */
+  public static <T> PCollectionTuple of(
+      String tag1, PCollection<T> pc1, String tag2, PCollection<T> pc2) {
+    return of(tag1, pc1).and(tag2, pc2);
+  }
+
+  /**
+   * A version of {@link #of(String, PCollection)} that takes in three PCollections of the same
+   * type.
+   */
+  public static <T> PCollectionTuple of(
+      String tag1,
+      PCollection<T> pc1,
+      String tag2,
+      PCollection<T> pc2,
+      String tag3,
+      PCollection<T> pc3) {
+    return of(tag1, pc1, tag2, pc2).and(tag3, pc3);
+  }
+
+  /**
+   * A version of {@link #of(String, PCollection)} that takes in four PCollections of the same type.
+   */
+  public static <T> PCollectionTuple of(
+      String tag1,
+      PCollection<T> pc1,
+      String tag2,
+      PCollection<T> pc2,
+      String tag3,
+      PCollection<T> pc3,
+      String tag4,
+      PCollection<T> pc4) {
+    return of(tag1, pc1, tag2, pc2, tag3, pc3).and(tag4, pc4);
+  }
+
+  /**
+   * A version of {@link #of(String, PCollection)} that takes in five PCollections of the same type.
+   */
+  public static <T> PCollectionTuple of(
+      String tag1,
+      PCollection<T> pc1,
+      String tag2,
+      PCollection<T> pc2,
+      String tag3,
+      PCollection<T> pc3,
+      String tag4,
+      PCollection<T> pc4,
+      String tag5,
+      PCollection<T> pc5) {
+    return of(tag1, pc1, tag2, pc2, tag3, pc3, tag4, pc4).and(tag5, pc5);
+  }
+
+  // To create a PCollectionTuple with more than five inputs, use the and() builder method.
+
+  /**
    * Returns a new {@link PCollectionTuple} that has each {@link PCollection} and {@link TupleTag}
    * of this {@link PCollectionTuple} plus the given {@link PCollection} associated with the given
    * {@link TupleTag}.
@@ -116,11 +183,29 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
+   * A version of {@link #and(TupleTag, PCollection)} that takes in a String instead of a TupleTag.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
+  public <T> PCollectionTuple and(String tag, PCollection<T> pc) {
+    return and(new TupleTag<>(tag), pc);
+  }
+
+  /**
    * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with the given
    * tag.
    */
   public <T> boolean has(TupleTag<T> tag) {
     return pcollectionMap.containsKey(tag);
+  }
+
+  /**
+   * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with the given
+   * tag.
+   */
+  public <T> boolean has(String tag) {
+    return has(new TupleTag<>(tag));
   }
 
   /**
@@ -135,6 +220,15 @@ public class PCollectionTuple implements PInput, POutput {
       throw new IllegalArgumentException("TupleTag not found in this PCollectionTuple tuple");
     }
     return pcollection;
+  }
+
+  /**
+   * Returns the {@link PCollection} associated with the given tag in this {@link PCollectionTuple}.
+   * Throws {@link IllegalArgumentException} if there is no such {@link PCollection}, i.e., {@code
+   * !has(tag)}.
+   */
+  public <T> PCollection<T> get(String tag) {
+    return get(new TupleTag<>(tag));
   }
 
   /**
@@ -212,8 +306,8 @@ public class PCollectionTuple implements PInput, POutput {
       @SuppressWarnings("unchecked")
       PCollection outputCollection =
           PCollection.createPrimitiveOutputInternal(
-                  pipeline, windowingStrategy, isBounded, coders.get(outputTag))
-              .setTypeDescriptor((TypeDescriptor) outputTag.getTypeDescriptor());
+                  pipeline, windowingStrategy, isBounded, (Coder) coders.get(outputTag))
+              .setTypeDescriptor(outputTag.getTypeDescriptor());
 
       pcollectionMap.put(outputTag, outputCollection);
     }

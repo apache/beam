@@ -20,7 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.junit.Before;
 import org.junit.Test;
 

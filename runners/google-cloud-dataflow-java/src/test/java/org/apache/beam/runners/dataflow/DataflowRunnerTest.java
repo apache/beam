@@ -348,7 +348,7 @@ public class DataflowRunnerTest implements Serializable {
       assertThat(
           Throwables.getStackTraceAsString(e),
           both(containsString("gs://does/not/exist"))
-              .and(containsString("does not exist or is not writeable")));
+              .and(containsString("Unable to verify that GCS bucket gs://does exists")));
     }
   }
 
@@ -429,6 +429,22 @@ public class DataflowRunnerTest implements Serializable {
         optionsMap,
         hasEntry(
             "numberOfWorkerHarnessThreads", (Object) options.getNumberOfWorkerHarnessThreads()));
+  }
+
+  @Test
+  public void testSettingFlexRS() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setFlexRSGoal(DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED);
+
+    Pipeline p = Pipeline.create(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+
+    assertEquals(
+        "FLEXRS_COST_OPTIMIZED",
+        jobCaptor.getValue().getEnvironment().getFlexResourceSchedulingGoal());
   }
 
   /** PipelineOptions used to test auto registration of Jackson modules. */

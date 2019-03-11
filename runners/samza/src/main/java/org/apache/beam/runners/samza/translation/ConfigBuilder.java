@@ -66,12 +66,14 @@ public class ConfigBuilder {
 
   public Config build() {
     try {
-      config.putAll(systemStoreConfig());
+      config.putAll(systemStoreConfig(options));
 
       // apply user configs
       config.putAll(createUserConfig(options));
 
       config.put(JobConfig.JOB_NAME(), options.getJobName());
+      config.put(JobConfig.JOB_ID(), options.getJobInstance());
+
       config.put(
           "beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
@@ -151,14 +153,26 @@ public class ConfigBuilder {
         .build();
   }
 
-  private static Map<String, String> systemStoreConfig() {
-    return ImmutableMap.<String, String>builder()
-        .put(
-            "stores.beamStore.factory",
-            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
-        .put("stores.beamStore.key.serde", "byteSerde")
-        .put("stores.beamStore.msg.serde", "byteSerde")
-        .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName())
-        .build();
+  private static Map<String, String> systemStoreConfig(SamzaPipelineOptions options) {
+    ImmutableMap.Builder<String, String> configBuilder =
+        ImmutableMap.<String, String>builder()
+            .put(
+                "stores.beamStore.factory",
+                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
+            .put("stores.beamStore.key.serde", "byteSerde")
+            .put("stores.beamStore.msg.serde", "byteSerde")
+            .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
+
+    if (options.getStateDurable()) {
+      configBuilder.put("stores.beamStore.changelog", getChangelogTopic(options, "beamStore"));
+      configBuilder.put("job.host-affinity.enabled", "true");
+    }
+
+    return configBuilder.build();
+  }
+
+  static String getChangelogTopic(SamzaPipelineOptions options, String storeName) {
+    return String.format(
+        "%s-%s-%s-changelog", options.getJobName(), options.getJobInstance(), storeName);
   }
 }

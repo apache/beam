@@ -85,8 +85,7 @@ public class DisplayData implements Serializable {
    *
    * <p>Use this method if the type of metadata is not known at compile time. For example:
    *
-   * <pre>{@code
-   * {@literal @}Override
+   * <pre>{@code @Override
    * public void populateDisplayData(DisplayData.Builder builder) {
    *   Optional<DisplayData.Type> type = DisplayData.inferType(foo);
    *   if (type.isPresent()) {
@@ -150,7 +149,7 @@ public class DisplayData implements Serializable {
      * {@link PTransform} which delegates to a user-provided function can implement {@link
      * HasDisplayData} on the function and include it from the {@link PTransform}:
      *
-     * <pre><code>{@literal @Override}
+     * <pre>{@code @Override
      * public void populateDisplayData(DisplayData.Builder builder) {
      *   super.populateDisplayData(builder);
      *
@@ -160,7 +159,7 @@ public class DisplayData implements Serializable {
      *     // To allow the userFn to register additional display data
      *     .include("userFn", userFn);
      * }
-     * </code></pre>
+     * }</pre>
      *
      * <p>Using {@code include(path, subcomponent)} will associate each of the registered items with
      * the namespace of the {@code subcomponent} being registered, with the specified path element
@@ -181,11 +180,11 @@ public class DisplayData implements Serializable {
      * display data from the wrapped component. Such components should implement {@code
      * populateDisplayData} as:
      *
-     * <pre><code>{@literal @Override}
+     * <pre>{@code @Override
      * public void populateDisplayData(DisplayData.Builder builder) {
      *   builder.delegate(wrapped);
      * }
-     * </code></pre>
+     * }</pre>
      */
     Builder delegate(HasDisplayData component);
 

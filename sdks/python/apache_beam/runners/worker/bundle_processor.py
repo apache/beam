@@ -56,6 +56,7 @@ from apache_beam.transforms import userstate
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
+from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -148,8 +149,13 @@ class DataInputOperation(RunnerIOOperation):
         # We are "finished" with the (non-existent) previous element.
         current_element_progress = 1
       else:
-        # TODO(SDF): Get actual progress of current element.
-        current_element_progress = 0.5
+        current_element_progress_object = (
+            self.receivers[0].current_element_progress())
+        if current_element_progress_object is None:
+          current_element_progress = 0.5
+        else:
+          current_element_progress = (
+              current_element_progress_object.fraction_completed)
       # Now figure out where to split.
       # The units here (except for keep_of_element_remainder) are all in
       # terms of number of (possibly fractional) elements.
@@ -358,16 +364,16 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
 
 
 class OutputTimer(object):
-  def __init__(self, key, receiver):
+  def __init__(self, key, window, receiver):
     self._key = key
+    self._window = window
     self._receiver = receiver
 
   def set(self, ts):
-    from apache_beam.transforms.window import GlobalWindows
+    ts = timestamp.Timestamp.of(ts)
     self._receiver.receive(
-        GlobalWindows.windowed_value(
-            (self._key,
-             dict(timestamp=timestamp.Timestamp.of(ts)))))
+        windowed_value.WindowedValue(
+            (self._key, dict(timestamp=ts)), ts, (self._window,)))
 
   def clear(self, timestamp):
     self._receiver.receive((self._key, dict(clear=True)))
@@ -390,7 +396,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
       self._timer_receivers[tag] = receivers.pop(tag)
 
   def get_timer(self, timer_spec, key, window):
-    return OutputTimer(key, self._timer_receivers[timer_spec.name])
+    return OutputTimer(
+        key, window, self._timer_receivers[timer_spec.name])
 
   def get_state(self, *args):
     state_handle = self._all_states.get(args)
@@ -539,6 +546,7 @@ class BundleProcessor(object):
         # ignores input name
         input_op_by_target[
             input_op.target.primitive_transform_reference] = input_op
+
       for data_channel, expected_targets in data_channels.items():
         for data in data_channel.input_elements(
             instruction_id, expected_targets):
@@ -647,7 +655,44 @@ class BundleProcessor(object):
       for mi in op.monitoring_infos(transform_id).values():
         fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
         all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
-    return list(all_monitoring_infos_dict.values())
+
+    infos_list = list(all_monitoring_infos_dict.values())
+
+    def inject_pcollection_into_element_count(monitoring_info):
+      """
+      If provided metric is element count metric:
+      Finds relevant transform output info in current process_bundle_descriptor
+      and adds tag with PCOLLECTION_LABEL and pcollection_id into monitoring
+      info.
+      """
+      if monitoring_info.urn == monitoring_infos.ELEMENT_COUNT_URN:
+        if not monitoring_infos.PTRANSFORM_LABEL in monitoring_info.labels:
+          return
+        ptransform_label = monitoring_info.labels[
+            monitoring_infos.PTRANSFORM_LABEL]
+        if not monitoring_infos.TAG_LABEL in monitoring_info.labels:
+          return
+        tag_label = monitoring_info.labels[monitoring_infos.TAG_LABEL]
+
+        if not ptransform_label in self.process_bundle_descriptor.transforms:
+          return
+        if not tag_label in self.process_bundle_descriptor.transforms[
+            ptransform_label].outputs:
+          return
+
+        pcollection_name = (self.process_bundle_descriptor
+                            .transforms[ptransform_label].outputs[tag_label])
+        monitoring_info.labels[
+            monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
+
+        # Cleaning up labels that are not in specification.
+        monitoring_info.labels.pop(monitoring_infos.PTRANSFORM_LABEL)
+        monitoring_info.labels.pop(monitoring_infos.TAG_LABEL)
+
+    for mi in infos_list:
+      inject_pcollection_into_element_count(mi)
+
+    return infos_list
 
   def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
     actual_output_tags = list(

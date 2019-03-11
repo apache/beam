@@ -35,6 +35,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -86,7 +87,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(new GlobalWindows()));
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create());
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
@@ -108,7 +110,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(new GlobalWindows()));
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create());
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
@@ -137,7 +140,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(new GlobalWindows()));
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create());
 
     // Setting the timer needs the current time, as it is set relative
     Instant currentTime = new Instant(42);
@@ -167,7 +171,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(new GlobalWindows()));
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create());
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
@@ -189,7 +194,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(new GlobalWindows()));
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create());
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
@@ -215,7 +221,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(windowFn));
+            WindowingStrategy.of(windowFn),
+            DoFnSchemaInformation.create());
 
     Instant currentTime = new Instant(42);
     Duration offset = Duration.millis(37);
@@ -256,7 +263,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(new GlobalWindows()));
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create());
 
     runner.startBundle();
     // An element output at the current timestamp is fine.
@@ -294,7 +302,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(new GlobalWindows()));
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create());
 
     runner.startBundle();
     // Outputting between "now" and "now - allowed skew" succeeds.
@@ -333,7 +342,8 @@ public class SimpleDoFnRunnerTest {
             mockStepContext,
             null,
             Collections.emptyMap(),
-            WindowingStrategy.of(new GlobalWindows()));
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create());
 
     runner.startBundle();
     runner.processElement(

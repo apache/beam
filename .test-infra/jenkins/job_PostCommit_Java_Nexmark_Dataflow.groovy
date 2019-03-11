@@ -18,6 +18,7 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
+import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
@@ -135,5 +136,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Da
           'enforceEncodability' : true,
           'enforceImmutability' : true
   ]
-  Nexmark.standardJob(delegate, Runner.DATAFLOW, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+  Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }

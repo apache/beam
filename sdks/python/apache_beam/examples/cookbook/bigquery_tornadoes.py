@@ -73,6 +73,12 @@ def run(argv=None):
       help=
       ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
        'or DATASET.TABLE.'))
+
+  parser.add_argument('--gcs_location',
+                      required=True,
+                      help=('GCS Location to store files to load '
+                            'data into Bigquery'))
+
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
@@ -81,13 +87,19 @@ def run(argv=None):
     rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
     counts = count_tornadoes(rows)
 
+    if 'temp_location' in p.options.get_all_options():
+      location = p.options.get_all_options()['temp_location']
+    else:
+      location = known_args.gcs_location
+
     # Write the output using a "Write" transform that has side effects.
     # pylint: disable=expression-not-assigned
     counts | 'Write' >> beam.io.WriteToBigQuery(
         known_args.output,
         schema='month:INTEGER, tornado_count:INTEGER',
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)
+        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+        gs_location=location)
 
     # Run the pipeline (all operations are deferred until run() is called).
 
