@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import threading
+import time
 from concurrent import futures
 
 import grpc
@@ -76,6 +77,9 @@ class PortableRunner(runner.PipelineRunner):
     This runner schedules the job on a job service. The responsibility of
     running and managing the job lies with the job service used.
   """
+  def __init__(self):
+    self._job_endpoint = None
+
   @staticmethod
   def default_docker_image():
     if 'USER' in os.environ:
@@ -136,6 +140,12 @@ class PortableRunner(runner.PipelineRunner):
           payload=(portable_options.environment_config.encode('ascii')
                    if portable_options.environment_config else None))
 
+  def init_dockerized_job_server(self):
+    # TODO Provide a way to specify a container Docker URL
+    # https://issues.apache.org/jira/browse/BEAM-6328
+    docker = DockerizedJobServer()
+    self._job_endpoint = docker.start()
+
   def run_pipeline(self, pipeline, options):
     portable_options = options.view_as(PortableOptions)
     job_endpoint = portable_options.job_endpoint
@@ -146,10 +156,9 @@ class PortableRunner(runner.PipelineRunner):
       options.view_as(SetupOptions).sdk_location = 'container'
 
     if not job_endpoint:
-      # TODO Provide a way to specify a container Docker URL
-      # https://issues.apache.org/jira/browse/BEAM-6328
-      docker = DockerizedJobServer()
-      job_endpoint = docker.start()
+      if not self._job_endpoint:
+        self.init_dockerized_job_server()
+      job_endpoint = self._job_endpoint
       job_service = None
     elif job_endpoint == 'embed':
       job_service = local_job_service.LocalJobServicer()
@@ -239,6 +248,7 @@ class PortableRunner(runner.PipelineRunner):
           num_retries += 1
           if num_retries > max_retries:
             raise e
+          time.sleep(1)
 
     options_response = send_options_request()
 

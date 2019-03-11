@@ -782,6 +782,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
 
+    if (options.getFlexRSGoal()
+        == DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED) {
+      newJob.getEnvironment().setFlexResourceSchedulingGoal("FLEXRS_COST_OPTIMIZED");
+    } else if (options.getFlexRSGoal()
+        == DataflowPipelineOptions.FlexResourceSchedulingGoal.SPEED_OPTIMIZED) {
+      newJob.getEnvironment().setFlexResourceSchedulingGoal("FLEXRS_SPEED_OPTIMIZED");
+    }
+
     // Represent the minCpuPlatform pipeline option as an experiment, if not already present.
     List<String> experiments =
         firstNonNull(dataflowOptions.getExperiments(), new ArrayList<String>());

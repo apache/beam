@@ -25,6 +25,7 @@ from __future__ import absolute_import
 import collections
 import logging
 import sys
+import threading
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -106,6 +107,16 @@ class ConsumerSet(Receiver):
     # of the consumers separately.
     return None
 
+  def current_element_progress(self):
+    """Returns the progress of the current element.
+
+    This progress should be an instance of
+    apache_beam.io.iobase.RestrictionProgress, or None if progress is unknown.
+    """
+    # TODO(SDF): Could implement this as a weighted average, if it becomes
+    # useful to split on.
+    return None
+
   def update_counters_start(self, windowed_value):
     self.opcounter.update_from(windowed_value)
 
@@ -133,6 +144,9 @@ class SingletonConsumerSet(ConsumerSet):
 
   def try_split(self, fraction_of_remainder):
     return self.consumer.try_split(fraction_of_remainder)
+
+  def current_element_progress(self):
+    return self.consumer.current_element_progress()
 
 
 class Operation(object):
@@ -210,6 +224,9 @@ class Operation(object):
     pass
 
   def try_split(self, fraction_of_remainder):
+    return None
+
+  def current_element_progress(self):
     return None
 
   def finish(self):
@@ -584,18 +601,58 @@ class DoOperation(Operation):
 
 class SdfProcessElements(DoOperation):
 
+  def __init__(self, *args, **kwargs):
+    super(SdfProcessElements, self).__init__(*args, **kwargs)
+    self.lock = threading.RLock()
+    self.element_start_output_bytes = None
+
   def process(self, o):
     with self.scoped_process_state:
-      delayed_application = self.dofn_runner.process_with_restriction(o)
-      if delayed_application:
-        self.execution_context.delayed_applications.append(
-            (self, delayed_application))
+      try:
+        with self.lock:
+          self.element_start_output_bytes = self._total_output_bytes()
+          for receiver in self.tagged_receivers.values():
+            receiver.opcounter.restart_sampling()
+        # Actually processing the element can be expensive; do it without
+        # the lock.
+        delayed_application = self.dofn_runner.process_with_restriction(o)
+        if delayed_application:
+          self.execution_context.delayed_applications.append(
+              (self, delayed_application))
+      finally:
+        with self.lock:
+          self.element_start_output_bytes = None
 
   def try_split(self, fraction_of_remainder):
     split = self.dofn_runner.try_split(fraction_of_remainder)
     if split:
       primary, residual = split
       return (self, primary), (self, residual)
+
+  def current_element_progress(self):
+    with self.lock:
+      if self.element_start_output_bytes is not None:
+        return self.dofn_runner.current_element_progress().with_completed(
+            self._total_output_bytes() - self.element_start_output_bytes)
+
+  def progress_metrics(self):
+    with self.lock:
+      metrics = super(SdfProcessElements, self).progress_metrics()
+      current_element_progress = self.current_element_progress()
+    if current_element_progress:
+      metrics.active_elements.measured.input_element_counts[
+          self.input_info[1]] = 1
+      metrics.active_elements.fraction_remaining = (
+          current_element_progress.fraction_remaining)
+    return metrics
+
+  def _total_output_bytes(self):
+    total = 0
+    for receiver in self.tagged_receivers.values():
+      elements = receiver.opcounter.element_counter.value()
+      if elements > 0:
+        total += elements * receiver.opcounter.mean_byte_counter.value()
+    return total
 
 
 class DoFnRunnerReceiver(Receiver):

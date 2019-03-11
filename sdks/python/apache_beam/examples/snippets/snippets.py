@@ -1116,21 +1116,10 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [END model_bigqueryio_schema]
 
   # [START model_bigqueryio_schema_object]
-  from apache_beam.io.gcp.internal.clients import bigquery
-
-  table_schema = bigquery.TableSchema()
-
-  source_field = bigquery.TableFieldSchema()
-  source_field.name = 'source'
-  source_field.type = 'STRING'
-  source_field.mode = 'NULLABLE'
-  table_schema.fields.append(source_field)
-
-  quote_field = bigquery.TableFieldSchema()
-  quote_field.name = 'quote'
-  quote_field.type = 'STRING'
-  quote_field.mode = 'REQUIRED'
-  table_schema.fields.append(quote_field)
+  table_schema = {'fields': [
+      {'name': 'source', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'quote', 'type': 'STRING', 'mode': 'REQUIRED'}
+  ]}
   # [END model_bigqueryio_schema_object]
 
   if write_project and write_dataset and write_table:

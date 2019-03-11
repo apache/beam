@@ -48,7 +48,11 @@ func Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *func
 
 // InvokeWithoutEventTime runs the given function at time 0 in the global window.
 func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
-	return Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, fn, opt, extra...)
+	if fn == nil {
+		return nil, nil // ok: nothing to Invoke
+	}
+	inv := newInvoker(fn)
+	return inv.InvokeWithoutEventTime(ctx, opt, extra...)
 }
 
 // invoker is a container struct for hot path invocations of DoFns, to avoid
@@ -100,6 +104,13 @@ func (n *invoker) Reset() {
 	for i := range n.args {
 		n.args[i] = nil
 	}
+	// Avoid leaking user elements after bundle termination.
+	n.ret = FullValue{}
+}
+
+// InvokeWithoutEventTime runs the function at time 0 in the global window.
+func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+	return n.Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, extra...)
 }
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main

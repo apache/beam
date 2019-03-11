@@ -59,7 +59,6 @@ import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkKeyGroupStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkSplitStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.Coder;
@@ -70,6 +69,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -169,11 +169,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   /** Max duration of a bundle. */
   private final long maxBundleTimeMills;
 
+  private final DoFnSchemaInformation doFnSchemaInformation;
+
   protected transient InternalTimerService<TimerData> timerService;
 
   protected transient FlinkTimerInternals timerInternals;
-
-  private transient StateInternals nonKeyedStateInternals;
 
   private transient long pushedBackWatermark;
 
@@ -187,6 +187,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private transient ScheduledFuture<?> checkFinishBundleTimer;
   /** Time that the last bundle was finished (to set the timer). */
   private transient long lastFinishBundleTime;
+  /** Callback to be executed after the current bundle was finshed. */
+  private transient Runnable bundleFinishedCallback;
 
   public DoFnOperator(
       DoFn<InputT, OutputT> doFn,
@@ -202,7 +204,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
       Coder<?> keyCoder,
-      KeySelector<WindowedValue<InputT>, ?> keySelector) {
+      KeySelector<WindowedValue<InputT>, ?> keySelector,
+      DoFnSchemaInformation doFnSchemaInformation) {
     this.doFn = doFn;
     this.stepName = stepName;
     this.windowedInputCoder = inputWindowedCoder;
@@ -228,6 +231,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     this.maxBundleSize = flinkOptions.getMaxBundleSize();
     this.maxBundleTimeMills = flinkOptions.getMaxBundleTimeMills();
+    this.doFnSchemaInformation = doFnSchemaInformation;
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
@@ -300,16 +304,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     sideInputReader = NullSideInputReader.of(sideInputs);
 
-    // maybe init by initializeState
-    if (nonKeyedStateInternals == null) {
-      if (keyCoder != null) {
-        nonKeyedStateInternals =
-            new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
-      } else {
-        nonKeyedStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
-      }
-    }
-
     if (!sideInputs.isEmpty()) {
 
       FlinkBroadcastStateInternals sideInputStateInternals =
@@ -327,7 +321,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       setPushedBackWatermark(Long.MAX_VALUE);
     }
 
-    outputManager = outputManagerFactory.create(output, nonKeyedStateInternals);
+    outputManager =
+        outputManagerFactory.create(
+            output, new FlinkSplitStateInternals<>(getOperatorStateBackend()));
 
     // StatefulPardo or WindowDoFn
     if (keyCoder != null) {
@@ -364,7 +360,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             new FlinkStepContext(),
             inputCoder,
             outputCoders,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation);
 
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
@@ -441,7 +438,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
 
     // sanity check: these should have been flushed out by +Inf watermarks
-    if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
+    if (!sideInputs.isEmpty()) {
 
       List<WindowedValue<InputT>> pushedBackElements =
           pushedBackElementsHandler.getElements().collect(Collectors.toList());
@@ -460,6 +457,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   protected void setPushedBackWatermark(long watermark) {
     pushedBackWatermark = watermark;
+  }
+
+  protected void setBundleFinishedCallback(Runnable callback) {
+    this.bundleFinishedCallback = callback;
   }
 
   @Override
@@ -684,6 +685,12 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       pushbackDoFnRunner.finishBundle();
       elementCount = 0L;
       lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+      // callback only after current bundle was fully finalized
+      // it could start a new bundle, for example resulting from timer processing
+      if (bundleFinishedCallback != null) {
+        bundleFinishedCallback.run();
+        bundleFinishedCallback = null;
+      }
     }
   }
 
@@ -744,8 +751,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   /**
-   * A {@link DoFnRunners.OutputManager} that can buffer its outputs. Use {@link
-   * FlinkSplitStateInternals} or {@link FlinkKeyGroupStateInternals} to keep buffer data.
+   * A {@link DoFnRunners.OutputManager} that can buffer its outputs. Uses {@link
+   * FlinkSplitStateInternals} to buffer the data.
    */
   public static class BufferedOutputManager<OutputT> implements DoFnRunners.OutputManager {
 

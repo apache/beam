@@ -47,7 +47,7 @@ def retry_on_http_and_value_error(exception):
 
 
 class BigqueryMatcher(BaseMatcher):
-  """Matcher that verifies Bigquery data with given query.
+  """Matcher that verifies the checksum of Bigquery data with given query.
 
   Fetch Bigquery data with given query, compute a hash string and compare
   with expected checksum.
@@ -106,3 +106,59 @@ class BigqueryMatcher(BaseMatcher):
     mismatch_description \
       .append_text("Actual checksum is ") \
       .append_text(self.checksum)
+
+
+class BigqueryFullResultMatcher(BaseMatcher):
+  """Matcher that verifies Bigquery data with given query.
+
+  Fetch Bigquery data with given query, compare to the expected data.
+  """
+
+  def __init__(self, project, query, data):
+    """Initialize BigQueryMatcher object.
+    Args:
+      project: The name (string) of the project.
+      query: The query (string) to perform.
+      data: List of tuples with the expected data.
+    """
+    if bigquery is None:
+      raise ImportError(
+          'Bigquery dependencies are not installed.')
+    if not query or not isinstance(query, str):
+      raise ValueError(
+          'Invalid argument: query. Please use non-empty string')
+
+    self.project = project
+    self.query = query
+    self.expected_data = [sorted(i) for i in data]
+
+  def _matches(self, _):
+    logging.info('Start verify Bigquery data.')
+    # Run query
+    bigquery_client = bigquery.Client(project=self.project)
+    response = self._query_with_retry(bigquery_client)
+    logging.info('Read from given query (%s), total rows %d',
+                 self.query, len(response))
+
+    self.actual_data = [sorted(i) for i in response]
+
+    # Verify result
+    return sorted(self.expected_data) == sorted(self.actual_data)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry_on_http_and_value_error)
+  def _query_with_retry(self, bigquery_client):
+    """Run Bigquery query with retry if got error http response"""
+    query_job = bigquery_client.query(self.query)
+    return [row.values() for row in query_job]
+
+  def describe_to(self, description):
+    description \
+      .append_text("Expected data is ") \
+      .append_text(self.expected_data)
+
+  def describe_mismatch(self, pipeline_result, mismatch_description):
+    mismatch_description \
+      .append_text("Actual data is ") \
+      .append_text(self.actual_data)

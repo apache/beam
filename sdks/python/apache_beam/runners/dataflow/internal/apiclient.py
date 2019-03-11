@@ -190,6 +190,15 @@ class Environment(object):
       if ('use_multiple_sdk_containers' not in debug_options_experiments and
           'no_use_multiple_sdk_containers' not in debug_options_experiments):
         self.debug_options.experiments.append('use_multiple_sdk_containers')
+    # FlexRS
+    if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
+      self.proto.flexResourceSchedulingGoal = (
+          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+          FLEXRS_COST_OPTIMIZED)
+    elif self.google_cloud_options.flexrs_goal == 'SPEED_OPTIMIZED':
+      self.proto.flexResourceSchedulingGoal = (
+          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+          FLEXRS_SPEED_OPTIMIZED)
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
@@ -878,11 +887,15 @@ def get_default_container_image_for_current_sdk(job_type):
     """
   if sys.version_info[0] == 2:
     version_suffix = ''
-  elif sys.version_info[0] == 3:
+  elif sys.version_info[0:2] == (3, 5):
     version_suffix = '3'
+  elif sys.version_info[0:2] == (3, 6):
+    version_suffix = '36'
+  elif sys.version_info[0:2] == (3, 7):
+    version_suffix = '37'
   else:
-    raise Exception('Dataflow only supports Python versions 2 and 3, got: %s'
-                    % sys.version_info[0])
+    raise Exception('Dataflow only supports Python versions 2 and 3.5+, got: %s'
+                    % str(sys.version_info[0:2]))
 
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
   if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
@@ -944,10 +957,10 @@ def _verify_interpreter_version_is_supported(pipeline_options):
   if sys.version_info[0] == 2:
     return
 
-  if sys.version_info[0] == 3 and sys.version_info[1] == 5:
-    if sys.version_info[2] < 3:
+  if sys.version_info[0:2] in [(3, 5), (3, 6)]:
+    if sys.version_info[0:3] < (3, 5, 3):
       warnings.warn(
-          'You are using an early release of Python 3.5. It is recommended '
+          'You are using an early release for Python 3.5. It is recommended '
           'to use Python 3.5.3 or higher with Dataflow '
           'runner.')
     return
@@ -959,7 +972,7 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
   raise Exception(
       'Dataflow runner currently supports Python versions '
-      '2.7 and 3.5. To ignore this requirement and start a job using a '
+      '2.7, 3.5 and 3.6. To ignore this requirement and start a job using a '
       'different version of Python 3 interpreter, pass '
       '--experiment ignore_py3_minor_version pipeline option.')
 

@@ -20,7 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.

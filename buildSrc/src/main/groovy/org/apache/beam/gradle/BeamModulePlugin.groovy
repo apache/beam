@@ -27,16 +27,14 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
-import org.gradle.api.plugins.quality.FindBugs
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
-import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
-
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -344,7 +342,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.43.0"
-    def google_cloud_bigdataoss_version = "1.9.13"
+    def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_spanner_version = "1.6.0"
     def google_clients_version = "1.27.0"
     def google_auth_version = "0.12.0"
@@ -412,7 +410,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20181104-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20180801-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190126-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190131-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181105-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181013-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
@@ -713,14 +711,19 @@ class BeamModulePlugin implements Plugin<Project> {
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
-        // findbugs-annotations artifact is licensed under LGPL and cannot be included in the
+        // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
-        def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
-        compileOnly findbugs_annotations
-        testCompileOnly findbugs_annotations
-        annotationProcessor findbugs_annotations
-        testAnnotationProcessor findbugs_annotations
+        def spotbugs_annotations = "com.github.spotbugs:spotbugs-annotations:3.1.11"
+        def jcip_annotations = "net.jcip:jcip-annotations:1.0"
+        compileOnly spotbugs_annotations
+        compileOnly jcip_annotations
+        testCompileOnly spotbugs_annotations
+        testCompileOnly jcip_annotations
+        annotationProcessor spotbugs_annotations
+        annotationProcessor jcip_annotations
+        testAnnotationProcessor spotbugs_annotations
+        testAnnotationProcessor jcip_annotations
       }
 
       // Add the optional and provided configurations for dependencies
@@ -729,6 +732,9 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'propdeps'
       project.apply plugin: 'propdeps-maven'
       project.apply plugin: 'propdeps-idea'
+
+      // Defines Targets for sonarqube analysis reporting.
+      project.apply plugin: "org.sonarqube"
 
       // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
       // suppressions.
@@ -778,12 +784,12 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
       if (configuration.enableFindbugs) {
-        project.apply plugin: 'findbugs'
-        project.findbugs {
+        project.apply plugin: 'com.github.spotbugs'
+        project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/findbugs-filter.xml')
           sourceSets = [sourceSets.main]
         }
-        project.tasks.withType(FindBugs) {
+        project.tasks.withType(com.github.spotbugs.SpotBugsTask) {
           reports {
             html.enabled = !project.jenkins.isCIBuild
             xml.enabled = project.jenkins.isCIBuild
@@ -1550,6 +1556,9 @@ class BeamModulePlugin implements Plugin<Project> {
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
+        // increase maxHeapSize as this is directly correlated to direct memory,
+        // see https://issues.apache.org/jira/browse/BEAM-6698
+        maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
           dependsOn ':beam-sdks-java-container:docker'
         }
@@ -1631,11 +1640,14 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.installGcpTest.mustRunAfter project.sdist
 
-      project.task('cleanPython', dependsOn: 'setupVirtualenv') {
+      project.task('cleanPython') {
         doLast {
+          def activate = "${project.ext.envdir}/bin/activate"
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && python ${pythonRootDir}/setup.py clean"
+            args '-c', "if [ -e ${activate} ]; then " +
+                    ". ${activate} && python ${pythonRootDir}/setup.py clean; " +
+                    "fi"
           }
           project.delete project.buildDir     // Gradle build directory
           project.delete project.ext.envdir   // virtualenv directory

@@ -213,6 +213,8 @@ class PipeStream(object):
   def __init__(self, recv_pipe):
     self.conn = recv_pipe
     self.closed = False
+    # TODO(BEAM-6380): For debugging.
+    self.last_position = None
     self.position = 0
     self.remaining = b''
 
@@ -232,6 +234,7 @@ class PipeStream(object):
       bytes_from_remaining = min(size - bytes_read, len(self.remaining))
       data_list.append(self.remaining[0:bytes_from_remaining])
       self.remaining = self.remaining[bytes_from_remaining:]
+      self.last_position = self.position
       self.position += bytes_from_remaining
       bytes_read += bytes_from_remaining
       if not self.remaining:
@@ -261,7 +264,9 @@ class PipeStream(object):
       return
     elif whence == os.SEEK_SET and offset == self.position:
       return
-    raise NotImplementedError
+    raise NotImplementedError(
+        'offset: %s, whence: %s, position: %s, last: %s' % (
+            offset, whence, self.position, self.last_position))
 
   def _check_open(self):
     if self.closed:

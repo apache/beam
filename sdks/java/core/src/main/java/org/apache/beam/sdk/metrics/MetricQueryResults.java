@@ -50,17 +50,10 @@ public abstract class MetricQueryResults {
           sb.append(", ");
         }
         MetricName name = metricResult.getName();
-        sb.append(metricResult.getStep())
-            .append(":")
-            .append(name.getNamespace())
-            .append(":")
-            .append(name.getName())
-            .append(": ")
-            .append(metricResult.getAttempted());
-        try {
+        sb.append(metricResult.getKey()).append(": ").append(metricResult.getAttempted());
+        if (metricResult.hasCommitted()) {
           T committed = metricResult.getCommitted();
           sb.append(", ").append(committed);
-        } catch (UnsupportedOperationException ignored) {
         }
       }
       sb.append(")");

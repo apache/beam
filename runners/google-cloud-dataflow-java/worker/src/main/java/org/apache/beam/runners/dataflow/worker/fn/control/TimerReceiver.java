@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -78,7 +78,7 @@ public class TimerReceiver {
     ProcessBundleDescriptors.ExecutableProcessBundleDescriptor executableProcessBundleDescriptor =
         stageBundleFactory.getProcessBundleDescriptor();
 
-    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+    ProcessBundleDescriptor processBundleDescriptor =
         executableProcessBundleDescriptor.getProcessBundleDescriptor();
 
     // Create and cache lookups so that we don't have to dive into the ProcessBundleDescriptor
@@ -203,7 +203,7 @@ public class TimerReceiver {
 
   // Retrieves all window coders for all TimerSpecs.
   private static Map<String, Coder<BoundedWindow>> createTimerWindowCodersMap(
-      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor,
+      ProcessBundleDescriptor processBundleDescriptor,
       Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap,
       RunnerApi.Components components) {
     Map<String, Coder<BoundedWindow>> timerWindowCodersMap = new HashMap<>();
@@ -242,7 +242,7 @@ public class TimerReceiver {
   private static RunnerApi.Coder getTimerWindowingCoder(
       RunnerApi.PTransform pTransform,
       String timerId,
-      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor) {
+      ProcessBundleDescriptor processBundleDescriptor) {
     String timerPCollectionId = pTransform.getInputsMap().get(timerId);
     RunnerApi.PCollection timerPCollection =
         processBundleDescriptor.getPcollectionsMap().get(timerPCollectionId);

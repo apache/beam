@@ -35,6 +35,7 @@ dependencies {
   compile gradleApi()
   compile localGroovy()
   compile 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
+  compile 'gradle.plugin.com.github.spotbugs:spotbugs-gradle-plugin:1.6.9'                            // Enable spotbugs
 
   runtime "net.ltgt.gradle:gradle-apt-plugin:0.20"                                                    // Enable a Java annotation processor
   runtime "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                          // Enable proto code generation

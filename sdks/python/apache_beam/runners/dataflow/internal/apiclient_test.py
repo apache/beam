@@ -99,6 +99,44 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(env.proto.workerPools[0].subnetwork,
                      '/regions/MY/subnetworks/SUBNETWORK')
 
+  def test_flexrs_blank(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(env.proto.flexResourceSchedulingGoal, None)
+
+  def test_flexrs_cost(self):
+    pipeline_options = PipelineOptions(
+        ['--flexrs_goal', 'COST_OPTIMIZED',
+         '--temp_location', 'gs://any-location/temp'])
+
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.flexResourceSchedulingGoal,
+        (dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+         FLEXRS_COST_OPTIMIZED))
+
+  def test_flexrs_speed(self):
+    pipeline_options = PipelineOptions(
+        ['--flexrs_goal', 'SPEED_OPTIMIZED',
+         '--temp_location', 'gs://any-location/temp'])
+
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.flexResourceSchedulingGoal,
+        (dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+         FLEXRS_SPEED_OPTIMIZED))
+
   def test_invalid_default_job_name(self):
     # Regexp for job names in dataflow.
     regexp = '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'
@@ -248,11 +286,21 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    if sys.version_info[0] == 3:
+    if sys.version_info[0:2] == (3, 5):
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
            '/python3-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 6):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python36-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 7):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python37-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
     else:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -266,11 +314,21 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    if sys.version_info[0] == 3:
+    if sys.version_info[0:2] == (3, 5):
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
            '/python3:' + names.BEAM_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 6):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python36:' + names.BEAM_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 7):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python37:' + names.BEAM_CONTAINER_VERSION))
     else:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -398,7 +456,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      [2, 333])
+      (2, 333))
   def test_get_python_sdk_name(self):
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',
@@ -412,28 +470,28 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      [2, 7])
+      (2, 7))
   def test_interpreter_version_check_passes_py27(self):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      [3, 5, 2])
+      (3, 5, 2))
   def test_interpreter_version_check_passes_py352(self):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      [3, 5, 6])
+      (3, 5, 6))
   def test_interpreter_version_check_passes_py356(self):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      [3, 9, 0])
+      (3, 9, 0))
   def test_interpreter_version_check_passes_with_experiment(self):
     pipeline_options = PipelineOptions(
         ["--experiment=ignore_py3_minor_version"])
@@ -441,7 +499,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      [3, 9, 0])
+      (3, 9, 0))
   def test_interpreter_version_check_fails_py39(self):
     pipeline_options = PipelineOptions([])
     self.assertRaises(

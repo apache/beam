@@ -44,6 +44,7 @@ import org.apache.kudu.client.KuduException;
 import org.apache.kudu.client.Operation;
 import org.apache.kudu.client.RowResult;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -130,6 +131,7 @@ public class KuduIOTest {
    * deserializing writers and that each writer is opening and closing Kudu sessions.
    */
   @Test
+  @Ignore
   public void testWrite() throws Exception {
     when(mockWriteService.createWriter(any())).thenReturn(new FakeWriter());
 

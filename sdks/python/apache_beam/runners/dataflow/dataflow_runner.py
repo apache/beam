@@ -590,27 +590,6 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
-  def apply_WriteToBigQuery(self, transform, pcoll, options):
-    # Make sure this is the WriteToBigQuery class that we expected
-    if not isinstance(transform, beam.io.WriteToBigQuery):
-      return self.apply_PTransform(transform, pcoll, options)
-    standard_options = options.view_as(StandardOptions)
-    if standard_options.streaming:
-      if (transform.write_disposition ==
-          beam.io.BigQueryDisposition.WRITE_TRUNCATE):
-        raise RuntimeError('Can not use write truncation mode in streaming')
-      return self.apply_PTransform(transform, pcoll, options)
-    else:
-      return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
-          beam.io.BigQuerySink(
-              transform.table_reference.tableId,
-              transform.table_reference.datasetId,
-              transform.table_reference.projectId,
-              transform.schema,
-              transform.create_disposition,
-              transform.write_disposition,
-              kms_key=transform.kms_key))
-
   def apply_GroupByKey(self, transform, pcoll, options):
     # Infer coder of parent.
     #

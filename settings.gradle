@@ -207,6 +207,8 @@ include "beam-sdks-python-test-suites-dataflow-py3"
 project(":beam-sdks-python-test-suites-dataflow-py3").dir = file("sdks/python/test-suites/dataflow/py3")
 include "beam-sdks-python-test-suites-direct-py3"
 project(":beam-sdks-python-test-suites-direct-py3").dir = file("sdks/python/test-suites/direct/py3")
+include "beam-sdks-python-load-tests"
+project(":beam-sdks-python-load-tests").dir = file("sdks/python/apache_beam/testing/load_tests")
 include "beam-vendor-grpc-1_13_1"
 project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
 include "beam-sdks-java-test-utils"
@@ -227,3 +229,5 @@ include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
 include "beam-sdks-java-bom"
 project(":beam-sdks-java-bom").dir = file("sdks/java/bom")
+include "beam-test-tools"
+project(":beam-test-tools").dir = file(".test-infra/tools")

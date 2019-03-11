@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.util.HashMap;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 
 /**
  * Provides convenient one line factories for unit tests that need to generate test MonitoringInfos.

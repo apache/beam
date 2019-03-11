@@ -30,8 +30,10 @@ import java.util.stream.Collectors;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -77,6 +79,9 @@ class ParDoTranslator<InputT, OutputT>
     PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
+    DoFnSchemaInformation doFnSchemaInformation;
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
     Map<TupleTag<?>, Coder<?>> outputCoders =
         outputs.entrySet().stream()
             .filter(e -> e.getValue() instanceof PCollection)
@@ -92,6 +97,7 @@ class ParDoTranslator<InputT, OutputT>
             sideInputs,
             input.getCoder(),
             outputCoders,
+            doFnSchemaInformation,
             context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
@@ -155,6 +161,7 @@ class ParDoTranslator<InputT, OutputT>
               sideInputs,
               input.getCoder(),
               outputCoders,
+              DoFnSchemaInformation.create(),
               context.getStateBackend());
 
       Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());

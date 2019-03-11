@@ -418,6 +418,10 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Set a Google Cloud KMS key name to be used in '
                         'Dataflow state operations (GBK, Streaming).')
+    parser.add_argument('--flexrs_goal',
+                        default=None,
+                        choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
+                        help='Set the Flexible Resource Scheduling mode')
 
   def validate(self, validator):
     errors = []
@@ -591,6 +595,7 @@ class DebugOptions(PipelineOptions):
          'before enabling any experiments.'))
 
   def add_experiment(self, experiment):
+    # pylint: disable=access-member-before-definition
     if self.experiments is None:
       self.experiments = []
     if experiment not in self.experiments:

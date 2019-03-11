@@ -51,7 +51,7 @@ func TestClassOf(t *testing.T) {
 		}{}), Concrete},
 		{reflect.TypeOf(struct{ A []int }{}), Concrete},
 		{reflect.TypeOf(reflect.Value{}), Concrete}, // ok: private fields
-		{reflect.TypeOf(map[string]int{}), Invalid},
+		{reflect.TypeOf(map[string]int{}), Concrete},
 		{reflect.TypeOf(map[string]func(){}), Invalid},
 		{reflect.TypeOf(map[error]int{}), Invalid},
 		{reflect.TypeOf([4]int{}), Concrete},
@@ -74,7 +74,7 @@ func TestClassOf(t *testing.T) {
 		{reflect.TypeOf(RecursivePtrTest{}), Concrete},
 		{reflect.TypeOf(RecursiveSliceTest{}), Concrete},
 		{reflect.TypeOf(RecursivePtrArrayTest{}), Concrete},
-		{reflect.TypeOf(RecursiveMapTest{}), Invalid},
+		{reflect.TypeOf(RecursiveMapTest{}), Concrete},
 		{reflect.TypeOf(RecursiveBadTest{}), Invalid},
 
 		{reflect.TypeOf([]X{}), Container},

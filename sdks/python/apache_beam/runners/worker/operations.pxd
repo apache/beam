@@ -98,7 +98,8 @@ cdef class DoOperation(Operation):
 
 
 cdef class SdfProcessElements(DoOperation):
-  pass
+  cdef object lock
+  cdef object element_start_output_bytes
 
 
 cdef class CombineOperation(Operation):

@@ -67,6 +67,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -116,6 +117,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient FlinkMetricContainer flinkMetricContainer;
   private transient long backupWatermarkHold = Long.MIN_VALUE;
 
+  /** Constructor. */
   public ExecutableStageDoFnOperator(
       String stepName,
       Coder<WindowedValue<InputT>> windowedInputCoder,
@@ -149,7 +151,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         sideInputs,
         options,
         keyCoder,
-        keySelector);
+        keySelector,
+        DoFnSchemaInformation.create());
     this.payload = payload;
     this.jobInfo = jobInfo;
     this.contextFactory = contextFactory;
@@ -476,7 +479,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         // output watermark.
         backupWatermarkHold = Math.max(backupWatermarkHold, getPushbackWatermarkHold());
         setPushedBackWatermark(Math.min(currentOutputWatermark, backupWatermarkHold));
-        sdkHarnessRunner.setBundleFinishedCallback(
+        super.setBundleFinishedCallback(
             () -> {
               try {
                 LOG.debug("processing pushed back watermark: {}", mark);
@@ -513,7 +516,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     private RemoteBundle remoteBundle;
     private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
-    private Runnable bundleFinishedCallback;
     // Timer key set before calling Flink's internal timer service to register
     // a timer. The timer service will retrieve this with a call to {@code getCurrentKey}.
     // Before firing a timer, this will be initialized with the current key
@@ -591,6 +593,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
       Preconditions.checkNotNull(
           currentTimerKey, "Key for timer needs to be set before calling onTimer");
+      Preconditions.checkNotNull(remoteBundle, "Call to onTimer outside of a bundle");
       LOG.debug("timer callback: {} {} {} {}", timerId, window, timestamp, timeDomain);
       FnDataReceiver<WindowedValue<?>> timerReceiver =
           Preconditions.checkNotNull(
@@ -625,10 +628,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       } finally {
         remoteBundle = null;
       }
-      if (bundleFinishedCallback != null) {
-        bundleFinishedCallback.run();
-        bundleFinishedCallback = null;
-      }
     }
 
     /** Key for timer which has not been registered yet. */
@@ -643,10 +642,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     boolean isBundleInProgress() {
       return remoteBundle != null;
-    }
-
-    void setBundleFinishedCallback(Runnable callback) {
-      this.bundleFinishedCallback = callback;
     }
 
     private void emitResults() {
