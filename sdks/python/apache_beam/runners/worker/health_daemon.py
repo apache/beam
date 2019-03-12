@@ -49,8 +49,9 @@ class HealthDaemon(object):
 
   HEALTH_CHECK_ENDPOINT = '/sdk'
 
-  def __init__(self, health_http_port):
+  def __init__(self, health_http_port, ping_interval_secs):
     self._health_http_port = health_http_port
+    self._ping_interval_secs = ping_interval_secs
 
   @staticmethod
   def connect_to_server(health_http_port, timeout=5):
@@ -126,4 +127,4 @@ class HealthDaemon(object):
       HealthDaemon.try_health_ping(conn)
 
       logging.debug('Health Client Daemon sleeping for 15 seconds...')
-      time.sleep(15)
+      time.sleep(self._ping_interval_secs)
