@@ -17,10 +17,8 @@
  */
 package org.apache.beam.examples.kotlin
 
-import java.util.Arrays
 import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.io.TextIO
-import org.apache.beam.sdk.options.PipelineOptions
 import org.apache.beam.sdk.options.PipelineOptionsFactory
 import org.apache.beam.sdk.transforms.*
 import org.apache.beam.sdk.values.KV
@@ -74,14 +72,14 @@ object MinimalWordCount {
         // or FlinkRunner.
         // CHANGE 2/3: Specify runner-required options.
         // For BlockingDataflowRunner, set project and temp location as follows:
-        //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-        //   dataflowOptions.setRunner(BlockingDataflowRunner.class);
-        //   dataflowOptions.setProject("SET_YOUR_PROJECT_ID_HERE");
-        //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+        //   val dataflowOptions : DataflowPipelineOptions = options.as(DataflowPipelineOptions::class.java)
+        //   dataflowOptions.runner = BlockingDataflowRunner::class.java
+        //   dataflowOptions.project = "SET_YOUR_PROJECT_ID_HERE"
+        //   dataflowOptions.tempLocation = "gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY"
         // For FlinkRunner, set the runner as follows. See {@code FlinkPipelineOptions}
         // for more details.
-        //   options.as(FlinkPipelineOptions.class)
-        //      .setRunner(FlinkRunner.class);
+        //   options.as(FlinkPipelineOptions::class.java)
+        //      .setRunner(FlinkRunner::class.java)
 
         // Create the Pipeline object with the options we defined above
         val p = Pipeline.create(options)
