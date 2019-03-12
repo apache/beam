@@ -67,7 +67,7 @@ import java.util.concurrent.ThreadLocalRandom
  * <pre>`--runner=YOUR_SELECTED_RUNNER
 `</pre> *
  *
- * See examples/java/README.md for instructions about how to configure different runners.
+ * See examples/kotlin/README.md for instructions about how to configure different runners.
  *
  *
  * To execute this pipeline locally, specify a local output file (if using the `DirectRunner`) or output prefix on a supported distributed file system.
