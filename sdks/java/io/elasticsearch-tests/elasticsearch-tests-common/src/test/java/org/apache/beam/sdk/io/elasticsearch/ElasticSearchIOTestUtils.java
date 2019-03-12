@@ -28,6 +28,7 @@ import java.util.List;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
@@ -241,5 +242,16 @@ class ElasticSearchIOTestUtils {
         restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
     JsonNode searchResult = parseResponse(response.getEntity());
     return searchResult.path("hits").path("total").asInt();
+  }
+
+  public static void setIndexMapping(RestClient restClient, String index) throws IOException {
+    String endpoint = String.format("/%s", index);
+    String requestString =
+        String.format(
+            "{\"mappings\":{\"%s\":{\"properties\":{\"age\":{\"type\":\"long\"}}}}}", index);
+    HttpEntity requestBody = new NStringEntity(requestString, ContentType.APPLICATION_JSON);
+    Request request = new Request("PUT", endpoint);
+    request.setEntity(requestBody);
+    restClient.performRequest(request);
   }
 }
