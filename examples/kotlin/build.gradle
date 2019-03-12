@@ -23,10 +23,10 @@ applyJavaNature(exportJavadoc: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
-description = "Apache Beam :: Examples :: Java"
-ext.summary = """Apache Beam SDK provides a simple, Java-based
+description = "Apache Beam :: Examples :: Kotlin"
+ext.summary = """Apache Beam SDK provides a simple, Kotlin-based
 interface for processing virtually any size data. This
-artifact includes all Apache Beam Java SDK examples."""
+artifact includes all Apache Beam Kotlin SDK examples."""
 
 /** Define the list of runners which execute a precommit test.
  * Some runners are run from separate projects, see the preCommit task below
@@ -72,8 +72,8 @@ dependencies {
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadow"))
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadowTest"))
+    delegate.add(runner + "PreCommit", project(path: ":beam-examples-kotlin", configuration: "shadow"))
+    delegate.add(runner + "PreCommit", project(path: ":beam-examples-kotlin", configuration: "shadowTest"))
   }
   // https://issues.apache.org/jira/browse/BEAM-3583
   // apexRunnerPreCommit project(path: ":beam-runners-apex", configuration: "shadow")
