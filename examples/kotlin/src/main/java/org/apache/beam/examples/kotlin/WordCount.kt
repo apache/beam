@@ -20,22 +20,16 @@ package org.apache.beam.examples.kotlin
 import org.apache.beam.examples.kotlin.common.ExampleUtils
 import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.io.TextIO
-import org.apache.beam.sdk.metrics.Counter
-import org.apache.beam.sdk.metrics.Distribution
 import org.apache.beam.sdk.metrics.Metrics
 import org.apache.beam.sdk.options.Default
 import org.apache.beam.sdk.options.Description
 import org.apache.beam.sdk.options.PipelineOptions
 import org.apache.beam.sdk.options.PipelineOptionsFactory
 import org.apache.beam.sdk.options.Validation.Required
-import org.apache.beam.sdk.transforms.Count
-import org.apache.beam.sdk.transforms.DoFn
-import org.apache.beam.sdk.transforms.MapElements
-import org.apache.beam.sdk.transforms.PTransform
-import org.apache.beam.sdk.transforms.ParDo
-import org.apache.beam.sdk.transforms.SimpleFunction
+import org.apache.beam.sdk.transforms.*
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
+import org.apache.beam.sdk.values.PDone
 
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
@@ -100,7 +94,7 @@ object WordCount {
         @ProcessElement
         fun processElement(@Element element: String, receiver: DoFn.OutputReceiver<String>) {
             lineLenDist.update(element.length.toLong())
-            if (element.trim { it <= ' ' }.isEmpty()) {
+            if (element.trim(' ').isEmpty()) {
                 emptyLines.inc()
             }
 
@@ -119,7 +113,7 @@ object WordCount {
     /** A SimpleFunction that converts a Word and Count into a printable string.  */
     class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
         override fun apply(input: KV<String, Long>): String {
-            return input.key + ": " + input.value
+            return "${input.key} : ${input.value}"
         }
     }
 
@@ -172,7 +166,8 @@ object WordCount {
         var output: String
     }
 
-    internal fun runWordCount(options: WordCountOptions) {
+    @JvmStatic
+    fun runWordCount(options: WordCountOptions) {
         val p = Pipeline.create(options)
 
         // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
@@ -187,8 +182,7 @@ object WordCount {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).withValidation().`as`<WordCountOptions>(WordCountOptions::class.java)
-
+        val options = (PipelineOptionsFactory.fromArgs(*args).withValidation() as WordCountOptions)
         runWordCount(options)
     }
 }

@@ -19,7 +19,8 @@ package org.apache.beam.examples;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
-import org.apache.beam.examples.DebuggingWordCount.WordCountOptions;
+import org.apache.beam.examples.kotlin.DebuggingWordCount;
+import org.apache.beam.examples.kotlin.DebuggingWordCount.WordCountOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 import org.junit.Rule;
@@ -28,7 +29,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link DebuggingWordCount}. */
+/** Tests for {@link org.apache.beam.examples.kotlin.DebuggingWordCount}. */
 @RunWith(JUnit4.class)
 public class DebuggingWordCountTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
