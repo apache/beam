@@ -45,6 +45,7 @@ from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
@@ -141,6 +142,8 @@ def parse_table_reference(table, dataset=None, project=None):
   if isinstance(table, bigquery.TableReference):
     return table
   elif callable(table):
+    return table
+  elif isinstance(table, value_provider.ValueProvider):
     return table
 
   table_reference = bigquery.TableReference()
@@ -994,11 +997,29 @@ class AppendDestinationsFn(DoFn):
   Experimental; no backwards compatibility guarantees.
   """
 
-  def __init__(self, destination):
-    if callable(destination):
-      self.destination = destination
+  def __init__(self, destination, schema=None):
+    self.destination = AppendDestinationsFn._get_table_fn(destination, schema)
+
+  @staticmethod
+  def _value_provider_or_static_val(elm):
+    if isinstance(elm, value_provider.ValueProvider):
+      return elm
     else:
-      self.destination = lambda x: destination
+      # The type argument is a NoOp, because we assume the argument already has
+      # the proper formatting.
+      return value_provider.StaticValueProvider(lambda x: x, value=elm)
+
+  @staticmethod
+  def _get_table_fn(destination, schema=None):
+    if callable(destination):
+      return destination
+    elif not callable(destination) and schema is not None:
+      return lambda x: (
+          AppendDestinationsFn._value_provider_or_static_val(destination).get(),
+          AppendDestinationsFn._value_provider_or_static_val(schema).get())
+    else:
+      return lambda x: AppendDestinationsFn._value_provider_or_static_val(
+          destination).get()
 
   def process(self, element):
     yield (self.destination(element), element)
