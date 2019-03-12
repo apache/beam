@@ -264,7 +264,6 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
-    include "**/ViewTest.class"
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         commonExcludeCategories.each {
