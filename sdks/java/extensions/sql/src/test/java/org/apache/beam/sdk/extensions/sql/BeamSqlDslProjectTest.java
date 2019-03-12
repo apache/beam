@@ -26,10 +26,12 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for field-project in queries with BOUNDED PCollection. */
@@ -53,7 +55,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
   }
 
   /** select partial fields with bounded PCollection. */
@@ -81,7 +83,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PAssert.that(result).containsInAnyOrder(row);
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
   }
 
   /** select partial fields for multiple rows with bounded PCollection. */
@@ -110,7 +112,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
   }
 
   private Row rowAtIndex(Schema schema, int index) {
@@ -145,7 +147,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
   }
 
   /** select literal field with bounded PCollection. */
@@ -173,7 +175,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PAssert.that(result).containsInAnyOrder(row);
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
   }
 
   @Test
@@ -188,6 +190,31 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
             .apply("testProjectUnknownField", SqlTransform.query(sql));
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
+  }
+
+  /**
+   * Trivial programs project precisely their input fields, without dropping or re-ordering them.
+   *
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-6810">BEAM-6810</a>
+   */
+  @Test
+  public void testTrivialProjection() {
+    String sql = "SELECT c_int64 as abc FROM PCOLLECTION";
+    Schema inputSchema = Schema.of(Schema.Field.of("c_int64", Schema.FieldType.INT64));
+    Schema outputSchema = Schema.of(Schema.Field.of("abc", Schema.FieldType.INT64));
+
+    PCollection<Row> input =
+        pipeline.apply(
+            Create.of(Row.withSchema(inputSchema).addValue(42L).build())
+                .withRowSchema(inputSchema));
+
+    PCollection<Row> result = input.apply(SqlTransform.query(sql));
+
+    Assert.assertEquals(outputSchema, result.getSchema());
+
+    PAssert.that(result).containsInAnyOrder(Row.withSchema(outputSchema).addValue(42L).build());
+
+    pipeline.run();
   }
 }
