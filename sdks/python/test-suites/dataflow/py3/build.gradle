@@ -44,6 +44,9 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
         "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_batch_rewrite_token",
         "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_kms",
         "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_rewrite_token",
+        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest.test_streaming_data_only",
+        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest.test_streaming_with_attributes",
+        "apache_beam.io.parquetio_it_test:TestParquetIT.test_parquetio_it",
     ]
     def testOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def cmdArgs = project.mapToArgString([
