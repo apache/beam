@@ -21,8 +21,9 @@ A PTransform that provides a bounded or unbounded stream of integers.
 from __future__ import absolute_import
 
 from apache_beam import ExternalTransform
-from apache_beam.portability.api import external_transforms_pb2
-from apache_beam.portability.common_urns import generate_sequence
+from apache_beam.coders import VarIntCoder
+from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
+from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 
 
 class GenerateSequence(ExternalTransform):
@@ -30,16 +31,29 @@ class GenerateSequence(ExternalTransform):
   def __init__(self, start, stop=None,
                elements_per_period=None, max_read_time=None,
                expansion_service=None):
-    payload = external_transforms_pb2.GenerateSequencePayload(start=start)
+    coder = VarIntCoder()
+    coder_urn = 'beam:coder:varint:v1'
+    args = {
+        'start':
+            ConfigValue(
+                coder_urn=coder_urn,
+                payload=coder.encode(start))
+    }
     if stop:
-      payload.stop_provided = True
-      payload.stop_value = stop
+      args['stop'] = ConfigValue(
+          coder_urn=coder_urn,
+          payload=coder.encode(stop))
     if elements_per_period:
-      payload.elements_per_period_provided = True
-      payload.elements_per_period_value = elements_per_period
+      args['elements_per_period'] = ConfigValue(
+          coder_urn=coder_urn,
+          payload=coder.encode(elements_per_period))
     if max_read_time:
-      payload.max_read_time_provided = True
-      payload.max_read_time_value = max_read_time
+      args['max_read_time'] = ConfigValue(
+          coder_urn=coder_urn,
+          payload=coder.encode(max_read_time))
 
+    payload = ExternalConfigurationPayload(configuration=args)
     super(GenerateSequence, self).__init__(
-        generate_sequence.urn, payload.SerializeToString(), expansion_service)
+        'beam:external:java:generate_sequence:v1',
+        payload.SerializeToString(),
+        expansion_service)
