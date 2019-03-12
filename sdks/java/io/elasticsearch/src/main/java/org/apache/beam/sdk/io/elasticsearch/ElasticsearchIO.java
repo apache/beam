@@ -193,7 +193,7 @@ public class ElasticsearchIO {
       for (JsonNode item : items) {
 
         String errorRootName = "";
-        // when use partial update, the response items includes all is update.
+        // when use partial update, the response items includes all the update.
         if (partialUpdate) {
           errorRootName = "update";
         } else {

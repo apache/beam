@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_INDEX;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
@@ -73,7 +75,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public Settings indexSettings() {
     return Settings.builder()
         .put(super.indexSettings())
-        //useful to have updated sizes for getEstimatedSize
+        // useful to have updated sizes for getEstimatedSize
         .put("index.store.stats_refresh_interval", 0)
         .build();
   }
@@ -190,13 +192,13 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
 
   @Test
   public void testWritePartialUpdateWithErrors() throws Exception {
-    elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.setIndexMapping(fillAddresses());
-    elasticsearchIOTestCommon.testWritePartialUpdateWithErrors(
-        ConnectionConfiguration.create(
-            fillAddresses(),
-            ElasticsearchIOTestCommon.UPDATE_INDEX,
-            ElasticsearchIOTestCommon.UPDATE_TYPE));
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ConnectionConfiguration connectionConfiguration =
+        ConnectionConfiguration.create(fillAddresses(), UPDATE_INDEX, UPDATE_TYPE);
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
+        new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
+    elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
+    elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
   }
 
   @Test
