@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -94,6 +95,22 @@ public class BeamEnumerableConverterTest {
     assertEquals(1L, row[1]);
     assertFalse(enumerator.moveNext());
     enumerator.close();
+  }
+
+  @Test
+  public void testToListRow_collectMultiple() {
+    Schema schema = Schema.builder().addInt64Field("id").addInt64Field("otherid").build();
+    RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
+    ImmutableList<ImmutableList<RexLiteral>> tuples =
+        ImmutableList.of(
+            ImmutableList.of(
+                rexBuilder.makeBigintLiteral(BigDecimal.ZERO),
+                rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
+    BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
+
+    List<Row> rowList = BeamEnumerableConverter.toRowList(options, node);
+    assertTrue(rowList.size() == 1);
+    assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
   }
 
   @Test
