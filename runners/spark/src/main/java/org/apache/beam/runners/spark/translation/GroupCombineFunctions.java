@@ -143,10 +143,10 @@ public class GroupCombineFunctions {
     // Once Spark provides a way to include keys in the arguments of combine/merge functions,
     // we won't need to duplicate the keys anymore.
     // Key has to bw windowed in order to group by window as well.
-    JavaPairRDD<K, WindowedValue<KV<K, InputT>>> inRddDuplicatedKeyPair =
-        rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue());
+    JavaPairRDD<ByteArray, WindowedValue<KV<K, InputT>>> inRddDuplicatedKeyPair =
+        rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue(keyCoder));
 
-    JavaPairRDD<K, SerializableAccumulator<KV<K, AccumT>>> accumulatedResult =
+    JavaPairRDD<ByteArray, SerializableAccumulator<KV<K, AccumT>>> accumulatedResult =
         inRddDuplicatedKeyPair.combineByKey(
             input ->
                 SerializableAccumulator.of(sparkCombineFn.createCombiner(input), iterAccumCoder),
@@ -160,7 +160,11 @@ public class GroupCombineFunctions {
                         acc1.getOrDecode(iterAccumCoder), acc2.getOrDecode(iterAccumCoder)),
                     iterAccumCoder));
 
-    return accumulatedResult.mapToPair(i -> new Tuple2<>(i._1, i._2.getOrDecode(iterAccumCoder)));
+    return accumulatedResult.mapToPair(
+        i ->
+            new Tuple2<>(
+                CoderHelpers.fromByteArray(i._1.getValue(), keyCoder),
+                i._2.getOrDecode(iterAccumCoder)));
   }
 
   /** An implementation of {@link Reshuffle} for the Spark runner. */
