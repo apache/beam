@@ -45,25 +45,29 @@ Granularity of changes:
 ## Always get to LGTM ("Looks good to me!")
 
 After a pull request goes through rounds of reviews and revisions, it will
-become ready for merge. A committer (who is _not_ the author of the code)
-should signal this either by GitHub "approval" or by a comment such as "Looks
-good to me!" (LGTM). Any committer can then merge the pull request. It is fine
-for a committer to self-merge if another committer has reviewed the code and
-approved it, just be sure to be explicit about whose job it is!
+become ready for merge. A reviewer signals their approval either
+by GitHub "approval" or by a comment such as "Looks good to me!" (LGTM).
 
-Pull requests should not be merged before the review has received an explicit
-LGTM from another committer. Exceptions to this rule are rare and made on a
-case-by-case basis. A committer may use their discretion for situations such as
-build breaks. In this case, you should still seek a review on the pull request!
-A common acronym you may see is "TBR" -- "to be reviewed".
+ - If the author of the pull request is not a committer, a committer must be
+   the one to approve the change.
+ - If the author of the pull request is a committer, approval from their chosen
+   reviewer is enough. A committer is trusted to choose an appropriate
+   reviewer, even if the reviewer is not a committer.
 
-Committers should never commit anything without going through a pull request,
-because that bypasses test coverage and could potentially cause the build to
-fail. In addition, pull requests ensure that changes are communicated properly
-and potential flaws or improvements can be spotted.  **Always go through a pull
-request, even if you won’t wait for the code review.** Even then, reviewers
-can provide comments in the pull request after the merge happens, for use
-in follow-up pull requests.
+Once a pull request is approved, any committer can merge it.
+
+Exceptions to this rule are rare and made on a case-by-case basis. A committer
+may use their discretion for situations such as build breaks. In this case, you
+should still seek a review on the pull request!  A common acronym you may see
+is "TBR" -- "to be reviewed".
+
+**Always go through a pull request, even if you won’t wait for the code
+review.** Committers should never commit anything without going through a pull
+request, even when it is an urgent fix or rollback due to build breakage.
+Skipping pull request bypasses test coverage and could potentially cause the
+build to fail, or fail to fix breakage.  In addition, pull requests ensure that
+changes are communicated properly and potential flaws or improvements can be
+spotted, even after the merge happens.
 
 ## Contributor License Agreement
 
