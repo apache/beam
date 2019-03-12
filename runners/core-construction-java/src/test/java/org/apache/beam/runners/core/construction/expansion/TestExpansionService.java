@@ -19,12 +19,8 @@ package org.apache.beam.runners.core.construction.expansion;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -49,32 +45,6 @@ public class TestExpansionService {
                   Filter.lessThanEq(
                       // TODO(BEAM-6587): Use strings directly rather than longs.
                       (long) spec.getPayload().toStringUtf8().charAt(0)));
-    }
-  }
-
-  /** Exposes Java's GenerateSequence transform. */
-  @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
-  public static class RegisteredTransforms implements ExpansionService.ExpansionServiceRegistrar {
-
-    private static final String generateSequenceUrn =
-        BeamUrns.getUrn(ExternalTransforms.GenerateSequencePayload.Enum.PROPERTIES);
-
-    @Override
-    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
-      ImmutableMap.Builder<String, ExpansionService.TransformProvider> builder =
-          ImmutableMap.builder();
-      builder.put(
-          generateSequenceUrn,
-          spec -> {
-            ExternalTransforms.GenerateSequencePayload payload;
-            try {
-              payload = ExternalTransforms.GenerateSequencePayload.parseFrom(spec.getPayload());
-            } catch (InvalidProtocolBufferException e) {
-              throw new RuntimeException("Failed to parse GenerateSequencePayload", e);
-            }
-            return GenerateSequence.fromExternal(payload);
-          });
-      return builder.build();
     }
   }
 

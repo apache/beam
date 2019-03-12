@@ -15,28 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.expansion;
 
-/*
- * Protocol Buffers describing the external transforms available.
+import java.util.Map;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
+
+/**
+ * A registrar which contains a mapping from URNs to available {@link ExternalTransformBuilder}s.
+ * Should be used with {@link com.google.auto.service.AutoService}.
  */
+public interface ExternalTransformRegistrar {
 
-syntax = "proto3";
-
-package org.apache.beam.model.pipeline.v1;
-
-option go_package = "pipeline_v1";
-option java_package = "org.apache.beam.model.pipeline.v1";
-option java_outer_classname = "ExternalTransforms";
-
-import "beam_runner_api.proto";
-
-message ConfigValue {
-  string coder_urn = 1;
-  bytes payload = 2;
-}
-
-// A configuration payload for an external transform.
-// Used as the payload of ExternalTransform as part of an ExpansionRequest.
-message ExternalConfigurationPayload {
-  map<string, ConfigValue> configuration = 1;
+  /** A mapping from URN to an {@link ExternalTransformBuilder} class. */
+  Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders();
 }
