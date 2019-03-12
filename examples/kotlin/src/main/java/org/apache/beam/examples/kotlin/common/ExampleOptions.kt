@@ -15,23 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.kotlin.common;
+package org.apache.beam.examples.kotlin.common
 
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.Default
+import org.apache.beam.sdk.options.Description
+import org.apache.beam.sdk.options.PipelineOptions
 
-/** Options that can be used to configure the Beam examples. */
-public interface ExampleOptions extends PipelineOptions {
-  @Description("Whether to keep jobs running after local process exit")
-  @Default.Boolean(false)
-  boolean getKeepJobsRunning();
+/** Options that can be used to configure the Beam examples.  */
+interface ExampleOptions : PipelineOptions {
+    @get:Description("Whether to keep jobs running after local process exit")
+    @get:Default.Boolean(false)
+    var keepJobsRunning: Boolean
 
-  void setKeepJobsRunning(boolean keepJobsRunning);
-
-  @Description("Number of workers to use when executing the injector pipeline")
-  @Default.Integer(1)
-  int getInjectorNumWorkers();
-
-  void setInjectorNumWorkers(int numWorkers);
+    @get:Description("Number of workers to use when executing the injector pipeline")
+    @get:Default.Integer(1)
+    var injectorNumWorkers: Int
 }

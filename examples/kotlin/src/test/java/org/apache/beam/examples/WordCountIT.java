@@ -18,7 +18,8 @@
 package org.apache.beam.examples;
 
 import java.util.Date;
-import org.apache.beam.examples.WordCount.WordCountOptions;
+import org.apache.beam.examples.kotlin.WordCount;
+import org.apache.beam.examples.kotlin.WordCount.WordCountOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
