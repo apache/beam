@@ -1797,14 +1797,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static String getContainerImageForJob(DataflowPipelineOptions options) {
     String workerHarnessContainerImage = options.getWorkerHarnessContainerImage();
+
+    String javaVersionId =
+        Float.parseFloat(System.getProperty("java.specification.version")) >= 9 ? "java11" : "java";
     if (!workerHarnessContainerImage.contains("IMAGE")) {
       return workerHarnessContainerImage;
     } else if (hasExperiment(options, "beam_fn_api")) {
       return workerHarnessContainerImage.replace("IMAGE", "java");
     } else if (options.isStreaming()) {
-      return workerHarnessContainerImage.replace("IMAGE", "beam-java-streaming");
+      return workerHarnessContainerImage.replace(
+          "IMAGE", String.format("beam-%s-streaming", javaVersionId));
     } else {
-      return workerHarnessContainerImage.replace("IMAGE", "beam-java-batch");
+      return workerHarnessContainerImage.replace(
+          "IMAGE", String.format("beam-%s-batch", javaVersionId));
     }
   }
 
