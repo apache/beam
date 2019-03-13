@@ -40,8 +40,11 @@ class Repositories {
       mavenLocal()
       jcenter()
 
-      // Spring for resolving pentaho dependency.
-      maven { url "https://repo.spring.io/plugins-release/" }
+      // Spring only for resolving pentaho dependency.
+      maven {
+        url "https://repo.spring.io/plugins-release/"
+        content { includeGroup "org.pentaho" }
+      }
 
       // Release staging repository
       maven { url "https://oss.sonatype.org/content/repositories/staging/" }
