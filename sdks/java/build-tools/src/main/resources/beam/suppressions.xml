@@ -98,7 +98,7 @@
   <suppress id="ForbidNonVendoredGuava" files=".*cassandra.*CassandraIO\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisIO\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisProducerMock\.java" />
-  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImpl\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*VendoredListenableFutureAdapter\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
