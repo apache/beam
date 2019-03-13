@@ -55,8 +55,6 @@ SUBMIT_TIMESTAMP_LABEL = 'timestamp'
 METRICS_TYPE_LABEL = 'metric'
 VALUE_LABEL = 'value'
 
-PUBLISH_TO_CONSOLE = True
-
 SCHEMA = [
     {'name': ID_LABEL,
      'field_type': 'STRING',
@@ -88,8 +86,7 @@ class MetricsReader(object):
 
   def __init__(self, project_name=None, bq_table=None, bq_dataset=None):
     self.publishers.append(ConsoleMetricsPublisher())
-    check = project_name and bq_table and bq_dataset \
-            is not None
+    check = project_name and bq_table and bq_dataset
     if check:
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)
@@ -98,8 +95,9 @@ class MetricsReader(object):
   def publish_metrics(self, result):
     metrics = result.metrics().query()
     insert_dicts = self._prepare_all_metrics(metrics)
-    for publisher in self.publishers:
-      publisher.publish(insert_dicts)
+    if len(insert_dicts):
+      for publisher in self.publishers:
+        publisher.publish(insert_dicts)
 
   def _prepare_all_metrics(self, metrics):
     submit_timestamp = time.time()
@@ -181,8 +179,7 @@ class ConsoleMetricsPublisher(object):
 
 class BigQueryMetricsPublisher(object):
   def __init__(self, project_name, table, dataset):
-    if project_name is not None:
-      self.bq = BigQueryClient(project_name, table, dataset)
+    self.bq = BigQueryClient(project_name, table, dataset)
 
   def publish(self, results):
     outputs = self.bq.save(results)
