@@ -70,6 +70,7 @@ import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
@@ -433,9 +434,9 @@ public class FakeJobService implements JobService, Serializable {
 
   private JobStatus runQueryJob(JobConfigurationQuery query)
       throws IOException, InterruptedException {
-    List<TableRow> rows = FakeBigQueryServices.rowsFromEncodedQuery(query.getQuery());
-    datasetService.createTable(new Table().setTableReference(query.getDestinationTable()));
-    datasetService.insertAll(query.getDestinationTable(), rows, null);
+    KV<Table, List<TableRow>> result = FakeBigQueryServices.decodeQueryResult(query.getQuery());
+    datasetService.createTable(result.getKey().setTableReference(query.getDestinationTable()));
+    datasetService.insertAll(query.getDestinationTable(), result.getValue(), null);
     return new JobStatus().setState("DONE");
   }
 
