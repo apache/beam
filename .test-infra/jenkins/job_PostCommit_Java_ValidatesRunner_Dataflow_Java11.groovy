@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 
-PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Java11',
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Dataflow',
   'Run Dataflow ValidatesRunner Java 11', 'Google Cloud Dataflow Runner ValidatesRunner Tests On Java 11', this) {
 
   description('Runs the ValidatesRunner suite on the Dataflow runner with Java 11 worker harness.')
