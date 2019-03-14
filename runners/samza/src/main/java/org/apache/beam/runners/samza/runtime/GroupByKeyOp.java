@@ -62,6 +62,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private final Coder<K> keyCoder;
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
   private final String stepName;
+  private final String stepId;
 
   private transient StateInternalsFactory<K> stateInternalsFactory;
   private transient SamzaTimerInternalsFactory<K> timerInternalsFactory;
@@ -74,11 +75,13 @@ public class GroupByKeyOp<K, InputT, OutputT>
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
-      String stepName) {
+      String stepName,
+      String stepId) {
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
+    this.stepId = stepId;
 
     if (!(inputCoder instanceof KeyedWorkItemCoder)) {
       throw new IllegalArgumentException(
@@ -104,7 +107,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            null, context.getTaskContext(), pipelineOptions, null, mainOutputTag);
+            mainOutputTag.getId(), null, context.getTaskContext(), pipelineOptions, null);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 

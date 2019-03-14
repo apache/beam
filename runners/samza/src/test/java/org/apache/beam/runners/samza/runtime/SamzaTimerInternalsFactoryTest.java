@@ -78,7 +78,7 @@ public class SamzaTimerInternalsFactoryTest {
     final TupleTag<?> mainOutputTag = new TupleTag<>("output");
 
     return SamzaStoreStateInternals.createStateInternalFactory(
-        null, context, pipelineOptions, null, mainOutputTag);
+        "42", null, context, pipelineOptions, null);
   }
 
   private static SamzaTimerInternalsFactory<String> createTimerInternalsFactory(

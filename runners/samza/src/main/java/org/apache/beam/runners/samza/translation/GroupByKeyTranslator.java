@@ -193,7 +193,9 @@ class GroupByKeyTranslator<K, InputT, OutputT>
                         reduceFn,
                         windowingStrategy,
                         new DoFnOp.SingleOutputManagerFactory<>(),
-                        nodeFullname)));
+                        nodeFullname,
+                        // TODO: infer a fixed id from the name
+                        outputTag.getId())));
     return outputStream;
   }
 
