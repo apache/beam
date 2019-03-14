@@ -29,7 +29,7 @@ if [[ $PWD != *sdks/python* ]]; then
 fi
 
 # Go to the Apache Beam Python SDK root
-if [[ $PWD != *sdks/python ]]; then
+if [[ "*sdks/python" != $PWD ]]; then
   cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
 fi
 
