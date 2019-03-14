@@ -32,6 +32,7 @@ import sys
 import tempfile
 import time
 import warnings
+import pkg_resources
 from datetime import datetime
 
 from builtins import object
@@ -65,6 +66,32 @@ from apache_beam.utils import retry
 # are expected by the workers.
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
+
+# Determine the version tag to use for the Google Container Registry,
+# for the service image versions to use on the Dataflow worker nodes.
+# Users of Dataflow may be using a locally-modified version of
+# Apache Beam, which they submit to Dataflow with the 
+# --sdk_location option. Those users would most likely modify the
+# version number of Apache Beam, so they can distinguish it from the
+# public distribution of Apache Beam.
+# However, the remote nodes in Dataflow still need to bootsrap the 
+# worker service with a Docker image that a version tag exists for.
+# The most appropriate way for system integrators to modify the 
+# Apache Beam version number would be to add a Local Version Identifier:
+# https://www.python.org/dev/peps/pep-0440/#local-version-identifiers
+#
+# If people only use Local Version Identifiers, then we could use 
+# the "public" attribute of the pkg_resources version object.
+#
+# If people instead use a post-release version identifier:
+# https://www.python.org/dev/peps/pep-0440/#post-releases
+# then only the "base_version" attribute would work both of these
+# version number changes.
+#
+# Since Dataflow documentation does not specify how to modify 
+# version numbers, I am choosing to use "base_version" attribute.
+PRODUCTION_IMAGE_VERSION_TAG = pkg_resources.parse_version(
+  beam_version.__version__).base_version
 
 
 class Step(object):
@@ -928,7 +955,7 @@ def _get_required_container_version(job_type=None):
     else:
       return names.BEAM_CONTAINER_VERSION
   else:
-    return beam_version.__version__
+    return PRODUCTION_IMAGE_VERSION_TAG
 
 
 def get_runner_harness_container_image():
@@ -942,7 +969,7 @@ def get_runner_harness_container_image():
   # Pin runner harness for released versions of the SDK.
   if 'dev' not in beam_version.__version__:
     return (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-            beam_version.__version__)
+            PRODUCTION_IMAGE_VERSION_TAG)
   # Don't pin runner harness for dev versions so that we can notice
   # potential incompatibility between runner and sdk harnesses.
   return None
