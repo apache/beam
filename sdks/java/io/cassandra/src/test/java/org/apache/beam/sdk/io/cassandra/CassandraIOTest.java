@@ -38,7 +38,12 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -56,10 +61,13 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
 import org.junit.AfterClass;
@@ -312,6 +320,110 @@ public class CassandraIOTest implements Serializable {
     for (Row row : results) {
       assertTrue(row.getString("person_name").matches("Name (\\d*)"));
     }
+  }
+
+  static AtomicInteger counter = new AtomicInteger();
+
+  private static class NOOPMapperFactory implements SerializableFunction<Session, Mapper> {
+
+    @Override
+    public Mapper apply(Session input) {
+      return new NOOPMapper();
+    }
+  }
+
+  private static class NOOPMapper implements Mapper<String>, Serializable {
+
+    private ListeningExecutorService executor =
+        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
+
+    Callable<Void> asyncTask =
+        () -> {
+          return (null);
+        };
+
+    @Override
+    public Iterator map(ResultSet resultSet) {
+      if (!resultSet.isExhausted()) {
+        resultSet.iterator().forEachRemaining(r -> counter.getAndIncrement());
+      }
+      return new ArrayList<>().iterator();
+    }
+
+    @Override
+    public Future<Void> deleteAsync(String entity) {
+      counter.incrementAndGet();
+      return executor.submit(asyncTask);
+    }
+
+    @Override
+    public Future<Void> saveAsync(String entity) {
+      counter.incrementAndGet();
+      return executor.submit(asyncTask);
+    }
+  }
+
+  @Test
+  public void testCustomMapperImplRead() throws Exception {
+    insertRecords();
+    counter.set(0);
+
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
+
+    pipeline.apply(
+        CassandraIO.<String>read()
+            .withHosts(Arrays.asList(CASSANDRA_HOST))
+            .withPort(CASSANDRA_PORT)
+            .withKeyspace(CASSANDRA_KEYSPACE)
+            .withTable(CASSANDRA_TABLE)
+            .withCoder(SerializableCoder.of(String.class))
+            .withEntity(String.class)
+            .withMapperFactoryFn(factory));
+    pipeline.run();
+
+    assertEquals(NUM_ROWS, counter.intValue());
+  }
+
+  @Test
+  public void testCustomMapperImplWrite() throws Exception {
+    insertRecords();
+    counter.set(0);
+
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
+
+    pipeline
+        .apply(Create.of(""))
+        .apply(
+            CassandraIO.<String>write()
+                .withHosts(Arrays.asList(CASSANDRA_HOST))
+                .withPort(CASSANDRA_PORT)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withMapperFactoryFn(factory)
+                .withEntity(String.class));
+    pipeline.run();
+
+    assertEquals(1, counter.intValue());
+  }
+
+  @Test
+  public void testCustomMapperImplDelete() throws Exception {
+    insertRecords();
+    counter.set(0);
+
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
+
+    pipeline
+        .apply(Create.of(""))
+        .apply(
+            CassandraIO.<String>write()
+                .withHosts(Arrays.asList(CASSANDRA_HOST))
+                .withPort(CASSANDRA_PORT)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withMapperFactoryFn(factory)
+                .withEntity(String.class));
+    pipeline.run();
+
+    assertEquals(1, counter.intValue());
   }
 
   @Test
