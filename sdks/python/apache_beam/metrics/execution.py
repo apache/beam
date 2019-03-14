@@ -48,36 +48,38 @@ from apache_beam.runners.worker import statesampler
 class MetricKey(object):
   """Key used to identify instance of metric cell.
 
-  Metrics are internally keyed by the name of the step they're associated with
-  and the name of the metric.
+  Metrics are internally keyed by the name of the step they're associated with,
+  the name and namespace (if it is a user defined metric) of the the metric,
+  and any extra label metadata added by the runner specific metric collection
+  service.
   """
-  def __init__(self, step, metric):
+  def __init__(self, step, metric, labels=None):
     """Initializes ``MetricKey``.
 
     Args:
       step: A string with the step this metric cell is part of.
-      metric: A ``MetricName`` that identifies a metric.
+      metric: A ``MetricName`` namespace+name that identifies a metric.
+      labels: An arbitrary set of labels that also identifies the metric.
     """
     self.step = step
     self.metric = metric
+    self.labels = labels if labels else dict()
 
   def __eq__(self, other):
     return (self.step == other.step and
-            self.metric == other.metric)
+            self.metric == other.metric and
+            self.labels == other.labels)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):
-    return hash((self.step, self.metric))
+    return hash((self.step, self.metric, frozenset(self.labels)))
 
   def __repr__(self):
-    return 'MetricKey(step={}, metric={})'.format(
-        self.step, self.metric)
-
-  def __hash__(self):
-    return hash((self.step, self.metric))
+    return 'MetricKey(step={}, metric={}, labels={})'.format(
+        self.step, self.metric, self.labels)
 
 
 class MetricResult(object):
@@ -121,6 +123,9 @@ class MetricResult(object):
   def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
+
+  def __str__(self):
+    return repr(self)
 
   @property
   def result(self):
