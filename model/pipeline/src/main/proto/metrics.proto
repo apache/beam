@@ -76,6 +76,19 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
+    SAMPLED_BYTE_SIZE = 6 [(monitoring_info_spec) = {
+      urn: "beam:metric:sampled_byte_size:v1",
+      type_urn: "beam:metrics:distribution_int_64",
+      required_labels: [ "PCOLLECTION" ],
+      annotations: [ {
+        key: "description",
+        value: "The total byte size and count of a sampled "
+               " set (or all) of elements in the pcollection. Sampling is used "
+               " because calculating the byte count involves serializing the "
+               " elements which is CPU intensive."
+      } ]
+    }];
+
     START_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:start_bundle_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
@@ -188,6 +201,9 @@ message MonitoringInfoUrns {
 
     ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
                            "beam:metric:element_count:v1"];
+
+    SAMPLED_BYTE_SIZE = 6 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                            "beam:metric:sampled_byte_size:v1"];
 
     START_BUNDLE_MSECS = 2
         [(org.apache.beam.model.pipeline.v1.beam_urn) =

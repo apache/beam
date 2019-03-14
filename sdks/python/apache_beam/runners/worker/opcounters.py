@@ -182,7 +182,8 @@ class OperationCounters(object):
     self.element_counter = counter_factory.get_counter(
         '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
     self.mean_byte_counter = counter_factory.get_counter(
-        '%s-out%s-MeanByteCount' % (step_name, output_index), Counter.MEAN)
+        '%s-out%s-MeanByteCount' % (step_name, output_index),
+        Counter.BEAM_DISTRIBUTION)
     self.coder_impl = coder.get_impl() if coder else None
     self.active_accumulator = None
     self.current_size = None

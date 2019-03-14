@@ -172,7 +172,50 @@ class MeanInt64Accumulator(object):
       self.sum %= 2**64
       if self.sum >= INT64_MAX:
         self.sum -= 2**64
-    return self.sum // self.count if self.count else _NAN
+    mean = self.sum // self.count if self.count else _NAN
+    return mean, self.sum, self.count
+
+
+class DistributionInt64Accumulator(object):
+  def __init__(self):
+    self.sum = 0
+    self.count = 0
+    self.min = None
+    self.max = None
+
+  def calc_min(self, a, b):
+    if a is None:
+      return b
+    return min(a, b)
+
+  def calc_max(self, a, b):
+    if a is None:
+      return b
+    return max(a, b)
+
+  def add_input(self, element):
+    element = int(element)
+    if not INT64_MIN <= element <= INT64_MAX:
+      raise OverflowError(element)
+    self.sum += element
+    self.count += 1
+    self.min = self.calc_min(self.min, element)
+    self.max = self.calc_max(self.max, element)
+
+  def merge(self, accumulators):
+    for accumulator in accumulators:
+      self.sum += accumulator.sum
+      self.count += accumulator.count
+      self.min = self.calc_min(self.min, accumulator.min)
+      self.max = self.calc_max(self.max, accumulator.max)
+
+  def extract_output(self):
+    if not INT64_MIN <= self.sum <= INT64_MAX:
+      self.sum %= 2**64
+      if self.sum >= INT64_MAX:
+        self.sum -= 2**64
+    mean = self.sum // self.count if self.count else _NAN
+    return mean, self.sum, self.count, self.min, self.max
 
 
 class CountCombineFn(AccumulatorCombineFn):
@@ -193,6 +236,10 @@ class MaxInt64Fn(AccumulatorCombineFn):
 
 class MeanInt64Fn(AccumulatorCombineFn):
   _accumulator_type = MeanInt64Accumulator
+
+
+class DistributionInt64Fn(AccumulatorCombineFn):
+  _accumulator_type = DistributionInt64Accumulator
 
 
 _POS_INF = float('inf')
