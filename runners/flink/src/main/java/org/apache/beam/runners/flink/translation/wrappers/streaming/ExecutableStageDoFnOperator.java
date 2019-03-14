@@ -276,6 +276,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             stateBackendLock.lock();
             prepareStateBackend(key, keyCoder);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(
+                  "State get for {} {} {} {}",
+                  pTransformId,
+                  userStateId,
+                  Arrays.toString(keyedStateBackend.getCurrentKey().array()),
+                  window);
+            }
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             return bagState.read();
@@ -290,6 +298,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             stateBackendLock.lock();
             prepareStateBackend(key, keyCoder);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(
+                  "State append for {} {} {} {}",
+                  pTransformId,
+                  userStateId,
+                  Arrays.toString(keyedStateBackend.getCurrentKey().array()),
+                  window);
+            }
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             while (values.hasNext()) {
@@ -306,6 +322,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             stateBackendLock.lock();
             prepareStateBackend(key, keyCoder);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(
+                  "State clear for {} {} {} {}",
+                  pTransformId,
+                  userStateId,
+                  Arrays.toString(keyedStateBackend.getCurrentKey().array()),
+                  window);
+            }
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             bagState.clear();
