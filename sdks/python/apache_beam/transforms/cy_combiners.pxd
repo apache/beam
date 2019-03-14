@@ -56,6 +56,16 @@ cdef class MeanInt64Accumulator(object):
   cpdef merge(self, accumulators)
 
 
+cdef class DistributionInt64Accumulator(object):
+  cdef readonly int64_t sum
+  cdef readonly int64_t count
+  cdef readonly int64_t min
+  cdef readonly int64_t max
+  cpdef add_input(self, int64_t element)
+  @cython.locals(accumulator=DistributionInt64Accumulator)
+  cpdef merge(self, accumulators)
+
+
 cdef class SumDoubleAccumulator(object):
   cdef readonly double value
   cpdef add_input(self, double element)
