@@ -181,15 +181,14 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
 task validatesRunnerLegacyWorkerJava11Test(type: Test) {
     group = "Verification"
     dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
-// TODO: Change the way worker harness container image is supplied to the task.
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
             "--tempRoot=${dataflowValidatesTempRoot}",
             "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-            "--workerHarnessContainerImage=gcr.io/cloud-dataflow/v1beta3/beam-java11-batch@sha256:1c363e3a2a4a5c6d66199e7d254dc9752a697b879ce821882c47671d3db56440",
-
     ])
+    
+    systemProperty "java.specification.version", "11"
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
