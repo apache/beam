@@ -66,7 +66,7 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    //todo(migryz): extract and utilize pcollection label from beam_fn_api.proto
+    // todo(migryz): extract and utilize pcollection label from beam_fn_api.proto
     if (!sdkToDfePCollectionMapping.containsKey(monitoringInfo.getLabelsMap().get("PCOLLECTION"))) {
       return Optional.of(
           "Encountered ElementCount MonitoringInfo with unknown PCollectionId: "
