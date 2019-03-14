@@ -1611,16 +1611,38 @@ class BeamModulePlugin implements Plugin<Project> {
         outputs.dirs(project.ext.envdir)
       }
 
+      def pythonSdkDeps = project.files(
+              project.fileTree(
+              dir: "${project.rootDir}",
+              include: ['model/**', 'sdks/python/**'],
+              // Exclude temporary directories used in build and test.
+              exclude: [
+                'sdks/python/build/**',
+                'sdks/python/dist/**',
+                'sdks/python/target/**',
+                'sdks/python/test-suites/**',
+              ])
+              )
+      def copiedSrcRoot = "${project.buildDir}/srcs"
+
       project.configurations { distConfig }
 
       project.task('sdist', dependsOn: 'setupVirtualenv') {
         doLast {
+          // Copy sdk sources to an isolated directory
+          project.copy {
+            from pythonSdkDeps
+            into copiedSrcRoot
+          }
+
+          // Build artifact
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && python setup.py sdist --keep-temp --formats zip,gztar --dist-dir ${project.buildDir}"
+            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcRoot}/sdks/python && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
           }
           def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
           println "sdist archive name: ${collection.singleFile}"
+
           // we need a fixed name for the artifact
           project.copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
         }
@@ -1646,7 +1668,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             executable 'sh'
             args '-c', "if [ -e ${activate} ]; then " +
-                    ". ${activate} && python ${pythonRootDir}/setup.py clean; " +
+                    ". ${activate} && cd ${pythonRootDir} && python setup.py clean; " +
                     "fi"
           }
           project.delete project.buildDir     // Gradle build directory
@@ -1672,6 +1694,21 @@ class BeamModulePlugin implements Plugin<Project> {
           argList.add("--$k $v")
         }
         return argList.join(' ')
+      }
+
+      project.ext.toxTask = { name, tox_env ->
+        project.tasks.create(name) {
+          dependsOn = ['sdist']
+          doLast {
+            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${project.buildDir}/apache-beam.tar.gz"
+            }
+          }
+          inputs.files pythonSdkDeps
+          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+        }
       }
     }
   }

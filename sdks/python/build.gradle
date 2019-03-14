@@ -38,34 +38,8 @@ build.dependsOn buildPython
 
 
 /*************************************************************************************************/
-// Unit testing
-
-def pythonSdkDeps = files(
-    fileTree(dir: 'apache_beam', includes: ['**/*.py', '**/*.pyx', '**/*.pxd']),
-    fileTree(dir: 'apache_beam/testing/data'),
-    fileTree(dir: "${project.rootDir}/model"),
-    fileTree(dir: 'scripts'),
-    ".pylintrc",
-    "MANIFEST.in",
-    "gen_protos.py",
-    "setup.cfg",
-    "setup.py",
-    "test_config.py",
-    "tox.ini")
-
-def toxTask = {
-  name, tox_env -> tasks.create(name) {
-    dependsOn = ['setupVirtualenv']
-    doLast {
-      exec {
-        executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_tox.sh $tox_env"
-      }
-    }
-    inputs.files pythonSdkDeps
-    outputs.files fileTree(dir: "${project.rootDir}/sdks/python/target/.tox/${tox_env}/log/")
-  }
-}
+// Unit tests for Python 2
+// See Python 3 tests in test-suites/tox
 
 task lint {}
 check.dependsOn lint
@@ -76,23 +50,11 @@ lint.dependsOn lintPy27
 toxTask "lintPy27_3", "py27-lint3"
 lint.dependsOn lintPy27_3
 
-toxTask "lintPy35", "py35-lint"
-lint.dependsOn lintPy35
-
 toxTask "testPy2Gcp", "py27-gcp"
 test.dependsOn testPy2Gcp
 
-toxTask "testPy35Gcp", "py35-gcp"
-test.dependsOn testPy35Gcp
-
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
-
-toxTask "testPython35", "py35"
-test.dependsOn testPython35
-
-toxTask "testPython36", "py36"
-test.dependsOn testPython36
 
 toxTask "testPy2Cython", "py27-cython"
 test.dependsOn testPy2Cython
@@ -101,29 +63,17 @@ test.dependsOn testPy2Cython
 // project.
 testPy2Cython.mustRunAfter testPython2, testPy2Gcp
 
-toxTask "testPy35Cython", "py35-cython"
-test.dependsOn testPy35Cython
-// Ensure that testPy35Cython runs exclusively to other tests. This line is not
-// actually required, since gradle doesn't do parallel execution within a
-// project.
-testPy35Cython.mustRunAfter testPython35, testPy35Gcp
-
 toxTask "docs", "docs"
 assemble.dependsOn docs
 
 toxTask "cover", "cover"
 
-task preCommit() {
+task preCommitPy2() {
   dependsOn "docs"
   dependsOn "testPy2Cython"
-  dependsOn "testPy35Cython"
   dependsOn "testPython2"
-  dependsOn "testPython35"
-  dependsOn "testPython36"
   dependsOn "testPy2Gcp"
-  dependsOn "testPy35Gcp"
   dependsOn "lint"
-  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
 
 task portablePreCommit() {
