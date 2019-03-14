@@ -870,7 +870,8 @@ public class BigQueryIO {
                                         ImmutableList.of(
                                             FileSystems.matchNewResource(
                                                 c.element(), false /* is directory */)),
-                                        schema);
+                                        schema,
+                                        null);
                                 checkArgument(sources.size() == 1, "Expected exactly one source.");
                                 BoundedSource<T> avroSource = sources.get(0);
                                 BoundedSource.BoundedReader<T> reader =
