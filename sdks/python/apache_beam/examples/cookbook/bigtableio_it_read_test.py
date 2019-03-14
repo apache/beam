@@ -30,7 +30,6 @@ import pytz
 import apache_beam as beam
 from apache_beam.io.gcp.bigtableio import ReadFromBigTable
 from apache_beam.io.gcp.bigtableio import WriteToBigTable
-from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -98,7 +97,7 @@ class GenerateTestRows(beam.PTransform):
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
-class BigtableIOWriteTest(unittest.TestCase):
+class BigtableIOReadTest(unittest.TestCase):
   """ Bigtable Write Connector Test
 
   """
@@ -106,7 +105,7 @@ class BigtableIOWriteTest(unittest.TestCase):
   instance_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   cluster_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  number = 500
+  number = 10000
   LOCATION_ID = "us-east1-b"
 
   def setUp(self):
@@ -142,6 +141,8 @@ class BigtableIOWriteTest(unittest.TestCase):
       column_families = {column_family_id: max_versions_rule}
       self.table.create(column_families=column_families)
 
+    self._write_rows(self.number)
+
   def _delete_old_instances(self):
     instances = self.client.list_instances()
     EXISTING_INSTANCES[:] = instances
@@ -161,8 +162,7 @@ class BigtableIOWriteTest(unittest.TestCase):
     if self.instance.exists():
       self.instance.delete()
 
-  def test_bigtable_write(self):
-    number = self.number
+  def _write_rows(self, number):
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
 
@@ -177,20 +177,6 @@ class BigtableIOWriteTest(unittest.TestCase):
       result = pipeline.run()
       result.wait_until_finish()
 
-      assert result.state == PipelineState.DONE
-
-      read_rows = self.table.read_rows()
-      assert len([_ for _ in read_rows]) == number
-
-      if not hasattr(result, 'has_job') or result.has_job:
-        read_filter = MetricsFilter().with_name('Written Row')
-        query_result = result.metrics().query(read_filter)
-        if query_result['counters']:
-          read_counter = query_result['counters'][0]
-
-          logging.info('Number of Rows: %d', read_counter.committed)
-          assert read_counter.committed == number
-
   def test_bigtable_read(self):
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
@@ -202,8 +188,7 @@ class BigtableIOWriteTest(unittest.TestCase):
                                                         self.table_id)
                | 'Count' >> beam.combiners.Count.Globally())
 
-      read_rows = self.table.read_rows()
-      assert_that(count, equal_to([len([_ for _ in read_rows])]))
+      assert_that(count, equal_to([self.number]))
 
       result = pipeline.run()
       result.wait_until_finish()
