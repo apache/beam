@@ -20,9 +20,6 @@ package org.apache.beam.runners.core.construction.graph;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,13 +37,7 @@ public class PipelineTrimmer {
    * @return the trimmed pipeline
    */
   public static Pipeline trim(Pipeline pipeline, Set<String> knownUrns) {
-    RunnerApi.Pipeline trimmedPipeline =
-        makeKnownUrnsPrimitives(
-            pipeline,
-            // The fuser should fuse AssignWindows into the graph, so we don't handle it here.
-            Sets.difference(
-                knownUrns, ImmutableSet.of(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)));
-    return trimmedPipeline;
+    return makeKnownUrnsPrimitives(pipeline, knownUrns);
   }
 
   private static RunnerApi.Pipeline makeKnownUrnsPrimitives(
