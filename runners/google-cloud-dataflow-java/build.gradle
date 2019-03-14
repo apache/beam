@@ -411,22 +411,24 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
 }
 
 task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
-  group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+    group = "Verification"
+    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
 
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-  ])
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=TestDataflowRunner",
+            "--project=${dataflowProject}",
+            "--tempRoot=${dataflowPostCommitTempRoot}",
+            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+            "--workerHarnessContainerImage=",
+    ])
 
-  include '**/*IT.class'
-  maxParallelForks 4
-  classpath = configurations.coreSDKJavaIntegrationTest
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
-  useJUnit { }
+    include '**/*IT.class'
+    // TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
+    exclude '**/RequiresStableInputIT.class'
+    maxParallelForks 4
+    classpath = configurations.coreSDKJavaIntegrationTest
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+    useJUnit { }
 }
 
 task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
@@ -441,6 +443,8 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
     )
 
     include '**/*IT.class'
+    // TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
+    exclude '**/RequiresStableInputIT.class'
     maxParallelForks 4
     classpath = configurations.coreSDKJavaIntegrationTest
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
