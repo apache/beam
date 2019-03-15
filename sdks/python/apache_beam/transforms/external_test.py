@@ -195,10 +195,6 @@ class ExternalTransformTest(unittest.TestCase):
         assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
 
       # Test GenerateSequence Java transform
-      options._all_options['shutdown_sources_on_final_watermark'] = True
-      options._all_options['parallelism'] = 1
-      options._all_options['streaming'] = True
-
       with beam.Pipeline(options=options) as p:
         res = (
             p
