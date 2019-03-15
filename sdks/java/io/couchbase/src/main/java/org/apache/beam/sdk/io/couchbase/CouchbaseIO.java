@@ -21,7 +21,11 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
+
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -33,9 +37,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Couchbase IO.
- */
+/** Couchbase IO. */
 public class CouchbaseIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CouchbaseIO.class);
@@ -47,6 +49,11 @@ public class CouchbaseIO {
     return new AutoValue_CouchbaseIO_Read.Builder<T>().build();
   }
 
+  /**
+   * Read class.
+   *
+   * @param <T>
+   */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable
@@ -189,11 +196,11 @@ public class CouchbaseIO {
   static class CouchbaseSource<T> extends BoundedSource<T> {
 
     final Read<T> spec;
-    final List<String> splitQueries;
+    final String query;
 
-    CouchbaseSource(Read<T> spec, List<String> splitQueries) {
+    CouchbaseSource(Read<T> spec, String query) {
       this.spec = spec;
-      this.splitQueries = splitQueries;
+      this.query = query;
     }
 
     @Override
@@ -204,16 +211,53 @@ public class CouchbaseIO {
     @Override
     public List<? extends BoundedSource<T>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-      return null;
+      // Couchbase does not support query splitting, so just use the query all.
+      String query = String.format("SELECT * FROM %s", spec.bucket());
+      return Collections.singletonList(
+              new CouchbaseIO.CouchbaseSource<>(spec, query));
     }
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-      return 0;
+      return 1;
     }
 
     @Override
     public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
+      return new CouchbaseReader(this);
+    }
+  }
+
+  private static class CouchbaseReader<T> extends BoundedSource.BoundedReader<T> {
+
+    private final CouchbaseIO.CouchbaseSource<T> source;
+
+    CouchbaseReader(CouchbaseSource<T> source) {
+      this.source = source;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      return false;
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      return false;
+    }
+
+    @Override
+    public T getCurrent() throws NoSuchElementException {
+      return null;
+    }
+
+    @Override
+    public void close() throws IOException {
+
+    }
+
+    @Override
+    public BoundedSource<T> getCurrentSource() {
       return null;
     }
   }

@@ -27,16 +27,11 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.jackson_annotations
-  shadow "org.apache.httpcomponents:httpasyncclient:4.1.4"
-  shadow "org.apache.httpcomponents:httpcore-nio:4.4.10"
-  shadow "org.apache.httpcomponents:httpcore:4.4.10"
-  shadow "org.apache.httpcomponents:httpclient:4.5.6"
   shadow "com.couchbase.mock:CouchbaseMock:1.5.22"
   shadow "com.couchbase.client:java-client:2.7.4"
   shadow "com.couchbase.client:couchbase-client:1.4.6"
-  compile             "com.google.auto.value:auto-value-annotations:1.6.2"
-  annotationProcessor "com.google.auto.value:auto-value:1.6.2"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-core-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile library.java.junit
 }
