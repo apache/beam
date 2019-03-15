@@ -73,7 +73,7 @@ class DataflowMetrics(MetricResults):
         dataflow service.
       job_result: DataflowPipelineResult with the state and id information of
         the job.
-      job_graph: apiclient.Job instance to be able to translate between internal	
+      job_graph: apiclient.Job instance to be able to translate between internal
         step names (e.g. "s2"), and user step names (e.g. "split").
     """
     super(DataflowMetrics, self).__init__()
