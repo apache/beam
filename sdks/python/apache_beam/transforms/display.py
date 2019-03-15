@@ -232,11 +232,14 @@ class DisplayDataItem(object):
         value or type.
     """
     if self.key is None:
-      raise ValueError('Invalid DisplayDataItem. Key must not be None')
+      raise ValueError(
+          'Invalid DisplayDataItem %s. Key must not be None.' % self)
     if self.namespace is None:
-      raise ValueError('Invalid DisplayDataItem. Namespace must not be None')
+      raise ValueError(
+          'Invalid DisplayDataItem %s. Namespace must not be None' % self)
     if self.value is None:
-      raise ValueError('Invalid DisplayDataItem. Value must not be None')
+      raise ValueError(
+          'Invalid DisplayDataItem %s. Value must not be None' % self)
     if self.type is None:
       raise ValueError(
           'Invalid DisplayDataItem. Value {} is of an unsupported type.'

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
@@ -97,6 +97,7 @@ dependencies {
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-harness", configuration: "shadowTest")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * Translate {@link org.apache.beam.sdk.transforms.Impulse} to a samza message stream produced by

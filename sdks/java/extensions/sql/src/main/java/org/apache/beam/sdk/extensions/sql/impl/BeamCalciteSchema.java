@@ -36,10 +36,12 @@ import org.apache.calcite.schema.Schemas;
 public class BeamCalciteSchema implements Schema {
   private JdbcConnection connection;
   private TableProvider tableProvider;
+  private Map<String, BeamCalciteSchema> subSchemas;
 
   BeamCalciteSchema(JdbcConnection jdbcConnection, TableProvider tableProvider) {
     this.connection = jdbcConnection;
     this.tableProvider = tableProvider;
+    this.subSchemas = new HashMap<>();
   }
 
   public TableProvider getTableProvider() {
@@ -98,7 +100,7 @@ public class BeamCalciteSchema implements Schema {
 
   @Override
   public org.apache.calcite.schema.Table getTable(String name) {
-    Table table = tableProvider.getTables().get(name);
+    Table table = tableProvider.getTable(name);
     if (table == null) {
       return null;
     }
@@ -117,11 +119,17 @@ public class BeamCalciteSchema implements Schema {
 
   @Override
   public Set<String> getSubSchemaNames() {
-    return Collections.emptySet();
+    return tableProvider.getSubProviders();
   }
 
   @Override
   public Schema getSubSchema(String name) {
-    return null;
+    if (!subSchemas.containsKey(name)) {
+      TableProvider subProvider = tableProvider.getSubProvider(name);
+      BeamCalciteSchema subSchema =
+          subProvider == null ? null : new BeamCalciteSchema(connection, subProvider);
+      subSchemas.put(name, subSchema);
+    }
+    return subSchemas.get(name);
   }
 }

@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet.StateAndTimers;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
+import org.apache.beam.runners.spark.translation.GroupNonMergingWindowsFunctions.WindowedKey;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
@@ -61,9 +62,12 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
     kryo.register(HashBasedTable.class);
     kryo.register(KV.class);
     kryo.register(PaneInfo.class);
+    kryo.register(WindowedKey.class);
 
     try {
-      kryo.register(Class.forName("com.google.common.collect.HashBasedTable$Factory"));
+      kryo.register(
+          Class.forName(
+              "org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable$Factory"));
       kryo.register(
           Class.forName("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInGlobalWindow"));
     } catch (ClassNotFoundException e) {

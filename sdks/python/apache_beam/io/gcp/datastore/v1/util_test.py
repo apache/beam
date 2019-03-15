@@ -18,11 +18,17 @@
 """Tests for util.py."""
 from __future__ import absolute_import
 
+import os
+import sys
 import unittest
 
 from apache_beam.io.gcp.datastore.v1 import util
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-4543')
 class MovingSumTest(unittest.TestCase):
 
   TIMESTAMP = 1500000000

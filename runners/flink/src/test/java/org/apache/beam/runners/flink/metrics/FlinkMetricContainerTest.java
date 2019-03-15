@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import static org.apache.beam.model.fnexecution.v1.BeamFnApi.labelProps;
+import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlinkMetricNameString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -30,13 +31,13 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.CounterData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.DoubleDistributionData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.DoubleDistributionData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.Metric;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.DistributionCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
@@ -48,8 +49,8 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -59,7 +60,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link FlinkMetricContainer}. */
@@ -86,12 +86,8 @@ public class FlinkMetricContainerTest {
 
   @Test
   public void testMetricNameGeneration() {
-    MetricResult mock = Mockito.mock(MetricResult.class);
-    when(mock.getStep()).thenReturn("step");
-    MetricName metricName = MetricName.named("namespace", "name");
-    when(mock.getName()).thenReturn(metricName);
-
-    String name = FlinkMetricContainer.getFlinkMetricNameString(mock);
+    MetricKey key = MetricKey.create("step", MetricName.named("namespace", "name"));
+    String name = getFlinkMetricNameString(key);
     assertThat(name, is("namespace.name"));
   }
 
@@ -193,7 +189,7 @@ public class FlinkMetricContainerTest {
             .setMetric(
                 Metric.newBuilder()
                     .setDistributionData(
-                        BeamFnApi.DistributionData.newBuilder()
+                        MetricsApi.DistributionData.newBuilder()
                             .setIntDistributionData(
                                 IntDistributionData.newBuilder()
                                     .setSum(30)
@@ -209,7 +205,7 @@ public class FlinkMetricContainerTest {
             .setMetric(
                 Metric.newBuilder()
                     .setDistributionData(
-                        BeamFnApi.DistributionData.newBuilder()
+                        MetricsApi.DistributionData.newBuilder()
                             .setDoubleDistributionData(
                                 DoubleDistributionData.newBuilder()
                                     .setSum(30)

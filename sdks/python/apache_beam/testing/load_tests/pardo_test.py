@@ -50,6 +50,25 @@ python setup.py nosetests \
     }'" \
     --tests apache_beam.testing.load_tests.pardo_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=...
+    --metrics_dataset=python_load_tests
+    --metrics_table=pardo
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=DirectRunner' \
+-PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
+-Prunner=DirectRunner :beam-sdks-python-load-tests:run
+
+
 To run test on other runner (ex. Dataflow):
 
 python setup.py nosetests \
@@ -74,6 +93,24 @@ python setup.py nosetests \
         }'" \
     --tests apache_beam.testing.load_tests.pardo_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=...
+    --metrics_dataset=python_load_tests
+    --metrics_table=pardo
+    --temp_location=gs://...
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=TestDataflowRunner' \
+-PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
+-Prunner=TestDataflowRunner :beam-sdks-python-load-tests:run
 """
 
 from __future__ import absolute_import
@@ -154,38 +191,37 @@ class ParDoTest(unittest.TestCase):
     else:
       num_runs = int(self.iterations)
 
-    with self.pipeline as p:
-      pc = (p
-            | 'Read synthetic' >> beam.io.Read(
-                synthetic_pipeline.SyntheticSource(
-                    self.parseTestPipelineOptions()
-                ))
-            | 'Measure time: Start' >> beam.ParDo(
-                MeasureTime(self.metrics_namespace))
+    pc = (self.pipeline
+          | 'Read synthetic' >> beam.io.Read(
+              synthetic_pipeline.SyntheticSource(
+                  self.parseTestPipelineOptions()
+              ))
+          | 'Measure time: Start' >> beam.ParDo(
+              MeasureTime(self.metrics_namespace))
+         )
+
+    for i in range(num_runs):
+      is_returning = (i == (num_runs-1))
+      pc = (pc
+            | 'Step: %d' % i >> beam.ParDo(
+                _GetElement(), self.metrics_namespace, is_returning)
            )
 
-      for i in range(num_runs):
-        is_returning = (i == (num_runs-1))
-        pc = (pc
-              | 'Step: %d' % i >> beam.ParDo(
-                  _GetElement(), self.metrics_namespace, is_returning)
-             )
+    if self.output is not None:
+      pc = (pc
+            | "Write" >> beam.io.WriteToText(self.output)
+           )
 
-      if self.output is not None:
-        pc = (pc
-              | "Write" >> beam.io.WriteToText(self.output)
-             )
+    # pylint: disable=expression-not-assigned
+    (pc
+     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+    )
 
-      # pylint: disable=expression-not-assigned
-      (pc
-       | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-      )
+    result = self.pipeline.run()
+    result.wait_until_finish()
 
-      result = p.run()
-      result.wait_until_finish()
-
-      if self.metrics_monitor is not None:
-        self.metrics_monitor.send_metrics(result)
+    if self.metrics_monitor is not None:
+      self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':

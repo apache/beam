@@ -18,7 +18,7 @@
 
 import org.apache.tools.ant.taskdefs.condition.Os
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 
@@ -76,27 +76,37 @@ lint.dependsOn lintPy27
 toxTask "lintPy27_3", "py27-lint3"
 lint.dependsOn lintPy27_3
 
-toxTask "lintPy3", "py3-lint"
-lint.dependsOn lintPy3
+toxTask "lintPy35", "py35-lint"
+lint.dependsOn lintPy35
 
 toxTask "testPy2Gcp", "py27-gcp"
 test.dependsOn testPy2Gcp
 
-toxTask "testPy3Gcp", "py3-gcp"
-test.dependsOn testPy3Gcp
+toxTask "testPy35Gcp", "py35-gcp"
+test.dependsOn testPy35Gcp
 
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
 
-toxTask "testPython3", "py3"
-test.dependsOn testPython3
+toxTask "testPython35", "py35"
+test.dependsOn testPython35
 
-toxTask "testCython", "py27-cython"
-test.dependsOn testCython
-// Ensure that testCython runs exclusively to other tests. This line is not
+toxTask "testPython36", "py36"
+test.dependsOn testPython36
+
+toxTask "testPy2Cython", "py27-cython"
+test.dependsOn testPy2Cython
+// Ensure that testPy2Cython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testCython.mustRunAfter testPython2, testPy2Gcp
+testPy2Cython.mustRunAfter testPython2, testPy2Gcp
+
+toxTask "testPy35Cython", "py35-cython"
+test.dependsOn testPy35Cython
+// Ensure that testPy35Cython runs exclusively to other tests. This line is not
+// actually required, since gradle doesn't do parallel execution within a
+// project.
+testPy35Cython.mustRunAfter testPython35, testPy35Gcp
 
 toxTask "docs", "docs"
 assemble.dependsOn docs
@@ -105,12 +115,15 @@ toxTask "cover", "cover"
 
 task preCommit() {
   dependsOn "docs"
-  dependsOn "testCython"
+  dependsOn "testPy2Cython"
+  dependsOn "testPy35Cython"
   dependsOn "testPython2"
-  dependsOn "testPython3"
+  dependsOn "testPython35"
+  dependsOn "testPython36"
   dependsOn "testPy2Gcp"
-  dependsOn "testPy3Gcp"
+  dependsOn "testPy35Gcp"
   dependsOn "lint"
+  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
 
 task portablePreCommit() {
@@ -131,22 +144,6 @@ def basicTestOpts = [
         "--process-timeout=4500", // timeout of whole command execution
 ]
 
-static def mapToArgString(argMap) {
-  def argList = []
-  argMap.each { k, v ->
-    if (v in List) {
-      v = "\"${v.join(' ')}\""
-    } else if (v in String && v.contains(' ')) {
-      // We should use double quote around the arg value if it contains series
-      // of flags joined with space. Otherwise, commandline parsing of the
-      // shell script will be broken.
-      v = "\"${v.replace('"', '')}\""
-    }
-    argList.add("--$k $v")
-  }
-  return argList.join(' ')
-}
-
 task directRunnerIT(dependsOn: 'installGcpTest') {
   // Run IT tests with TestDirectRunner in batch.
   doLast {
@@ -159,7 +156,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": batchTestOpts]
-    def batchCmdArgs = mapToArgString(argMap)
+    def batchCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $batchCmdArgs"
@@ -176,7 +173,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def argMap = ["runner": "TestDirectRunner",
                   "streaming": "true",
                   "test_opts": streamingTestOpts]
-    def streamingCmdArgs = mapToArgString(argMap)
+    def streamingCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $streamingCmdArgs"
@@ -266,7 +263,7 @@ task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
     if (project.hasProperty('kmsKeyName'))
       argMap["kms_key_name"] = project.property('kmsKeyName')
 
-    def cmdArgs = mapToArgString(argMap)
+    def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -278,7 +275,7 @@ task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
 task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
   doLast {
     def testOpts = basicTestOpts + ["--attr=IT"]
-    def cmdArgs = mapToArgString(["test_opts": testOpts])
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -289,7 +286,7 @@ task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
 task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
   doLast {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
-    def cmdArgs = mapToArgString(["test_opts": testOpts])
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -308,7 +305,7 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     def argMap = ["test_opts": testOpts,
                   "streaming": "true",
                   "worker_jar": dataflowWorkerJar]
-    def cmdArgs = mapToArgString(argMap)
+    def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -384,6 +381,20 @@ task flinkValidatesRunner() {
   dependsOn 'flinkCompatibilityMatrixLoopback'
 }
 
+// Run Python ValidatesRunner tests using the Java ReferenceRunner as a job server and Docker as
+// the SDK environment.
+task javaReferenceRunnerValidatesRunner() {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-runners-reference-job-server:shadowJar'
+  dependsOn ':beam-sdks-python-container:docker'
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.java_reference_runner_test --job_server_jar=${project(":beam-runners-reference-job-server:").shadowJar.archivePath} --environment_type=DOCKER"
+    }
+  }
+}
+
 task postCommit() {
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
@@ -438,6 +449,47 @@ project.task('createProcessWorker') {
     }
     exec {
       commandLine('chmod', '+x', sdkWorkerFile)
+    }
+  }
+}
+
+project.task('crossLanguagePythonJava') {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-sdks-java-container:docker'
+  dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
+
+  doLast {
+    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${testServiceExpansionJar}"
+    }
+  }
+}
+
+project.task('crossLanguagePortableWordCount') {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
+  dependsOn ':beam-sdks-python-container:docker'
+  dependsOn ':beam-sdks-java-container:docker'
+  dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
+
+  doLast {
+    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def options = [
+            "--input=/etc/profile",
+            "--output=/tmp/py-wordcount-portable",
+            "--runner=PortableRunner",
+            "--experiments=worker_threads=100",
+            "--parallelism=2",
+            "--shutdown_sources_on_final_watermark",
+            "--environment_cache_millis=10000",
+            "--expansion_service_jar=${testServiceExpansionJar}",
+    ]
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
+      // TODO: Check that the output file is generated and runs.
     }
   }
 }

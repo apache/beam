@@ -21,6 +21,8 @@ Classes, constants and functions in this file are experimental and have no
 backwards compatibility guarantees.
 
 These tools include wrappers and clients to interact with BigQuery APIs.
+
+NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 from __future__ import absolute_import
@@ -45,6 +47,7 @@ from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import DoFn
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -108,7 +111,7 @@ def parse_table_schema_from_json(schema_string):
   return bigquery.TableSchema(fields=fields)
 
 
-def _parse_table_reference(table, dataset=None, project=None):
+def parse_table_reference(table, dataset=None, project=None):
   """Parses a table reference into a (project, dataset, table) tuple.
 
   Args:
@@ -127,8 +130,8 @@ def _parse_table_reference(table, dataset=None, project=None):
       argument.
 
   Returns:
-    A bigquery.TableReference object. The object has the following attributes:
-    projectId, datasetId, and tableId.
+    A TableReference object from the bigquery API. The object has the following
+    attributes: projectId, datasetId, and tableId.
 
   Raises:
     ValueError: if the table reference as a string does not match the expected
@@ -136,6 +139,8 @@ def _parse_table_reference(table, dataset=None, project=None):
   """
 
   if isinstance(table, bigquery.TableReference):
+    return table
+  elif callable(table):
     return table
 
   table_reference = bigquery.TableReference()
@@ -202,7 +207,7 @@ class BigQueryWrapper(object):
     return '%s_%d' % (self._row_id_prefix, self._unique_row_id)
 
   def _get_temp_table(self, project_id):
-    return _parse_table_reference(
+    return parse_table_reference(
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
@@ -257,24 +262,67 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _insert_load_job(self, project_id, job_id, table_reference, source_uris,
-                       schema=None):
-    reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
+  def _insert_copy_job(self,
+                       project_id,
+                       job_id,
+                       from_table_reference,
+                       to_table_reference,
+                       create_disposition=None,
+                       write_disposition=None):
+    reference = bigquery.JobReference()
+    reference.jobId = job_id
+    reference.projectId = project_id
     request = bigquery.BigqueryJobsInsertRequest(
-        projectId=table_reference.project_id,
+        projectId=project_id,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
-                load=bigquery.JobConfigurationLoad(
-                    source_uris=source_uris,
-                    destination_table=table_reference,
+                copy=bigquery.JobConfigurationTableCopy(
+                    destinationTable=to_table_reference,
+                    sourceTable=from_table_reference,
+                    createDisposition=create_disposition,
+                    writeDisposition=write_disposition,
                 )
             ),
             jobReference=reference,
         )
     )
 
+    logging.info("Inserting job request: %s", request)
     response = self.client.jobs.Insert(request)
-    return response.jobReference.jobId
+    logging.info("Response was %s", response)
+    return response.jobReference
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def _insert_load_job(self,
+                       project_id,
+                       job_id,
+                       table_reference,
+                       source_uris,
+                       schema=None,
+                       write_disposition=None,
+                       create_disposition=None):
+    reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=project_id,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                load=bigquery.JobConfigurationLoad(
+                    sourceUris=source_uris,
+                    destinationTable=table_reference,
+                    schema=schema,
+                    writeDisposition=write_disposition,
+                    createDisposition=create_disposition,
+                    sourceFormat='NEWLINE_DELIMITED_JSON',
+                    autodetect=schema is None,
+                )
+            ),
+            jobReference=reference,
+        )
+    )
+    response = self.client.jobs.Insert(request)
+    return response.jobReference
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -311,15 +359,20 @@ class BigQueryWrapper(object):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_filter)
-  def _insert_all_rows(self, project_id, dataset_id, table_id, rows):
+      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
+  def _insert_all_rows(self, project_id, dataset_id, table_id, rows,
+                       skip_invalid_rows=False):
+    """Calls the insertAll BigQuery API endpoint.
+
+    Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
+      /rest/v2/tabledata/insertAll."""
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
     # required by the InsertAll() method.
     request = bigquery.BigqueryTabledataInsertAllRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id,
         tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
-            # TODO(silviuc): Should have an option for skipInvalidRows?
+            skipInvalidRows=skip_invalid_rows,
             # TODO(silviuc): Should have an option for ignoreUnknownValues?
             rows=rows))
     response = self.client.tabledata.InsertAll(request)
@@ -329,11 +382,21 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _get_table(self, project_id, dataset_id, table_id):
+  def get_table(self, project_id, dataset_id, table_id):
+    """Lookup a table's metadata object.
+
+    Args:
+      client: bigquery.BigqueryV2 instance
+      project_id, dataset_id, table_id: table lookup parameters
+
+    Returns:
+      bigquery.Table instance
+    Raises:
+      HttpError if lookup failed.
+    """
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
     response = self.client.tables.Get(request)
-    # The response is a bigquery.Table instance.
     return response
 
   def _create_table(self, project_id, dataset_id, table_id, schema):
@@ -420,7 +483,7 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_table_location(self, project_id, dataset_id, table_id):
-    table = self._get_table(project_id, dataset_id, table_id)
+    table = self.get_table(project_id, dataset_id, table_id)
     return table.location
 
   @retry.with_exponential_backoff(
@@ -467,6 +530,35 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def get_job(self, project, job_id, location=None):
+    request = bigquery.BigqueryJobsGetRequest()
+    request.jobId = job_id
+    request.projectId = project
+    request.location = location
+
+    return self.client.jobs.Get(request)
+
+  def perform_load_job(self,
+                       destination,
+                       files,
+                       job_id,
+                       schema=None,
+                       write_disposition=None,
+                       create_disposition=None):
+    """Starts a job to load data into BigQuery.
+
+    Returns:
+      bigquery.JobReference with the information about the job that was started.
+    """
+    return self._insert_load_job(
+        destination.projectId, job_id, destination, files,
+        schema=schema,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_table(
       self, project_id, dataset_id, table_id, schema,
       create_disposition, write_disposition):
@@ -496,7 +588,7 @@ class BigQueryWrapper(object):
 
     found_table = None
     try:
-      found_table = self._get_table(project_id, dataset_id, table_id)
+      found_table = self.get_table(project_id, dataset_id, table_id)
     except HttpError as exn:
       if exn.status_code == 404:
         if create_disposition == BigQueryDisposition.CREATE_NEVER:
@@ -534,6 +626,10 @@ class BigQueryWrapper(object):
                                          dataset_id=dataset_id,
                                          table_id=table_id,
                                          schema=schema or found_table.schema)
+      logging.info('Created table %s.%s.%s with schema %s. Result: %s.',
+                   project_id, dataset_id, table_id,
+                   schema or found_table.schema,
+                   created_table)
       # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
       # the table before this point.
       if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
@@ -575,7 +671,8 @@ class BigQueryWrapper(object):
         break
       page_token = response.pageToken
 
-  def insert_rows(self, project_id, dataset_id, table_id, rows):
+  def insert_rows(self, project_id, dataset_id, table_id, rows,
+                  skip_invalid_rows=False):
     """Inserts rows into the specified table.
 
     Args:
@@ -584,6 +681,8 @@ class BigQueryWrapper(object):
       table_id: The table id.
       rows: A list of plain Python dictionaries. Each dictionary is a row and
         each key in it is the name of a field.
+      skip_invalid_rows: If there are rows with insertion errors, whether they
+        should be skipped, and all others should be inserted successfully.
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -613,7 +712,7 @@ class BigQueryWrapper(object):
               insertId=str(self.unique_row_id),
               json=json_object))
     result, errors = self._insert_all_rows(
-        project_id, dataset_id, table_id, final_rows)
+        project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
     return result, errors
 
   def _convert_cell_value_to_dict(self, value, field):
@@ -697,7 +796,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
   def __init__(self, source, test_bigquery_client=None, use_legacy_sql=True,
-               flatten_results=True):
+               flatten_results=True, kms_key=None):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -721,6 +820,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.schema = None
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
+    self.kms_key = kms_key
 
     if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
@@ -863,3 +963,42 @@ class RowAsDictJsonCoder(coders.Coder):
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row.decode('utf-8'))
+
+
+class RetryStrategy(object):
+  RETRY_ALWAYS = 'RETRY_ALWAYS'
+  RETRY_NEVER = 'RETRY_NEVER'
+  RETRY_ON_TRANSIENT_ERROR = 'RETRY_ON_TRANSIENT_ERROR'
+
+  _NON_TRANSIENT_ERRORS = {'invalid', 'invalidQuery', 'notImplemented'}
+
+  @staticmethod
+  def should_retry(strategy, error_message):
+    if strategy == RetryStrategy.RETRY_ALWAYS:
+      return True
+    elif strategy == RetryStrategy.RETRY_NEVER:
+      return False
+    elif (strategy == RetryStrategy.RETRY_ON_TRANSIENT_ERROR and
+          error_message not in RetryStrategy._NON_TRANSIENT_ERRORS):
+      return True
+    else:
+      return False
+
+
+class AppendDestinationsFn(DoFn):
+  """Adds the destination to an element, making it a KV pair.
+
+  Outputs a PCollection of KV-pairs where the key is a TableReference for the
+  destination, and the value is the record itself.
+
+  Experimental; no backwards compatibility guarantees.
+  """
+
+  def __init__(self, destination):
+    if callable(destination):
+      self.destination = destination
+    else:
+      self.destination = lambda x: destination
+
+  def process(self, element):
+    yield (self.destination(element), element)

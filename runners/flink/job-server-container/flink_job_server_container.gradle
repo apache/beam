@@ -22,7 +22,8 @@
  * or by directly running the generated JAR file.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'base'
 applyDockerNature()
 
 // Resolve the Flink project name (and version) the job-server-container is based on

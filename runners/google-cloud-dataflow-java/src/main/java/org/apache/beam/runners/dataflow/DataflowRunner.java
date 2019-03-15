@@ -782,6 +782,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
 
+    if (options.getFlexRSGoal()
+        == DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED) {
+      newJob.getEnvironment().setFlexResourceSchedulingGoal("FLEXRS_COST_OPTIMIZED");
+    } else if (options.getFlexRSGoal()
+        == DataflowPipelineOptions.FlexResourceSchedulingGoal.SPEED_OPTIMIZED) {
+      newJob.getEnvironment().setFlexResourceSchedulingGoal("FLEXRS_SPEED_OPTIMIZED");
+    }
+
     // Represent the minCpuPlatform pipeline option as an experiment, if not already present.
     List<String> experiments =
         firstNonNull(dataflowOptions.getExperiments(), new ArrayList<String>());
@@ -1789,14 +1797,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static String getContainerImageForJob(DataflowPipelineOptions options) {
     String workerHarnessContainerImage = options.getWorkerHarnessContainerImage();
+
+    String javaVersionId =
+        Float.parseFloat(System.getProperty("java.specification.version")) >= 9 ? "java11" : "java";
     if (!workerHarnessContainerImage.contains("IMAGE")) {
       return workerHarnessContainerImage;
     } else if (hasExperiment(options, "beam_fn_api")) {
       return workerHarnessContainerImage.replace("IMAGE", "java");
     } else if (options.isStreaming()) {
-      return workerHarnessContainerImage.replace("IMAGE", "beam-java-streaming");
+      return workerHarnessContainerImage.replace(
+          "IMAGE", String.format("beam-%s-streaming", javaVersionId));
     } else {
-      return workerHarnessContainerImage.replace("IMAGE", "beam-java-batch");
+      return workerHarnessContainerImage.replace(
+          "IMAGE", String.format("beam-%s-batch", javaVersionId));
     }
   }
 

@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.StatefulDoFnRunner.StateCleaner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -59,7 +60,8 @@ public class DoFnRunners {
       StepContext stepContext,
       @Nullable Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      WindowingStrategy<?, ?> windowingStrategy,
+      DoFnSchemaInformation doFnSchemaInformation) {
     return new SimpleDoFnRunner<>(
         options,
         fn,
@@ -70,7 +72,8 @@ public class DoFnRunners {
         stepContext,
         inputCoder,
         outputCoders,
-        windowingStrategy);
+        windowingStrategy,
+        doFnSchemaInformation);
   }
 
   /**
@@ -114,7 +117,8 @@ public class DoFnRunners {
           StepContext stepContext,
           @Nullable Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> inputCoder,
           Map<TupleTag<?>, Coder<?>> outputCoders,
-          WindowingStrategy<?, ?> windowingStrategy) {
+          WindowingStrategy<?, ?> windowingStrategy,
+          DoFnSchemaInformation doFnSchemaInformation) {
     return new ProcessFnRunner<>(
         simpleRunner(
             options,
@@ -126,7 +130,8 @@ public class DoFnRunners {
             stepContext,
             inputCoder,
             outputCoders,
-            windowingStrategy),
+            windowingStrategy,
+            doFnSchemaInformation),
         views,
         sideInputReader);
   }

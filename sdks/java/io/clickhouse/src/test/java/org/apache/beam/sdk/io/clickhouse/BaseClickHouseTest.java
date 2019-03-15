@@ -18,12 +18,25 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import com.github.dockerjava.api.command.CreateContainerCmd;
+import com.github.dockerjava.api.model.Image;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.rnorth.ducttape.unreliables.Unreliables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.ClickHouseContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -37,8 +50,16 @@ public class BaseClickHouseTest {
   public static GenericContainer zookeeper;
   public static ClickHouseContainer clickHouse;
 
+  // yandex/clickhouse-server:19.1.6
+  // use SHA256 not to pull docker hub for tag if image already exists locally
+  private static final String CLICKHOUSE_IMAGE =
+      "yandex/clickhouse-server@"
+          + "sha256:c75f66f3619ca70a9f7215966505eaed2fc0ca0ee7d6a7b5407d1b14df8ddefc";
+
+  private static final Logger LOG = LoggerFactory.getLogger(BaseClickHouseTest.class);
+
   @BeforeClass
-  public static void setup() {
+  public static void setup() throws IOException, InterruptedException {
     // network sharing doesn't work with ClassRule
     network = Network.newNetwork();
 
@@ -48,11 +69,13 @@ public class BaseClickHouseTest {
             .withExposedPorts(2181)
             .withNetwork(network)
             .withNetworkAliases("zookeeper");
+
+    // so far zookeeper container always starts successfully, so no extra retries
     zookeeper.start();
 
     clickHouse =
         (ClickHouseContainer)
-            new ClickHouseContainer("yandex/clickhouse-server:19.1")
+            new ClickHouseContainer(CLICKHOUSE_IMAGE)
                 .withStartupAttempts(10)
                 .withCreateContainerCmdModifier(
                     // type inference for `(CreateContainerCmd) -> cmd.` doesn't work
@@ -65,7 +88,39 @@ public class BaseClickHouseTest {
                     "config.d/zookeeper_default.xml",
                     "/etc/clickhouse-server/config.d/zookeeper_default.xml",
                     BindMode.READ_ONLY);
-    clickHouse.start();
+
+    BackOff backOff =
+        FluentBackoff.DEFAULT
+            .withMaxRetries(3)
+            .withInitialBackoff(Duration.standardSeconds(15))
+            .backoff();
+
+    // try to start clickhouse-server a couple of times, see BEAM-6639
+    while (true) {
+      try {
+        Unreliables.retryUntilSuccess(
+            10,
+            () -> {
+              DockerClientFactory.instance()
+                  .checkAndPullImage(DockerClientFactory.instance().client(), CLICKHOUSE_IMAGE);
+
+              return null;
+            });
+
+        clickHouse.start();
+        break;
+      } catch (Exception e) {
+        if (!BackOffUtils.next(Sleeper.DEFAULT, backOff)) {
+          throw e;
+        } else {
+          List<Image> images =
+              DockerClientFactory.instance().client().listImagesCmd().withShowAll(true).exec();
+          String listImagesOutput = "listImagesCmd:\n" + Joiner.on('\n').join(images) + "\n";
+
+          LOG.warn("failed to start clickhouse-server\n\n" + listImagesOutput, e);
+        }
+      }
+    }
   }
 
   @AfterClass

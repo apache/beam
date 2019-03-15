@@ -23,13 +23,14 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.Metric;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
@@ -37,7 +38,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 /**
  * Holds the metrics for a single step and uses metric cells that allow extracting the cumulative
  * value. Generally, this implementation should be used for a specific unit of commitment (bundle)
- * that wishes to report the values since the start of the bundle (eg., for committed metrics).
+ * that wishes to report the values since the start of the bundle (e.g., for committed metrics).
  *
  * <p>This class is thread-safe. It is intended to be used with 1 (or more) threads are updating
  * metrics and at-most 1 thread is extracting updates by calling {@link #getUpdates} and {@link
@@ -250,5 +251,23 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     for (Map.Entry<MetricName, GaugeCell> counter : updates.entries()) {
       current.get(counter.getKey()).update(counter.getValue().getCumulative());
     }
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof MetricsContainerImpl) {
+      MetricsContainerImpl metricsContainerImpl = (MetricsContainerImpl) object;
+      return Objects.equals(stepName, metricsContainerImpl.stepName)
+          && Objects.equals(counters, metricsContainerImpl.counters)
+          && Objects.equals(distributions, metricsContainerImpl.distributions)
+          && Objects.equals(gauges, metricsContainerImpl.gauges);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(stepName, counters, distributions, gauges);
   }
 }

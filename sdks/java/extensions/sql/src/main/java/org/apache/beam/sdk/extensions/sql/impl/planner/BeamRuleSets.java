@@ -73,7 +73,7 @@ public class BeamRuleSets {
           ProjectCalcMergeRule.INSTANCE,
           FilterToCalcRule.INSTANCE,
           ProjectToCalcRule.INSTANCE,
-          // https://issues.apache.org/jira/browse/BEAM-4522
+          // disabled due to https://issues.apache.org/jira/browse/BEAM-6810
           // CalcRemoveRule.INSTANCE,
           CalcMergeRule.INSTANCE,
 

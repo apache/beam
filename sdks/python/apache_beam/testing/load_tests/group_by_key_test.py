@@ -45,6 +45,25 @@ python setup.py nosetests \
     }'" \
     --tests apache_beam.testing.load_tests.group_by_key_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=...
+    --metrics_dataset=python_load_tests
+    --metrics_table=gbk
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=DirectRunner' \
+-PloadTest.mainClass=
+apache_beam.testing.load_tests.group_by_key_test \
+-Prunner=DirectRunner :beam-sdks-python-load-tests:run
+
 To run test on other runner (ex. Dataflow):
 
 python setup.py nosetests \
@@ -67,6 +86,25 @@ python setup.py nosetests \
         }'" \
     --tests apache_beam.testing.load_tests.group_by_key_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=...
+    --metrics_dataset=python_load_tests
+    --metrics_table=gbk
+    --temp_location=gs://...
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=TestDataflowRunner' \
+-PloadTest.mainClass=
+apache_beam.testing.load_tests.group_by_key_test \
+-Prunner=TestDataflowRunner :beam-sdks-python-load-tests:run
 """
 
 from __future__ import absolute_import
@@ -129,23 +167,22 @@ class GroupByKeyTest(unittest.TestCase):
                        'are empty.')
 
   def testGroupByKey(self):
-    with self.pipeline as p:
-      # pylint: disable=expression-not-assigned
-      (p
-       | beam.io.Read(synthetic_pipeline.SyntheticSource(
-           self.parseTestPipelineOptions()))
-       | 'Measure time: Start' >> beam.ParDo(
-           MeasureTime(self.metrics_namespace))
-       | 'GroupByKey' >> beam.GroupByKey()
-       | 'Ungroup' >> beam.FlatMap(
-           lambda elm: [(elm[0], v) for v in elm[1]])
-       | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-      )
+    # pylint: disable=expression-not-assigned
+    (self.pipeline
+     | beam.io.Read(synthetic_pipeline.SyntheticSource(
+         self.parseTestPipelineOptions()))
+     | 'Measure time: Start' >> beam.ParDo(
+         MeasureTime(self.metrics_namespace))
+     | 'GroupByKey' >> beam.GroupByKey()
+     | 'Ungroup' >> beam.FlatMap(
+         lambda elm: [(elm[0], v) for v in elm[1]])
+     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+    )
 
-      result = p.run()
-      result.wait_until_finish()
-      if self.metrics_monitor is not None:
-        self.metrics_monitor.send_metrics(result)
+    result = self.pipeline.run()
+    result.wait_until_finish()
+    if self.metrics_monitor is not None:
+      self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':

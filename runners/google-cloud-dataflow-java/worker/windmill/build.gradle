@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyPortabilityNature(shadowJarValidationExcludes: ["org/apache/beam/runners/dataflow/worker/windmill/**"])
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow Java :: Windmill"

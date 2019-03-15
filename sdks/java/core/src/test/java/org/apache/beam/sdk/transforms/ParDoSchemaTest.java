@@ -25,6 +25,8 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSchema;
@@ -305,7 +307,8 @@ public class ParDoSchemaTest implements Serializable {
                           FieldAccessDescriptor.withAllFields();
 
                       @ProcessElement
-                      public void process(@FieldAccess("foo") Row row, OutputReceiver<String> r) {
+                      public void process(
+                          @FieldAccess("foo") @Element Row row, OutputReceiver<String> r) {
                         r.output(row.getString(0) + ":" + row.getInt32(1));
                       }
                     }));
@@ -314,7 +317,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category({NeedsRunner.class, UsesSchema.class})
   public void testNoSchema() {
     thrown.expect(IllegalArgumentException.class);
     pipeline
@@ -325,10 +328,11 @@ public class ParDoSchemaTest implements Serializable {
                   @ProcessElement
                   public void process(@Element Row row) {}
                 }));
+    pipeline.run();
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category({NeedsRunner.class, UsesSchema.class})
   public void testUnmatchedSchema() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -353,20 +357,20 @@ public class ParDoSchemaTest implements Serializable {
                   @ProcessElement
                   public void process(@FieldAccess("a") Row row) {}
                 }));
+    pipeline.run();
   }
 
-  /** Test POJO. */
+  /** POJO used for testing. */
   @DefaultSchema(JavaFieldSchema.class)
-  public static class InferredPojo {
-    public String stringField;
-    public Integer integerField;
+  static class InferredPojo {
+    final String stringField;
+    final Integer integerField;
 
-    public InferredPojo(String stringField, Integer integerField) {
+    @SchemaCreate
+    InferredPojo(String stringField, Integer integerField) {
       this.stringField = stringField;
       this.integerField = integerField;
     }
-
-    public InferredPojo() {}
   }
 
   @Test
@@ -401,6 +405,41 @@ public class ParDoSchemaTest implements Serializable {
     PCollection<InferredPojo> out = pipeline.apply(Create.of(pojoList)).apply(Filter.by(e -> true));
     assertTrue(out.hasSchema());
 
+    pipeline.run();
+  }
+
+  /** Pojo used for testing. */
+  @DefaultSchema(JavaFieldSchema.class)
+  static class InferredPojo2 {
+    final Integer integerField;
+    final String stringField;
+
+    @SchemaCreate
+    InferredPojo2(String stringField, Integer integerField) {
+      this.stringField = stringField;
+      this.integerField = integerField;
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSchema.class})
+  public void testSchemaConversionPipeline() {
+    List<InferredPojo> pojoList =
+        Lists.newArrayList(
+            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(
+                ParDo.of(
+                    new DoFn<InferredPojo, String>() {
+                      @ProcessElement
+                      public void process(@Element InferredPojo2 pojo, OutputReceiver<String> r) {
+                        r.output(pojo.stringField + ":" + pojo.integerField);
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
     pipeline.run();
   }
 }

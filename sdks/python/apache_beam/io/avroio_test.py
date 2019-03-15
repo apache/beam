@@ -15,9 +15,11 @@
 # limitations under the License.
 #
 from __future__ import absolute_import
+from __future__ import division
 
 import json
 import logging
+import math
 import os
 import sys
 import tempfile
@@ -277,12 +279,9 @@ class TestAvro(unittest.TestCase):
     expected_result = self.RECORDS * 2000
     self._run_avro_test(file_name, 10000, True, expected_result)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3. '
-                   'See BEAM-6522')
   def test_split_points(self):
-    file_name = self._write_data(count=12000)
+    num_records = 12000
+    file_name = self._write_data(count=num_records)
     source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
 
     splits = [
@@ -299,17 +298,22 @@ class TestAvro(unittest.TestCase):
     for _ in splits[0].source.read(range_tracker):
       split_points_report.append(range_tracker.split_points())
 
-    # There are a total of three blocks. Each block has more than 10 records.
+    # There will be a total of num_blocks in the generated test file,
+    # proportional to number of records in the file divided by syncronization
+    # interval used by avro during write. Each block has more than 10 records.
+    num_blocks = int(math.ceil(14.5 * num_records /
+                               avro.datafile.SYNC_INTERVAL))
+    assert num_blocks > 1
 
     # When reading records of the first block, range_tracker.split_points()
     # should return (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
-    self.assertEquals(
+    self.assertEqual(
         split_points_report[:10],
         [(0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)] * 10)
 
     # When reading records of last block, range_tracker.split_points() should
-    # return (2, 1)
-    self.assertEquals(split_points_report[-10:], [(2, 1)] * 10)
+    # return (num_blocks - 1, 1)
+    self.assertEqual(split_points_report[-10:], [(num_blocks - 1, 1)] * 10)
 
   def test_read_without_splitting_compressed_deflate(self):
     file_name = self._write_data(codec='deflate')

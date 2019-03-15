@@ -38,6 +38,10 @@ cdef class ConsumerSet(Receiver):
   cpdef update_counters_finish(self)
 
 
+cdef class SingletonConsumerSet(ConsumerSet):
+  cdef Operation consumer
+
+
 cdef class Operation(object):
   cdef readonly name_context
   cdef readonly operation_name
@@ -45,6 +49,7 @@ cdef class Operation(object):
   cdef object consumers
   cdef readonly counter_factory
   cdef public metrics_container
+  cdef public execution_context
   # Public for access by Fn harness operations.
   # TODO(robertwb): Cythonize FnHarness.
   cdef public list receivers
@@ -89,6 +94,12 @@ cdef class DoOperation(Operation):
   cdef object user_state_context
   cdef public dict timer_inputs
   cdef dict timer_specs
+  cdef public object input_info
+
+
+cdef class SdfProcessElements(DoOperation):
+  cdef object lock
+  cdef object element_start_output_bytes
 
 
 cdef class CombineOperation(Operation):

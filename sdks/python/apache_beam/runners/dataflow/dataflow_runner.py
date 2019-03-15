@@ -40,6 +40,7 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
@@ -361,6 +362,30 @@ class DataflowRunner(PipelineRunner):
         experiments = list(set(experiments + debug_options.experiments))
       debug_options.experiments = experiments
 
+    # Elevate "enable_streaming_engine" to pipeline option, but using the
+    # existing experiment.
+    google_cloud_options = options.view_as(GoogleCloudOptions)
+    if google_cloud_options.enable_streaming_engine:
+      if debug_options.experiments is None:
+        debug_options.experiments = []
+      if "enable_windmill_service" not in debug_options.experiments:
+        debug_options.experiments.append("enable_windmill_service")
+      if "enable_streaming_engine" not in debug_options.experiments:
+        debug_options.experiments.append("enable_streaming_engine")
+    else:
+      if debug_options.experiments is not None:
+        if ("enable_windmill_service" in debug_options.experiments
+            or "enable_streaming_engine" in debug_options.experiments):
+          raise ValueError("""Streaming engine both disabled and enabled:
+          enableStreamingEngine is set to false, but enable_windmill_service
+          and/or enable_streaming_engine are present. It is recommended you
+          only set enableStreamingEngine.""")
+
+    # TODO(BEAM-6664): Remove once Dataflow supports --dataflow_kms_key.
+    if google_cloud_options.dataflow_kms_key is not None:
+      debug_options.add_experiment('service_default_cmek_config=' +
+                                   google_cloud_options.dataflow_kms_key)
+
     self.job = apiclient.Job(options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
@@ -564,26 +589,6 @@ class DataflowRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
-
-  def apply_WriteToBigQuery(self, transform, pcoll, options):
-    # Make sure this is the WriteToBigQuery class that we expected
-    if not isinstance(transform, beam.io.WriteToBigQuery):
-      return self.apply_PTransform(transform, pcoll, options)
-    standard_options = options.view_as(StandardOptions)
-    if standard_options.streaming:
-      if (transform.write_disposition ==
-          beam.io.BigQueryDisposition.WRITE_TRUNCATE):
-        raise RuntimeError('Can not use write truncation mode in streaming')
-      return self.apply_PTransform(transform, pcoll, options)
-    else:
-      return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
-          beam.io.BigQuerySink(
-              transform.table_reference.tableId,
-              transform.table_reference.datasetId,
-              transform.table_reference.projectId,
-              transform.schema,
-              transform.create_disposition,
-              transform.write_disposition))
 
   def apply_GroupByKey(self, transform, pcoll, options):
     # Infer coder of parent.
@@ -885,6 +890,9 @@ class DataflowRunner(PipelineRunner):
       else:
         raise ValueError('BigQuery source %r must specify either a table or'
                          ' a query' % transform.source)
+      if transform.source.kms_key is not None:
+        step.add_property(
+            PropertyNames.BIGQUERY_KMS_KEY, transform.source.kms_key)
     elif transform.source.format == 'pubsub':
       if not standard_options.streaming:
         raise ValueError('Cloud Pub/Sub is currently available for use '
@@ -983,6 +991,9 @@ class DataflowRunner(PipelineRunner):
       if transform.sink.table_schema is not None:
         step.add_property(
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
+      if transform.sink.kms_key is not None:
+        step.add_property(
+            PropertyNames.BIGQUERY_KMS_KEY, transform.sink.kms_key)
     elif transform.sink.format == 'pubsub':
       standard_options = options.view_as(StandardOptions)
       if not standard_options.streaming:

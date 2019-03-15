@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  * PipelineOptions:
  *
  * <pre>
- *  ./gradlew integrationTest -p sdks/java/io/Kudu -DintegrationTestPipelineOptions='[
+ *  ./gradlew integrationTest -p sdks/java/io/kudu -DintegrationTestPipelineOptions='[
  *    "--kuduMasterAddresses=127.0.0.1",
  *    "--kuduTable=beam-integration-test",
  *    "--numberOfRecords=100000" ]'

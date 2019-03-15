@@ -171,6 +171,8 @@ public class RowCoder extends CustomCoder<Row> {
 
   private static long estimatedSizeBytes(FieldType typeDescriptor, Object value) {
     switch (typeDescriptor.getTypeName()) {
+      case LOGICAL_TYPE:
+        return estimatedSizeBytes(typeDescriptor.getLogicalType().getBaseType(), value);
       case ROW:
         return estimatedSizeBytes((Row) value);
       case ARRAY:

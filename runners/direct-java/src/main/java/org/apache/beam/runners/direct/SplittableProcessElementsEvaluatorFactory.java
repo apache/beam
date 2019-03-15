@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElem
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -128,7 +129,8 @@ class SplittableProcessElementsEvaluatorFactory<
                 inputBundle.getKey(),
                 application.getTransform().getSideInputs(),
                 application.getTransform().getMainOutputTag(),
-                application.getTransform().getAdditionalOutputTags().getAll());
+                application.getTransform().getAdditionalOutputTags().getAll(),
+                DoFnSchemaInformation.create());
     final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
         evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
@@ -191,7 +193,8 @@ class SplittableProcessElementsEvaluatorFactory<
         stepContext,
         inputCoder,
         outputCoders,
-        windowingStrategy) -> {
+        windowingStrategy,
+        doFnSchemaInformation) -> {
       ProcessFn<InputT, OutputT, RestrictionT, ?> processFn = (ProcessFn) fn;
       return DoFnRunners.newProcessFnRunner(
           processFn,
@@ -204,7 +207,8 @@ class SplittableProcessElementsEvaluatorFactory<
           stepContext,
           inputCoder,
           outputCoders,
-          windowingStrategy);
+          windowingStrategy,
+          doFnSchemaInformation);
     };
   }
 }

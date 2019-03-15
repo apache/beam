@@ -20,19 +20,24 @@ package org.apache.beam.runners.flink;
 import static java.util.Arrays.asList;
 import static org.apache.beam.sdk.testing.RegexMatcher.matches;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.core.Every.everyItem;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Charsets;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
@@ -42,7 +47,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.RemoteEnvironment;
+import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,6 +61,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockito.internal.util.reflection.Whitebox;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
 @RunWith(JUnit4.class)
@@ -116,6 +127,69 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
     assertThat(options.getFilesToStage().size(), is(2));
     assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
+  }
+
+  @Test
+  public void shouldUseDefaultTempLocationIfNoneSet() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster("clusterAddress");
+
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    flinkEnv.translate(pipeline);
+
+    String defaultTmpDir = System.getProperty("java.io.tmpdir");
+
+    assertThat(options.getFilesToStage(), hasItem(startsWith(defaultTmpDir)));
+  }
+
+  @Test
+  public void shouldUsePreparedFilesOnRemoteEnvironment() throws Exception {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster("clusterAddress");
+
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    flinkEnv.translate(pipeline);
+
+    ExecutionEnvironment executionEnvironment = flinkEnv.getBatchExecutionEnvironment();
+    assertThat(executionEnvironment, instanceOf(RemoteEnvironment.class));
+
+    @SuppressWarnings("unchecked")
+    List<URL> jarFiles = (List<URL>) Whitebox.getInternalState(executionEnvironment, "jarFiles");
+
+    List<URL> urlConvertedStagedFiles = convertFilesToURLs(options.getFilesToStage());
+
+    assertThat(jarFiles, is(urlConvertedStagedFiles));
+  }
+
+  @Test
+  public void shouldUsePreparedFilesOnRemoteStreamEnvironment() throws Exception {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster("clusterAddress");
+    options.setStreaming(true);
+
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    flinkEnv.translate(pipeline);
+
+    StreamExecutionEnvironment streamExecutionEnvironment =
+        flinkEnv.getStreamExecutionEnvironment();
+    assertThat(streamExecutionEnvironment, instanceOf(RemoteStreamEnvironment.class));
+
+    @SuppressWarnings("unchecked")
+    List<URL> jarFiles =
+        (List<URL>) Whitebox.getInternalState(streamExecutionEnvironment, "jarFiles");
+
+    List<URL> urlConvertedStagedFiles = convertFilesToURLs(options.getFilesToStage());
+
+    assertThat(jarFiles, is(urlConvertedStagedFiles));
   }
 
   @Test
@@ -202,5 +276,18 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     options.setTempLocation(tempLocation);
     options.setFilesToStage(filesToStage);
     return options;
+  }
+
+  private static List<URL> convertFilesToURLs(List<String> filePaths) {
+    return filePaths.stream()
+        .map(
+            file -> {
+              try {
+                return new File(file).getAbsoluteFile().toURI().toURL();
+              } catch (MalformedURLException e) {
+                throw new RuntimeException("Failed to convert to URL", e);
+              }
+            })
+        .collect(Collectors.toList());
   }
 }

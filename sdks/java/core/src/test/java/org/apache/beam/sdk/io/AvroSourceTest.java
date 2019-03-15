@@ -756,6 +756,25 @@ public class AvroSourceTest {
     assertEquals(4, schema.getFields().size());
   }
 
+  @Test
+  public void testCreateFromMetadata() throws Exception {
+    List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
+    String codec = DataFileConstants.NULL_CODEC;
+    String filename =
+        generateTestFile(
+            codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+    Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
+
+    AvroSource<GenericRecord> source = AvroSource.from(fileMeta);
+    AvroSource<Bird> sourceWithSchema = source.withSchema(Bird.class);
+    AvroSource<Bird> sourceWithSchemaWithMinBundleSize = sourceWithSchema.withMinBundleSize(1234);
+
+    assertEquals(FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE, source.getMode());
+    assertEquals(FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE, sourceWithSchema.getMode());
+    assertEquals(
+        FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE, sourceWithSchemaWithMinBundleSize.getMode());
+  }
+
   /**
    * Class that will encode to a fixed size: 16 bytes.
    *

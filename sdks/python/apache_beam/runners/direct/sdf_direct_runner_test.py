@@ -35,7 +35,6 @@ from apache_beam.pvalue import AsSingleton
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.window import SlidingWindows
@@ -83,7 +82,7 @@ class ReadFiles(DoFn):
         output_count += 1
 
         if self._resume_count and output_count == self._resume_count:
-          yield ProcessContinuation()
+          restriction_tracker.defer_remainder()
           break
 
         pos += len_line

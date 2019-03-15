@@ -76,7 +76,6 @@ class SwitchingDirectRunner(PipelineRunner):
       use_fnapi_runner = False
 
     from apache_beam.pipeline import PipelineVisitor
-    from apache_beam.runners.common import DoFnSignature
     from apache_beam.runners.dataflow.native_io.iobase import NativeSource
     from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite
     from apache_beam.testing.test_stream import TestStream
@@ -103,9 +102,6 @@ class SwitchingDirectRunner(PipelineRunner):
           self.supported_by_fnapi_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn
-          # The FnApiRunner does not support execution of SplittableDoFns.
-          if DoFnSignature(dofn).is_splittable_dofn():
-            self.supported_by_fnapi_runner = False
           # The FnApiRunner does not support execution of CombineFns with
           # deferred side inputs.
           if isinstance(dofn, CombineValuesDoFn):

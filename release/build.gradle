@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: 'groovy'
+plugins { id 'groovy' }
 
 repositories {
   mavenCentral()

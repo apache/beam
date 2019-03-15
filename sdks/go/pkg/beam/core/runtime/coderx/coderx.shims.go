@@ -45,305 +45,303 @@ func init() {
 	runtime.RegisterFunction(encVarIntZ)
 	runtime.RegisterFunction(encVarUintZ)
 	runtime.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
-	runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())
-	reflectx.RegisterFunc(reflect.TypeOf((*func(int32) ([]byte))(nil)).Elem(), funcMakerInt32ГSliceofByte)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(int64) ([]byte))(nil)).Elem(), funcMakerInt64ГSliceofByte)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type,[]byte) (typex.T,error))(nil)).Elem(), funcMakerReflect۰TypeSliceofByteГTypex۰TError)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (int32))(nil)).Elem(), funcMakerSliceofByteГInt32)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (int64))(nil)).Elem(), funcMakerSliceofByteГInt64)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (typex.T))(nil)).Elem(), funcMakerSliceofByteГTypex۰T)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (uint32))(nil)).Elem(), funcMakerSliceofByteГUint32)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (uint64))(nil)).Elem(), funcMakerSliceofByteГUint64)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) ([]byte))(nil)).Elem(), funcMakerTypex۰TГSliceofByte)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(uint32) ([]byte))(nil)).Elem(), funcMakerUint32ГSliceofByte)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(uint64) ([]byte))(nil)).Elem(), funcMakerUint64ГSliceofByte)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(int32) []byte)(nil)).Elem(), funcMakerInt32ГSliceOfByte)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(int64) []byte)(nil)).Elem(), funcMakerInt64ГSliceOfByte)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, []byte) (typex.T, error))(nil)).Elem(), funcMakerReflect۰TypeSliceOfByteГTypex۰TError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) int32)(nil)).Elem(), funcMakerSliceOfByteГInt32)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) int64)(nil)).Elem(), funcMakerSliceOfByteГInt64)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) typex.T)(nil)).Elem(), funcMakerSliceOfByteГTypex۰T)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) uint32)(nil)).Elem(), funcMakerSliceOfByteГUint32)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) uint64)(nil)).Elem(), funcMakerSliceOfByteГUint64)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) []byte)(nil)).Elem(), funcMakerTypex۰TГSliceOfByte)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(uint32) []byte)(nil)).Elem(), funcMakerUint32ГSliceOfByte)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(uint64) []byte)(nil)).Elem(), funcMakerUint64ГSliceOfByte)
 }
 
-type callerInt32ГSliceofByte struct {
-	fn func(int32) ([]byte)
+type callerInt32ГSliceOfByte struct {
+	fn func(int32) []byte
 }
 
-func funcMakerInt32ГSliceofByte(fn interface{}) reflectx.Func {
-	f := fn.(func(int32) ([]byte))
-	return &callerInt32ГSliceofByte{fn: f}
+func funcMakerInt32ГSliceOfByte(fn interface{}) reflectx.Func {
+	f := fn.(func(int32) []byte)
+	return &callerInt32ГSliceOfByte{fn: f}
 }
 
-func (c *callerInt32ГSliceofByte) Name() string {
+func (c *callerInt32ГSliceOfByte) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerInt32ГSliceofByte) Type() reflect.Type {
+func (c *callerInt32ГSliceOfByte) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerInt32ГSliceofByte) Call(args []interface{}) []interface{} {
+func (c *callerInt32ГSliceOfByte) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].(int32))
 	return []interface{}{out0}
 }
 
-func (c *callerInt32ГSliceofByte) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerInt32ГSliceOfByte) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.(int32))
 }
 
-type callerInt64ГSliceofByte struct {
-	fn func(int64) ([]byte)
+type callerInt64ГSliceOfByte struct {
+	fn func(int64) []byte
 }
 
-func funcMakerInt64ГSliceofByte(fn interface{}) reflectx.Func {
-	f := fn.(func(int64) ([]byte))
-	return &callerInt64ГSliceofByte{fn: f}
+func funcMakerInt64ГSliceOfByte(fn interface{}) reflectx.Func {
+	f := fn.(func(int64) []byte)
+	return &callerInt64ГSliceOfByte{fn: f}
 }
 
-func (c *callerInt64ГSliceofByte) Name() string {
+func (c *callerInt64ГSliceOfByte) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerInt64ГSliceofByte) Type() reflect.Type {
+func (c *callerInt64ГSliceOfByte) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerInt64ГSliceofByte) Call(args []interface{}) []interface{} {
+func (c *callerInt64ГSliceOfByte) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].(int64))
 	return []interface{}{out0}
 }
 
-func (c *callerInt64ГSliceofByte) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerInt64ГSliceOfByte) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.(int64))
 }
 
-type callerReflect۰TypeSliceofByteГTypex۰TError struct {
-	fn func(reflect.Type,[]byte) (typex.T,error)
+type callerReflect۰TypeSliceOfByteГTypex۰TError struct {
+	fn func(reflect.Type, []byte) (typex.T, error)
 }
 
-func funcMakerReflect۰TypeSliceofByteГTypex۰TError(fn interface{}) reflectx.Func {
-	f := fn.(func(reflect.Type,[]byte) (typex.T,error))
-	return &callerReflect۰TypeSliceofByteГTypex۰TError{fn: f}
+func funcMakerReflect۰TypeSliceOfByteГTypex۰TError(fn interface{}) reflectx.Func {
+	f := fn.(func(reflect.Type, []byte) (typex.T, error))
+	return &callerReflect۰TypeSliceOfByteГTypex۰TError{fn: f}
 }
 
-func (c *callerReflect۰TypeSliceofByteГTypex۰TError) Name() string {
+func (c *callerReflect۰TypeSliceOfByteГTypex۰TError) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerReflect۰TypeSliceofByteГTypex۰TError) Type() reflect.Type {
+func (c *callerReflect۰TypeSliceOfByteГTypex۰TError) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerReflect۰TypeSliceofByteГTypex۰TError) Call(args []interface{}) []interface{} {
+func (c *callerReflect۰TypeSliceOfByteГTypex۰TError) Call(args []interface{}) []interface{} {
 	out0, out1 := c.fn(args[0].(reflect.Type), args[1].([]byte))
 	return []interface{}{out0, out1}
 }
 
-func (c *callerReflect۰TypeSliceofByteГTypex۰TError) Call2x2(arg0, arg1 interface{}) (interface{}, interface{}) {
+func (c *callerReflect۰TypeSliceOfByteГTypex۰TError) Call2x2(arg0, arg1 interface{}) (interface{}, interface{}) {
 	return c.fn(arg0.(reflect.Type), arg1.([]byte))
 }
 
-type callerSliceofByteГInt32 struct {
-	fn func([]byte) (int32)
+type callerSliceOfByteГInt32 struct {
+	fn func([]byte) int32
 }
 
-func funcMakerSliceofByteГInt32(fn interface{}) reflectx.Func {
-	f := fn.(func([]byte) (int32))
-	return &callerSliceofByteГInt32{fn: f}
+func funcMakerSliceOfByteГInt32(fn interface{}) reflectx.Func {
+	f := fn.(func([]byte) int32)
+	return &callerSliceOfByteГInt32{fn: f}
 }
 
-func (c *callerSliceofByteГInt32) Name() string {
+func (c *callerSliceOfByteГInt32) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerSliceofByteГInt32) Type() reflect.Type {
+func (c *callerSliceOfByteГInt32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerSliceofByteГInt32) Call(args []interface{}) []interface{} {
+func (c *callerSliceOfByteГInt32) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].([]byte))
 	return []interface{}{out0}
 }
 
-func (c *callerSliceofByteГInt32) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerSliceOfByteГInt32) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.([]byte))
 }
 
-type callerSliceofByteГInt64 struct {
-	fn func([]byte) (int64)
+type callerSliceOfByteГInt64 struct {
+	fn func([]byte) int64
 }
 
-func funcMakerSliceofByteГInt64(fn interface{}) reflectx.Func {
-	f := fn.(func([]byte) (int64))
-	return &callerSliceofByteГInt64{fn: f}
+func funcMakerSliceOfByteГInt64(fn interface{}) reflectx.Func {
+	f := fn.(func([]byte) int64)
+	return &callerSliceOfByteГInt64{fn: f}
 }
 
-func (c *callerSliceofByteГInt64) Name() string {
+func (c *callerSliceOfByteГInt64) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerSliceofByteГInt64) Type() reflect.Type {
+func (c *callerSliceOfByteГInt64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerSliceofByteГInt64) Call(args []interface{}) []interface{} {
+func (c *callerSliceOfByteГInt64) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].([]byte))
 	return []interface{}{out0}
 }
 
-func (c *callerSliceofByteГInt64) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerSliceOfByteГInt64) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.([]byte))
 }
 
-type callerSliceofByteГTypex۰T struct {
-	fn func([]byte) (typex.T)
+type callerSliceOfByteГTypex۰T struct {
+	fn func([]byte) typex.T
 }
 
-func funcMakerSliceofByteГTypex۰T(fn interface{}) reflectx.Func {
-	f := fn.(func([]byte) (typex.T))
-	return &callerSliceofByteГTypex۰T{fn: f}
+func funcMakerSliceOfByteГTypex۰T(fn interface{}) reflectx.Func {
+	f := fn.(func([]byte) typex.T)
+	return &callerSliceOfByteГTypex۰T{fn: f}
 }
 
-func (c *callerSliceofByteГTypex۰T) Name() string {
+func (c *callerSliceOfByteГTypex۰T) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerSliceofByteГTypex۰T) Type() reflect.Type {
+func (c *callerSliceOfByteГTypex۰T) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerSliceofByteГTypex۰T) Call(args []interface{}) []interface{} {
+func (c *callerSliceOfByteГTypex۰T) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].([]byte))
 	return []interface{}{out0}
 }
 
-func (c *callerSliceofByteГTypex۰T) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerSliceOfByteГTypex۰T) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.([]byte))
 }
 
-type callerSliceofByteГUint32 struct {
-	fn func([]byte) (uint32)
+type callerSliceOfByteГUint32 struct {
+	fn func([]byte) uint32
 }
 
-func funcMakerSliceofByteГUint32(fn interface{}) reflectx.Func {
-	f := fn.(func([]byte) (uint32))
-	return &callerSliceofByteГUint32{fn: f}
+func funcMakerSliceOfByteГUint32(fn interface{}) reflectx.Func {
+	f := fn.(func([]byte) uint32)
+	return &callerSliceOfByteГUint32{fn: f}
 }
 
-func (c *callerSliceofByteГUint32) Name() string {
+func (c *callerSliceOfByteГUint32) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerSliceofByteГUint32) Type() reflect.Type {
+func (c *callerSliceOfByteГUint32) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerSliceofByteГUint32) Call(args []interface{}) []interface{} {
+func (c *callerSliceOfByteГUint32) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].([]byte))
 	return []interface{}{out0}
 }
 
-func (c *callerSliceofByteГUint32) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerSliceOfByteГUint32) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.([]byte))
 }
 
-type callerSliceofByteГUint64 struct {
-	fn func([]byte) (uint64)
+type callerSliceOfByteГUint64 struct {
+	fn func([]byte) uint64
 }
 
-func funcMakerSliceofByteГUint64(fn interface{}) reflectx.Func {
-	f := fn.(func([]byte) (uint64))
-	return &callerSliceofByteГUint64{fn: f}
+func funcMakerSliceOfByteГUint64(fn interface{}) reflectx.Func {
+	f := fn.(func([]byte) uint64)
+	return &callerSliceOfByteГUint64{fn: f}
 }
 
-func (c *callerSliceofByteГUint64) Name() string {
+func (c *callerSliceOfByteГUint64) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerSliceofByteГUint64) Type() reflect.Type {
+func (c *callerSliceOfByteГUint64) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerSliceofByteГUint64) Call(args []interface{}) []interface{} {
+func (c *callerSliceOfByteГUint64) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].([]byte))
 	return []interface{}{out0}
 }
 
-func (c *callerSliceofByteГUint64) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerSliceOfByteГUint64) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.([]byte))
 }
 
-type callerTypex۰TГSliceofByte struct {
-	fn func(typex.T) ([]byte)
+type callerTypex۰TГSliceOfByte struct {
+	fn func(typex.T) []byte
 }
 
-func funcMakerTypex۰TГSliceofByte(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.T) ([]byte))
-	return &callerTypex۰TГSliceofByte{fn: f}
+func funcMakerTypex۰TГSliceOfByte(fn interface{}) reflectx.Func {
+	f := fn.(func(typex.T) []byte)
+	return &callerTypex۰TГSliceOfByte{fn: f}
 }
 
-func (c *callerTypex۰TГSliceofByte) Name() string {
+func (c *callerTypex۰TГSliceOfByte) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerTypex۰TГSliceofByte) Type() reflect.Type {
+func (c *callerTypex۰TГSliceOfByte) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerTypex۰TГSliceofByte) Call(args []interface{}) []interface{} {
+func (c *callerTypex۰TГSliceOfByte) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].(typex.T))
 	return []interface{}{out0}
 }
 
-func (c *callerTypex۰TГSliceofByte) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerTypex۰TГSliceOfByte) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.(typex.T))
 }
 
-type callerUint32ГSliceofByte struct {
-	fn func(uint32) ([]byte)
+type callerUint32ГSliceOfByte struct {
+	fn func(uint32) []byte
 }
 
-func funcMakerUint32ГSliceofByte(fn interface{}) reflectx.Func {
-	f := fn.(func(uint32) ([]byte))
-	return &callerUint32ГSliceofByte{fn: f}
+func funcMakerUint32ГSliceOfByte(fn interface{}) reflectx.Func {
+	f := fn.(func(uint32) []byte)
+	return &callerUint32ГSliceOfByte{fn: f}
 }
 
-func (c *callerUint32ГSliceofByte) Name() string {
+func (c *callerUint32ГSliceOfByte) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerUint32ГSliceofByte) Type() reflect.Type {
+func (c *callerUint32ГSliceOfByte) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerUint32ГSliceofByte) Call(args []interface{}) []interface{} {
+func (c *callerUint32ГSliceOfByte) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].(uint32))
 	return []interface{}{out0}
 }
 
-func (c *callerUint32ГSliceofByte) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerUint32ГSliceOfByte) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.(uint32))
 }
 
-type callerUint64ГSliceofByte struct {
-	fn func(uint64) ([]byte)
+type callerUint64ГSliceOfByte struct {
+	fn func(uint64) []byte
 }
 
-func funcMakerUint64ГSliceofByte(fn interface{}) reflectx.Func {
-	f := fn.(func(uint64) ([]byte))
-	return &callerUint64ГSliceofByte{fn: f}
+func funcMakerUint64ГSliceOfByte(fn interface{}) reflectx.Func {
+	f := fn.(func(uint64) []byte)
+	return &callerUint64ГSliceOfByte{fn: f}
 }
 
-func (c *callerUint64ГSliceofByte) Name() string {
+func (c *callerUint64ГSliceOfByte) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerUint64ГSliceofByte) Type() reflect.Type {
+func (c *callerUint64ГSliceOfByte) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerUint64ГSliceofByte) Call(args []interface{}) []interface{} {
+func (c *callerUint64ГSliceOfByte) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].(uint64))
 	return []interface{}{out0}
 }
 
-func (c *callerUint64ГSliceofByte) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerUint64ГSliceOfByte) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.(uint64))
 }
-
 
 // DO NOT MODIFY: GENERATED CODE

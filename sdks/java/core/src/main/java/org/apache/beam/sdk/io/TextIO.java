@@ -1191,7 +1191,10 @@ public class TextIO {
     /** @see Compression#ZIP */
     ZIP(Compression.ZIP),
 
-    /** @see Compression#ZIP */
+    /** @see Compression#ZSTD */
+    ZSTD(Compression.ZSTD),
+
+    /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
     private final Compression canonical;

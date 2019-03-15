@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -36,14 +37,14 @@ import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -199,15 +201,18 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(metricsContainerRegistry);
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -363,7 +368,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(metricsContainerRegistry);
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -373,9 +379,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
         TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -501,15 +509,18 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(metricsContainerRegistry);
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -607,15 +618,18 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
 
     PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(metricsContainerRegistry);
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -775,7 +789,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(metricsContainerRegistry);
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -792,9 +807,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             (FnDataReceiver<WindowedValue<KV<String, Timer>>>) processingTimerOutputValues::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(

@@ -211,6 +211,8 @@ class _GrpcDataChannel(DataChannel):
         try:
           data = received.get(timeout=1)
         except queue.Empty:
+          if self._closed:
+            raise RuntimeError('Channel closed prematurely.')
           if abort_callback():
             return
           if self._exc_info:
@@ -275,6 +277,7 @@ class _GrpcDataChannel(DataChannel):
         self._exc_info = sys.exc_info()
         raise
     finally:
+      self._closed = True
       self._reads_finished.set()
 
   def _start_reader(self, elements_iterator):

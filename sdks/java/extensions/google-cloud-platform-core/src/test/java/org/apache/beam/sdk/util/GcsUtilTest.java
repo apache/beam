@@ -53,6 +53,7 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
@@ -66,6 +67,7 @@ import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -74,6 +76,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.GcsUtil.RewriteOp;
 import org.apache.beam.sdk.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
@@ -771,9 +774,11 @@ public class GcsUtilTest {
 
   @Test
   public void testGCSChannelCloseIdempotent() throws IOException {
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
     SeekableByteChannel channel =
         new GoogleCloudStorageReadChannel(
-            null, "dummybucket", "dummyobject", null, new ClientRequestHelper<>());
+            null, "dummybucket", "dummyobject", null, new ClientRequestHelper<>(), readOptions);
     channel.close();
     channel.close();
   }
@@ -838,32 +843,72 @@ public class GcsUtilTest {
   }
 
   @Test
+  public void testMakeRewriteOps() throws IOException {
+    GcsOptions gcsOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
+
+    LinkedList<RewriteOp> rewrites =
+        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1));
+    assertEquals(1, rewrites.size());
+
+    RewriteOp rewrite = rewrites.pop();
+    assertTrue(rewrite.getReadyToEnqueue());
+    Storage.Objects.Rewrite request = rewrite.rewriteRequest;
+    assertNull(request.getMaxBytesRewrittenPerCall());
+    assertEquals("bucket", request.getSourceBucket());
+    assertEquals("s0", request.getSourceObject());
+    assertEquals("bucket", request.getDestinationBucket());
+    assertEquals("d0", request.getDestinationObject());
+  }
+
+  @Test
+  public void testMakeRewriteOpsWithOptions() throws IOException {
+    GcsOptions gcsOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
+    gcsUtil.maxBytesRewrittenPerCall = 1337L;
+
+    LinkedList<RewriteOp> rewrites =
+        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1));
+    assertEquals(1, rewrites.size());
+
+    RewriteOp rewrite = rewrites.pop();
+    assertTrue(rewrite.getReadyToEnqueue());
+    Storage.Objects.Rewrite request = rewrite.rewriteRequest;
+    assertEquals(Long.valueOf(1337L), request.getMaxBytesRewrittenPerCall());
+  }
+
+  @Test
   public void testMakeCopyBatches() throws IOException {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
     // Small number of files fits in 1 batch
-    List<BatchRequest> batches = gcsUtil.makeCopyBatches(makeStrings("s", 3), makeStrings("d", 3));
+    List<BatchRequest> batches =
+        gcsUtil.makeCopyBatches(gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 3)));
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(3));
 
     // 1 batch of files fits in 1 batch
-    batches = gcsUtil.makeCopyBatches(makeStrings("s", 100), makeStrings("d", 100));
+    batches =
+        gcsUtil.makeCopyBatches(
+            gcsUtil.makeRewriteOps(makeStrings("s", 100), makeStrings("d", 100)));
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(100));
 
     // A little more than 5 batches of files fits in 6 batches
-    batches = gcsUtil.makeCopyBatches(makeStrings("s", 501), makeStrings("d", 501));
+    batches =
+        gcsUtil.makeCopyBatches(
+            gcsUtil.makeRewriteOps(makeStrings("s", 501), makeStrings("d", 501)));
     assertThat(batches.size(), equalTo(6));
     assertThat(sumBatchSizes(batches), equalTo(501));
   }
 
   @Test
-  public void testInvalidCopyBatches() throws IOException {
+  public void testMakeRewriteOpsInvalid() throws IOException {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Number of source files 3");
 
-    gcsUtil.makeCopyBatches(makeStrings("s", 3), makeStrings("d", 1));
+    gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 1));
   }
 
   @Test

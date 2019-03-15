@@ -37,6 +37,7 @@ import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils.RawUnionValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -72,7 +73,8 @@ public class DoFnFunction<InputT, OutputT>
       Map<String, PCollectionView<?>> sideInputTagMapping,
       TupleTag<OutputT> mainOutput,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      List<TupleTag<?>> sideOutputs) {
+      List<TupleTag<?>> sideOutputs,
+      DoFnSchemaInformation doFnSchemaInformation) {
     this.doFn = doFn;
     this.outputManager = new DoFnOutputManager();
     this.doFnRunnerFactory =
@@ -85,7 +87,8 @@ public class DoFnFunction<InputT, OutputT>
             sideOutputs,
             new NoOpStepContext(),
             outputCoders,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation);
     this.sideInputs = sideInputs;
     this.tagsToSideInputs = sideInputTagMapping;
     this.mainOutput = mainOutput;

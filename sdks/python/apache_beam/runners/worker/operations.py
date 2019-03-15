@@ -25,6 +25,7 @@ from __future__ import absolute_import
 import collections
 import logging
 import sys
+import threading
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -73,6 +74,14 @@ class ConsumerSet(Receiver):
   the other edge.
   ConsumerSet are attached to the outputting Operation.
   """
+  @staticmethod
+  def create(counter_factory, step_name, output_index, consumers, coder):
+    if len(consumers) == 1:
+      return SingletonConsumerSet(
+          counter_factory, step_name, output_index, consumers, coder)
+    else:
+      return ConsumerSet(
+          counter_factory, step_name, output_index, consumers, coder)
 
   def __init__(
       self, counter_factory, step_name, output_index, consumers, coder):
@@ -90,6 +99,24 @@ class ConsumerSet(Receiver):
       cython.cast(Operation, consumer).process(windowed_value)
     self.update_counters_finish()
 
+  def try_split(self, fraction_of_remainder):
+    # TODO(SDF): Consider supporting splitting each consumer individually.
+    # This would never come up in the existing SDF expansion, but might
+    # be useful to support fused SDF nodes.
+    # This would require dedicated delivery of the split results to each
+    # of the consumers separately.
+    return None
+
+  def current_element_progress(self):
+    """Returns the progress of the current element.
+
+    This progress should be an instance of
+    apache_beam.io.iobase.RestrictionProgress, or None if progress is unknown.
+    """
+    # TODO(SDF): Could implement this as a weighted average, if it becomes
+    # useful to split on.
+    return None
+
   def update_counters_start(self, windowed_value):
     self.opcounter.update_from(windowed_value)
 
@@ -100,6 +127,26 @@ class ConsumerSet(Receiver):
     return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
         self.__class__.__name__, self.step_name, self.output_index, self.coder,
         len(self.consumers))
+
+
+class SingletonConsumerSet(ConsumerSet):
+  def __init__(
+      self, counter_factory, step_name, output_index, consumers, coder):
+    assert len(consumers) == 1
+    super(SingletonConsumerSet, self).__init__(
+        counter_factory, step_name, output_index, consumers, coder)
+    self.consumer = consumers[0]
+
+  def receive(self, windowed_value):
+    self.update_counters_start(windowed_value)
+    self.consumer.process(windowed_value)
+    self.update_counters_finish()
+
+  def try_split(self, fraction_of_remainder):
+    return self.consumer.try_split(fraction_of_remainder)
+
+  def current_element_progress(self):
+    return self.consumer.current_element_progress()
 
 
 class Operation(object):
@@ -129,6 +176,7 @@ class Operation(object):
 
     self.spec = spec
     self.counter_factory = counter_factory
+    self.execution_context = None
     self.consumers = collections.defaultdict(list)
 
     # These are overwritten in the legacy harness.
@@ -156,11 +204,13 @@ class Operation(object):
       # top-level operation, should have output_coders
       #TODO(pabloem): Define better what step name is used here.
       if getattr(self.spec, 'output_coders', None):
-        self.receivers = [ConsumerSet(self.counter_factory,
-                                      self.name_context.logging_name(),
-                                      i,
-                                      self.consumers[i], coder)
-                          for i, coder in enumerate(self.spec.output_coders)]
+        self.receivers = [
+            ConsumerSet.create(
+                self.counter_factory,
+                self.name_context.logging_name(),
+                i,
+                self.consumers[i], coder)
+            for i, coder in enumerate(self.spec.output_coders)]
     self.setup_done = True
 
   def start(self):
@@ -172,6 +222,12 @@ class Operation(object):
   def process(self, o):
     """Process element in operation."""
     pass
+
+  def try_split(self, fraction_of_remainder):
+    return None
+
+  def current_element_progress(self):
+    return None
 
   def finish(self):
     """Finish operation."""
@@ -326,7 +382,7 @@ class ImpulseReadOperation(Operation):
         name_context, None, counter_factory, state_sampler)
     self.source = source
     self.receivers = [
-        ConsumerSet(
+        ConsumerSet.create(
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(consumers.values())), output_coder)]
 
@@ -496,7 +552,10 @@ class DoOperation(Operation):
 
   def process(self, o):
     with self.scoped_process_state:
-      self.dofn_receiver.receive(o)
+      delayed_application = self.dofn_receiver.receive(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
@@ -538,6 +597,62 @@ class DoOperation(Operation):
         )
         infos[monitoring_infos.to_key(mi)] = mi
     return infos
+
+
+class SdfProcessElements(DoOperation):
+
+  def __init__(self, *args, **kwargs):
+    super(SdfProcessElements, self).__init__(*args, **kwargs)
+    self.lock = threading.RLock()
+    self.element_start_output_bytes = None
+
+  def process(self, o):
+    with self.scoped_process_state:
+      try:
+        with self.lock:
+          self.element_start_output_bytes = self._total_output_bytes()
+          for receiver in self.tagged_receivers.values():
+            receiver.opcounter.restart_sampling()
+        # Actually processing the element can be expensive; do it without
+        # the lock.
+        delayed_application = self.dofn_runner.process_with_restriction(o)
+        if delayed_application:
+          self.execution_context.delayed_applications.append(
+              (self, delayed_application))
+      finally:
+        with self.lock:
+          self.element_start_output_bytes = None
+
+  def try_split(self, fraction_of_remainder):
+    split = self.dofn_runner.try_split(fraction_of_remainder)
+    if split:
+      primary, residual = split
+      return (self, primary), (self, residual)
+
+  def current_element_progress(self):
+    with self.lock:
+      if self.element_start_output_bytes is not None:
+        return self.dofn_runner.current_element_progress().with_completed(
+            self._total_output_bytes() - self.element_start_output_bytes)
+
+  def progress_metrics(self):
+    with self.lock:
+      metrics = super(SdfProcessElements, self).progress_metrics()
+      current_element_progress = self.current_element_progress()
+    if current_element_progress:
+      metrics.active_elements.measured.input_element_counts[
+          self.input_info[1]] = 1
+      metrics.active_elements.fraction_remaining = (
+          current_element_progress.fraction_remaining)
+    return metrics
+
+  def _total_output_bytes(self):
+    total = 0
+    for receiver in self.tagged_receivers.values():
+      elements = receiver.opcounter.element_counter.value()
+      if elements > 0:
+        total += elements * receiver.opcounter.mean_byte_counter.value()
+    return total
 
 
 class DoFnRunnerReceiver(Receiver):

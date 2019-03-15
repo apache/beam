@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 
@@ -68,7 +69,8 @@ public class SamzaDoFnRunners {
       DoFnRunners.OutputManager outputManager,
       Coder<InT> inputCoder,
       List<TupleTag<?>> sideOutputTags,
-      Map<TupleTag<?>, Coder<?>> outputCoders) {
+      Map<TupleTag<?>, Coder<?>> outputCoders,
+      DoFnSchemaInformation doFnSchemaInformation) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
@@ -100,11 +102,14 @@ public class SamzaDoFnRunners {
             createStepContext(stateInternals, timerInternals),
             inputCoder,
             outputCoders,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation);
 
     final DoFnRunner<InT, FnOutT> doFnRunnerWithMetrics =
-        DoFnRunnerWithMetrics.wrap(
-            underlyingRunner, executionContext.getMetricsContainer(), stepName);
+        pipelineOptions.getEnableMetrics()
+            ? DoFnRunnerWithMetrics.wrap(
+                underlyingRunner, executionContext.getMetricsContainer(), stepName)
+            : underlyingRunner;
 
     if (keyedInternals != null) {
       final DoFnRunner<InT, FnOutT> statefulDoFnRunner =

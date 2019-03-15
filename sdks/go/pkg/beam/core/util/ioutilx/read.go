@@ -49,11 +49,10 @@ func ReadN(r io.Reader, n int) ([]byte, error) {
 // Intended for use with small, fixed sized, stack allocated buffers that have
 // no business being allocated to the heap.
 // If the io.Reader somehow retains the passed in []byte, then this should not
-// be used, and ReadN prefered.
+// be used, and ReadN preferred.
 func ReadNBufUnsafe(r io.Reader, b []byte) error {
-	// Use with unsafe readers at your own peril.
-	p := uintptr(unsafe.Pointer(&b))
-	ret := *(*[]byte)(unsafe.Pointer(p))
+	// Use with parameter retaining readers at your own peril.
+	ret := *(*[]byte)(noescape(unsafe.Pointer(&b)))
 	index := 0
 	n := len(ret)
 	for {
@@ -77,9 +76,20 @@ func ReadNBufUnsafe(r io.Reader, b []byte) error {
 // Intended for use with small, fixed sized, stack allocated buffers that have
 // no business being allocated to the heap.
 // If the io.Reader somehow retains the passed in []byte, then this should not
-// be used, and ReadN prefered.
+// be used, and ReadN preferred.
 func ReadUnsafe(r io.Reader, b []byte) (int, error) {
-	p := uintptr(unsafe.Pointer(&b))
-	ret := *(*[]byte)(unsafe.Pointer(p))
+	ret := *(*[]byte)(noescape(unsafe.Pointer(&b)))
 	return r.Read(ret)
+}
+
+// noescape hides a pointer from escape analysis.  noescape is
+// the identity function but escape analysis doesn't think the
+// output depends on the input. noescape is inlined and currently
+// compiles down to zero instructions.
+// USE CAREFULLY!
+// This was copied from the runtime; see issues 23382 and 7921.
+//go:nosplit
+func noescape(p unsafe.Pointer) unsafe.Pointer {
+	x := uintptr(p)
+	return unsafe.Pointer(x ^ 0)
 }

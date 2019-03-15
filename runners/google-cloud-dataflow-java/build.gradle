@@ -18,7 +18,7 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20190110'
+    'dataflow.container_version' : 'beam-master-20190308'
   ]
 }
 
@@ -113,6 +113,7 @@ def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
@@ -263,8 +264,6 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
-    // TODO(BEAM-6232): ViewTest tests sideinputs, which is not supported bu current bundle execution.
-    exclude '**/ViewTest.class'
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         commonExcludeCategories.each {
@@ -273,8 +272,6 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
         fnApiWorkerExcludeCategories.each {
             excludeCategories it
         }
-        // TODO(BEAM-6232): Support sideinput.
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
         // TODO(BEAM-6233): Support timer and state.
         excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     }
@@ -299,11 +296,33 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
+  exclude '**/*KmsKeyIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit { }
+}
+
+task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
+    group = "Verification"
+    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=TestDataflowRunner",
+            "--project=${dataflowProject}",
+            "--tempRoot=${dataflowPostCommitTempRoot}",
+            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+            "--workerHarnessContainerImage=",
+            "--dataflowKmsKey=${dataflowKmsKey}",
+    ])
+
+    include '**/*KmsKeyIT.class'
+    exclude '**/BigQueryKmsKeyIT.class'  // Only needs to run on direct runner.
+    maxParallelForks 4
+    classpath = configurations.googleCloudPlatformIntegrationTest
+    testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+    useJUnit { }
 }
 
 task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
@@ -319,6 +338,8 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
 
     include '**/*IT.class'
     exclude '**/BigQueryIOReadIT.class'
+    exclude '**/BigQueryIOStorageReadIT.class'
+    exclude '**/BigQueryIOStorageReadTableRowIT.class'
     exclude '**/PubsubReadIT.class'
     exclude '**/SpannerReadIT.class'
     exclude '**/BigtableReadIT.class'
@@ -326,6 +347,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
     exclude '**/SpannerWriteIT.class'
     exclude '**/BigQueryNestedRecordsIT.class'
     exclude '**/SplitQueryFnIT.class'
+    exclude '**/*KmsKeyIT.class'
 
     maxParallelForks 4
     classpath = configurations.googleCloudPlatformIntegrationTest
@@ -429,6 +451,7 @@ task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
   dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
+  dependsOn googleCloudPlatformLegacyWorkerKmsIntegrationTest
   dependsOn examplesJavaLegacyWorkerIntegrationTest
   dependsOn coreSDKJavaLegacyWorkerIntegrationTest
 }

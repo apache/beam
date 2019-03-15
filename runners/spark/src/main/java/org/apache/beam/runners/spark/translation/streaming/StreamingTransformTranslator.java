@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -53,7 +54,6 @@ import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,6 +62,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -83,6 +84,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.spark.Accumulator;
+import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -103,7 +105,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<T>> dstream =
             ((UnboundedDataset<T>) context.borrowDataset(transform)).getDStream();
-        dstream.map(WindowingHelpers.unwindowFunction()).print(transform.getNum());
+        dstream.map(WindowedValue::getValue).print(transform.getNum());
       }
 
       @Override
@@ -305,7 +307,11 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyStream =
             dStream.transform(
                 rdd ->
-                    GroupCombineFunctions.groupByKeyOnly(rdd, coder.getKeyCoder(), wvCoder, null));
+                    GroupCombineFunctions.groupByKeyOnly(
+                        rdd,
+                        coder.getKeyCoder(),
+                        wvCoder,
+                        new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism())));
 
         // --- now group also by window.
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
@@ -400,6 +406,9 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<InputT>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
+        final DoFnSchemaInformation doFnSchemaInformation =
+            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
         final String stepName = context.getCurrentTransform().getFullName();
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
             dStream.transformToPair(
@@ -425,7 +434,8 @@ public final class StreamingTransformTranslator {
                           outputCoders,
                           sideInputs,
                           windowingStrategy,
-                          false));
+                          false,
+                          doFnSchemaInformation));
                 });
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);

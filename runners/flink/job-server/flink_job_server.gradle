@@ -24,8 +24,8 @@ import org.apache.beam.gradle.BeamModulePlugin
  * See build.gradle files for an example of how to use this script.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-apply plugin: "application"
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
 

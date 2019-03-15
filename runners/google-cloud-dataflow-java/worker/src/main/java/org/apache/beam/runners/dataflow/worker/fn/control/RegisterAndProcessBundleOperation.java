@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -44,6 +43,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -277,7 +277,13 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
     try (Closeable scope = context.enterFinish()) {
       // Await completion or failure
-      MoreFutures.get(getProcessBundleResponse(processBundleResponse));
+      BeamFnApi.ProcessBundleResponse completedResponse =
+          MoreFutures.get(getProcessBundleResponse(processBundleResponse));
+      if (completedResponse.getResidualRootsCount() > 0) {
+        throw new IllegalStateException(
+            "TODO: [BEAM-2939] residual roots in process bundle response not yet supported.");
+      }
+
       deregisterStateHandler.deregister();
       userStateData.clear();
       processBundleId = null;

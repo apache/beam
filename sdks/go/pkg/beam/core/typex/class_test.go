@@ -73,8 +73,8 @@ func TestClassOf(t *testing.T) {
 		// Recursive types.
 		{reflect.TypeOf(RecursivePtrTest{}), Concrete},
 		{reflect.TypeOf(RecursiveSliceTest{}), Concrete},
-		{reflect.TypeOf(RecursiveMapTest{}), Concrete},
 		{reflect.TypeOf(RecursivePtrArrayTest{}), Concrete},
+		{reflect.TypeOf(RecursiveMapTest{}), Concrete},
 		{reflect.TypeOf(RecursiveBadTest{}), Invalid},
 
 		{reflect.TypeOf([]X{}), Container},

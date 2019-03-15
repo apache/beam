@@ -16,7 +16,6 @@
 package exec
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -24,7 +23,6 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // TODO(herohde) 4/26/2017: SideInput representation? We want it to be amenable
@@ -53,10 +51,6 @@ var (
 func RegisterInput(t reflect.Type, maker func(ReStream) ReusableInput) {
 	inputsMu.Lock()
 	defer inputsMu.Unlock()
-
-	if _, exists := inputs[t]; exists {
-		log.Warnf(context.Background(), "Input for %v already registered. Overwriting.", t.String())
-	}
 	inputs[t] = maker
 }
 

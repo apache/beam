@@ -119,6 +119,7 @@ class UserParDoFnFactory implements ParDoFnFactory {
               outputTupleTagsToReceiverIndices,
               stepContext,
               operationContext,
+              doFnInfo.getDoFnSchemaInformation(),
               runnerFactory));
 
     } else if (doFnInfo.getDoFn() instanceof StreamingPCollectionViewWriterFn) {
@@ -145,6 +146,7 @@ class UserParDoFnFactory implements ParDoFnFactory {
           outputTupleTagsToReceiverIndices,
           stepContext,
           operationContext,
+          doFnInfo.getDoFnSchemaInformation(),
           runnerFactory);
     }
   }

@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
-apply plugin: 'base'
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins {
+  id 'base'
+  id 'org.apache.beam.module'
+}
 applyDockerNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container :: Python 3 Container"

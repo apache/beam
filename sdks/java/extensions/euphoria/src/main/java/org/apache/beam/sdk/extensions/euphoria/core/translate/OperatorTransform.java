@@ -56,7 +56,7 @@ public class OperatorTransform<InputT, OutputT, OperatorT extends Operator<Outpu
             + operator.getClass()
             + "] with name ["
             + operator.getName().orElse(null)
-            + ".");
+            + "]");
   }
 
   private final OperatorT operator;

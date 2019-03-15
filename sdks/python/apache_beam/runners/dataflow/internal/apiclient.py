@@ -31,6 +31,7 @@ import re
 import sys
 import tempfile
 import time
+import warnings
 from datetime import datetime
 
 from builtins import object
@@ -154,11 +155,12 @@ class Environment(object):
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(shared_names.BEAM_SDK_NAME)),
+            value=to_json_value(self._get_python_sdk_name())),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
+    _verify_interpreter_version_is_supported(options)
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
@@ -184,9 +186,19 @@ class Environment(object):
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      if ('use_multiple_sdk_containers' not in self.proto.experiments and
-          'no_use_multiple_sdk_containers' not in self.proto.experiments):
+      debug_options_experiments = self.debug_options.experiments
+      if ('use_multiple_sdk_containers' not in debug_options_experiments and
+          'no_use_multiple_sdk_containers' not in debug_options_experiments):
         self.debug_options.experiments.append('use_multiple_sdk_containers')
+    # FlexRS
+    if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
+      self.proto.flexResourceSchedulingGoal = (
+          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+          FLEXRS_COST_OPTIMIZED)
+    elif self.google_cloud_options.flexrs_goal == 'SPEED_OPTIMIZED':
+      self.proto.flexResourceSchedulingGoal = (
+          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
+          FLEXRS_SPEED_OPTIMIZED)
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
@@ -278,6 +290,10 @@ class Environment(object):
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
+
+  def _get_python_sdk_name(self):
+    python_version = '%d.%d' % (sys.version_info[0], sys.version_info[1])
+    return 'Apache Beam Python %s SDK' % python_version
 
 
 class Job(object):
@@ -869,16 +885,29 @@ def get_default_container_image_for_current_sdk(job_type):
     Returns:
       str: Google Cloud Dataflow container image for remote execution.
     """
+  if sys.version_info[0] == 2:
+    version_suffix = ''
+  elif sys.version_info[0:2] == (3, 5):
+    version_suffix = '3'
+  elif sys.version_info[0:2] == (3, 6):
+    version_suffix = '36'
+  elif sys.version_info[0:2] == (3, 7):
+    version_suffix = '37'
+  else:
+    raise Exception('Dataflow only supports Python versions 2 and 3.5+, got: %s'
+                    % str(sys.version_info[0:2]))
+
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
   if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
-    image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python-fnapi'
+    fnapi_suffix = '-fnapi'
   else:
-    if sys.version_info[0] == 2:
-      image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python'
-    elif sys.version_info[0] == 3:
-      image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python3'
-    else:
-      raise Exception('Dataflow only supports Python versions 2 and 3.')
+    fnapi_suffix = ''
+
+  image_name = '{repository}/python{version_suffix}{fnapi_suffix}'.format(
+      repository=names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
+      version_suffix=version_suffix,
+      fnapi_suffix=fnapi_suffix)
+
   image_tag = _get_required_container_version(job_type)
   return image_name + ':' + image_tag
 
@@ -922,6 +951,30 @@ def get_runner_harness_container_image():
 def get_response_encoding():
   """Encoding to use to decode HTTP response from Google APIs."""
   return None if sys.version_info[0] < 3 else 'utf8'
+
+
+def _verify_interpreter_version_is_supported(pipeline_options):
+  if sys.version_info[0] == 2:
+    return
+
+  if sys.version_info[0:2] in [(3, 5), (3, 6)]:
+    if sys.version_info[0:3] < (3, 5, 3):
+      warnings.warn(
+          'You are using an early release for Python 3.5. It is recommended '
+          'to use Python 3.5.3 or higher with Dataflow '
+          'runner.')
+    return
+
+  debug_options = pipeline_options.view_as(DebugOptions)
+  if (debug_options.experiments and 'ignore_py3_minor_version' in
+      debug_options.experiments):
+    return
+
+  raise Exception(
+      'Dataflow runner currently supports Python versions '
+      '2.7, 3.5 and 3.6. To ignore this requirement and start a job using a '
+      'different version of Python 3 interpreter, pass '
+      '--experiment ignore_py3_minor_version pipeline option.')
 
 
 # To enable a counter on the service, add it to this dictionary.

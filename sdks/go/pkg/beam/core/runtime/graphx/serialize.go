@@ -124,11 +124,11 @@ func encodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("bad underlying type: %v", err)
 	}
-	enc, err := EncodeUserFn(c.Enc)
+	enc, err := encodeUserFn(c.Enc)
 	if err != nil {
 		return nil, fmt.Errorf("bad enc: %v", err)
 	}
-	dec, err := EncodeUserFn(c.Dec)
+	dec, err := encodeUserFn(c.Dec)
 	if err != nil {
 		return nil, fmt.Errorf("bad dec: %v", err)
 	}
@@ -145,22 +145,20 @@ func encodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
 func decodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
 	t, err := decodeType(c.Type)
 	if err != nil {
-		return nil, fmt.Errorf("bad type: %v", err)
+		return nil, fmt.Errorf("decodeCustomCoder bad type: %v", err)
 	}
-	enc, err := DecodeUserFn(c.Enc)
+	enc, err := decodeUserFn(c.Enc)
 	if err != nil {
-		return nil, fmt.Errorf("bad dec: %v", err)
+		return nil, fmt.Errorf("decodeCustomCoder bad encoder: %v", err)
 	}
-	dec, err := DecodeUserFn(c.Dec)
+	dec, err := decodeUserFn(c.Dec)
 	if err != nil {
-		return nil, fmt.Errorf("bad dec: %v", err)
+		return nil, fmt.Errorf("decodeCustomCoder bad decoder: %v", err)
 	}
 
-	ret := &coder.CustomCoder{
-		Name: c.Name,
-		Type: t,
-		Enc:  enc,
-		Dec:  dec,
+	ret, err := coder.NewCustomCoder(c.Name, t, enc, dec)
+	if err != nil {
+		return nil, fmt.Errorf("decodeCustomCoder: %v", err)
 	}
 	return ret, nil
 }
@@ -207,7 +205,7 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 		}}, nil
 
 	case u.Fn != nil:
-		fn, err := EncodeUserFn(u.Fn)
+		fn, err := encodeUserFn(u.Fn)
 		if err != nil {
 			return nil, fmt.Errorf("bad userfn: %v", err)
 		}
@@ -257,11 +255,15 @@ func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 		})
 	}
 	if u.Fn != nil {
-		fn, err := DecodeUserFn(u.Fn)
+		fn, err := decodeUserFn(u.Fn)
 		if err != nil {
 			return nil, fmt.Errorf("bad userfn: %v", err)
 		}
-		return &graph.Fn{Fn: fn}, nil
+		fx, err := funcx.New(reflectx.MakeFunc(fn))
+		if err != nil {
+			return nil, fmt.Errorf("bad userfn: %v", err)
+		}
+		return &graph.Fn{Fn: fx}, nil
 	}
 
 	t, err := decodeType(u.Type)
@@ -275,34 +277,30 @@ func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 	return graph.NewFn(fn)
 }
 
-// EncodeUserFn translates the preprocessed representation of a Beam user function
+// encodeUserFn translates the preprocessed representation of a Beam user function
 // into the wire representation, capturing all the inputs and outputs needed.
-func EncodeUserFn(u *funcx.Fn) (*v1.UserFn, error) {
+func encodeUserFn(u *funcx.Fn) (*v1.UserFn, error) {
 	// TODO(herohde) 5/23/2017: reject closures and dynamic functions. They can't
 	// be serialized.
 
 	symbol := u.Fn.Name()
 	t, err := encodeType(u.Fn.Type())
 	if err != nil {
-		return nil, fmt.Errorf("encode: bad function type: %v", err)
+		return nil, fmt.Errorf("encodeUserFn: bad function type: %v", err)
 	}
 	return &v1.UserFn{Name: symbol, Type: t}, nil
 }
 
-// DecodeUserFn receives the wire representation of a Beam user function,
+// decodeUserFn receives the wire representation of a Beam user function,
 // extracting the preprocessed representation, expanding all inputs and outputs
 // of the function.
-func DecodeUserFn(ref *v1.UserFn) (*funcx.Fn, error) {
+func decodeUserFn(ref *v1.UserFn) (interface{}, error) {
 	t, err := decodeType(ref.GetType())
 	if err != nil {
 		return nil, err
 	}
 
-	fn, err := runtime.ResolveFunction(ref.Name, t)
-	if err != nil {
-		return nil, fmt.Errorf("decode: failed to find symbol %v: %v", ref.Name, err)
-	}
-	return funcx.New(reflectx.MakeFunc(fn))
+	return runtime.ResolveFunction(ref.Name, t)
 }
 
 func encodeFullType(t typex.FullType) (*v1.FullType, error) {

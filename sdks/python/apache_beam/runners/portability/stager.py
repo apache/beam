@@ -489,7 +489,13 @@ class Stager(object):
       try:
         # Stage binary distribution of the SDK, for now on a best-effort basis.
         sdk_local_file = Stager._download_pypi_sdk_package(
-            temp_dir, fetch_binary=True)
+            temp_dir, fetch_binary=True,
+            language_version_tag='%d%d' % (sys.version_info[0],
+                                           sys.version_info[1]),
+            abi_tag='cp%d%d%s' % (
+                sys.version_info[0],
+                sys.version_info[1],
+                'mu' if sys.version_info[0] < 3 else 'm'))
         sdk_binary_staged_name = Stager.\
             _desired_sdk_filename_in_staging_location(sdk_local_file)
         staged_path = FileSystems.join(staging_location, sdk_binary_staged_name)
