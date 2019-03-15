@@ -271,7 +271,7 @@ public class CassandraIOTest implements Serializable {
     PCollection<Scientist> output =
         pipeline.apply(
             CassandraIO.<Scientist>read()
-                .withHosts(pipeline.newProvider(CASSANDRA_HOST))
+                .withHosts(pipeline.newProvider(Arrays.asList(CASSANDRA_HOST)))
                 .withPort(pipeline.newProvider(CASSANDRA_PORT))
                 .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
                 .withTable(pipeline.newProvider(CASSANDRA_TABLE))

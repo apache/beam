@@ -132,7 +132,7 @@ public class CassandraIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable
-    abstract ValueProvider<String> hosts();
+    abstract ValueProvider<List<String>> hosts();
 
     @Nullable
     abstract ValueProvider<Integer> port();
@@ -179,13 +179,11 @@ public class CassandraIO {
     public Read<T> withHosts(List<String> hosts) {
       checkArgument(hosts != null, "hosts can not be null");
       checkArgument(!hosts.isEmpty(), "hosts can not be empty");
-      return builder()
-          .setHosts(ValueProvider.StaticValueProvider.of(String.join(",", hosts)))
-          .build();
+      return builder().setHosts(ValueProvider.StaticValueProvider.of(hosts)).build();
     }
 
     /** Specify the hosts of the Apache Cassandra instances. */
-    public Read<T> withHosts(ValueProvider<String> hosts) {
+    public Read<T> withHosts(ValueProvider<List<String>> hosts) {
       return builder().setHosts(hosts).build();
     }
 
@@ -371,7 +369,7 @@ public class CassandraIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setHosts(ValueProvider<String> hosts);
+      abstract Builder<T> setHosts(ValueProvider<List<String>> hosts);
 
       abstract Builder<T> setPort(ValueProvider<Integer> port);
 
@@ -1109,7 +1107,7 @@ public class CassandraIO {
   }
 
   private static Cluster getCluster(
-      ValueProvider<String> hosts,
+      ValueProvider<List<String>> hosts,
       ValueProvider<Integer> port,
       ValueProvider<String> username,
       ValueProvider<String> password,
@@ -1118,7 +1116,9 @@ public class CassandraIO {
       ValueProvider<String> localDc,
       ValueProvider<String> consistencyLevel) {
     Cluster.Builder builder =
-        Cluster.builder().addContactPoints(hosts.get().split(",")).withPort(port.get());
+        Cluster.builder()
+            .addContactPoints(hosts.get().toArray(new String[hosts.get().size()]))
+            .withPort(port.get());
 
     if (username != null) {
       String passwordStr = null;
