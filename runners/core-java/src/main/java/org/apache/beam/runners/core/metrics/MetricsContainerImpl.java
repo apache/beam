@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -250,5 +251,23 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     for (Map.Entry<MetricName, GaugeCell> counter : updates.entries()) {
       current.get(counter.getKey()).update(counter.getValue().getCumulative());
     }
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof MetricsContainerImpl) {
+      MetricsContainerImpl metricsContainerImpl = (MetricsContainerImpl) object;
+      return Objects.equals(stepName, metricsContainerImpl.stepName)
+          && Objects.equals(counters, metricsContainerImpl.counters)
+          && Objects.equals(distributions, metricsContainerImpl.distributions)
+          && Objects.equals(gauges, metricsContainerImpl.gauges);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(stepName, counters, distributions, gauges);
   }
 }
