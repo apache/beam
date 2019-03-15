@@ -71,6 +71,11 @@ public class GlobalWindow extends BoundedWindow {
     public void verifyDeterministic() {}
 
     @Override
+    public boolean consistentWithEquals() {
+      return true;
+    }
+
+    @Override
     public final List<org.apache.beam.sdk.coders.Coder<?>> getCoderArguments() {
       return Collections.emptyList();
     }
