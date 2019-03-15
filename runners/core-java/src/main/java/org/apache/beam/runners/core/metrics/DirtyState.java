@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -94,5 +95,20 @@ public class DirtyState implements Serializable {
    */
   public void afterCommit() {
     dirty.compareAndSet(State.COMMITTING, State.CLEAN);
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof DirtyState) {
+      DirtyState dirtyState = (DirtyState) object;
+      return Objects.equals(dirty.get(), dirtyState.dirty.get());
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return dirty.get().hashCode();
   }
 }

@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -198,5 +199,39 @@ public class MetricsContainerImplTest {
       actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
     }
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
+  }
+
+  @Test
+  public void testEquals() {
+    MetricsContainerImpl metricsContainerImpl = new MetricsContainerImpl("stepName");
+    MetricsContainerImpl equal = new MetricsContainerImpl("stepName");
+    Assert.assertEquals(metricsContainerImpl, equal);
+    Assert.assertEquals(metricsContainerImpl.hashCode(), equal.hashCode());
+  }
+
+  @Test
+  public void testNotEquals() {
+    MetricsContainerImpl metricsContainerImpl = new MetricsContainerImpl("stepName");
+
+    Assert.assertNotEquals(metricsContainerImpl, new Object());
+
+    MetricsContainerImpl differentStepName = new MetricsContainerImpl("DIFFERENT");
+    Assert.assertNotEquals(metricsContainerImpl, differentStepName);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentStepName.hashCode());
+
+    MetricsContainerImpl differentCounters = new MetricsContainerImpl("stepName");
+    differentCounters.getCounter(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentCounters);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentCounters.hashCode());
+
+    MetricsContainerImpl differentDistributions = new MetricsContainerImpl("stepName");
+    differentDistributions.getDistribution(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentDistributions);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentDistributions.hashCode());
+
+    MetricsContainerImpl differentGauges = new MetricsContainerImpl("stepName");
+    differentGauges.getGauge(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentGauges);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentGauges.hashCode());
   }
 }

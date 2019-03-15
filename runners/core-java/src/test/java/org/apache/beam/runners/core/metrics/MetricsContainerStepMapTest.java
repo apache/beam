@@ -42,6 +42,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -293,6 +294,35 @@ public class MetricsContainerStepMapTest {
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);
     assertIterableSize(allres.getGauges(), 2);
+  }
+
+  @Test
+  public void testEquals() {
+    MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+    MetricsContainerStepMap equal = new MetricsContainerStepMap();
+    Assert.assertEquals(metricsContainerStepMap, equal);
+    Assert.assertEquals(metricsContainerStepMap.hashCode(), equal.hashCode());
+  }
+
+  @Test
+  public void testNotEquals() {
+    MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+
+    Assert.assertNotEquals(metricsContainerStepMap, new Object());
+
+    MetricsContainerStepMap differentMetricsContainers = new MetricsContainerStepMap();
+    differentMetricsContainers.getContainer("stepName");
+    Assert.assertNotEquals(metricsContainerStepMap, differentMetricsContainers);
+    Assert.assertNotEquals(
+        metricsContainerStepMap.hashCode(), differentMetricsContainers.hashCode());
+
+    MetricsContainerStepMap differentUnboundedContainer = new MetricsContainerStepMap();
+    differentUnboundedContainer
+        .getContainer(null)
+        .getCounter(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerStepMap, differentUnboundedContainer);
+    Assert.assertNotEquals(
+        metricsContainerStepMap.hashCode(), differentUnboundedContainer.hashCode());
   }
 
   private <T> void assertIterableSize(Iterable<T> iterable, int size) {
