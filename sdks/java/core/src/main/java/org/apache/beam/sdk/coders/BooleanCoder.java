@@ -43,11 +43,6 @@ public class BooleanCoder extends AtomicCoder<Boolean> {
   }
 
   @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
-  @Override
   public boolean isRegisterByteSizeObserverCheap(Boolean value) {
     return true;
   }

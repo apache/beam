@@ -85,16 +85,6 @@ public class InstantCoder extends AtomicCoder<Instant> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. This coder is injective.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
    * @return {@code true}. The byte size for a big endian long is a constant.
    */
   @Override

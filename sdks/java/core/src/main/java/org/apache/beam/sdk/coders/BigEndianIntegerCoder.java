@@ -65,16 +65,6 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. This coder is injective.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override

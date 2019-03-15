@@ -109,16 +109,6 @@ public class NullableCoder<T> extends StructuredCoder<T> {
     verifyDeterministic(this, "Value coder must be deterministic", valueCoder);
   }
 
-  /**
-   * {@code NullableCoder} is consistent with equals if the nested {@code Coder} is.
-   *
-   * <p>{@inheritDoc}
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return valueCoder.consistentWithEquals();
-  }
-
   @Override
   public Object structuralValue(@Nullable T value) {
     if (value == null) {

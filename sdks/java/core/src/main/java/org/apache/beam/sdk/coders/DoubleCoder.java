@@ -75,16 +75,6 @@ public class DoubleCoder extends AtomicCoder<Double> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. This coder is injective.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
    * @return {@code true}. {@link DoubleCoder#getEncodedElementByteSize} returns a constant.
    */
   @Override

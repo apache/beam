@@ -169,11 +169,6 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
     }
 
     @Override
-    public boolean consistentWithEquals() {
-      return instantCoder.consistentWithEquals() && durationCoder.consistentWithEquals();
-    }
-
-    @Override
     public List<? extends Coder<?>> getCoderArguments() {
       return Collections.emptyList();
     }

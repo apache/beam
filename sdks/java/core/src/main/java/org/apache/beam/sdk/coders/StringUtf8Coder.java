@@ -109,16 +109,6 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   @Override
   public void verifyDeterministic() {}
 
-  /**
-   * {@inheritDoc}
-   *
-   * @return {@code true}. This coder is injective.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
   @Override
   public TypeDescriptor<String> getEncodedTypeDescriptor() {
     return TYPE_DESCRIPTOR;

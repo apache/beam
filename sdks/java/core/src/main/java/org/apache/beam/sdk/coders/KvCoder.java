@@ -95,11 +95,6 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
   }
 
   @Override
-  public boolean consistentWithEquals() {
-    return keyCoder.consistentWithEquals() && valueCoder.consistentWithEquals();
-  }
-
-  @Override
   public Object structuralValue(KV<K, V> kv) {
     if (consistentWithEquals()) {
       return kv;

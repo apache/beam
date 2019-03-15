@@ -74,16 +74,6 @@ public class ByteCoder extends AtomicCoder<Byte> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. This coder is injective.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
    * @return {@code true}. {@link ByteCoder#getEncodedElementByteSize} returns a constant.
    */
   @Override

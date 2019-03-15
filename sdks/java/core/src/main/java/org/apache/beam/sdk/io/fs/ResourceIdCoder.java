@@ -48,9 +48,4 @@ public class ResourceIdCoder extends AtomicCoder<ResourceId> {
     boolean isDirectory = BOOL_CODER.decode(is);
     return FileSystems.matchNewResource(spec, isDirectory);
   }
-
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
 }

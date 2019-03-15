@@ -75,11 +75,6 @@ public class StructuredCoderTest {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {}
-
-    @Override
-    public boolean consistentWithEquals() {
-      return true;
-    }
   }
 
   /** A boxed {@code int} with {@code equals()} that compares object identity. */
@@ -133,11 +128,6 @@ public class StructuredCoderTest {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {}
-
-    @Override
-    public boolean consistentWithEquals() {
-      return false;
-    }
   }
 
   /**

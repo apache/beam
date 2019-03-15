@@ -218,7 +218,11 @@ public abstract class Coder<T> implements Serializable {
    * semantic/structural comparison.
    *
    * <p>By default, returns false.
+   *
+   * @deprecated Override this consistentWithEquals isn't recommend. Overriding structuredValue is
+   *     favor.
    */
+  @Deprecated
   public boolean consistentWithEquals() {
     return false;
   }

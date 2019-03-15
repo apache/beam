@@ -75,16 +75,6 @@ public class FloatCoder extends AtomicCoder<Float> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. This coder is injective.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
    * @return {@code true}. {@link FloatCoder#getEncodedElementByteSize} returns a constant.
    */
   @Override
