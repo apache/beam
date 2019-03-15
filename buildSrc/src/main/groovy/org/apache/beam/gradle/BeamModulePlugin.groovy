@@ -354,7 +354,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def hamcrest_version = "1.3"
     def hadoop_version = "2.7.3"
     def jackson_version = "2.9.8"
-    def spark_version = "2.3.2"
+    def spark_version = "2.4.0"
     def nemo_version = "0.1"
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
