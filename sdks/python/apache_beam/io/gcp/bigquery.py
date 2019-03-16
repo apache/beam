@@ -626,6 +626,8 @@ class BigQueryWriteFn(DoFn):
     """
     if schema is None:
       return schema
+    elif isinstance(schema, (str, unicode)):
+      return bigquery_tools.parse_table_schema_from_json(schema)
     elif isinstance(schema, dict):
       return bigquery_tools.parse_table_schema_from_json(json.dumps(schema))
     else:
@@ -644,7 +646,7 @@ class BigQueryWriteFn(DoFn):
         num_retries=10000,
         max_delay_secs=1500))
 
-  def _create_table_if_needed(self, schema, table_reference):
+  def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
         table_reference.projectId,
         table_reference.datasetId,
@@ -673,8 +675,8 @@ class BigQueryWriteFn(DoFn):
       schema = destination[1]
       destination = destination[0]
       self._create_table_if_needed(
-          schema,
-          bigquery_tools.parse_table_reference(destination))
+          bigquery_tools.parse_table_reference(destination),
+          schema)
 
     row = element[1]
     self._rows_buffer[destination].append(row)
@@ -766,7 +768,7 @@ class WriteToBigQuery(PTransform):
     """Initialize a WriteToBigQuery transform.
 
     Args:
-      table (str, callable): The ID of the table, or a callable
+      table (str, callable, ValueProvider): The ID of the table, or a callable
          that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
          numbers ``0-9``, or underscores ``_``. If dataset argument is
          :data:`None` then the table argument must contain the entire table
@@ -782,10 +784,11 @@ class WriteToBigQuery(PTransform):
       project (str): The ID of the project containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
-      schema (str): The schema to be used if the BigQuery table to write has to
-        be created. This can be either specified as a
-        :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema`
+      schema (str,dict,ValueProvider): The schema to be used if the
+        BigQuery table to write has to be created. This can be either specified
+        as a :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
+        or a python dictionary, or the string or dictionary itself.
         object or a single string  of the form
         ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
         separated list of fields. Here ``'type'`` should specify the BigQuery
@@ -925,6 +928,8 @@ bigquery_v2_messages.TableSchema):
       return WriteToBigQuery.table_schema_to_dict(table_schema)
     elif isinstance(schema, bigquery.TableSchema):
       return WriteToBigQuery.table_schema_to_dict(schema)
+    elif isinstance(schema, vp.ValueProvider):
+      return schema
     else:
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
@@ -934,7 +939,7 @@ bigquery_v2_messages.TableSchema):
     # TODO(pabloem): Use a different method to determine if streaming or batch.
     standard_options = p.options.view_as(StandardOptions)
 
-    if (not callable(self.table_reference)
+    if (isinstance(self.table_reference, bigquery.TableReference)
         and self.table_reference.projectId is None):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
@@ -950,11 +955,10 @@ bigquery_v2_messages.TableSchema):
           retry_strategy=self.insert_retry_strategy,
           test_client=self.test_client)
 
-      # TODO: Use utility functions from BQTools
-      table_fn = self._get_table_fn()
-
       outputs = (pcoll
-                 | 'AppendDestination' >> beam.Map(lambda x: (table_fn(x), x))
+                 | 'AppendDestination' >> beam.ParDo(
+                     bigquery_tools.AppendDestinationsFn(
+                         destination=self.table_reference, schema=self.schema))
                  | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
                      BigQueryWriteFn.FAILED_ROWS, main='main'))
 
@@ -967,21 +971,13 @@ bigquery_v2_messages.TableSchema):
       from apache_beam.io.gcp import bigquery_file_loads
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
-          schema=self.get_dict_table_schema(self.schema),
+          schema=self.schema,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
           max_file_size=self.max_file_size,
           max_files_per_bundle=self.max_files_per_bundle,
           gs_location=self.gs_location,
           test_client=self.test_client)
-
-  def _get_table_fn(self):
-    if callable(self.table_reference):
-      return self.table_reference
-    elif not callable(self.table_reference) and self.schema is not None:
-      return lambda x: (self.table_reference, self.schema)
-    else:
-      return lambda x: self.table_reference
 
   def display_data(self):
     res = {}
