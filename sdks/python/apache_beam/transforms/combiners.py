@@ -45,6 +45,7 @@ from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
+from apache_beam.typehints.decorators import _check_instance_type
 
 __all__ = [
     'Count',
@@ -53,6 +54,7 @@ __all__ = [
     'Top',
     'ToDict',
     'ToList',
+    'Latest'
     ]
 
 # Type variables
@@ -858,3 +860,60 @@ class PhasedCombineFnExecutor(object):
 
   def extract_only(self, accumulator):
     return self.combine_fn.extract_output(accumulator)
+
+
+class Latest(object):
+  """Combiners for computing the latest element"""
+
+  class Globally(ptransform.PTransform):
+    """Compute the element with the latest timestamp from a
+    PCollection."""
+
+    @staticmethod
+    def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
+      return [(element, timestamp)]
+
+    def expand(self, pcoll):
+      return (pcoll
+              | core.ParDo(self.add_timestamp)
+              | core.CombineGlobally(LatestCombineFn()))
+
+  class PerKey(ptransform.PTransform):
+    """Compute elements with the latest timestamp for each key
+    from a keyed PCollection"""
+
+    @staticmethod
+    def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
+      _check_instance_type(KV[T, T], element)
+      (K, V) = element
+      return [(K, (V, timestamp))]
+
+    def expand(self, pcoll):
+      return (pcoll
+              | core.ParDo(self.add_timestamp)
+              | core.CombinePerKey(LatestCombineFn()))
+
+
+@with_input_types(KV[T, T])
+@with_output_types(T)
+class LatestCombineFn(core.CombineFn):
+  """CombineFn to get the element with the latest timestamp
+  from a PCollection."""
+
+  def create_accumulator(self):
+    return (None, window.MIN_TIMESTAMP)
+
+  def add_input(self, accumulator, element):
+    if accumulator[1] > element[1]:
+      return accumulator
+    else:
+      return element
+
+  def merge_accumulators(self, accumulators):
+    result = self.create_accumulator()
+    for accumulator in accumulators:
+      result = self.add_input(result, accumulator)
+    return result
+
+  def extract_output(self, accumulator):
+    return accumulator[0]
