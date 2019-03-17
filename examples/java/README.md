@@ -54,4 +54,7 @@ directory contains a few realistic end-to-end pipelines.
 
 See the other examples as well. This directory includes a Java 8 version of the
 MinimalWordCount example, as well as a series of examples in a simple 'mobile
-gaming' domain. This series introduces some advanced concepts.
+gaming' domain. This series introduces some advanced concepts. Finally, the
+following are user contributed examples:
+
+1. [`CryptoRealTime`](https://github.com/GoogleCloudPlatform/professional-services/tree/master/examples/cryptorealtime) Create an unbounded streaming source/reader and manage basic watermarking, checkpointing and record id for data ingestion, stream trading data from exchanges with BEAM + [Medium post](https://medium.com/@igalic/bigtable-beam-dataflow-cryptocurrencies-gcp-terraform-java-maven-4e7873811e86)
