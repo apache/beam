@@ -40,6 +40,8 @@ demonstrates some best practices for instrumenting your pipeline code.
 
 1. [`WindowedWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java) shows how to run the same pipeline over either unbounded PCollections in streaming mode or bounded PCollections in batch mode.
 
+1. [`CryptoRealTime`](https://github.com/GoogleCloudPlatform/professional-services/tree/master/examples/cryptorealtime) Create an unbounded streaming source/reader and manage basic watermarking, checkpointing and record id for data ingestion, stream trading data from exchanges with BEAM + [Medium post](https://medium.com/@igalic/bigtable-beam-dataflow-cryptocurrencies-gcp-terraform-java-maven-4e7873811e86) 
+
 ## Running Examples
 
 See [Apache Beam WordCount Example](https://beam.apache.org/get-started/wordcount-example/) for information on running these examples.
