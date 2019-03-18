@@ -195,7 +195,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private transient ScheduledFuture<?> checkFinishBundleTimer;
   /** Time that the last bundle was finished (to set the timer). */
   private transient long lastFinishBundleTime;
-  /** Callback to be executed after the current bundle was finshed. */
+  /** Callback to be executed after the current bundle was finished. */
   private transient Runnable bundleFinishedCallback;
 
   /** Constructor for DoFnOperator. */
