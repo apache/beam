@@ -124,6 +124,9 @@ class OffsetRestrictionTracker(RestrictionTracker):
     with self._lock:
       return self._range.stop
 
+  def default_size(self):
+    return self._range.stop - self._range.start
+
   def try_claim(self, position):
     with self._lock:
       if self._last_claim_attempt and position <= self._last_claim_attempt:
