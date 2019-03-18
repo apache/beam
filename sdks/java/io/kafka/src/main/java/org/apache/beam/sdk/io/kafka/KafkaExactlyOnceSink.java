@@ -274,6 +274,7 @@ class KafkaExactlyOnceSink<K, V>
 
     // Futures ignored as exceptions will be flushed out in the commitTxn
     @SuppressWarnings("FutureReturnValueIgnored")
+    @RequiresStableInput
     @ProcessElement
     public void processElement(
         @StateId(NEXT_ID) ValueState<Long> nextIdState,
