@@ -73,16 +73,26 @@ class SdkHarness(object):
         credentials)
     self._state_handler_factory = GrpcStateHandlerFactory(credentials)
     self._profiler_factory = profiler_factory
+    self._fns = {}
+    # BundleProcessor cache across all workers.
+    self._bundle_processor_cache = BundleProcessorCache(
+        state_handler_factory=self._state_handler_factory,
+        data_channel_factory=self._data_channel_factory,
+        fns=self._fns)
+    # workers for process/finalize bundle.
     self.workers = queue.Queue()
+    # one worker for progress/split request.
+    self.progress_worker = SdkWorker(self._bundle_processor_cache,
+                                     profiler_factory=self._profiler_factory)
     # one thread is enough for getting the progress report.
     # Assumption:
     # Progress report generation should not do IO or wait on other resources.
     #  Without wait, having multiple threads will not improve performance and
     #  will only add complexity.
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
+    # finalize and process share one thread pool.
     self._process_thread_pool = futures.ThreadPoolExecutor(
         max_workers=self._worker_count)
-    self._fns = {}
     self._responses = queue.Queue()
     self._process_bundle_queue = queue.Queue()
     self._unscheduled_process_bundle = {}
@@ -92,11 +102,7 @@ class SdkHarness(object):
     control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
     no_more_work = object()
 
-    # Create workers
-    bundle_processor_cache = BundleProcessorCache(
-        state_handler_factory=self._state_handler_factory,
-        data_channel_factory=self._data_channel_factory,
-        fns=self._fns)
+    # Create process workers
     for _ in range(self._worker_count):
       # SdkHarness manage function registration and share self._fns with all
       # the workers. This is needed because function registration (register)
@@ -107,7 +113,7 @@ class SdkHarness(object):
       # potentially get executed by different worker. Hence we need a
       # centralized function list shared among all the workers.
       self.workers.put(
-          SdkWorker(bundle_processor_cache,
+          SdkWorker(self._bundle_processor_cache,
                     profiler_factory=self._profiler_factory))
 
     def get_responses():
@@ -195,9 +201,6 @@ class SdkHarness(object):
   def _request_process_bundle_split(self, request):
     self._request_process_bundle_action(request)
 
-  def _request_finalize_bundle(self, request):
-    self._request_process_bundle_action(request)
-
   def _request_process_bundle_progress(self, request):
     self._request_process_bundle_action(request)
 
@@ -206,13 +209,11 @@ class SdkHarness(object):
     def task():
       instruction_reference = getattr(
           request, request.WhichOneof('request')).instruction_reference
-      if instruction_reference not in self._unscheduled_process_bundle:
-        worker = self.workers.get()
-        try:
-          self._execute(
-              lambda: worker.do_instruction(request), request)
-        finally:
-          self.workers.put(worker)
+      # only process progress/split request when a bundle is in processing.
+      if (instruction_reference in
+          self._bundle_processor_cache.active_bundle_processors):
+        self._execute(
+            lambda: self.progress_worker.do_instruction(request), request)
       else:
         self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
             instruction_id=request.instruction_id, error=(
@@ -222,6 +223,20 @@ class SdkHarness(object):
                     instruction_reference)), request)
 
     self._progress_thread_pool.submit(task)
+
+  def _request_finalize_bundle(self, request):
+
+    def task():
+      # Get one available worker.
+      worker = self.workers.get()
+      try:
+        self._execute(
+            lambda: worker.do_instruction(request), request)
+      finally:
+        # Put the worker back in the free worker pool.
+        self.workers.put(worker)
+
+    self._process_thread_pool.submit(task)
 
   def _monitor_process_bundle(self):
     """
