@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 
@@ -54,16 +53,17 @@ def smokeTestConfigurations = [
                         input_options       : '\'{"num_records": 100000,' +
                                 '"key_size": 1,' +
                                 '"value_size":1}\'',
-                        maxNumWorkers       : 1,
+                        max_num_workers       : 1,
                 ]
         ],
 ]
 
-def loadTestJob = { scope ->
-    scope.description("Runs Python GBK load tests on Dataflow in batch mode")
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-    
-    for (testConfiguration in smokeTestConfigurations) {
-        loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner,testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass)
-    }
+// Runs a tiny version load test suite to ensure nothing is broken.
+PhraseTriggeringPostCommitBuilder.postCommitJob(
+        'beam_Python_LoadTests_Smoke',
+        'Run Python Load Tests Smoke',
+        'Python Load Tests Smoke',
+        this
+) {
+    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, smokeTestConfigurations, CommonTestProperties.TriggeringContext.PR, "GBK", "smoke")
 }

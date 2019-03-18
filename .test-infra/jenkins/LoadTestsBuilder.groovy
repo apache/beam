@@ -22,6 +22,17 @@ import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 
 class LoadTestsBuilder {
+  static void loadTests(scope, sdk, testConfigurations, triggeringContext, test, mode){
+    scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
+
+    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+
+    for (testConfiguration in testConfigurations) {
+        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+    }
+  }
+
+
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass, TriggeringContext triggeringContext) {
 
     options.put('runner', runner.option)
