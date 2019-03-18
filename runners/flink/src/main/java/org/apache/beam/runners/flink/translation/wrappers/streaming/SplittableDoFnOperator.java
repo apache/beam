@@ -59,8 +59,7 @@ import org.joda.time.Instant;
  * Flink operator for executing splittable {@link DoFn DoFns}. Specifically, for executing the
  * {@code @ProcessElement} method of a splittable {@link DoFn}.
  */
-public class SplittableDoFnOperator<
-        InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
+public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
     extends DoFnOperator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
 
   private transient ScheduledExecutorService executorService;

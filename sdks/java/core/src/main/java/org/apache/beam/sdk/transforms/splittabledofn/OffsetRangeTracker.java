@@ -41,12 +41,12 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public synchronized OffsetRange currentRestriction() {
+  public OffsetRange currentRestriction() {
     return range;
   }
 
   @Override
-  public synchronized OffsetRange checkpoint() {
+  public OffsetRange checkpoint() {
     checkState(
         lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
@@ -63,7 +63,7 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
    *     current {@link OffsetRange} of this tracker (in that case this operation is a no-op).
    */
   @Override
-  protected synchronized boolean tryClaimImpl(Long i) {
+  public boolean tryClaim(Long i) {
     checkArgument(
         lastAttemptedOffset == null || i > lastAttemptedOffset,
         "Trying to claim offset %s while last attempted was %s",
@@ -81,7 +81,7 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public synchronized void checkDone() throws IllegalStateException {
+  public void checkDone() throws IllegalStateException {
     checkState(
         lastAttemptedOffset >= range.getTo() - 1,
         "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
@@ -101,7 +101,7 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public synchronized Backlog getBacklog() {
+  public Backlog getBacklog() {
     // If we have never attempted an offset, we return the length of the entire range.
     if (lastAttemptedOffset == null) {
       return Backlog.of(BigDecimal.valueOf(range.getTo() - range.getFrom()));
