@@ -58,7 +58,7 @@ public class SplittableParDoTest {
     }
 
     @Override
-    protected boolean tryClaimImpl(Void position) {
+    public boolean tryClaim(Void position) {
       return false;
     }
 
@@ -78,7 +78,8 @@ public class SplittableParDoTest {
 
   private static class BoundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
-    public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
+    public void processElement(
+        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
     @GetInitialRestriction
     public SomeRestriction getInitialRestriction(Integer element) {
@@ -89,7 +90,7 @@ public class SplittableParDoTest {
   private static class UnboundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext context, SomeRestrictionTracker tracker) {
+        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {
       return stop();
     }
 

@@ -99,6 +99,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -512,6 +513,7 @@ public class AvroIOTest implements Serializable {
     }
 
     @Test
+    @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
     @Category(NeedsRunner.class)
     public void testContinuouslyWriteAndReadMultipleFilepatterns() throws Throwable {
       SimpleFunction<Long, GenericClass> mapFn = new CreateGenericClass();
