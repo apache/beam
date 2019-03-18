@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -244,12 +245,15 @@ class ElasticSearchIOTestUtils {
     return searchResult.path("hits").path("total").asInt();
   }
 
-  public static void setIndexMapping(RestClient restClient, String index, String type) throws IOException {
-    String endpoint = String.format("/%s", index);
+  public static void setIndexMapping(
+      ConnectionConfiguration connectionConfiguration, RestClient restClient) throws IOException {
+    String endpoint = String.format("/%s", connectionConfiguration.getIndex());
     String requestString =
         String.format(
             "{\"mappings\":{\"%s\":{\"properties\":{\"age\":{\"type\":\"long\"},"
-                + " \"scientist\":{\"type\":\"text\"}, \"id\":{\"type\":\"long\"}}}}}", type);
+                + " \"scientist\":{\"type\":\"%s\"}, \"id\":{\"type\":\"long\"}}}}}",
+            connectionConfiguration.getType(),
+            getBackendVersion(connectionConfiguration) == 2 ? "string" : "text");
     HttpEntity requestBody = new NStringEntity(requestString, ContentType.APPLICATION_JSON);
     Request request = new Request("PUT", endpoint);
     request.setEntity(requestBody);
