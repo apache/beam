@@ -27,6 +27,8 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.rpc.FixedHeaderProvider;
+import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
@@ -72,6 +74,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.CustomHttpErrors;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -976,12 +979,20 @@ class BigQueryServicesImpl implements BigQueryServices {
   @Experimental(Experimental.Kind.SOURCE_SINK)
   static class StorageClientImpl implements StorageClient {
 
+    private static final HeaderProvider USER_AGENT_HEADER_PROVIDER =
+        FixedHeaderProvider.create(
+            "user-agent", "Apache_Beam_Java/" + ReleaseInfo.getReleaseInfo().getVersion());
+
     private final BigQueryStorageClient client;
 
     private StorageClientImpl(BigQueryOptions options) throws IOException {
       BigQueryStorageSettings settings =
           BigQueryStorageSettings.newBuilder()
               .setCredentialsProvider(FixedCredentialsProvider.create(options.getGcpCredential()))
+              .setTransportChannelProvider(
+                  BigQueryStorageSettings.defaultGrpcTransportProviderBuilder()
+                      .setHeaderProvider(USER_AGENT_HEADER_PROVIDER)
+                      .build())
               .build();
       this.client = BigQueryStorageClient.create(settings);
     }
