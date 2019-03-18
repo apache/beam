@@ -19,13 +19,13 @@ package org.apache.beam.sdk.testutils.publishing;
 
 import static java.lang.String.format;
 
-import java.util.List;
+import java.util.Collection;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 
 /** Writes load test metrics results to console. */
 public class ConsoleResultPublisher {
 
-  public static void publish(List<NamedTestResult> results, String testId, String timestamp) {
+  public static void publish(Collection<NamedTestResult> results, String testId, String timestamp) {
     final String textTemplate = "%24s  %24s";
 
     System.out.println(
