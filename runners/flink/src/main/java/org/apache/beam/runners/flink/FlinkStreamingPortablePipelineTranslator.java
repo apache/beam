@@ -45,7 +45,6 @@ import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
-import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
@@ -69,7 +68,6 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -193,8 +191,6 @@ public class FlinkStreamingPortablePipelineTranslator
     translatorMap.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, this::translateGroupByKey);
     translatorMap.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, this::translateImpulse);
     translatorMap.put(STREAMING_IMPULSE_TRANSFORM_URN, this::translateStreamingImpulse);
-    translatorMap.put(
-        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, this::translateAssignWindows);
     translatorMap.put(ExecutableStage.URN, this::translateExecutableStage);
     translatorMap.put(PTransformTranslation.RESHUFFLE_URN, this::translateReshuffle);
 
@@ -473,42 +469,6 @@ public class FlinkStreamingPortablePipelineTranslator
             .returns(typeInfo);
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
-  }
-
-  private <T> void translateAssignWindows(
-      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
-    RunnerApi.Components components = pipeline.getComponents();
-    RunnerApi.PTransform transform = components.getTransformsOrThrow(id);
-    RunnerApi.WindowIntoPayload payload;
-    try {
-      payload = RunnerApi.WindowIntoPayload.parseFrom(transform.getSpec().getPayload());
-    } catch (InvalidProtocolBufferException e) {
-      throw new IllegalArgumentException(e);
-    }
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4296
-    // This only works for well known window fns, we should defer this execution to the SDK
-    // if the WindowFn can't be parsed or just defer it all the time.
-    WindowFn<T, ? extends BoundedWindow> windowFn =
-        (WindowFn<T, ? extends BoundedWindow>)
-            WindowingStrategyTranslation.windowFnFromProto(payload.getWindowFn());
-
-    String inputCollectionId = Iterables.getOnlyElement(transform.getInputsMap().values());
-    String outputCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
-    Coder<WindowedValue<T>> outputCoder = instantiateCoder(outputCollectionId, components);
-    TypeInformation<WindowedValue<T>> resultTypeInfo = new CoderTypeInformation<>(outputCoder);
-
-    DataStream<WindowedValue<T>> inputDataStream = context.getDataStreamOrThrow(inputCollectionId);
-
-    FlinkAssignWindows<T, ? extends BoundedWindow> assignWindowsFunction =
-        new FlinkAssignWindows<>(windowFn);
-
-    DataStream<WindowedValue<T>> resultDataStream =
-        inputDataStream
-            .flatMap(assignWindowsFunction)
-            .name(transform.getUniqueName())
-            .returns(resultTypeInfo);
-
-    context.addDataStream(outputCollectionId, resultDataStream);
   }
 
   private <InputT, OutputT> void translateExecutableStage(
