@@ -638,9 +638,11 @@ class PerWindowInvoker(DoFnInvoker):
       deferred_status = self.restriction_tracker.deferred_status()
       if deferred_status:
         deferred_restriction, deferred_watermark = deferred_status
+        element = windowed_value.value
+        size = self.signature.get_restriction_provider().restriction_size(
+            element, deferred_restriction)
         return (
-            windowed_value.with_value(
-                (windowed_value.value, deferred_restriction)),
+            windowed_value.with_value(((element, deferred_restriction), size)),
             deferred_watermark)
 
   def try_split(self, fraction):
@@ -651,10 +653,15 @@ class PerWindowInvoker(DoFnInvoker):
       if split:
         primary, residual = split
         element = self.current_windowed_value.value
+        restriction_provider = self.signature.get_restriction_provider()
+        primary_size = restriction_provider.restriction_size(element, primary)
+        residual_size = restriction_provider.restriction_size(element, residual)
         return (
-            (self.current_windowed_value.with_value((element, primary)),
+            (self.current_windowed_value.with_value(
+                ((element, primary), primary_size)),
              None),
-            (self.current_windowed_value.with_value((element, residual)),
+            (self.current_windowed_value.with_value(
+                ((element, residual), residual_size)),
              restriction_tracker.current_watermark()))
 
   def current_element_progress(self):
@@ -749,7 +756,7 @@ class DoFnRunner(Receiver):
     self.bundle_finalizer_param.finalize_bundle()
 
   def process_with_restriction(self, windowed_value):
-    element, restriction = windowed_value.value
+    (element, restriction), size = windowed_value.value
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
         restriction_tracker=self.do_fn_invoker.invoke_create_tracker(

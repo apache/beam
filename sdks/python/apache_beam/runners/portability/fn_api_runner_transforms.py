@@ -740,13 +740,24 @@ def expand_sdf(stages, context):
         main_input_id = transform.inputs[main_input_tag]
         element_coder_id = context.components.pcollections[
             main_input_id].coder_id
-        paired_coder_id = context.add_or_get_coder_id(
+        # KV<KV<element, restriction>, double>
+        paired_coder_id =  context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
                 spec=beam_runner_api_pb2.SdkFunctionSpec(
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=common_urns.coders.KV.urn)),
-                component_coder_ids=[element_coder_id,
-                                     pardo_payload.restriction_coder_id]))
+                component_coder_ids=[
+                    context.add_or_get_coder_id(
+                        beam_runner_api_pb2.Coder(
+                            spec=beam_runner_api_pb2.SdkFunctionSpec(
+                                spec=beam_runner_api_pb2.FunctionSpec(
+                                    urn=common_urns.coders.KV.urn)),
+                            component_coder_ids=[
+                                element_coder_id,
+                                pardo_payload.restriction_coder_id])),
+                    context.add_or_get_coder_id(
+                        coders.FloatCoder().to_runner_api(None), 'doubles_coder')
+                ]))
 
         paired_pcoll_id = copy_like(
             context.components.pcollections,
