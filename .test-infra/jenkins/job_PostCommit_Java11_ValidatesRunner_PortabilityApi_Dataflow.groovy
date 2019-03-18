@@ -17,10 +17,10 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PhraseTriggeringPostCommitBuilder
+import PostcommitJobBuilder
 
 
-PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_PortabilityApi_Dataflow',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_PortabilityApi_Dataflow',
   'Run Dataflow PortabilityApi ValidatesRunner with Java 11', 'Google Cloud Dataflow Runner PortabilityApi ValidatesRunner Java 11 Tests', this) {
 
   description('Runs the ValidatesRunner suite on the Java 11 enabled Dataflow PortabilityApi runner.')
@@ -36,6 +36,12 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java11_Validate
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-runners-google-cloud-dataflow-java:validatesRunnerFnApiWorkerTest')
       switches ('-Pdockerfile=Dockerfile-java11')
+
+      // Increase parallel worker threads above processor limit since most time is
+      // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
+      // because each one launches a Dataflow job with about 3 mins of overhead.
+      // 3 x num_cores strikes a good balance between maxing out parallelism without
+      // overloading the machines.
       commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
   }

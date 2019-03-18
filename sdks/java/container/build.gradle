@@ -43,7 +43,7 @@ dependencies {
   dockerDependency project(path: ":beam-sdks-java-harness", configuration: "shadow")
 }
 
-def dockerFilename = project.findProperty('dockerfile') ?: 'Dockerfile'
+def dockerfileName = project.findProperty('dockerfile') ?: 'Dockerfile'
 
 task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
@@ -64,7 +64,7 @@ golang {
 
 docker {
   name containerImageName(name: "java")
-  dockerfile project.file("./${dockerFilename}")
+  dockerfile project.file("./${dockerfileName}")
   files "./build/"
 }
 // Ensure that we build the required resources and copy and file dependencies from related projects
