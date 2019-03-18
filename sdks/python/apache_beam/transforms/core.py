@@ -203,6 +203,7 @@ class RestrictionProvider(object):
   Optionally, ``RestrictionProvider`` may override default implementations of
   following methods.
   * restriction_coder()
+  * restriction_size()
   * split()
 
   ** Pausing and resuming processing of an element **
@@ -269,6 +270,14 @@ class RestrictionProvider(object):
       an object of type ``Coder``.
     """
     return coders.registry.get_coder(object)
+
+  def restriction_size(self, element, restriction):
+    """Returns the size of an element with respect to the given element.
+
+    By default, asks a newly-created restriction tracker for the default size
+    of the restriction.
+    """
+    return self.create_tracker(restriction).default_size()
 
 
 def get_function_arguments(obj, func):

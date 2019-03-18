@@ -933,7 +933,7 @@ def create(factory, transform_id, transform_proto, serialized_fn, consumers):
     beam_runner_api_pb2.ParDoPayload)
 def create(*args):
 
-  class CreateRestriction(beam.DoFn):
+  class PairWithRestriction(beam.DoFn):
     def __init__(self, fn, restriction_provider):
       self.restriction_provider = restriction_provider
 
@@ -944,9 +944,9 @@ def create(*args):
       # TODO(SDF): Do we want to allow mutation of the element?
       # (E.g. it could be nice to shift bulky description to the portion
       # that can be distributed.)
-      yield element, self.restriction_provider.initial_restriction(element)
+      yield (element, self.restriction_provider.initial_restriction(element)), -1
 
-  return _create_sdf_operation(CreateRestriction, *args)
+  return _create_sdf_operation(PairWithRestriction, *args)
 
 
 @BeamTransformFactory.register_urn(
@@ -959,9 +959,11 @@ def create(*args):
       self.restriction_provider = restriction_provider
 
     def process(self, element_restriction, *args, **kwargs):
-      element, restriction = element_restriction
-      for part in self.restriction_provider.split(element, restriction):
-        yield element, part
+      (element, restriction), _ = element_restriction
+      for part in self.restriction_provider.split(
+          element, restriction):
+        yield ((element, part),
+               self.restriction_provider.restriction_size(element, part))
 
   return _create_sdf_operation(SplitRestriction, *args)
 
