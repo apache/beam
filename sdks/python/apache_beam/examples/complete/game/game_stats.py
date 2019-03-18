@@ -306,6 +306,7 @@ def run(argv=None):
           topic=args.topic)
     raw_events = (
         scores
+        | 'DecodeString' >> beam.Map(lambda b: b.decode('utf-8'))
         | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
         | 'AddEventTimestamps' >> beam.Map(
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])))
