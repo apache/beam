@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.ReadAllViaFileBasedSource;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -232,7 +233,7 @@ public class XmlIO {
     abstract MappingConfiguration<T> getConfiguration();
 
     @Nullable
-    abstract String getFileOrPatternSpec();
+    abstract ValueProvider<String> getFileOrPatternSpec();
 
     abstract Compression getCompression();
 
@@ -244,7 +245,7 @@ public class XmlIO {
     abstract static class Builder<T> {
       abstract Builder<T> setConfiguration(MappingConfiguration<T> configuration);
 
-      abstract Builder<T> setFileOrPatternSpec(String fileOrPatternSpec);
+      abstract Builder<T> setFileOrPatternSpec(ValueProvider<String> fileOrPatternSpec);
 
       abstract Builder<T> setCompression(Compression compression);
 
@@ -291,6 +292,14 @@ public class XmlIO {
      * file should be of the form defined in {@link #read}.
      */
     public Read<T> from(String fileOrPatternSpec) {
+      return from(StaticValueProvider.of(fileOrPatternSpec));
+    }
+
+    /**
+     * Reads a single XML file or a set of XML files defined by a Java "glob" file pattern. Each XML
+     * file should be of the form defined in {@link #read}. Using ValueProviders.
+     */
+    public Read<T> from(ValueProvider<String> fileOrPatternSpec) {
       return toBuilder().setFileOrPatternSpec(fileOrPatternSpec).build();
     }
 
@@ -371,9 +380,7 @@ public class XmlIO {
 
     @VisibleForTesting
     BoundedSource<T> createSource() {
-      return CompressedSource.from(
-              new XmlSource<>(
-                  StaticValueProvider.of(getFileOrPatternSpec()), getConfiguration(), 1L))
+      return CompressedSource.from(new XmlSource<>(getFileOrPatternSpec(), getConfiguration(), 1L))
           .withCompression(getCompression());
     }
 
