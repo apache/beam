@@ -21,6 +21,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.samza.util.PortablePipelineDotRenderer;
 import org.apache.beam.sdk.PipelineResult;
 import org.slf4j.Logger;
@@ -34,7 +35,7 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
   private final SamzaPipelineOptions options;
 
   @Override
-  public PipelineResult run(final Pipeline pipeline) {
+  public PipelineResult run(final Pipeline pipeline, JobInfo jobInfo) {
     // Fused pipeline proto.
     final RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
     LOG.info("Portable pipeline to run:");
