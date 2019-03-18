@@ -553,7 +553,8 @@ class ElasticsearchIOTestCommon implements Serializable {
   /** Tests partial updates with errors by adding some invalid info to test set. */
   void testWritePartialUpdateWithErrors() throws Exception {
     // put a mapping to simulate error of insertion
-    ElasticSearchIOTestUtils.setIndexMapping(restClient, connectionConfiguration.getIndex());
+    ElasticSearchIOTestUtils.setIndexMapping(restClient, connectionConfiguration.getIndex(),
+        connectionConfiguration.getType());
 
     // partial documents containing the ID and age only
     List<String> data = new ArrayList<>();
