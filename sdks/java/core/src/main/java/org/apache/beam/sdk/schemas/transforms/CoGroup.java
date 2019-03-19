@@ -361,7 +361,7 @@ public class CoGroup {
         // The key schema contains the field names from the first PCollection specified.
         FieldAccessDescriptor resolved =
             fieldAccessDescriptor.withOrderByFieldInsertionOrder().resolve(schema);
-        Schema currentKeySchema = SelectHelpers.getOutputSchema(schema, resolved, true);
+        Schema currentKeySchema = SelectHelpers.getOutputSchema(schema, resolved);
         if (keySchema == null) {
           keySchema = currentKeySchema;
         } else {
@@ -396,9 +396,7 @@ public class CoGroup {
                     @ProcessElement
                     public void process(@Element Row row, OutputReceiver<KV<Row, Row>> o) {
                       o.output(
-                          KV.of(
-                              SelectHelpers.selectRow(row, keyFields, schema, keySchema, true),
-                              row));
+                          KV.of(SelectHelpers.selectRow(row, keyFields, schema, keySchema), row));
                     }
                   }))
           .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(schema)));

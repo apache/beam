@@ -99,7 +99,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
   public PCollection<Row> expand(PCollection<T> input) {
     Schema inputSchema = input.getSchema();
     FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(inputSchema);
-    Schema outputSchema = SelectHelpers.getOutputSchema(inputSchema, resolved, true);
+    Schema outputSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
 
     return input
         .apply(
@@ -115,8 +115,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
                   @ProcessElement
                   public void process(
                       @FieldAccess("selectFields") @Element Row row, OutputReceiver<Row> r) {
-                    r.output(
-                        SelectHelpers.selectRow(row, resolved, inputSchema, outputSchema, true));
+                    r.output(SelectHelpers.selectRow(row, resolved, inputSchema, outputSchema));
                   }
                 }))
         .setRowSchema(outputSchema);

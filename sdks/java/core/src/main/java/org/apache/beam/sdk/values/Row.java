@@ -500,6 +500,17 @@ public abstract class Row implements Serializable {
       this.schema = schema;
     }
 
+    public int nextFieldId() {
+      if (fieldValueGetterFactory != null) {
+        throw new RuntimeException("Not supported");
+      }
+      return values.size();
+    }
+
+    public Schema getSchema() {
+      return schema;
+    }
+
     public Builder addValue(@Nullable Object values) {
       this.values.add(values);
       return this;

@@ -631,7 +631,7 @@ public class Group {
     public PCollection<KV<Row, Iterable<InputT>>> expand(PCollection<InputT> input) {
       Schema schema = input.getSchema();
       FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
-      keySchema = SelectHelpers.getOutputSchema(schema, resolved, true);
+      keySchema = SelectHelpers.getOutputSchema(schema, resolved);
       return input
           .apply(
               "Group by fields",
@@ -644,8 +644,7 @@ public class Group {
                         OutputReceiver<KV<Row, InputT>> o) {
                       o.output(
                           KV.of(
-                              SelectHelpers.selectRow(row, resolved, schema, keySchema, true),
-                              element));
+                              SelectHelpers.selectRow(row, resolved, schema, keySchema), element));
                     }
                   }))
           .setCoder(KvCoder.of(SchemaCoder.of(keySchema), input.getCoder()))
