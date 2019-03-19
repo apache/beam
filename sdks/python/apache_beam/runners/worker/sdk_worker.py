@@ -337,7 +337,7 @@ class SdkWorker(object):
                   monitoring_infos=bundle_processor.monitoring_infos(),
                   requires_finalization=requests_finalization))
       # Don't release here if finalize is needed.
-      if not bundle_processor.requires_finalization():
+      if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
       return response
     except:  # pylint: disable=broad-except
