@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkRunner;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.BeforeClass;
@@ -89,24 +91,74 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testSideInput() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    final PCollectionView<List<Integer>> sideInput =
-        input.apply(View.asList());
+  public void testSideInputAsList() {
+    PCollection<Integer> sideInput = pipeline.apply("Create sideInput", Create.of(101, 102, 103));
+    final PCollectionView<List<Integer>> sideInputView = sideInput.apply(View.asList());
 
+    PCollection<Integer> input =
+        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
     input.apply(
         ParDo.of(
-            new DoFn<Integer, Integer>() {
-              @ProcessElement
-              public void processElement(ProcessContext context) {
-                List<Integer> list = context.sideInput(sideInput);
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) {
+                    List<Integer> sideInputValue = context.sideInput(sideInputView);
+                    Integer val = context.element();
+                    context.output(val);
+                    System.out.println(
+                        "ParDo1: val = " + val + ", sideInputValue = " + sideInputValue);
+                  }
+                })
+            .withSideInputs(sideInputView));
 
-                Integer val = context.element();
-                context.output(val);
-                System.out.println("ParDo1: val = " + val + ", sideInput = " + list);
-              }
-            })
-            .withSideInputs(sideInput));
+    pipeline.run();
+  }
+
+  @Test
+  public void testSideInputAsSingleton() {
+    PCollection<Integer> sideInput = pipeline.apply("Create sideInput", Create.of(101));
+    final PCollectionView<Integer> sideInputView = sideInput.apply(View.asSingleton());
+
+    PCollection<Integer> input =
+        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+    input.apply(
+        ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) {
+                    Integer sideInputValue = context.sideInput(sideInputView);
+                    Integer val = context.element();
+                    context.output(val);
+                    System.out.println(
+                        "ParDo1: val = " + val + ", sideInputValue = " + sideInputValue);
+                  }
+                })
+            .withSideInputs(sideInputView));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testSideInputAsMap() {
+    PCollection<KV<String, Integer>> sideInput =
+        pipeline.apply("Create sideInput", Create.of(KV.of("key1", 1), KV.of("key2", 2)));
+    final PCollectionView<Map<String, Integer>> sideInputView = sideInput.apply(View.asMap());
+
+    PCollection<Integer> input =
+        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+    input.apply(
+        ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) {
+                    Map<String, Integer> sideInputValue = context.sideInput(sideInputView);
+                    Integer val = context.element();
+                    context.output(val);
+                    System.out.println(
+                        "ParDo1: val = " + val + ", sideInputValue = " + sideInputValue);
+                  }
+                })
+            .withSideInputs(sideInputView));
 
     pipeline.run();
   }

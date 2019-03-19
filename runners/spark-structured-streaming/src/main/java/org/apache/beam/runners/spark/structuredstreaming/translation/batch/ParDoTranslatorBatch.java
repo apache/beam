@@ -21,18 +21,20 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
@@ -72,12 +75,6 @@ class ParDoTranslatorBatch<InputT, OutputT>
         signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
     checkState(!stateful, "States and timers are not supported for the moment.");
 
-    // TODO: add support of SideInputs
-    List<PCollectionView<?>> sideInputs = getSideInputs(context);
-    System.out.println("sideInputs = " + sideInputs);
-    final boolean hasSideInputs = sideInputs != null && sideInputs.size() > 0;
-    checkState(!hasSideInputs, "SideInputs are not supported for the moment.");
-
     // Init main variables
     Dataset<WindowedValue<InputT>> inputDataSet = context.getDataset(context.getInput());
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
@@ -88,10 +85,13 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
     // construct a map from side input to WindowingStrategy so that
     // the DoFn runner can map main-input windows to side input windows
+    List<PCollectionView<?>> sideInputs = getSideInputs(context);
     Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
     for (PCollectionView<?> sideInput : sideInputs) {
       sideInputStrategies.put(sideInput, sideInput.getPCollection().getWindowingStrategy());
     }
+
+    SideInputBroadcast broadcastStateData = createBroadcastSideInputs(sideInputs, context);
 
     Map<TupleTag<?>, Coder<?>> outputCoderMap = context.getOutputCoders();
     Coder<InputT> inputCoder = ((PCollection<InputT>) context.getInput()).getCoder();
@@ -106,7 +106,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
             outputTags,
             mainOutputTag,
             inputCoder,
-            outputCoderMap);
+            outputCoderMap,
+            broadcastStateData
+        );
 
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs =
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.tuple2Encoder());
@@ -114,6 +116,32 @@ class ParDoTranslatorBatch<InputT, OutputT>
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       pruneOutputFilteredByTag(context, allOutputs, output);
     }
+  }
+
+  private static SideInputBroadcast createBroadcastSideInputs(
+      List<PCollectionView<?>> sideInputs, TranslationContext context) {
+    JavaSparkContext jsc =
+        JavaSparkContext.fromSparkContext(context.getSparkSession().sparkContext());
+
+    SideInputBroadcast sideInputBroadcast = new SideInputBroadcast();
+    for (PCollectionView<?> input : sideInputs) {
+      Coder<? extends BoundedWindow> windowCoder =
+          input.getPCollection().getWindowingStrategy().getWindowFn().windowCoder();
+      Coder<WindowedValue<?>> windowedValueCoder =
+          (Coder<WindowedValue<?>>)
+              (Coder<?>) WindowedValue.getFullCoder(input.getPCollection().getCoder(), windowCoder);
+
+      Dataset<WindowedValue<?>> broadcastSet = context.getSideInputDataSet(input);
+      List<WindowedValue<?>> valuesList = broadcastSet.collectAsList();
+      List<byte[]> codedValues = new ArrayList<>();
+      for (WindowedValue<?> v : valuesList) {
+        codedValues.add(CoderHelpers.toByteArray(v, windowedValueCoder));
+      }
+
+      sideInputBroadcast.add(
+          input.getTagInternal().getId(), jsc.broadcast(codedValues), windowedValueCoder);
+    }
+    return sideInputBroadcast;
   }
 
   private List<PCollectionView<?>> getSideInputs(TranslationContext context) {
