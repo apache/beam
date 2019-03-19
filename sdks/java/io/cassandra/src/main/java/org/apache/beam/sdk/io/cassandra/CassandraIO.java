@@ -37,7 +37,11 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.math.BigInteger;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -219,12 +223,12 @@ public class CassandraIO {
       return builder().setTable(table).build();
     }
 
-    /** Specify select fields to reduce data or add computed fields * */
+    /** Specify select fields to reduce data or add computed fields. */
     public Read<T> withSelectFields(ValueProvider<List<String>> selectFields) {
       return builder().setSelectFields(selectFields).build();
     }
 
-    /** Specify select fields to reduce data or add computed fields * */
+    /** Specify select fields to reduce data or add computed fields. */
     public Read<T> withSelectFields(List<String> selectFields) {
       checkArgument(
           selectFields != null
