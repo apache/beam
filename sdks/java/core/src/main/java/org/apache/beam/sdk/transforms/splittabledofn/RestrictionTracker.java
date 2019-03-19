@@ -17,11 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
@@ -60,8 +55,7 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * work: the old value of {@link #currentRestriction} is equivalent to the new value and the
    * return value of this method combined.
    *
-   * <p>Must be called at most once on a given object. Must not be called before the first
-   * successful {@link #tryClaim} call.
+   * <p>Must be called at most once on a given object.
    */
   public abstract RestrictionT checkpoint();
 
