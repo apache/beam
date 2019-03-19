@@ -216,7 +216,7 @@ def loadTestJob = { scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 12 * * *', this) {
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -225,7 +225,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Java GBK Dataflow Batch suite',
         this
 ) {
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
 
