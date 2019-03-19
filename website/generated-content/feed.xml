@@ -90,7 +90,6 @@ For more information on changes in 2.11.0, check out the
   &lt;li&gt;Add Cloud KMS support to GCS copies.&lt;/li&gt;
   &lt;li&gt;Add parameters for offsetConsumer in KafkaIO.read().&lt;/li&gt;
   &lt;li&gt;Allow setting compression codec in ParquetIO write.&lt;/li&gt;
-  &lt;li&gt;Cassandra: PasswordDecrypter: Delay decryption / Avoid serialization.&lt;/li&gt;
   &lt;li&gt;Add kms_key to BigQuery transforms, pass to Dataflow.&lt;/li&gt;
 &lt;/ul&gt;
 
