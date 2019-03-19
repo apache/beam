@@ -58,11 +58,16 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -705,7 +710,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
-        this.executor = options.as(GcsOptions.class).getExecutorService();
+        this.executor =
+            new BoundedExecutorService(
+                options.as(GcsOptions.class).getExecutorService(),
+                options.as(BigQueryOptions.class).getInsertBundleParallelism());
       }
       if (insertIdList != null && rowList.size() != insertIdList.size()) {
         throw new AssertionError(
@@ -999,6 +1007,143 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void close() {
       client.close();
+    }
+  }
+
+  private static class BoundedExecutorService implements ExecutorService {
+    private final ExecutorService executor;
+    private final Semaphore semaphore;
+    private final int parallelism;
+
+    BoundedExecutorService(ExecutorService executor, int parallelism) {
+      this.executor = executor;
+      this.parallelism = parallelism;
+      this.semaphore = new Semaphore(parallelism);
+    }
+
+    @Override
+    public void shutdown() {
+      executor.shutdown();
+    }
+
+    @Override
+    public List<Runnable> shutdownNow() {
+      List<Runnable> runnables = executor.shutdownNow();
+      // try to release permits as many as possible before returning semaphored runnables.
+      synchronized (this) {
+        if (semaphore.availablePermits() <= parallelism) {
+          semaphore.release(Integer.MAX_VALUE - parallelism);
+        }
+      }
+      return runnables;
+    }
+
+    @Override
+    public boolean isShutdown() {
+      return executor.isShutdown();
+    }
+
+    @Override
+    public boolean isTerminated() {
+      return executor.isTerminated();
+    }
+
+    @Override
+    public boolean awaitTermination(long l, TimeUnit timeUnit) throws InterruptedException {
+      return executor.awaitTermination(l, timeUnit);
+    }
+
+    @Override
+    public <T> Future<T> submit(Callable<T> callable) {
+      return executor.submit(new SemaphoreCallable<>(callable));
+    }
+
+    @Override
+    public <T> Future<T> submit(Runnable runnable, T t) {
+      return executor.submit(new SemaphoreRunnable(runnable), t);
+    }
+
+    @Override
+    public Future<?> submit(Runnable runnable) {
+      return executor.submit(new SemaphoreRunnable(runnable));
+    }
+
+    @Override
+    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> collection)
+        throws InterruptedException {
+      return executor.invokeAll(
+          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()));
+    }
+
+    @Override
+    public <T> List<Future<T>> invokeAll(
+        Collection<? extends Callable<T>> collection, long l, TimeUnit timeUnit)
+        throws InterruptedException {
+      return executor.invokeAll(
+          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()),
+          l,
+          timeUnit);
+    }
+
+    @Override
+    public <T> T invokeAny(Collection<? extends Callable<T>> collection)
+        throws InterruptedException, ExecutionException {
+      return executor.invokeAny(
+          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()));
+    }
+
+    @Override
+    public <T> T invokeAny(Collection<? extends Callable<T>> collection, long l, TimeUnit timeUnit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+      return executor.invokeAny(
+          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()),
+          l,
+          timeUnit);
+    }
+
+    @Override
+    public void execute(Runnable runnable) {
+      executor.execute(new SemaphoreRunnable(runnable));
+    }
+
+    private class SemaphoreRunnable implements Runnable {
+      private final Runnable runnable;
+
+      SemaphoreRunnable(Runnable runnable) {
+        this.runnable = runnable;
+      }
+
+      @Override
+      public void run() {
+        try {
+          semaphore.acquire();
+        } catch (InterruptedException e) {
+          throw new RuntimeException("semaphore acquisition interrupted. task canceled.");
+        }
+        try {
+          runnable.run();
+        } finally {
+          semaphore.release();
+        }
+      }
+    }
+
+    private class SemaphoreCallable<V> implements Callable<V> {
+      private final Callable<V> callable;
+
+      SemaphoreCallable(Callable<V> callable) {
+        this.callable = callable;
+      }
+
+      @Override
+      public V call() throws Exception {
+        semaphore.acquire();
+        try {
+          return callable.call();
+        } finally {
+          semaphore.release();
+        }
+      }
     }
   }
 }
