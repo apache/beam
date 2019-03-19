@@ -24,6 +24,8 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getRi
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMurmur3Partitioner;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
@@ -31,6 +33,7 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.annotations.Column;
+import com.datastax.driver.mapping.annotations.Computed;
 import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.Serializable;
@@ -270,6 +273,39 @@ public class CassandraIOTest implements Serializable {
                 .withWhere("person_id=10"));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testCustomQuery() throws Exception {
+    insertRecords();
+
+    PCollection<Scientist> output =
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(pipeline.newProvider(Arrays.asList(CASSANDRA_HOST)))
+                .withPort(pipeline.newProvider(CASSANDRA_PORT))
+                .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
+                .withTable(pipeline.newProvider(CASSANDRA_TABLE))
+                .withQuery(
+                    pipeline.newProvider(
+                        "select person_id, writetime(person_name) from beam_ks.scientist where $CONDITIONS"))
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class)
+                .withWhere(pipeline.newProvider("person_id=10")));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
+    PAssert.that(output)
+        .satisfies(
+            input -> {
+              for (Scientist sci : input) {
+                assertNotNull(sci.id);
+                assertNull(sci.name);
+                assertTrue(sci.nameTs != null && sci.nameTs > 0);
+              }
+              return null;
+            });
 
     pipeline.run();
   }
@@ -549,6 +585,9 @@ public class CassandraIOTest implements Serializable {
 
     @Column(name = "person_name")
     String name;
+
+    @Computed("writetime(person_name)")
+    Long nameTs;
 
     @PartitionKey()
     @Column(name = "person_id")

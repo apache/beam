@@ -135,6 +135,9 @@ public class CassandraIO {
     abstract ValueProvider<List<String>> hosts();
 
     @Nullable
+    abstract ValueProvider<String> query();
+
+    @Nullable
     abstract ValueProvider<Integer> port();
 
     @Nullable
@@ -215,6 +218,25 @@ public class CassandraIO {
     /** Specify the Cassandra table where to read data. */
     public Read<T> withTable(ValueProvider<String> table) {
       return builder().setTable(table).build();
+    }
+
+    /**
+     * Customize select query to reduce data or add computed fields. Provide $CONDITIONS placeholder
+     * inside where statement.
+     */
+    public Read<T> withQuery(ValueProvider<String> query) {
+      return builder().setQuery(query).build();
+    }
+
+    /**
+     * Customize select query to reduce data or add computed fields. Provide $CONDITIONS placeholder
+     * inside where statement.
+     */
+    public Read<T> withQuery(String query) {
+      checkArgument(
+          query != null && query.length() > 0 && query.contains("$CONDITIONS"),
+          "Query should not be empty. Provide $CONDITIONS placeholder inside where statement.");
+      return builder().setQuery(ValueProvider.StaticValueProvider.of(query)).build();
     }
 
     /**
@@ -356,6 +378,8 @@ public class CassandraIO {
     abstract static class Builder<T> {
       abstract Builder<T> setHosts(ValueProvider<List<String>> hosts);
 
+      abstract Builder<T> setQuery(ValueProvider<String> query);
+
       abstract Builder<T> setPort(ValueProvider<Integer> port);
 
       abstract Builder<T> setKeyspace(ValueProvider<String> keyspace);
@@ -435,12 +459,17 @@ public class CassandraIO {
           LOG.warn(
               "Only Murmur3Partitioner is supported for splitting, using an unique source for "
                   + "the read");
-          String splitQuery =
-              String.format(
-                  "SELECT * FROM %s.%s%s;",
-                  spec.keyspace().get(),
-                  spec.table().get(),
-                  spec.where() != null ? "" : String.format(" WHERE %s", spec.where().get()));
+          String splitQuery = "";
+          if (spec.query() != null) {
+            splitQuery = spec.query().get().replaceAll("\\$CONDTITIONS", "1=1");
+          } else {
+            splitQuery =
+                String.format(
+                    "SELECT * FROM %s.%s%s;",
+                    spec.keyspace().get(),
+                    spec.table().get(),
+                    spec.where() != null ? "" : String.format(" WHERE %s", spec.where().get()));
+          }
           return Collections.singletonList(
               new CassandraIO.CassandraSource<>(spec, Collections.singletonList(splitQuery)));
         }
@@ -475,6 +504,7 @@ public class CassandraIO {
               .collect(Collectors.joining(","));
 
       List<BoundedSource<T>> sources = new ArrayList<>();
+
       for (List<RingRange> split : splits) {
         List<String> queries = new ArrayList<>();
         for (RingRange range : split) {
@@ -487,6 +517,7 @@ public class CassandraIO {
             // end token of the split.
             queries.add(
                 generateRangeQuery(
+                    spec.query(),
                     spec.keyspace(),
                     spec.table(),
                     spec.where(),
@@ -496,6 +527,7 @@ public class CassandraIO {
             // Generation of the second query of the wrapping range
             queries.add(
                 generateRangeQuery(
+                    spec.query(),
                     spec.keyspace(),
                     spec.table(),
                     spec.where(),
@@ -505,6 +537,7 @@ public class CassandraIO {
           } else {
             queries.add(
                 generateRangeQuery(
+                    spec.query(),
                     spec.keyspace(),
                     spec.table(),
                     spec.where(),
@@ -519,29 +552,35 @@ public class CassandraIO {
     }
 
     private static String generateRangeQuery(
+        ValueProvider<String> query,
         ValueProvider<String> keyspace,
         ValueProvider<String> table,
         ValueProvider<String> where,
         String partitionKey,
         BigInteger rangeStart,
         BigInteger rangeEnd) {
-      String query =
-          String.format(
-              "SELECT * FROM %s.%s WHERE %s;",
-              keyspace.get(),
-              table.get(),
-              Joiner.on(" AND ")
-                  .skipNulls()
-                  .join(
-                      where == null ? null : String.format("(%s)", where.get()),
-                      rangeStart == null
-                          ? null
-                          : String.format("(token(%s)>=%d)", partitionKey, rangeStart),
-                      rangeEnd == null
-                          ? null
-                          : String.format("(token(%s)<%d)", partitionKey, rangeEnd)));
-      LOG.debug("Cassandra generated read query : {}", query);
-      return query;
+      String rangeQuery = "";
+
+      String rangeFilter =
+          Joiner.on(" AND ")
+              .skipNulls()
+              .join(
+                  where == null ? null : String.format("(%s)", where.get()),
+                  rangeStart == null
+                      ? null
+                      : String.format("(token(%s)>=%d)", partitionKey, rangeStart),
+                  rangeEnd == null
+                      ? null
+                      : String.format("(token(%s)<%d)", partitionKey, rangeEnd));
+      if (query != null) {
+        rangeQuery = query.get().replaceAll("\\$CONDITIONS", rangeFilter);
+      } else {
+        rangeQuery =
+            String.format(
+                "SELECT * FROM %s.%s WHERE %s;", keyspace.get(), table.get(), rangeFilter);
+      }
+      LOG.debug("Cassandra generated read query : {}", rangeQuery);
+      return rangeQuery;
     }
 
     private static long getNumSplits(
