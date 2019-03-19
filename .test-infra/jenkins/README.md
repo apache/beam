@@ -127,9 +127,7 @@ Beam Jenkins overview page: [link](https://builds.apache.org/view/A-D/view/Beam/
 * To rerun full set of PreCommit jobs in PR, comment following trigger phrase:
 
 ```
-retest this p
-
-
+retest this please
 ```
 
 * Last update (mm/dd/yyyy): 02/12/2019
