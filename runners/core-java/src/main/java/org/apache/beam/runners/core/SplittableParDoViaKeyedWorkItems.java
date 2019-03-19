@@ -324,6 +324,13 @@ public class SplittableParDoViaKeyedWorkItems {
       invoker.invokeFinishBundle(wrapContextAsFinishBundle(c));
     }
 
+    /**
+     * Processes an element and restriction pair storing the restriction inside of state.
+     *
+     * <p>Uses a processing timer to resume execution if processing returns a continuation.
+     *
+     * <p>Uses a watermark hold to control watermark advancement.
+     */
     @ProcessElement
     public void processElement(final ProcessContext c) {
       byte[] key = c.element().key();
