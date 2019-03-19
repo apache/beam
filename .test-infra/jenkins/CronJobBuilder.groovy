@@ -44,7 +44,7 @@ class CronJobBuilder {
 
   void defineAutoPostCommitJob(name, cronPattern) {
     def autoBuilds = scope.job(name) {
-      commonJobProperties.setAutoJob(delegate, cronPattern, 'builds@beam.apache.org', true, true)
+      commonJobProperties.setAutoJob(delegate, cronPattern, 'builds@beam.apache.org', false, true)
     }
 
     autoBuilds.with(jobDefinition)

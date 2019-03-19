@@ -456,6 +456,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                         BatchViewOverrides.BatchViewAsIterable.class, this)));
       }
     }
+    /* TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
     // Uses Reshuffle, so has to be before the Reshuffle override
     overridesBuilder.add(
         PTransformOverride.of(
@@ -466,6 +467,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PTransformOverride.of(
             PTransformMatchers.requiresStableInputParDoMulti(),
             RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
+    */
     // Expands into Reshuffle and single-output ParDo, so has to be before the overrides below.
     if (fnApiEnabled) {
       overridesBuilder.add(

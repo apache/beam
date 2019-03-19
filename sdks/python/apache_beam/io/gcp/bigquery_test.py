@@ -38,6 +38,7 @@ from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.options import value_provider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -490,6 +491,44 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     self.output_table = "%s.output_table" % (self.dataset_id)
     logging.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
+
+  @attr('IT')
+  def test_value_provider_transform(self):
+    output_table_1 = '%s%s' % (self.output_table, 1)
+    output_table_2 = '%s%s' % (self.output_table, 2)
+    schema = {'fields': [
+        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_1,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_2,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
+
+    with beam.Pipeline(argv=args) as p:
+      input = p | beam.Create([row for row in _ELEMENTS if 'language' in row])
+
+      _ = (input
+           | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
+               table=value_provider.StaticValueProvider(str, output_table_1),
+               schema=value_provider.StaticValueProvider(dict, schema),
+               method='STREAMING_INSERTS'))
+      _ = (input
+           | "WriteWithMultipleDests2" >> beam.io.gcp.bigquery.WriteToBigQuery(
+               table=value_provider.StaticValueProvider(str, output_table_2),
+               method='FILE_LOADS'))
 
   @attr('IT')
   def test_multiple_destinations_transform(self):

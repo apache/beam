@@ -58,6 +58,7 @@ Beam Jenkins overview page: [link](https://builds.apache.org/view/A-D/view/Beam/
 | beam_PostCommit_Java_ValidatesRunner_Apex | [cron](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Apex/), [phrase](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Apex_PR/) | `Run Apex ValidatesRunner` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Apex/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Apex) |
 | beam_PostCommit_Java_ValidatesRunner_Dataflow | [cron](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Dataflow/), [phrase](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Dataflow_PR/) | `Run Dataflow ValidatesRunner` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Dataflow/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Dataflow) |
 | beam_PostCommit_Java11_ValidatesRunner_Dataflow | [cron](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_Dataflow/), [phrase](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_Dataflow_PR/) | `Run Dataflow ValidatesRunner Java 11` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_Dataflow/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_Dataflow) |
+| beam_PostCommit_Java11_ValidatesRunner_PortabilityApi_Dataflow | [cron](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_PortabilityApi_Dataflow/), [phrase](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_PortabilityApi_Dataflow_PR/) | `Run Dataflow PortabilityApi ValidatesRunner with Java 11` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_PortabilityApi_Dataflow/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_PortabilityApi_Dataflow) |
 | beam_PostCommit_Java11_ValidatesRunner_Direct | [cron](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_Direct), [phrase](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_Direct_PR) | `Run Direct ValidatesRunner in Java 11` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_Direct/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Java11_ValidatesRunner_Direct) |
 | beam_PostCommit_Java_ValidatesRunner_Flink | [cron](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Flink/), [phrase](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Flink_PR/) | `Run Flink ValidatesRunner` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Flink/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Flink) |
 | beam_PostCommit_Java_ValidatesRunner_Gearpump | [cron](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Gearpump/), [phrase](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Gearpump_PR/) | `Run Gearpump ValidatesRunner` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Gearpump/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Gearpump) |
@@ -126,7 +127,9 @@ Beam Jenkins overview page: [link](https://builds.apache.org/view/A-D/view/Beam/
 * To rerun full set of PreCommit jobs in PR, comment following trigger phrase:
 
 ```
-retest this please
+retest this p
+
+
 ```
 
 * Last update (mm/dd/yyyy): 02/12/2019

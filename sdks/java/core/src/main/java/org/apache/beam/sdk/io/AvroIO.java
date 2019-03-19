@@ -431,7 +431,8 @@ public class AvroIO {
         .setNumShards(0)
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .setMetadata(ImmutableMap.of())
-        .setWindowedWrites(false);
+        .setWindowedWrites(false)
+        .setNoSpilling(false);
   }
 
   private static <T> PCollection<T> setBeamSchema(
@@ -954,6 +955,8 @@ public class AvroIO {
 
     abstract boolean getWindowedWrites();
 
+    abstract boolean getNoSpilling();
+
     @Nullable
     abstract FilenamePolicy getFilenamePolicy();
 
@@ -994,6 +997,8 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setSchema(Schema schema);
 
       abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT, OutputT> setNoSpilling(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT, OutputT> setFilenamePolicy(
           FilenamePolicy filenamePolicy);
@@ -1189,6 +1194,11 @@ public class AvroIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public TypedWrite<UserT, DestinationT, OutputT> withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     /** Writes to Avro file(s) compressed using specified codec. */
     public TypedWrite<UserT, DestinationT, OutputT> withCodec(CodecFactory codec) {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
@@ -1274,6 +1284,9 @@ public class AvroIO {
       }
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
+      }
+      if (getNoSpilling()) {
+        write = write.withNoSpilling();
       }
       return input.apply("Write", write);
     }

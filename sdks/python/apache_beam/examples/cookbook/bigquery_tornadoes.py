@@ -75,7 +75,7 @@ def run(argv=None):
        'or DATASET.TABLE.'))
 
   parser.add_argument('--gcs_location',
-                      required=True,
+                      required=False,
                       help=('GCS Location to store files to load '
                             'data into Bigquery'))
 
