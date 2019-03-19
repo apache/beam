@@ -45,4 +45,12 @@ public interface BigQueryOptions
   Integer getHTTPWriteTimeout();
 
   void setHTTPWriteTimeout(Integer timeout);
+
+  @Description(
+      "If specified, the given number of maximum concurrent threads will be used to insert "
+          + "rows from one bundle to BigQuery service with streaming insert API.")
+  @Default.Integer(3)
+  Integer getInsertBundleParallelism();
+
+  void setInsertBundleParallelism(Integer parallelism);
 }
