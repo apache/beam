@@ -28,7 +28,7 @@ job('beam_Release_NightlySnapshot') {
   concurrentBuild()
 
   // Set common parameters. Timeout is longer, to avoid [BEAM-5774].
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 140)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 200)
 
   // This is a post-commit job that runs once per day, not for every push.
   commonJobProperties.setAutoJob(
