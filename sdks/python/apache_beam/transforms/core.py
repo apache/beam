@@ -336,9 +336,14 @@ class _BundleFinalizerParam(_DoFnParam):
   def register(self, callback):
     self._callbacks.append(callback)
 
+  # Log errors when calling callback to make sure all callbacks get called
+  # though there are errors. And errors should not fail pipeline.
   def finalize_bundle(self):
     for callback in self._callbacks:
-      callback()
+      try:
+        callback()
+      except Exception as e:
+        logging.warn("Got exception from finalization call: %s", e)
 
   def has_callbacks(self):
     return len(self._callbacks) > 0
