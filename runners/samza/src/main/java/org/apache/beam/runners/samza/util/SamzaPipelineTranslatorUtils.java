@@ -74,4 +74,14 @@ public final class SamzaPipelineTranslatorUtils {
         (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
     return ret;
   }
+
+  /**
+   * Escape the non-alphabet chars in the name so we can create a physical stream out of it.
+   *
+   * <p>This escape will replace ".", "(" and "/" as "-", and then remove all the other
+   * non-alphabetic characters.
+   */
+  public static String escape(String name) {
+    return name.replaceAll("[\\.(/]", "-").replaceAll("[^A-Za-z0-9-_]", "");
+  }
 }

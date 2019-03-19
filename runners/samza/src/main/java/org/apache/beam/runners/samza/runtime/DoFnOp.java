@@ -71,7 +71,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // NOTE: we use HashMap here to guarantee Serializability
   private final HashMap<String, PCollectionView<?>> idToViewMap;
   private final String stepName;
-  private final String stepId;
   private final Coder<InT> inputCoder;
   private final HashMap<TupleTag<?>, Coder<?>> outputCoders;
 
@@ -111,7 +110,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       Map<String, PCollectionView<?>> idToViewMap,
       OutputManagerFactory<OutT> outputManagerFactory,
       String stepName,
-      String stepId,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
       Map<String, TupleTag<?>> idToTupleTagMap) {
@@ -125,7 +123,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.idToViewMap = new HashMap<>(idToViewMap);
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
-    this.stepId = stepId;
     this.keyCoder = keyCoder;
     this.isPortable = isPortable;
     this.stagePayload = stagePayload;
@@ -147,10 +144,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         (SamzaExecutionContext) context.getApplicationContainerContext();
     final SamzaPipelineOptions pipelineOptions = samzaExecutionContext.getPipelineOptions();
 
-    final String stateId = "pardo-" + stepId;
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stateId, null, context.getTaskContext(), pipelineOptions, signature);
+            stepName, null, context.getTaskContext(), pipelineOptions, signature);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
@@ -182,7 +178,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               doFn,
               windowingStrategy,
               stepName,
-              stateId,
               context,
               mainOutputTag,
               sideInputHandler,

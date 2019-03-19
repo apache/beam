@@ -60,7 +60,6 @@ public class SamzaDoFnRunners {
       DoFn<InT, FnOutT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       String stepName,
-      String stateId,
       Context context,
       TupleTag<FnOutT> mainOutputTag,
       SideInputHandler sideInputHandler,
@@ -76,7 +75,7 @@ public class SamzaDoFnRunners {
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stateId, keyCoder, context.getTaskContext(), pipelineOptions, signature);
+            stepName, keyCoder, context.getTaskContext(), pipelineOptions, signature);
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();

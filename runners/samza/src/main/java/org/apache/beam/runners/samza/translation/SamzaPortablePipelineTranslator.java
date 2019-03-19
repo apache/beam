@@ -52,10 +52,9 @@ public class SamzaPortablePipelineTranslator {
     QueryablePipeline queryablePipeline =
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
-    int topologicalId = 0;
+
     for (PipelineNode.PTransformNode transform :
         queryablePipeline.getTopologicallyOrderedTransforms()) {
-      ctx.setCurrentTopologicalId(topologicalId++);
       LOG.info("Translating transform urn: {}", transform.getTransform().getSpec().getUrn());
       TRANSLATORS
           .get(transform.getTransform().getSpec().getUrn())
