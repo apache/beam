@@ -288,14 +288,15 @@ public class CassandraIOTest implements Serializable {
                 .withWhere(pipeline.newProvider("person_id=10")));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
-    PAssert.that(output).satisfies(input -> {
-      for (Scientist sci: input) {
-        assertNotNull(sci.id);
-        assertNull(sci.name);
-
-      }
-      return null;
-    });
+    PAssert.that(output)
+        .satisfies(
+            input -> {
+              for (Scientist sci : input) {
+                assertNotNull(sci.id);
+                assertNull(sci.name);
+              }
+              return null;
+            });
 
     pipeline.run();
   }
@@ -305,27 +306,29 @@ public class CassandraIOTest implements Serializable {
     insertRecords();
 
     PCollection<Scientist> output =
-            pipeline.apply(
-                    CassandraIO.<Scientist>read()
-                            .withHosts(pipeline.newProvider(Arrays.asList(CASSANDRA_HOST)))
-                            .withPort(pipeline.newProvider(CASSANDRA_PORT))
-                            .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
-                            .withTable(pipeline.newProvider(CASSANDRA_TABLE))
-                            .withSelectFields(pipeline.newProvider(Arrays.asList("person_id","writetime(person_name)")))
-                            .withCoder(SerializableCoder.of(Scientist.class))
-                            .withEntity(Scientist.class)
-                            .withWhere(pipeline.newProvider("person_id=10")));
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(pipeline.newProvider(Arrays.asList(CASSANDRA_HOST)))
+                .withPort(pipeline.newProvider(CASSANDRA_PORT))
+                .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
+                .withTable(pipeline.newProvider(CASSANDRA_TABLE))
+                .withSelectFields(
+                    pipeline.newProvider(Arrays.asList("person_id", "writetime(person_name)")))
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class)
+                .withWhere(pipeline.newProvider("person_id=10")));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
-    PAssert.that(output).satisfies(input -> {
-      for (Scientist sci: input) {
-        assertNotNull(sci.id);
-        assertNull(sci.name);
-        assertTrue(sci.nameTs!=null && sci.nameTs>0);
-
-      }
-      return null;
-    });
+    PAssert.that(output)
+        .satisfies(
+            input -> {
+              for (Scientist sci : input) {
+                assertNotNull(sci.id);
+                assertNull(sci.name);
+                assertTrue(sci.nameTs != null && sci.nameTs > 0);
+              }
+              return null;
+            });
 
     pipeline.run();
   }
@@ -335,15 +338,15 @@ public class CassandraIOTest implements Serializable {
     insertRecords();
 
     PCollection<Scientist> output =
-            pipeline.apply(
-                    CassandraIO.<Scientist>read()
-                            .withHosts(pipeline.newProvider(Arrays.asList(CASSANDRA_HOST)))
-                            .withPort(pipeline.newProvider(CASSANDRA_PORT))
-                            .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
-                            .withTable(pipeline.newProvider(CASSANDRA_TABLE))
-                            .withCoder(SerializableCoder.of(Scientist.class))
-                            .withEntity(Scientist.class)
-                            .withWhere(pipeline.newProvider("person_id=10")));
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(pipeline.newProvider(Arrays.asList(CASSANDRA_HOST)))
+                .withPort(pipeline.newProvider(CASSANDRA_PORT))
+                .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
+                .withTable(pipeline.newProvider(CASSANDRA_TABLE))
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class)
+                .withWhere(pipeline.newProvider("person_id=10")));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
 

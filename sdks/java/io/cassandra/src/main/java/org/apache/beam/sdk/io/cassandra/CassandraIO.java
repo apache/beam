@@ -219,16 +219,18 @@ public class CassandraIO {
       return builder().setTable(table).build();
     }
 
-    /** Specify select fields to reduce data or add computed fields **/
-    public Read<T> withSelectFields(ValueProvider<List<String>> selectFields){
+    /** Specify select fields to reduce data or add computed fields * */
+    public Read<T> withSelectFields(ValueProvider<List<String>> selectFields) {
       return builder().setSelectFields(selectFields).build();
     }
 
-    /** Specify select fields to reduce data or add computed fields **/
-    public Read<T> withSelectFields(List<String> selectFields){
-      checkArgument(selectFields != null && selectFields.size()>0 &&
-              selectFields.stream().allMatch(s->s==null || !s.isEmpty()),
-              "Select fields should be valid field names");
+    /** Specify select fields to reduce data or add computed fields * */
+    public Read<T> withSelectFields(List<String> selectFields) {
+      checkArgument(
+          selectFields != null
+              && selectFields.size() > 0
+              && selectFields.stream().allMatch(s -> s == null || !s.isEmpty()),
+          "Select fields should be valid field names");
       return builder().setSelectFields(ValueProvider.StaticValueProvider.of(selectFields)).build();
     }
 
@@ -455,8 +457,8 @@ public class CassandraIO {
               spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
         } else {
           String selectFields = "*";
-          if(spec.selectFields()!=null){
-            selectFields = String.join(",",spec.selectFields().get());
+          if (spec.selectFields() != null) {
+            selectFields = String.join(",", spec.selectFields().get());
           }
           LOG.warn(
               "Only Murmur3Partitioner is supported for splitting, using an unique source for "
@@ -503,8 +505,8 @@ public class CassandraIO {
 
       List<BoundedSource<T>> sources = new ArrayList<>();
       String selectFields = "*";
-      if(spec.selectFields()!=null){
-        selectFields = String.join(",",spec.selectFields().get());
+      if (spec.selectFields() != null) {
+        selectFields = String.join(",", spec.selectFields().get());
       }
 
       for (List<RingRange> split : splits) {
@@ -553,7 +555,8 @@ public class CassandraIO {
       return sources;
     }
 
-    private static String generateRangeQuery(String selectFields,
+    private static String generateRangeQuery(
+        String selectFields,
         ValueProvider<String> keyspace,
         ValueProvider<String> table,
         ValueProvider<String> where,
