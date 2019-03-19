@@ -184,7 +184,7 @@ class ExternalTransform(ptransform.PTransform):
       if id.startswith(self._namespace):
         context.environments.put_proto(id, proto)
     for id, proto in self._expanded_components.pcollections.items():
-      if id not in pcoll_renames:
+      if id not in context.pcollections._id_to_obj.keys():
         context.pcollections.put_proto(id, proto)
 
     for id, proto in self._expanded_components.transforms.items():
