@@ -552,6 +552,7 @@ class BigQueryWriteFn(DoFn):
   def __init__(
       self,
       batch_size,
+      schema=None,
       create_disposition=None,
       write_disposition=None,
       kms_key=None,
@@ -590,11 +591,13 @@ class BigQueryWriteFn(DoFn):
       retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
     """
+    self.schema = schema
     self.test_client = test_client
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self._rows_buffer = []
     self._reset_rows_buffer()
+    self._observed_tables = set()
 
     self._total_buffered_rows = 0
     self.kms_key = kms_key
@@ -654,6 +657,11 @@ class BigQueryWriteFn(DoFn):
     if str_table_reference in self._observed_tables:
       return
 
+    if self.create_disposition == BigQueryDisposition.CREATE_NEVER:
+      # If we never want to create the table, we assume it already exists,
+      # and avoid the get-or-create step.
+      return
+
     logging.debug('Creating or getting table %s with schema %s.',
                   table_reference, schema)
 
@@ -671,12 +679,17 @@ class BigQueryWriteFn(DoFn):
 
   def process(self, element, unused_create_fn_output=None):
     destination = element[0]
-    if isinstance(destination, tuple):
-      schema = destination[1]
-      destination = destination[0]
-      self._create_table_if_needed(
-          bigquery_tools.parse_table_reference(destination),
-          schema)
+
+    if callable(self.schema):
+      schema = self.schema(destination)
+    elif isinstance(self.schema, vp.ValueProvider):
+      schema = self.schema.get()
+    else:
+      schema = self.schema
+
+    self._create_table_if_needed(
+        bigquery_tools.parse_table_reference(destination),
+        schema)
 
     row = element[1]
     self._rows_buffer[destination].append(row)
@@ -784,17 +797,18 @@ class WriteToBigQuery(PTransform):
       project (str): The ID of the project containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
-      schema (str,dict,ValueProvider): The schema to be used if the
+      schema (str,dict,ValueProvider,callable): The schema to be used if the
         BigQuery table to write has to be created. This can be either specified
         as a :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
 bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
-        or a python dictionary, or the string or dictionary itself.
+        or a python dictionary, or the string or dictionary itself,
         object or a single string  of the form
         ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
         separated list of fields. Here ``'type'`` should specify the BigQuery
         type of the field. Single string based schemas do not support nested
         fields, repeated fields, or specifying a BigQuery mode for fields
         (mode will always be set to ``'NULLABLE'``).
+        If a callable, then it should return a str, dict or TableSchema.
       create_disposition (BigQueryDisposition): A string describing what
         happens if the table does not exist. Possible values are:
 
@@ -919,17 +933,16 @@ bigquery_v2_messages.TableSchema):
       Dict[str, Any]: The schema to be used if the BigQuery table to write has
       to be created but in the dictionary format.
     """
-    if isinstance(schema, dict):
-      return schema
-    elif schema is None:
+    if (isinstance(schema, dict) or
+        callable(schema) or
+        isinstance(schema, vp.ValueProvider) or
+        schema is None):
       return schema
     elif isinstance(schema, (str, unicode)):
       table_schema = WriteToBigQuery.get_table_schema_from_string(schema)
       return WriteToBigQuery.table_schema_to_dict(table_schema)
     elif isinstance(schema, bigquery.TableSchema):
       return WriteToBigQuery.table_schema_to_dict(schema)
-    elif isinstance(schema, vp.ValueProvider):
-      return schema
     else:
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
@@ -948,6 +961,7 @@ bigquery_v2_messages.TableSchema):
         self.method == WriteToBigQuery.Method.STREAMING_INSERTS):
       # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
+          schema=self.schema,
           batch_size=self.batch_size,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
@@ -957,8 +971,7 @@ bigquery_v2_messages.TableSchema):
 
       outputs = (pcoll
                  | 'AppendDestination' >> beam.ParDo(
-                     bigquery_tools.AppendDestinationsFn(
-                         destination=self.table_reference, schema=self.schema))
+                     bigquery_tools.AppendDestinationsFn(self.table_reference))
                  | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
                      BigQueryWriteFn.FAILED_ROWS, main='main'))
 

@@ -350,6 +350,13 @@ class TriggerLoadJobs(beam.DoFn):
     destination = element[0]
     files = iter(element[1])
 
+    if callable(self.schema):
+      schema = self.schema(destination)
+    elif isinstance(self.schema, vp.ValueProvider):
+      schema = self.schema.get()
+    else:
+      schema = self.schema
+
     job_count = 0
     batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
     while batch_of_files:
@@ -380,7 +387,7 @@ class TriggerLoadJobs(beam.DoFn):
                    job_name, table_reference)
       job_reference = self.bq_wrapper.perform_load_job(
           table_reference, batch_of_files, job_name,
-          schema=self.schema,
+          schema=schema,
           write_disposition=self.write_disposition,
           create_disposition=self.create_disposition)
       yield (destination, job_reference)

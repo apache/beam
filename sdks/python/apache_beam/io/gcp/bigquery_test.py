@@ -425,7 +425,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
     client.tabledata.InsertAll.return_value = \
       bigquery.TableDataInsertAllResponse(insertErrors=[])
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
     fn = beam.io.gcp.bigquery.BigQueryWriteFn(
@@ -439,7 +439,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
-    fn.process((('project_id:dataset_id.table_id', None), {'month': 1}))
+    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit
@@ -569,9 +569,11 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
       r = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=lambda x: ((output_table_1, schema1)
+               table=lambda x: (output_table_1
                                 if 'language' in x
-                                else (output_table_2, schema2)),
+                                else output_table_2),
+               schema=lambda dest: (schema1 if dest == output_table_1
+                                    else schema2),
                method='STREAMING_INSERTS'))
 
       assert_that(r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
