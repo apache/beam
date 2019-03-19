@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.utils;
+package org.apache.beam.runners.fnexecution.translation;
 
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -32,8 +32,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiM
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /** Utilities for pipeline translation. */
-public final class FlinkPipelineTranslatorUtils {
-  private FlinkPipelineTranslatorUtils() {}
+public final class PipelineTranslatorUtils {
+  private PipelineTranslatorUtils() {}
 
   /** Creates a mapping from PCollection id to output tag integer. */
   public static BiMap<String, Integer> createOutputMap(Iterable<String> localOutputs) {
