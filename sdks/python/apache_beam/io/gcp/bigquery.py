@@ -813,7 +813,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         fields, repeated fields, or specifying a BigQuery mode for fields
         (mode will always be set to ``'NULLABLE'``).
         If a callable, then it should receive a destination (in the form of
-        a TableReference or a string, and return a str, dict or TableSchema.
+        a TableReference or a string, and return a str, dict or TableSchema, and
+        it should return a str, dict or TableSchema.
       create_disposition (BigQueryDisposition): A string describing what
         happens if the table does not exist. Possible values are:
 
@@ -943,8 +944,9 @@ bigquery_v2_messages.TableSchema):
       Dict[str, Any]: The schema to be used if the BigQuery table to write has
       to be created but in the dictionary format.
     """
-    if (isinstance(schema, (dict, vp.ValueProvider)) or
+    if (isinstance(schema, dict) or
         callable(schema) or
+        isinstance(schema, vp.ValueProvider) or
         schema is None):
       return schema
     elif isinstance(schema, (str, unicode)):

@@ -361,7 +361,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     logging.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
-  @attr('IT')
+  @attr('PABIT')
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
@@ -424,7 +424,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                max_file_size=20,
                max_files_per_bundle=-1))
 
-  @attr('IT')
+  @attr('PABIT')
   def test_one_job_fails_all_jobs_fail(self):
 
     # If one of the import jobs fails, then other jobs must not be performed.
