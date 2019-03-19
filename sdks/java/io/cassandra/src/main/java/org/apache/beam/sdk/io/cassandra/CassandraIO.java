@@ -37,11 +37,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -135,6 +131,9 @@ public class CassandraIO {
     abstract ValueProvider<List<String>> hosts();
 
     @Nullable
+    abstract ValueProvider<List<String>> selectFields();
+
+    @Nullable
     abstract ValueProvider<Integer> port();
 
     @Nullable
@@ -218,6 +217,19 @@ public class CassandraIO {
     /** Specify the Cassandra table where to read data. */
     public Read<T> withTable(ValueProvider<String> table) {
       return builder().setTable(table).build();
+    }
+
+    /** Specify select fields to reduce data or add computed fields **/
+    public Read<T> withSelectFields(ValueProvider<List<String>> selectFields){
+      return builder().setSelectFields(selectFields).build();
+    }
+
+    /** Specify select fields to reduce data or add computed fields **/
+    public Read<T> withSelectFields(List<String> selectFields){
+      checkArgument(selectFields != null && selectFields.size()>0 &&
+              selectFields.stream().allMatch(s->s==null || !s.isEmpty()),
+              "Select fields should be valid field names");
+      return builder().setSelectFields(ValueProvider.StaticValueProvider.of(selectFields)).build();
     }
 
     /**
@@ -371,6 +383,8 @@ public class CassandraIO {
     abstract static class Builder<T> {
       abstract Builder<T> setHosts(ValueProvider<List<String>> hosts);
 
+      abstract Builder<T> setSelectFields(ValueProvider<List<String>> selectFields);
+
       abstract Builder<T> setPort(ValueProvider<Integer> port);
 
       abstract Builder<T> setKeyspace(ValueProvider<String> keyspace);
@@ -440,12 +454,17 @@ public class CassandraIO {
           return splitWithTokenRanges(
               spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
         } else {
+          String selectFields = "*";
+          if(spec.selectFields()!=null){
+            selectFields = String.join(",",spec.selectFields().get());
+          }
           LOG.warn(
               "Only Murmur3Partitioner is supported for splitting, using an unique source for "
                   + "the read");
           String splitQuery =
               String.format(
-                  "SELECT * FROM %s.%s%s;",
+                  "SELECT %s FROM %s.%s%s;",
+                  selectFields,
                   spec.keyspace().get(),
                   spec.table().get(),
                   spec.where() != null ? "" : String.format(" WHERE %s", spec.where().get()));
@@ -483,6 +502,11 @@ public class CassandraIO {
               .collect(Collectors.joining(","));
 
       List<BoundedSource<T>> sources = new ArrayList<>();
+      String selectFields = "*";
+      if(spec.selectFields()!=null){
+        selectFields = String.join(",",spec.selectFields().get());
+      }
+
       for (List<RingRange> split : splits) {
         List<String> queries = new ArrayList<>();
         for (RingRange range : split) {
@@ -495,6 +519,7 @@ public class CassandraIO {
             // end token of the split.
             queries.add(
                 generateRangeQuery(
+                    selectFields,
                     spec.keyspace(),
                     spec.table(),
                     spec.where(),
@@ -504,6 +529,7 @@ public class CassandraIO {
             // Generation of the second query of the wrapping range
             queries.add(
                 generateRangeQuery(
+                    selectFields,
                     spec.keyspace(),
                     spec.table(),
                     spec.where(),
@@ -513,6 +539,7 @@ public class CassandraIO {
           } else {
             queries.add(
                 generateRangeQuery(
+                    selectFields,
                     spec.keyspace(),
                     spec.table(),
                     spec.where(),
@@ -526,7 +553,7 @@ public class CassandraIO {
       return sources;
     }
 
-    private static String generateRangeQuery(
+    private static String generateRangeQuery(String selectFields,
         ValueProvider<String> keyspace,
         ValueProvider<String> table,
         ValueProvider<String> where,
@@ -535,7 +562,8 @@ public class CassandraIO {
         BigInteger rangeEnd) {
       String query =
           String.format(
-              "SELECT * FROM %s.%s WHERE %s;",
+              "SELECT %s FROM %s.%s WHERE %s;",
+              selectFields,
               keyspace.get(),
               table.get(),
               Joiner.on(" AND ")
