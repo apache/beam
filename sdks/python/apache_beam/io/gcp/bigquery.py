@@ -933,9 +933,8 @@ bigquery_v2_messages.TableSchema):
       Dict[str, Any]: The schema to be used if the BigQuery table to write has
       to be created but in the dictionary format.
     """
-    if (isinstance(schema, dict) or
+    if (isinstance(schema, (dict, vp.ValueProvider)) or
         callable(schema) or
-        isinstance(schema, vp.ValueProvider) or
         schema is None):
       return schema
     elif isinstance(schema, (str, unicode)):
