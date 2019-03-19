@@ -139,6 +139,11 @@ public class TranslationContext {
     }
   }
 
+  @SuppressWarnings("unchecked")
+  public <T> Dataset<T> getSideInputDataSet(PCollectionView<?> value) {
+    return (Dataset<T>) broadcastDataSets.get(value);
+  }
+
   // --------------------------------------------------------------------------------------------
   //  PCollections methods
   // --------------------------------------------------------------------------------------------
