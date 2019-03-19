@@ -28,11 +28,11 @@ import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpSideInputReader;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -62,6 +62,7 @@ public class DoFnFunction<InputT, OutputT>
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<InputT> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
+  private final SideInputBroadcast broadcastStateData;
 
   public DoFnFunction(
       DoFn<InputT, OutputT> doFn,
@@ -71,7 +72,8 @@ public class DoFnFunction<InputT, OutputT>
       List<TupleTag<?>> additionalOutputTags,
       TupleTag<OutputT> mainOutputTag,
       Coder<InputT> inputCoder,
-      Map<TupleTag<?>, Coder<?>> outputCoderMap) {
+      Map<TupleTag<?>, Coder<?>> outputCoderMap,
+      SideInputBroadcast broadcastStateData) {
 
     this.doFn = doFn;
     this.sideInputs = sideInputs;
@@ -81,6 +83,7 @@ public class DoFnFunction<InputT, OutputT>
     this.mainOutputTag = mainOutputTag;
     this.inputCoder = inputCoder;
     this.outputCoderMap = outputCoderMap;
+    this.broadcastStateData = broadcastStateData;
   }
 
   @Override
@@ -93,7 +96,7 @@ public class DoFnFunction<InputT, OutputT>
         DoFnRunners.simpleRunner(
             serializableOptions.get(),
             doFn,
-            new NoOpSideInputReader(sideInputs),
+            new SparkSideInputReader(sideInputs, broadcastStateData),
             outputManager,
             mainOutputTag,
             additionalOutputTags,
