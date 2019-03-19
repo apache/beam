@@ -17,9 +17,14 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
@@ -34,7 +39,7 @@ import org.apache.spark.sql.types.StructType;
  * This is a spark structured streaming {@link DataSourceV2} implementation. As Continuous streaming
  * is tagged experimental in spark, this class does no implement {@link ContinuousReadSupport}.
  */
-public class DatasetSourceStreaming<T> implements DataSourceV2, MicroBatchReadSupport {
+public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
 
   static final String BEAM_SOURCE_OPTION = "beam-source";
   static final String DEFAULT_PARALLELISM = "default-parallelism";
@@ -46,12 +51,32 @@ public class DatasetSourceStreaming<T> implements DataSourceV2, MicroBatchReadSu
     return new DatasetMicroBatchReader(checkpointLocation, options);
   }
 
-  /** This class can be mapped to Beam {@link BoundedSource}. */
-  private static class DatasetMicroBatchReader implements MicroBatchReader {
+  /** This class can be mapped to Beam {@link UnboundedSource}. */
+  private static class DatasetMicroBatchReader<T, CheckpointMarkT extends UnboundedSource.CheckpointMark> implements MicroBatchReader {
+    private int numPartitions;
+    private UnboundedSource<T, CheckpointMarkT> source;
+    private SerializablePipelineOptions serializablePipelineOptions;
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "unchecked"})
     private DatasetMicroBatchReader(String checkpointLocation, DataSourceOptions options) {
-      //TODO deal with schema and options
+      if (!options.get(BEAM_SOURCE_OPTION).isPresent()) {
+        throw new RuntimeException("Beam source was not set in DataSource options");
+      }
+      this.source =
+          Base64Serializer.deserializeUnchecked(
+              options.get(BEAM_SOURCE_OPTION).get(), UnboundedSource.class);
+
+      if (!options.get(DEFAULT_PARALLELISM).isPresent()) {
+        throw new RuntimeException("Spark default parallelism was not set in DataSource options");
+      }
+      this.numPartitions = Integer.parseInt(options.get(DEFAULT_PARALLELISM).get());
+      checkArgument(numPartitions > 0, "Number of partitions must be greater than zero.");
+
+      if (!options.get(PIPELINE_OPTIONS).isPresent()) {
+        throw new RuntimeException("Beam pipelineOptions were not set in DataSource options");
+      }
+      this.serializablePipelineOptions =
+          new SerializablePipelineOptions(options.get(PIPELINE_OPTIONS).get());
     }
 
     @Override
