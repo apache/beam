@@ -492,7 +492,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     logging.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
-  @attr('PABIT')
+  @attr('IT')
   def test_value_provider_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
