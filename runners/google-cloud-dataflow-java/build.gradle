@@ -177,6 +177,31 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   }
 }
 
+task validatesRunnerLegacyWorkerJava11Test(type: Test) {
+    group = "Verification"
+    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=TestDataflowRunner",
+            "--project=${dataflowProject}",
+            "--tempRoot=${dataflowValidatesTempRoot}",
+            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    ])
+    
+    systemProperty "java.specification.version", "11"
+
+    // Increase test parallelism up to the number of Gradle workers. By default this is equal
+    // to the number of CPU cores, but can be increased by setting --max-workers=N.
+    maxParallelForks Integer.MAX_VALUE
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+    useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        commonExcludeCategories.each {
+            excludeCategories it
+        }
+    }
+}
+
 // Push docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
@@ -280,6 +305,12 @@ task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerLegacyWorkerTest
+}
+
+task validatesJava11Runner {
+    group = 'Verification'
+    description 'Verifies Dataflow runner with Java 11 container harness'
+    dependsOn validatesRunnerLegacyWorkerJava11Test
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
