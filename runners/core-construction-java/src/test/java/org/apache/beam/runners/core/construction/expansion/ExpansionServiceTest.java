@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.expansion;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -26,13 +27,18 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 /** Tests for {@link ExpansionService}. */
@@ -77,7 +83,7 @@ public class ExpansionServiceTest {
             .build();
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.PTransform expandedTransform = response.getTransform();
-    assertEquals(TEST_NAME, expandedTransform.getUniqueName());
+    assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
     // Verify it has the right input.
     assertEquals(inputPcollId, Iterables.getOnlyElement(expandedTransform.getInputsMap().values()));
     // Loose check that it's composite, and its children are represented.
@@ -90,6 +96,45 @@ public class ExpansionServiceTest {
     for (String id : allIds(response.getComponents())) {
       assertTrue(id, id.startsWith(TEST_NAMESPACE) || originalIds.contains(id));
     }
+  }
+
+  @Test
+  public void testConstructGenerateSequence() {
+    ExternalTransforms.ExternalConfigurationPayload payload =
+        ExternalTransforms.ExternalConfigurationPayload.newBuilder()
+            .putConfiguration(
+                "start",
+                ExternalTransforms.ConfigValue.newBuilder()
+                    .setCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
+                    .setPayload(ByteString.copyFrom(new byte[] {0}))
+                    .build())
+            .putConfiguration(
+                "stop",
+                ExternalTransforms.ConfigValue.newBuilder()
+                    .setCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
+                    .setPayload(ByteString.copyFrom(new byte[] {1}))
+                    .build())
+            .build();
+    Pipeline p = Pipeline.create();
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    ExpansionApi.ExpansionRequest request =
+        ExpansionApi.ExpansionRequest.newBuilder()
+            .setComponents(pipelineProto.getComponents())
+            .setTransform(
+                RunnerApi.PTransform.newBuilder()
+                    .setUniqueName(TEST_NAME)
+                    .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn(GenerateSequence.External.URN)
+                            .setPayload(payload.toByteString())))
+            .setNamespace(TEST_NAMESPACE)
+            .build();
+    ExpansionApi.ExpansionResponse response = expansionService.expand(request);
+    RunnerApi.PTransform expandedTransform = response.getTransform();
+    assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
+    assertThat(expandedTransform.getInputsCount(), Matchers.is(0));
+    assertThat(expandedTransform.getOutputsCount(), Matchers.is(1));
+    assertThat(expandedTransform.getSubtransformsCount(), Matchers.greaterThan(0));
   }
 
   public Set<String> allIds(RunnerApi.Components components) {

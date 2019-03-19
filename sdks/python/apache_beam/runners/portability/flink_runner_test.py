@@ -28,6 +28,7 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 import apache_beam as beam
+from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
@@ -35,6 +36,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 if __name__ == '__main__':
   # Run as
@@ -72,6 +74,7 @@ if __name__ == '__main__':
     _use_subprocesses = True
 
     conf_dir = None
+    expansion_port = None
 
     @classmethod
     def tearDownClass(cls):
@@ -104,12 +107,13 @@ if __name__ == '__main__':
           ]))
 
     @classmethod
-    def _subprocess_command(cls, port):
+    def _subprocess_command(cls, job_port, expansion_port):
       # will be cleaned up at the end of this method, and recreated and used by
       # the job server
       tmp_dir = mkdtemp(prefix='flinktest')
 
       cls._create_conf_dir()
+      cls.expansion_port = expansion_port
 
       try:
         return [
@@ -118,9 +122,9 @@ if __name__ == '__main__':
             '--flink-master-url', '[local]',
             '--flink-conf-dir', cls.conf_dir,
             '--artifacts-dir', tmp_dir,
-            '--job-port', str(port),
+            '--job-port', str(job_port),
             '--artifact-port', '0',
-            '--expansion-port', '0',
+            '--expansion-port', str(expansion_port),
         ]
       finally:
         rmtree(tmp_dir)
@@ -152,6 +156,21 @@ if __name__ == '__main__':
 
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
+
+    def test_external_transform(self):
+      options = self.create_options()
+      options._all_options['parallelism'] = 1
+      options._all_options['streaming'] = True
+
+      expansion_address = "localhost:" + str(FlinkRunnerTest.expansion_port)
+
+      with self.create_pipeline() as p:
+        res = (
+            p
+            | GenerateSequence(start=1, stop=10,
+                               expansion_service=expansion_address))
+
+        assert_that(res, equal_to([i for i in range(1, 10)]))
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding
