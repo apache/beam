@@ -97,7 +97,7 @@ cdef class DoOperation(Operation):
   cdef public object input_info
 
 
-cdef class SdfProcessElements(DoOperation):
+cdef class SdfProcessSizedElements(DoOperation):
   cdef object lock
   cdef object element_start_output_bytes
 

@@ -752,11 +752,8 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
-  def finalize(self):
-    self.bundle_finalizer_param.finalize_bundle()
-
-  def process_with_restriction(self, windowed_value):
-    (element, restriction), size = windowed_value.value
+  def process_with_sized_restriction(self, windowed_value):
+    (element, restriction), _ = windowed_value.value
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
         restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
@@ -786,6 +783,9 @@ class DoFnRunner(Receiver):
 
   def finish(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
+
+  def finalize(self):
+    self.bundle_finalizer_param.finalize_bundle()
 
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
