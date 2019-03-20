@@ -88,4 +88,10 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   Boolean getStateDurable();
 
   void setStateDurable(Boolean stateDurable);
+
+  @Description("The maximum number of event-time timers buffered in memory for a transform.")
+  @Default.Integer(50000)
+  int getTimerBufferSize();
+
+  void setTimerBufferSize(int timerBufferSize);
 }
