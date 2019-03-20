@@ -72,6 +72,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java AvroIO Performance Test on HDFS',
                 prTriggerPhase    : 'Run Java AvroIO Performance Test HDFS',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'avroioit_hdfs_results',
                         numberOfRecords: '1000000'
                 ]
         ],
@@ -96,6 +98,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java XmlIOPerformance Test on HDFS',
                 prTriggerPhase    : 'Run Java XmlIO Performance Test HDFS',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'xmlioit_hdfs_results',
                         numberOfRecords: '100000',
                         charset: 'UTF-8'
                 ]
@@ -108,6 +112,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java ParquetIOPerformance Test on HDFS',
                 prTriggerPhase    : 'Run Java ParquetIO Performance Test HDFS',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'parquetioit_hdfs_results',
                         numberOfRecords: '1000000'
                 ]
         ]
