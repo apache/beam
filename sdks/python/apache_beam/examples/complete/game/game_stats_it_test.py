@@ -33,6 +33,8 @@ Usage:
 from __future__ import absolute_import
 
 import logging
+import os
+import sys
 import time
 import unittest
 import uuid
@@ -49,6 +51,10 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-6711')
 class GameStatsIT(unittest.TestCase):
 
   # Input events containing user, team, score, processing time, window start.
