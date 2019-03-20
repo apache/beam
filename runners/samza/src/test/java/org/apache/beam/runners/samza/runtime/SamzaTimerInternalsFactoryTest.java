@@ -36,6 +36,7 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.MapConfig;
@@ -96,6 +97,7 @@ public class SamzaTimerInternalsFactoryTest {
         timerStateId,
         nonKeyedStateInternalsFactory,
         (WindowingStrategy) WindowingStrategy.globalDefault(),
+        PCollection.IsBounded.BOUNDED,
         pipelineOptions);
   }
 

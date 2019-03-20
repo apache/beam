@@ -19,6 +19,7 @@ package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils.escape;
 
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.SystemReduceFn;
@@ -31,6 +32,7 @@ import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.transforms.GroupWithoutRepartition;
 import org.apache.beam.runners.samza.util.SamzaCoders;
+import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -84,7 +86,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn =
         getSystemReduceFn(transform, input.getPipeline(), kvInputCoder);
 
-    MessageStream<OpMessage<KV<K, OutputT>>> outputStream =
+    final MessageStream<OpMessage<KV<K, OutputT>>> outputStream =
         doTranslateGBK(
             inputStream,
             needRepartition(node, ctx),
@@ -93,7 +95,8 @@ class GroupByKeyTranslator<K, InputT, OutputT>
             kvInputCoder,
             elementCoder,
             node.getFullName(),
-            outputTag);
+            outputTag,
+            input.isBounded());
 
     ctx.registerMessageStream(output, outputStream);
   }
@@ -115,10 +118,10 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     final boolean needRepartition = ctx.getSamzaPipelineOptions().getMaxSourceParallelism() > 1;
     final WindowingStrategy<?, BoundedWindow> windowingStrategy =
         ctx.getPortableWindowStrategy(transform, pipeline);
-    Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
+    final Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
-    String inputId = ctx.getInputId(transform);
-    WindowedValue.WindowedValueCoder<KV<K, InputT>> windowedInputCoder =
+    final String inputId = ctx.getInputId(transform);
+    final WindowedValue.WindowedValueCoder<KV<K, InputT>> windowedInputCoder =
         ctx.instantiateCoder(inputId, pipeline.getComponents());
     final KvCoder<K, InputT> kvInputCoder = (KvCoder<K, InputT>) windowedInputCoder.getValueCoder();
     final Coder<WindowedValue<KV<K, InputT>>> elementCoder =
@@ -133,7 +136,10 @@ class GroupByKeyTranslator<K, InputT, OutputT>
         (SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow>)
             SystemReduceFn.buffering(kvInputCoder.getValueCoder());
 
-    MessageStream<OpMessage<KV<K, OutputT>>> outputStream =
+    final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
+    final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
+
+    final MessageStream<OpMessage<KV<K, OutputT>>> outputStream =
         doTranslateGBK(
             inputStream,
             needRepartition,
@@ -142,7 +148,8 @@ class GroupByKeyTranslator<K, InputT, OutputT>
             kvInputCoder,
             elementCoder,
             nodeFullname,
-            outputTag);
+            outputTag,
+            isBounded);
     ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
   }
 
@@ -154,7 +161,8 @@ class GroupByKeyTranslator<K, InputT, OutputT>
       KvCoder<K, InputT> kvInputCoder,
       Coder<WindowedValue<KV<K, InputT>>> elementCoder,
       String nodeFullname,
-      TupleTag<KV<K, OutputT>> outputTag) {
+      TupleTag<KV<K, OutputT>> outputTag,
+      PCollection.IsBounded isBounded) {
     final MessageStream<OpMessage<KV<K, InputT>>> filteredInputStream =
         inputStream.filter(msg -> msg.getType() == OpMessage.Type.ELEMENT);
 
@@ -192,7 +200,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
                         windowingStrategy,
                         new DoFnOp.SingleOutputManagerFactory<>(),
                         nodeFullname,
-                        outputTag.getId())));
+                        isBounded)));
     return outputStream;
   }
 

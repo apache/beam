@@ -38,6 +38,7 @@ import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
+import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -144,6 +145,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             idToPValueMap,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             node.getFullName(),
+            input.isBounded(),
             false,
             null,
             Collections.emptyMap());
@@ -229,6 +231,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
         ctx.instantiateCoder(inputId, pipeline.getComponents());
     final String nodeFullname = transform.getTransform().getUniqueName();
 
+    final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
+    final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
+
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             mainOutputTag,
@@ -242,6 +247,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             nodeFullname,
+            isBounded,
             true,
             stagePayload,
             idToTupleTagMap);
