@@ -1,11 +1,12 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.spark.broadcast.Broadcast;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.spark.broadcast.Broadcast;
 
+/** Broadcast helper for side inputs. */
 public class SideInputBroadcast implements Serializable {
 
   private Map<String, Broadcast<?>> bcast = new HashMap<>();

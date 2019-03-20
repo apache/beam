@@ -21,8 +21,10 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
 import java.io.IOException;
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
@@ -49,7 +51,7 @@ import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
 
 /**
- * TODO: Add support of state and timers TODO: Add support of side inputs
+ * TODO: Add support for state and timers.
  *
  * @param <InputT>
  * @param <OutputT>

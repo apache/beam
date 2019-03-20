@@ -26,6 +26,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
+/** A {@code SerializationDebugger} for Spark Runner. */
 public class SerializationDebugger {
 
   public static void testSerialization(Object object, File to) throws IOException {
