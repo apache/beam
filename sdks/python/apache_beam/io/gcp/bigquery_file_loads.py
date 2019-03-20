@@ -590,7 +590,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
          | "RemoveTempTables/PassTables" >> beam.FlatMap(
              lambda x, deleting_tables: deleting_tables,
              pvalue.AsIter(temp_tables_pc))
-         | "RemoveTempTables/DeduplicateTables" >> Count.PerElement()
+         | "RemoveTempTables/AddUselessValue" >> beam.Map(lambda x: (x, None))
+         | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
          | "RemoveTempTables/GetTableNames" >> beam.Map(lambda elm: elm[0])
          | "RemoveTempTables/Delete" >> beam.ParDo(DeleteTablesFn()))
 
