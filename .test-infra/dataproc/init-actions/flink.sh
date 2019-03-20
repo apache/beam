@@ -196,6 +196,10 @@ function main() {
     update_apt_get || err "Unable to update apt-get"
     install_apt_get flink || err "Unable to install flink"
   fi
+
+  # TODO: Hack! Naively preventing configuration before all workers are there.
+  sleep 60
+
   configure_flink || err "Flink configuration failed"
   if [[ "${role}" == 'Master' ]] ; then
     start_flink_master || err "Unable to start Flink master"

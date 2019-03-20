@@ -27,7 +27,7 @@ class CommonTestProperties {
     enum Runner {
         DATAFLOW("DataflowRunner"),
         SPARK("SparkRunner"),
-        FLINK("TestFlinkRunner"),
+        FLINK("FlinkRunner"),
         DIRECT("DirectRunner"),
 
         def RUNNER_DEPENDENCY_MAP = [

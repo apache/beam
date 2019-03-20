@@ -53,8 +53,8 @@ job(jobName) {
             beam_it_module          : 'sdks/java/io/mongodb',
             beam_it_class           : 'org.apache.beam.sdk.io.mongodb.MongoDBIOIT',
             beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
-            beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml'),
-            beam_options_config_file: commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/pkb-config.yml'),
+            beam_kubernetes_scripts : commonJobProperties.absolutePath('src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml'),
+            beam_options_config_file: commonJobProperties.absolutePath('src/.test-infra/kubernetes/mongodb/load-balancer/pkb-config.yml'),
             bigquery_table          : 'beam_performance.mongodbioit_pkb_results'
     ]
 

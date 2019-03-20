@@ -22,17 +22,16 @@
 #
 #    beam-images-to-pull=gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION> gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION>
 #
+#    In case no images are specified this init action won't download anything.
+#
 set -euxo pipefail
 
 readonly BEAM_IMAGES_TO_PULL_METADATA_KEY="beam-images-to-pull"
-readonly BEAM_IMAGES_TO_PULL_DEFAULT="apache.bintray.io/beam/python:master"
-
 
 function pull_images() {
 
   local beam_images_to_pull="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_IMAGES_TO_PULL_METADATA_KEY}" \
-    || echo "${BEAM_IMAGES_TO_PULL_DEFAULT}")"
+    "attributes/${BEAM_IMAGES_TO_PULL_METADATA_KEY}")"
 
   for image in $beam_images_to_pull
   do

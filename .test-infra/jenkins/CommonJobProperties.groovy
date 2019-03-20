@@ -282,8 +282,8 @@ class CommonJobProperties {
     def pkbArgs = genPerformanceArgs(argMap)
 
     // Absolute path of project root and virtualenv path of Beam and Perfkit.
-    def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
-    def perfkit_env = makePathAbsolute("env/.perfkit_env")
+    def perfkit_root = absolutePath("PerfKitBenchmarker")
+    def perfkit_env = absolutePath("env/.perfkit_env")
 
     context.steps {
         // Clean up environment.
@@ -326,7 +326,7 @@ class CommonJobProperties {
    * Returns absolute path to beam project's files.
    * @param path A relative path to project resource.
    */
-  static String makePathAbsolute(String path) {
+  static String absolutePath(String path) {
     return '"$WORKSPACE/' + path + '"'
   }
 }

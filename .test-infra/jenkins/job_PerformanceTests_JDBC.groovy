@@ -54,8 +54,8 @@ job(jobName) {
             beam_it_module          : 'sdks/java/io/jdbc',
             beam_it_class           : 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
             beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
-            beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),
-            beam_options_config_file: commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/pkb-config-local.yml'),
+            beam_kubernetes_scripts : commonJobProperties.absolutePath('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),
+            beam_options_config_file: commonJobProperties.absolutePath('src/.test-infra/kubernetes/postgres/pkb-config-local.yml'),
             bigquery_table          : 'beam_performance.jdbcioit_pkb_results'
     ]
 
