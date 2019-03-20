@@ -117,7 +117,6 @@ public class SqsIOTest {
                   new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)))
               .withEndpointConfiguration(
                   new AwsClientBuilder.EndpointConfiguration(endpoint, region))
-              .withRegion(region)
               .build();
       final CreateQueueResult queue = client.createQueue("test");
       queueUrl = queue.getQueueUrl();
