@@ -340,30 +340,31 @@ class BeamModulePlugin implements Plugin<Project> {
     // These versions are defined here because they represent
     // a dependency version which should match across multiple
     // Maven artifacts.
-    def generated_grpc_beta_version = "0.44.0"
-    def generated_grpc_ga_version = "1.43.0"
-    def google_cloud_bigdataoss_version = "1.9.16"
-    def google_cloud_spanner_version = "1.6.0"
-    def google_clients_version = "1.27.0"
-    def google_auth_version = "0.12.0"
-    def grpc_version = "1.17.1"
-    def protobuf_version = "3.6.0"
-    def guava_version = "20.0"
-    def netty_version = "4.1.30.Final"
-    def proto_google_common_protos_version = "1.12.0"
-    def hamcrest_version = "1.3"
-    def hadoop_version = "2.7.3"
-    def jackson_version = "2.9.8"
-    def spark_version = "2.4.0"
-    def nemo_version = "0.1"
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
-    def postgres_version = "42.2.2"
+    def aws_java_sdk_version = "1.11.519"
+    def cassandra_driver_version = "3.6.0"
+    def generated_grpc_beta_version = "0.44.0"
+    def generated_grpc_ga_version = "1.43.0"
+    def google_auth_version = "0.12.0"
+    def google_clients_version = "1.27.0"
+    def google_cloud_bigdataoss_version = "1.9.16"
+    def google_cloud_core_version = "1.61.0"
+    def google_cloud_spanner_version = "1.6.0"
+    def grpc_version = "1.17.1"
+    def guava_version = "20.0"
+    def hadoop_version = "2.7.3"
+    def hamcrest_version = "1.3"
+    def jackson_version = "2.9.8"
     def jaxb_api_version = "2.2.12"
     def kafka_version = "1.0.0"
+    def nemo_version = "0.1"
+    def netty_version = "4.1.30.Final"
+    def postgres_version = "42.2.2"
+    def proto_google_common_protos_version = "1.12.0"
+    def protobuf_version = "3.6.0"
     def quickcheck_version = "0.8"
-    def google_cloud_core_version = "1.61.0"
-    def cassandra_driver_version = "3.6.0"
+    def spark_version = "2.4.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -385,6 +386,12 @@ class BeamModulePlugin implements Plugin<Project> {
         args4j                                      : "args4j:args4j:2.33",
         avro                                        : "org.apache.avro:avro:1.8.2",
         avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
+        aws_java_sdk_cloudwatch                     : "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version",
+        aws_java_sdk_core                           : "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version",
+        aws_java_sdk_kinesis                        : "com.amazonaws:aws-java-sdk-kinesis:$aws_java_sdk_version",
+        aws_java_sdk_s3                             : "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version",
+        aws_java_sdk_sns                            : "com.amazonaws:aws-java-sdk-sns:$aws_java_sdk_version",
+        aws_java_sdk_sqs                            : "com.amazonaws:aws-java-sdk-sqs:$aws_java_sdk_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:1.8.0",
