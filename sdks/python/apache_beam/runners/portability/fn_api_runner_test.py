@@ -21,6 +21,7 @@ import collections
 import logging
 import os
 import random
+import shutil
 import sys
 import tempfile
 import threading
@@ -59,12 +60,6 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
-
-  def create_pipeline_with_grpc(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
 
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
@@ -807,29 +802,30 @@ class FnApiRunnerTest(unittest.TestCase):
       print(res._monitoring_infos_by_stage)
       raise
 
-  def test_duplicated_callbacks(self):
-    event_recorder = EventRecorder(tempfile.gettempdir())
-    event_recorder.record('test')
+  def test_callbacks_with_exception(self):
     elements_list = ['1', '2']
 
-    class FinalizebleDoFnWithSameRegister(beam.DoFn):
+    def raise_expetion():
+      raise Exception('raise exception when calling callback')
+
+    class FinalizebleDoFnWithException(beam.DoFn):
+
       def process(
           self,
           element,
           bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        bundle_finalizer.register(lambda: event_recorder.delete_file())
+        bundle_finalizer.register(raise_expetion)
         yield element
 
-    with self.create_pipeline_with_grpc() as p:
+    with self.create_pipeline() as p:
       res = (p
              | beam.Create(elements_list)
-             | beam.ParDo(FinalizebleDoFnWithSameRegister()))
+             | beam.ParDo(FinalizebleDoFnWithException()))
       assert_that(res, equal_to(['1', '2']))
 
   def test_register_finalizations(self):
     event_recorder = EventRecorder(tempfile.gettempdir())
-    elements_list = ['1', '2']
-    expected_res = '1\n2\n'
+    elements_list = ['2', '1']
 
     class FinalizableDoFn(beam.DoFn):
       def process(
@@ -839,7 +835,7 @@ class FnApiRunnerTest(unittest.TestCase):
         bundle_finalizer.register(lambda: event_recorder.record(element))
         yield element
 
-    with self.create_pipeline_with_grpc() as p:
+    with self.create_pipeline() as p:
       res = (p
              | beam.Create(elements_list)
              | beam.ParDo(FinalizableDoFn()))
@@ -847,7 +843,8 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to(elements_list))
 
     results = event_recorder.events()
-    self.assertEquals(results, expected_res)
+    event_recorder.cleanup()
+    self.assertEquals(results, sorted(elements_list))
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
@@ -1131,6 +1128,7 @@ _pickled_element_counters = {}
 def _unpickle_element_counter(name):
   return _pickled_element_counters[name]
 
+
 class EventRecorder(object):
   """Used to be registered as a callback in bundle finalization.
 
@@ -1138,26 +1136,25 @@ class EventRecorder(object):
   cannot keep callback records when passing into one DoFn.
   """
   def __init__(self, tmp_dir):
-    self.tmp_dir = tmp_dir
-    self.file_path = os.path.join(self.tmp_dir, uuid.uuid4().hex + '.txt')
+    self.tmp_dir = os.path.join(tmp_dir, uuid.uuid4().hex)
+    os.mkdir(self.tmp_dir)
 
   def record(self, content):
-    tmp_file = open(self.file_path, 'a')
-    tmp_file.write(content + '\n')
-    tmp_file.close()
+    file_path = os.path.join(self.tmp_dir, uuid.uuid4().hex + '.txt')
+    with open(file_path, 'a') as f:
+      f.write(content)
 
   def events(self):
-    tmp_file = open(self.file_path, 'r')
-    content = tmp_file.read()
-    tmp_file.close()
-    self.delete_file()
-    return content
+    content = []
+    record_files = [f for f in os.listdir(self.tmp_dir) if os.path.isfile(
+        os.path.join(self.tmp_dir, f))]
+    for file in record_files:
+      with open(os.path.join(self.tmp_dir, file), 'r') as f:
+        content.append(f.read())
+    return sorted(content)
 
-  def delete_file(self):
-    try:
-      os.remove(self.file_path)
-    except:
-      raise Exception('Trying to delete non-exist file')
+  def cleanup(self):
+    shutil.rmtree(self.tmp_dir)
 
 
 if __name__ == '__main__':
