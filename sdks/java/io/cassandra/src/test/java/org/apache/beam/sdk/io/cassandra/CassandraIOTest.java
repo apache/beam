@@ -71,6 +71,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -313,56 +314,11 @@ public class CassandraIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithPasswordDecryption() throws Exception {
-    insertRecords();
-
-    String sessionReadUID = "session-read-" + UUID.randomUUID();
-    PasswordDecrypter readPwdDecrypter = new TestPasswordDecrypter(sessionReadUID);
-
-    PCollection<Scientist> output =
-        pipeline.apply(
-            CassandraIO.<Scientist>read()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
-                .withUsername(CASSANDRA_USERNAME)
-                .withEncryptedPassword(CASSANDRA_ENCRYPTED_PASSWORD)
-                .withPasswordDecrypter(readPwdDecrypter)
-                .withKeyspace(CASSANDRA_KEYSPACE)
-                .withTable(CASSANDRA_TABLE)
-                .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class));
-
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_ROWS);
-
-    PCollection<KV<String, Integer>> mapped =
-        output.apply(
-            MapElements.via(
-                new SimpleFunction<Scientist, KV<String, Integer>>() {
-                  @Override
-                  public KV<String, Integer> apply(Scientist scientist) {
-                    return KV.of(scientist.name, scientist.id);
-                  }
-                }));
-    PAssert.that(mapped.apply("Count occurrences per scientist", Count.perKey()))
-        .satisfies(
-            input -> {
-              for (KV<String, Long> element : input) {
-                assertEquals(element.getKey(), NUM_ROWS / 10, element.getValue().longValue());
-              }
-              return null;
-            });
-
-    pipeline.run();
-
-    assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionReadUID));
-  }
-
-  @Test
   public void testWriteWithPasswordDecryption() {
     ArrayList<Scientist> scientists = buildScientists(NUM_ROWS);
 
     String sessionWriteUID = "session-write-" + UUID.randomUUID();
-    PasswordDecrypter writePwdDecrypter = new TestPasswordDecrypter(sessionWriteUID);
+    PasswordDecrypter writePwdDecrypter = Mockito.spy(new TestPasswordDecrypter(sessionWriteUID));
 
     pipeline
         .apply(Create.of(scientists))

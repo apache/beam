@@ -247,7 +247,7 @@ public class CassandraIO {
       return builder().setUsername(username).build();
     }
 
-    /** Specify the clear password used for authentication. */
+    /** Specify the password for authentication. */
     public Read<T> withPassword(String password) {
       checkArgument(password != null, "password can not be null");
       return builder().setPassword(ValueProvider.StaticValueProvider.of(password)).build();
@@ -258,17 +258,14 @@ public class CassandraIO {
       return builder().setPassword(password).build();
     }
 
-    /**
-     * Specify the encrypted password used for authentication, the password decrypter provided in
-     * {@link #withPasswordDecrypter(PasswordDecrypter)} will be used to decrypt it.
-     */
+    /** Specify the encrypted password used for authentication. */
     public Read<T> withEncryptedPassword(String encryptedPassword) {
       checkArgument(encryptedPassword != null, "encryptedPassword can not be null");
       return builder().setEncryptedPassword(encryptedPassword).build();
     }
 
     /**
-     * Specify the password decrypter used to decrypt the encrypted password. It delays the
+     * Specify the password decrypter used to decrypt the encrypted password. It delayed the
      * decryption of the password when connecting to the cluster, which ensures that the raw
      * password is never serialized in the pipeline.
      */
@@ -899,7 +896,7 @@ public class CassandraIO {
       return builder().setUsername(username).build();
     }
 
-    /** Specify the clear password used for authentication. */
+    /** Specify the password used for authentication. */
     public Write<T> withPassword(String password) {
       checkArgument(
           password != null,
@@ -910,17 +907,14 @@ public class CassandraIO {
       return builder().setPassword(password).build();
     }
 
-    /**
-     * Specify the encrypted password used for authentication, the password decrypter provided in
-     * {@link #withPasswordDecrypter(PasswordDecrypter)} will be used to decrypt it.
-     */
+    /** Specify the encrypted password used for authentication. */
     public Write<T> withEncryptedPassword(String encryptedPassword) {
       checkArgument(encryptedPassword != null, "encryptedPassword can not be null");
       return builder().setEncryptedPassword(encryptedPassword).build();
     }
 
     /**
-     * Specify the password decrypter used to decrypt the encrypted password. It delays the
+     * Specify the password decrypter used to decrypt the encrypted password. It delayed the
      * decryption of the password when connecting to the cluster, which ensures that the raw
      * password is never serialized in the pipeline.
      */
