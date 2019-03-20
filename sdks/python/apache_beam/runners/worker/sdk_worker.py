@@ -328,7 +328,7 @@ class SdkWorker(object):
           instruction_id):
         with self.maybe_profile(instruction_id):
           delayed_applications, requests_finalization = (
-            bundle_processor.process_bundle(instruction_id))
+              bundle_processor.process_bundle(instruction_id))
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
               process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
