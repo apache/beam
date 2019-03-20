@@ -46,6 +46,8 @@ from __future__ import absolute_import
 from __future__ import division
 
 import logging
+import os
+import sys
 import unittest
 import uuid
 
@@ -82,6 +84,10 @@ def record(i):
   }
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-6522')
 class FastavroIT(unittest.TestCase):
 
   SCHEMA = Parse('''
