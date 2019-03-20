@@ -871,6 +871,9 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
+  
+  def test_register_finalizations(self):
+    raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
@@ -1141,7 +1144,7 @@ class EventRecorder(object):
 
   def record(self, content):
     file_path = os.path.join(self.tmp_dir, uuid.uuid4().hex + '.txt')
-    with open(file_path, 'a') as f:
+    with open(file_path, 'w') as f:
       f.write(content)
 
   def events(self):
