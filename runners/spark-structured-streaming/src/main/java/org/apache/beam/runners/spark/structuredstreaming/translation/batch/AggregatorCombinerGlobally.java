@@ -25,6 +25,7 @@ import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.expressions.Aggregator;
 
+/** An {@link Aggregator} for the Spark Batch Runner. */
 public class AggregatorCombinerGlobally<InputT, AccumT, OutputT>
     extends Aggregator<InputT, AccumT, OutputT> {
 

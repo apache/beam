@@ -1,10 +1,9 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
-import org.apache.beam.sdk.coders.Coder;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import org.apache.beam.sdk.coders.Coder;
 
 /** Serialization utility class. */
 public final class CoderHelpers {

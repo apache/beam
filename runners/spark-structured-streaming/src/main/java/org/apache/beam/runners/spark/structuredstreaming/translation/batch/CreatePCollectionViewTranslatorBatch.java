@@ -1,5 +1,6 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.io.IOException;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
@@ -9,8 +10,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.sql.Dataset;
-
-import java.io.IOException;
 
 class CreatePCollectionViewTranslatorBatch<ElemT, ViewT>
     implements TransformTranslator<PTransform<PCollection<ElemT>, PCollection<ElemT>>> {

@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 import static scala.collection.JavaConversions.asScalaBuffer;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Registration;
 import com.esotericsoftware.kryo.io.Input;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -40,7 +39,7 @@ public final class RowHelpers {
   /**
    * A Spark {@link MapFunction} for extracting a {@link WindowedValue} from a Row in which the
    * {@link WindowedValue} was serialized to bytes using its {@link
-   * WindowedValue.WindowedValueCoder}
+   * WindowedValue.WindowedValueCoder}.
    *
    * @param <T> The type of the object.
    * @return A {@link MapFunction} that accepts a {@link Row} and returns its {@link WindowedValue}.
@@ -61,8 +60,8 @@ public final class RowHelpers {
   }
 
   /**
-   * Serializs a windowedValue to bytes using windowed {@link WindowedValue.FullWindowedValueCoder}
-   * and stores it an InternalRow
+   * Serialize a windowedValue to bytes using windowed {@link WindowedValue.FullWindowedValueCoder}
+   * and stores it an InternalRow.
    */
   public static <T> InternalRow storeWindowedValueInRow(WindowedValue<T> windowedValue, Coder<T> coder) {
     List<Object> list = new ArrayList<>();
