@@ -76,7 +76,6 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.avro
   shadow library.java.snappy_java
-  shadow library.java.zstd_jni
   shadow library.java.joda_time
   shadow "org.tukaani:xz:1.8"
   provided library.java.junit
@@ -91,4 +90,5 @@ dependencies {
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest library.java.quickcheck_core
   shadowTest library.java.avro_tests
+  shadowTest library.java.zstd_jni
 }
