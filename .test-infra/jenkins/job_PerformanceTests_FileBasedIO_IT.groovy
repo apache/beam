@@ -72,7 +72,9 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java AvroIO Performance Test',
                 prTriggerPhase    : 'Run Java AvroIO Performance Test',
                 extraPipelineArgs: [
-                        numberOfRecords: '1000000'
+                        numberOfRecords: '1000000',
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'avroioit_results',
                 ]
         ],
         [
@@ -83,6 +85,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java TFRecordIO Performance Test',
                 prTriggerPhase    : 'Run Java TFRecordIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'tfrecordioit_results',
                         numberOfRecords: '1000000'
                 ]
         ],
@@ -94,6 +98,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java XmlIOPerformance Test',
                 prTriggerPhase    : 'Run Java XmlIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'xmlioit_results',
                         numberOfRecords: '100000000',
                         charset: 'UTF-8'
                 ]
@@ -106,6 +112,8 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java ParquetIOPerformance Test',
                 prTriggerPhase    : 'Run Java ParquetIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'parquetioit_results',
                         numberOfRecords: '100000000'
                 ]
         ]
