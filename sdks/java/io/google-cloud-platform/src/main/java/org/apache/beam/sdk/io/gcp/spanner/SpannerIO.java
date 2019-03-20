@@ -169,7 +169,10 @@ import org.slf4j.LoggerFactory;
  *
  * The {@link SpannerWriteResult SpannerWriteResult} object contains the results of the transform,
  * including a {@link PCollection} of MutationGroups that failed to write, and a {@link PCollection}
- * that can be used as a completion signal.
+ * that can be used in batch pipelines as a completion signal to {@link
+ * org.apache.beam.sdk.transforms.Wait Wait.OnSignal} to indicate when all input has been written.
+ * Note that in streaming pipelines, this signal will never be triggered as the input is unbounded
+ * and this {@link PCollection} is using the {@link GlobalWindow}.
  *
  * <h3>Batching</h3>
  *
