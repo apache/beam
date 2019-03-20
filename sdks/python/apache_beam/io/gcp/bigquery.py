@@ -559,7 +559,8 @@ class BigQueryWriteFn(DoFn):
       kms_key=None,
       test_client=None,
       max_buffered_rows=None,
-      retry_strategy=None):
+      retry_strategy=None,
+      additional_bq_parameters=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -591,6 +592,8 @@ class BigQueryWriteFn(DoFn):
         batch has not been completely filled up.
       retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
+      additional_bq_parameters (dict, callable): A set of additional parameters
+        to be passed when creating a BigQuery table.
     """
     self.schema = schema
     self.test_client = test_client
@@ -608,10 +611,15 @@ class BigQueryWriteFn(DoFn):
     self._retry_strategy = (
         retry_strategy or bigquery_tools.RetryStrategy.RETRY_ON_TRANSIENT_ERROR)
 
+    self.additional_bq_parameters = additional_bq_parameters or {}
+
   def display_data(self):
     return {'max_batch_size': self._max_batch_size,
             'max_buffered_rows': self._max_buffered_rows,
-            'retry_strategy': self._retry_strategy}
+            'retry_strategy': self._retry_strategy,
+            'create_disposition': str(self.create_disposition),
+            'write_disposition': str(self.write_disposition),
+            'additional_bq_parameters': str(self.additional_bq_parameters)}
 
   def _reset_rows_buffer(self):
     self._rows_buffer = collections.defaultdict(lambda: [])
@@ -675,14 +683,16 @@ class BigQueryWriteFn(DoFn):
         table_reference.datasetId,
         table_reference.tableId,
         table_schema,
-        self.create_disposition, self.write_disposition)
+        self.create_disposition,
+        self.write_disposition,
+        additional_create_parameters=self.additional_bq_parameters)
     self._observed_tables.add(str_table_reference)
 
-  def process(self, element, unused_create_fn_output=None):
+  def process(self, element, *schema_side_inputs):
     destination = element[0]
 
     if callable(self.schema):
-      schema = self.schema(destination)
+      schema = self.schema(destination, *schema_side_inputs)
     elif isinstance(self.schema, vp.ValueProvider):
       schema = self.schema.get()
     else:
@@ -781,6 +791,9 @@ class WriteToBigQuery(PTransform):
                custom_gcs_temp_location=None,
                method=None,
                insert_retry_strategy=None,
+               additional_bq_parameters=None,
+               table_side_inputs=None,
+               schema_side_inputs=None,
                validate=True):
     """Initialize a WriteToBigQuery transform.
 
@@ -856,6 +869,15 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         FILE_LOADS on Batch pipelines.
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
+      additional_bq_parameters (callable): A function that returns a dictionary
+        with additional parameters to pass to BQ when creating / loading data
+        into a table. These can be 'timePartitioning', 'clustering', etc. They
+        are passed directly to the job load configuration. See
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load
+      table_side_inputs (tuple): A tuple with ``AsSideInput`` PCollections to be
+        passed to the table callable (if one is provided).
+      schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
+        passed to the schema callable (if one is provided).
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
     """
@@ -877,6 +899,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.method = method or WriteToBigQuery.Method.DEFAULT
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
+
+    self.additional_bq_parameters = additional_bq_parameters or {}
+    self.table_side_inputs = table_side_inputs or ()
+    self.schema_side_inputs = schema_side_inputs or ()
 
   @staticmethod
   def get_table_schema_from_string(schema):
@@ -993,12 +1019,15 @@ bigquery_v2_messages.TableSchema):
           write_disposition=self.write_disposition,
           kms_key=self.kms_key,
           retry_strategy=self.insert_retry_strategy,
-          test_client=self.test_client)
+          test_client=self.test_client,
+          additional_bq_parameters=self.additional_bq_parameters)
 
       outputs = (pcoll
                  | 'AppendDestination' >> beam.ParDo(
-                     bigquery_tools.AppendDestinationsFn(self.table_reference))
-                 | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
+                     bigquery_tools.AppendDestinationsFn(self.table_reference),
+                     *self.table_side_inputs)
+                 | 'StreamInsertRows' >> ParDo(
+                     bigquery_write_fn, *self.schema_side_inputs).with_outputs(
                      BigQueryWriteFn.FAILED_ROWS, main='main'))
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
@@ -1008,17 +1037,19 @@ bigquery_v2_messages.TableSchema):
             'File Loads to BigQuery are only supported on Batch pipelines.')
 
       from apache_beam.io.gcp import bigquery_file_loads
-      return (pcoll
-              | bigquery_file_loads.BigQueryBatchFileLoads(
-                  destination=self.table_reference,
-                  schema=self.schema,
-                  create_disposition=self.create_disposition,
-                  write_disposition=self.write_disposition,
-                  max_file_size=self.max_file_size,
-                  max_files_per_bundle=self.max_files_per_bundle,
-                  custom_gcs_temp_location=self.custom_gcs_temp_location,
-                  test_client=self.test_client,
-                  validate=self._validate))
+      return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
+          destination=self.table_reference,
+          schema=self.schema,
+          create_disposition=self.create_disposition,
+          write_disposition=self.write_disposition,
+          max_file_size=self.max_file_size,
+          max_files_per_bundle=self.max_files_per_bundle,
+          custom_gcs_temp_location=self.custom_gcs_temp_location,
+          test_client=self.test_client,
+          table_side_inputs=self.table_side_inputs,
+          schema_side_inputs=self.schema_side_inputs,
+          additional_bq_parameters=self.additional_bq_parameters,
+          validate=self._validate)
 
   def display_data(self):
     res = {}
