@@ -24,6 +24,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.expressions.Aggregator;
 
+/** An {@link Aggregator} for the Spark Batch Runner. */
 public class AggregatorCombinerPerKey<K, InputT, AccumT, OutputT>
     extends Aggregator<KV<K, InputT>, AccumT, OutputT> {
 
