@@ -153,6 +153,7 @@ public class SelectHelpers {
     }
   }
 
+  /** Select a sub Row from an input Row. */
   public static Row selectRow(
       Row input,
       FieldAccessDescriptor fieldAccessDescriptor,
