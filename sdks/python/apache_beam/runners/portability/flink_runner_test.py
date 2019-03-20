@@ -201,6 +201,12 @@ if __name__ == '__main__':
     def test_sdf(self):
       raise unittest.SkipTest("BEAM-2939")
 
+    def test_callbacks_with_exception(self):
+      raise unittest.SkipTest("BEAM-6868")
+
+    def test_register_finalizations(self):
+      raise unittest.SkipTest("BEAM-6868")
+
     # Inherits all other tests.
 
   # Run the tests.
