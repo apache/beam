@@ -578,6 +578,8 @@ func makeWindowCoder(w *window.Fn) *coder.WindowCoder {
 		return coder.NewGlobalWindow()
 	case window.FixedWindows, window.SlidingWindows, URNSlidingWindowsWindowFn:
 		return coder.NewIntervalWindow()
+	case window.Sessions:
+		return coder.NewSessionWindow()
 	default:
 		panic(fmt.Sprintf("Unexpected windowing strategy: %v", w))
 	}

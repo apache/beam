@@ -21,6 +21,7 @@ type WindowKind string
 const (
 	GlobalWindow   WindowKind = "GWC"
 	IntervalWindow WindowKind = "IWC"
+	SessionWindow  WindowKind = "SWC"
 )
 
 // WindowCoder represents a Window coder.
@@ -44,4 +45,8 @@ func NewGlobalWindow() *WindowCoder {
 // NewIntervalWindow returns a window coder for interval windows.
 func NewIntervalWindow() *WindowCoder {
 	return &WindowCoder{Kind: IntervalWindow}
+}
+
+func NewSessionWindow() *WindowCoder {
+	return &WindowCoder{Kind: SessionWindow}
 }

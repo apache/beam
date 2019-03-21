@@ -39,6 +39,7 @@ const (
 
 	urnGlobalWindow   = "beam:coder:global_window:v1"
 	urnIntervalWindow = "beam:coder:interval_window:v1"
+	urnSessionWindow  = "beam:coder:session_window:v1"
 
 	// SDK constants
 
@@ -384,6 +385,8 @@ func (b *CoderMarshaller) AddWindowCoder(w *coder.WindowCoder) string {
 		return b.internBuiltInCoder(urnGlobalWindow)
 	case coder.IntervalWindow:
 		return b.internBuiltInCoder(urnIntervalWindow)
+	case coder.SessionWindow:
+		return b.internBuiltInCoder(urnSessionWindow)
 	default:
 		panic(fmt.Sprintf("Unexpected window kind: %v", w.Kind))
 	}
