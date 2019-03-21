@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Test operator FlatMap. */
@@ -95,7 +96,7 @@ public class FlatMapTest {
     final PCollection<String> mapped =
         FlatMap.of(dataset)
             .using((String s, Collector<String> c) -> c.collect(s))
-            .eventTimeBy(in -> System.currentTimeMillis(), 100)
+            .eventTimeBy(in -> System.currentTimeMillis(), Duration.millis(100))
             .output();
     final FlatMap map = (FlatMap) TestUtils.getProducer(mapped);
     assertEquals(100, map.getAllowedTimestampSkew());
