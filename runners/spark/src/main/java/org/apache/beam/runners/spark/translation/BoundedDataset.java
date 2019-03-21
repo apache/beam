@@ -117,6 +117,6 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void setName(String name) {
-    rdd.setName(name);
+    getRDD().setName(name);
   }
 }
