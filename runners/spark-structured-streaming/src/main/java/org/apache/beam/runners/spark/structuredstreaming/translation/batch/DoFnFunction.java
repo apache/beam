@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
+import org.apache.beam.runners.spark.structuredstreaming.translation.utils.CachedSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -96,7 +97,7 @@ public class DoFnFunction<InputT, OutputT>
         DoFnRunners.simpleRunner(
             serializableOptions.get(),
             doFn,
-            new SparkSideInputReader(sideInputs, broadcastStateData),
+            CachedSideInputReader.of(new SparkSideInputReader(sideInputs, broadcastStateData)),
             outputManager,
             mainOutputTag,
             additionalOutputTags,
