@@ -70,12 +70,12 @@ public class FlatMapTranslator<InputT, OutputT>
         UnaryFunctor<InputT, OutputT> mapper,
         AccumulatorProvider accumulators,
         @Nullable ExtractEventTime<InputT> eventTimeExtractor,
-        long timestampSkew) {
+        Duration timestampSkew) {
 
       this.mapper = mapper;
       this.collector =
           new AdaptableCollector<>(accumulators, operatorName, new Collector<>(eventTimeExtractor));
-      this.timestampSkew = Duration.millis(timestampSkew);
+      this.timestampSkew = timestampSkew;
     }
 
     @ProcessElement

@@ -36,6 +36,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.joda.time.Duration;
 
 /**
  * A transformation of a dataset from one type into another allowing user code to generate zero,
@@ -156,7 +158,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
      */
     default Builders.Output<OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn) {
       // allowed timestamp shifts to infitive past
-      return eventTimeBy(eventTimeFn, Long.MAX_VALUE);
+      return eventTimeBy(eventTimeFn, null);
     }
 
     /**
@@ -168,7 +170,8 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
      *     newly assigned (see {@link DoFn#getAllowedTimestampSkew}
      * @return the next builder to complete the setup of the {@link FlatMap} operator
      */
-    Builders.Output<OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn, long timestampSkew);
+    Builders.Output<OutputT> eventTimeBy(
+        ExtractEventTime<InputT> eventTimeFn, @Nullable Duration timestampSkew);
   }
 
   /** Builder of {@link FlatMap}. */
@@ -183,7 +186,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     private UnaryFunctor<InputT, OutputT> functor;
     @Nullable private TypeDescriptor<OutputT> outputType;
     @Nullable private ExtractEventTime<InputT> evtTimeFn;
-    private long allowedTimestampSkew = Long.MAX_VALUE;
+    private Duration allowedTimestampSkew = Duration.millis(Long.MAX_VALUE);
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -215,9 +218,10 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
 
     @Override
     public Builders.Output<OutputT> eventTimeBy(
-        ExtractEventTime<InputT> eventTimeFn, long timestampSkew) {
+        ExtractEventTime<InputT> eventTimeFn, @Nullable Duration timestampSkew) {
       this.evtTimeFn = requireNonNull(eventTimeFn);
-      this.allowedTimestampSkew = timestampSkew;
+      this.allowedTimestampSkew =
+          MoreObjects.firstNonNull(timestampSkew, Duration.millis(Long.MAX_VALUE));
       return this;
     }
 
@@ -231,14 +235,14 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
 
   private final UnaryFunctor<InputT, OutputT> functor;
   @Nullable private final ExtractEventTime<InputT> eventTimeFn;
-  private final long allowedTimestampSkew;
+  private final Duration allowedTimestampSkew;
 
   private FlatMap(
       @Nullable String name,
       UnaryFunctor<InputT, OutputT> functor,
       @Nullable TypeDescriptor<OutputT> outputType,
       @Nullable ExtractEventTime<InputT> evtTimeFn,
-      long allowedTimestampSkew) {
+      Duration allowedTimestampSkew) {
 
     super(name, outputType);
     this.functor = functor;
@@ -269,7 +273,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
    *
    * @return the user supplied maximal allowed timestamp skew
    */
-  public long getAllowedTimestampSkew() {
+  public Duration getAllowedTimestampSkew() {
     return allowedTimestampSkew;
   }
 }
