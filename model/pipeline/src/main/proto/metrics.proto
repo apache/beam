@@ -118,6 +118,13 @@ message MonitoringInfoSpecs {
         value: "The total estimated execution time of the ptransform"
       } ]
     }];
+
+    // TODO(ajamato): Add the PTRANSFORM name as a required label after
+    // upgrading the python SDK.
+    USER_DISTRIBUTION_COUNTER = 6 [(monitoring_info_spec) = {
+      urn: "beam:metric:user_distribution:",
+      type_urn: "beam:metrics:distribution_int_64",
+    }];
   }
 }
 
@@ -204,6 +211,10 @@ message MonitoringInfoUrns {
     TOTAL_MSECS = 5
         [(org.apache.beam.model.pipeline.v1.beam_urn) =
              "beam:metric:ptransform_execution_time:total_msecs:v1"];
+
+    USER_DISTRUBUTION_COUNTER_URN_PREFIX = 6
+        [(org.apache.beam.model.pipeline.v1.beam_urn) =
+            "beam:metric:user_distribution:"];
   }
 }
 

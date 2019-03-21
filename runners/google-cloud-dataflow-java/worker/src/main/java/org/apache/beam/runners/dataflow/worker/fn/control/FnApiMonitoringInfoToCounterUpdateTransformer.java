@@ -35,6 +35,7 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
   final UserMonitoringInfoToCounterUpdateTransformer userCounterTransformer;
+  final UserDistributionMonitoringInfoToCounterUpdateTransformer userDistributionCounterTransformer;
   final Map<String, MonitoringInfoToCounterUpdateTransformer> counterTransformers = new HashMap<>();
 
   public FnApiMonitoringInfoToCounterUpdateTransformer(
@@ -43,6 +44,9 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
     SpecMonitoringInfoValidator specValidator = new SpecMonitoringInfoValidator();
     this.userCounterTransformer =
         new UserMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
+
+    this.userDistributionCounterTransformer =
+        new UserDistributionMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
 
     MSecMonitoringInfoToCounterUpdateTransformer msecTransformer =
         new MSecMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
@@ -59,8 +63,10 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
   @VisibleForTesting
   public FnApiMonitoringInfoToCounterUpdateTransformer(
       UserMonitoringInfoToCounterUpdateTransformer userCounterTransformer,
+      UserDistributionMonitoringInfoToCounterUpdateTransformer userDistributionCounterTransformer,
       Map<String, MonitoringInfoToCounterUpdateTransformer> counterTransformers) {
     this.userCounterTransformer = userCounterTransformer;
+    this.userDistributionCounterTransformer = userDistributionCounterTransformer;
     this.counterTransformers.putAll(counterTransformers);
   }
 
@@ -69,6 +75,8 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
     String urn = src.getUrn();
     if (urn.startsWith(userCounterTransformer.getSupportedUrnPrefix())) {
       return userCounterTransformer.transform(src);
+    } else if (urn.startsWith(userDistributionCounterTransformer.getSupportedUrnPrefix())) {
+      return this.userDistributionCounterTransformer.transform(src);
     }
 
     MonitoringInfoToCounterUpdateTransformer transformer = counterTransformers.get(urn);
