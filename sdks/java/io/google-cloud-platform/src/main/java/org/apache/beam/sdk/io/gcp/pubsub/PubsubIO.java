@@ -825,7 +825,6 @@ public class PubsubIO {
           new PubsubUnboundedSource(
               getClock(),
               getPubsubClientFactory(),
-              null /* always get project from runtime PipelineOptions */,
               topicPath,
               subscriptionPath,
               getTimestampAttribute(),

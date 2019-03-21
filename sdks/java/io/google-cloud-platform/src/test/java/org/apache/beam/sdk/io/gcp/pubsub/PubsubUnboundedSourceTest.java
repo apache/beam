@@ -89,7 +89,6 @@ public class PubsubUnboundedSourceTest {
             clock,
             factory,
             null,
-            null,
             StaticValueProvider.of(SUBSCRIPTION),
             TIMESTAMP_ATTRIBUTE,
             ID_ATTRIBUTE,
@@ -341,7 +340,6 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource source =
         new PubsubUnboundedSource(
             factory,
-            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
             null /* subscription */,
             null /* timestampLabel */,
@@ -370,7 +368,6 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource source =
         new PubsubUnboundedSource(
             factory,
-            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
             null /* subscription */,
             null /* timestampLabel */,

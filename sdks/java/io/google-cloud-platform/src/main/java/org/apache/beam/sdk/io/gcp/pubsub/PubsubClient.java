@@ -249,16 +249,21 @@ public abstract class PubsubClient implements Closeable {
     }
 
     public String getName() {
-      List<String> splits = Splitter.on('/').splitToList(path);
+      return validateAndSplit().get(3);
+    }
 
-      checkState(splits.size() == 4, "Malformed topic path %s", path);
-      return splits.get(3);
+    public String getProject() {
+      return validateAndSplit().get(1);
     }
 
     public String getV1Beta1Path() {
+      return String.format("/topics/%s/%s", getProject(), getName());
+    }
+
+    private List<String> validateAndSplit() {
       List<String> splits = Splitter.on('/').splitToList(path);
       checkState(splits.size() == 4, "Malformed topic path %s", path);
-      return String.format("/topics/%s/%s", splits.get(1), splits.get(3));
+      return splits;
     }
 
     @Override
