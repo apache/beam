@@ -23,15 +23,22 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.MapElements.MapWithFailures;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
+import org.apache.beam.sdk.transforms.WithFailures.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
@@ -39,6 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -514,5 +522,119 @@ public class MapElementsTest implements Serializable {
     public int doubleIt(int val) {
       return val * 2;
     }
+  }
+
+  /** Test of {@link MapWithFailures()} using a pre-built exception handler. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testExceptionAsMap() {
+    Result<PCollection<Integer>, KV<Integer, Map<String, String>>> result =
+        pipeline
+            .apply(Create.of(0, 1))
+            .apply(
+                MapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> 1 / i)
+                    .exceptionsVia(new WithFailures.ExceptionAsMapHandler<Integer>() {}));
+
+    PAssert.that(result.output()).containsInAnyOrder(1);
+
+    Map<String, String> expectedFailureInfo =
+        ImmutableMap.of("className", "java.lang.ArithmeticException");
+    PAssert.thatSingleton(result.failures())
+        .satisfies(
+            kv -> {
+              assertEquals(Integer.valueOf(0), kv.getKey());
+              assertThat(kv.getValue().entrySet(), hasSize(3));
+              assertThat(kv.getValue(), hasKey("stackTrace"));
+              assertEquals("java.lang.ArithmeticException", kv.getValue().get("className"));
+              assertEquals("/ by zero", kv.getValue().get("message"));
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  /** Test of {@link MapWithFailures()} with handling defined via lambda expression. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapWithFailuresLambda() {
+    Result<PCollection<Integer>, KV<Integer, String>> result =
+        pipeline
+            .apply(Create.of(0, 1))
+            .apply(
+                MapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> 1 / i)
+                    .exceptionsInto(
+                        TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.strings()))
+                    .exceptionsVia(f -> KV.of(f.element(), f.exception().getMessage())));
+
+    PAssert.that(result.output()).containsInAnyOrder(1);
+
+    PAssert.that(result.failures()).containsInAnyOrder(KV.of(0, "/ by zero"));
+
+    pipeline.run();
+  }
+
+  /** Test of {@link MapWithFailures()} with a {@link SimpleFunction} and no {@code into} call. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapWithFailuresSimpleFunction() {
+    Result<PCollection<Integer>, KV<Integer, String>> result =
+        pipeline
+            .apply(Create.of(0, 1))
+            .apply(
+                MapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> 1 / i)
+                    .exceptionsVia(
+                        new SimpleFunction<ExceptionElement<Integer>, KV<Integer, String>>() {
+                          @Override
+                          public KV<Integer, String> apply(ExceptionElement<Integer> failure) {
+                            return KV.of(failure.element(), failure.exception().getMessage());
+                          }
+                        }));
+
+    PAssert.that(result.output()).containsInAnyOrder(1);
+
+    PAssert.that(result.failures()).containsInAnyOrder(KV.of(0, "/ by zero"));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMapWithFailuresDisplayData() {
+    InferableFunction<Integer, Integer> inferableFn =
+        new InferableFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) {
+            return input;
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "baz"));
+          }
+        };
+
+    InferableFunction<ExceptionElement<Integer>, String> exceptionHandler =
+        new InferableFunction<ExceptionElement<Integer>, String>() {
+          @Override
+          public String apply(ExceptionElement<Integer> input) throws Exception {
+            return "";
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("bar", "buz"));
+          }
+        };
+
+    MapWithFailures<?, ?, ?> mapWithFailures =
+        MapElements.via(inferableFn).exceptionsVia(exceptionHandler);
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("class", inferableFn.getClass()));
+    assertThat(
+        DisplayData.from(mapWithFailures),
+        hasDisplayItem("exceptionHandler.class", exceptionHandler.getClass()));
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("foo", "baz"));
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("bar", "buz"));
   }
 }
