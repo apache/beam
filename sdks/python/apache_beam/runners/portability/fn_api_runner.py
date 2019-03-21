@@ -1298,6 +1298,15 @@ class BundleManager(object):
     if result.error:
       raise RuntimeError(result.error)
 
+    if result.process_bundle.requires_finalization:
+      finalize_request = beam_fn_api_pb2.InstructionRequest(
+          finalize_bundle=
+          beam_fn_api_pb2.FinalizeBundleRequest(
+              instruction_reference=process_bundle_id
+          ))
+      self._controller.control_handler.push(
+          finalize_request)
+
     return result, split_results
 
 

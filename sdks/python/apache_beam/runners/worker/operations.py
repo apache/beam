@@ -223,6 +223,12 @@ class Operation(object):
     """Process element in operation."""
     pass
 
+  def finalize_bundle(self):
+    pass
+
+  def needs_finalization(self):
+    return False
+
   def try_split(self, fraction_of_remainder):
     return None
 
@@ -557,6 +563,12 @@ class DoOperation(Operation):
         self.execution_context.delayed_applications.append(
             (self, delayed_application))
 
+  def finalize_bundle(self):
+    self.dofn_receiver.finalize()
+
+  def needs_finalization(self):
+    return self.dofn_receiver.bundle_finalizer_param.has_callbacks()
+
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
     timer_spec = self.timer_specs[tag]
@@ -575,6 +587,7 @@ class DoOperation(Operation):
       side_input_map.reset()
     if self.user_state_context:
       self.user_state_context.reset()
+    self.dofn_receiver.bundle_finalizer_param.reset()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()

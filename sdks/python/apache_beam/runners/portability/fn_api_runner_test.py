@@ -21,6 +21,7 @@ import collections
 import logging
 import os
 import random
+import shutil
 import sys
 import tempfile
 import threading
@@ -801,6 +802,50 @@ class FnApiRunnerTest(unittest.TestCase):
       print(res._monitoring_infos_by_stage)
       raise
 
+  def test_callbacks_with_exception(self):
+    elements_list = ['1', '2']
+
+    def raise_expetion():
+      raise Exception('raise exception when calling callback')
+
+    class FinalizebleDoFnWithException(beam.DoFn):
+
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(raise_expetion)
+        yield element
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizebleDoFnWithException()))
+      assert_that(res, equal_to(['1', '2']))
+
+  def test_register_finalizations(self):
+    event_recorder = EventRecorder(tempfile.gettempdir())
+    elements_list = ['2', '1']
+
+    class FinalizableDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(lambda: event_recorder.record(element))
+        yield element
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizableDoFn()))
+
+      assert_that(res, equal_to(elements_list))
+
+    results = event_recorder.events()
+    event_recorder.cleanup()
+    self.assertEquals(results, sorted(elements_list))
+
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
@@ -826,6 +871,9 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
+
+  def test_register_finalizations(self):
+    raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
@@ -1082,6 +1130,34 @@ _pickled_element_counters = {}
 
 def _unpickle_element_counter(name):
   return _pickled_element_counters[name]
+
+
+class EventRecorder(object):
+  """Used to be registered as a callback in bundle finalization.
+
+  The reason why records are written into a tmp file is, the in-memory dataset
+  cannot keep callback records when passing into one DoFn.
+  """
+  def __init__(self, tmp_dir):
+    self.tmp_dir = os.path.join(tmp_dir, uuid.uuid4().hex)
+    os.mkdir(self.tmp_dir)
+
+  def record(self, content):
+    file_path = os.path.join(self.tmp_dir, uuid.uuid4().hex + '.txt')
+    with open(file_path, 'w') as f:
+      f.write(content)
+
+  def events(self):
+    content = []
+    record_files = [f for f in os.listdir(self.tmp_dir) if os.path.isfile(
+        os.path.join(self.tmp_dir, f))]
+    for file in record_files:
+      with open(os.path.join(self.tmp_dir, file), 'r') as f:
+        content.append(f.read())
+    return sorted(content)
+
+  def cleanup(self):
+    shutil.rmtree(self.tmp_dir)
 
 
 if __name__ == '__main__':
