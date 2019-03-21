@@ -58,10 +58,12 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
   shadow library.java.guava
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
   shadow library.java.joda_time
+  shadow library.java.args4j
   shadow "io.dropwizard.metrics:metrics-core:3.1.2"
   shadow library.java.jackson_module_scala
   provided library.java.spark_core
@@ -81,6 +83,7 @@ dependencies {
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  shadowTest project(":beam-sdks-java-harness")
   shadowTest library.java.avro
   shadowTest library.java.kafka_clients
   shadowTest library.java.junit
