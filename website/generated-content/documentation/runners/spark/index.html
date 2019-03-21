@@ -224,8 +224,8 @@ The Spark Runner can execute Spark pipelines just like a native Spark applicatio
 
 <ul>
   <li>Batch and streaming (and combined) pipelines.</li>
-  <li>The same fault-tolerance <a href="http://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#fault-tolerance-semantics">guarantees</a> as provided by RDDs and DStreams.</li>
-  <li>The same <a href="http://spark.apache.org/docs/1.6.3/security.html">security</a> features Spark provides.</li>
+  <li>The same fault-tolerance <a href="http://spark.apache.org/docs/latest/streaming-programming-guide.html#fault-tolerance-semantics">guarantees</a> as provided by RDDs and DStreams.</li>
+  <li>The same <a href="http://spark.apache.org/docs/latest/security.html">security</a> features Spark provides.</li>
   <li>Built-in metrics reporting using Spark’s metrics system, which reports Beam Aggregators as well.</li>
   <li>Native support for Beam side-inputs via spark’s Broadcast variables.</li>
 </ul>
@@ -236,7 +236,7 @@ The Spark Runner can execute Spark pipelines just like a native Spark applicatio
 
 <h2 id="spark-runner-prerequisites-and-setup">Spark Runner prerequisites and setup</h2>
 
-<p>The Spark runner currently supports Spark’s 1.6 branch, and more specifically any version greater than 1.6.0.</p>
+<p>The Spark runner currently supports Spark’s 2.x branch, and more specifically any version greater than 2.2.0.</p>
 
 <p>You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
@@ -365,14 +365,14 @@ For more details on the different deployment modes see: <a href="http://spark.ap
 <p>When submitting a Spark application to cluster, it is common (and recommended) to use the <code>spark-submit</code> script that is provided with the spark installation.
 The <code>PipelineOptions</code> described above are not to replace <code>spark-submit</code>, but to complement it.
 Passing any of the above mentioned options could be done as one of the <code>application-arguments</code>, and setting <code>--master</code> takes precedence.
-For more on how to generally use <code>spark-submit</code> checkout Spark <a href="http://spark.apache.org/docs/1.6.3/submitting-applications.html#launching-applications-with-spark-submit">documentation</a>.</p>
+For more on how to generally use <code>spark-submit</code> checkout Spark <a href="http://spark.apache.org/docs/latest/submitting-applications.html#launching-applications-with-spark-submit">documentation</a>.</p>
 
 <h3 id="monitoring-your-job">Monitoring your job</h3>
 
-<p>You can monitor a running Spark job using the Spark <a href="http://spark.apache.org/docs/1.6.3/monitoring.html#web-interfaces">Web Interfaces</a>. By default, this is available at port <code class="highlighter-rouge">4040</code> on the driver node. If you run Spark on your local machine that would be <code class="highlighter-rouge">http://localhost:4040</code>.
-Spark also has a history server to <a href="http://spark.apache.org/docs/1.6.3/monitoring.html#viewing-after-the-fact">view after the fact</a>.
-Metrics are also available via <a href="http://spark.apache.org/docs/1.6.3/monitoring.html#rest-api">REST API</a>.
-Spark provides a <a href="http://spark.apache.org/docs/1.6.3/monitoring.html#metrics">metrics system</a> that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.</p>
+<p>You can monitor a running Spark job using the Spark <a href="http://spark.apache.org/docs/latest/monitoring.html#web-interfaces">Web Interfaces</a>. By default, this is available at port <code class="highlighter-rouge">4040</code> on the driver node. If you run Spark on your local machine that would be <code class="highlighter-rouge">http://localhost:4040</code>.
+Spark also has a history server to <a href="http://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact">view after the fact</a>.
+Metrics are also available via <a href="http://spark.apache.org/docs/latest/monitoring.html#rest-api">REST API</a>.
+Spark provides a <a href="http://spark.apache.org/docs/latest/monitoring.html#metrics">metrics system</a> that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.</p>
 
 <h3 id="streaming-execution">Streaming Execution</h3>
 
