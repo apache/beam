@@ -35,6 +35,8 @@ import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.samza.context.ApplicationContainerContext;
 import org.apache.samza.context.ApplicationContainerContextFactory;
@@ -57,6 +59,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
   private GrpcFnServer<GrpcDataService> fnDataServer;
   private GrpcFnServer<GrpcStateService> fnStateServer;
   private ControlClientPool controlClientPool;
+  private IdGenerator idGenerator = IdGenerators.incrementingLongs();
 
   public SamzaExecutionContext(SamzaPipelineOptions options) {
     this.options = options;
@@ -116,7 +119,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
         // TODO: use JobBundleFactoryBase.WrappedSdkHarnessClient.wrapping
         jobBundleFactory =
             SingleEnvironmentInstanceJobBundleFactory.create(
-                environmentFactory, fnDataServer, fnStateServer, null);
+                environmentFactory, fnDataServer, fnStateServer, idGenerator);
       } catch (Exception e) {
         throw new RuntimeException(
             "Running samza in Beam portable mode but failed to create job bundle factory", e);

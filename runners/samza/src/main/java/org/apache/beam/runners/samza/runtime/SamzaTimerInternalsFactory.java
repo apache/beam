@@ -191,7 +191,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     @Override
     public void setTimer(TimerData timerData) {
       if (isBounded == IsBounded.UNBOUNDED
-          && timerData.getTimestamp().getMillis() >= GlobalWindow.INSTANCE.maxTimestamp().getMillis()) {
+          && timerData.getTimestamp().getMillis()
+              >= GlobalWindow.INSTANCE.maxTimestamp().getMillis()) {
         // No need to register a timer of max timestamp if the input is unbounded
         return;
       }
