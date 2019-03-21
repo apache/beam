@@ -367,7 +367,7 @@ common pattern for new portability features is that the overall
 feature is in “beam-model” with subtasks for each SDK and runner in
 their respective components.</p>
 
-<p><strong>JIRA:</strong> <a href="https://issues.apache.org/jira/issues/?filter=12341256">query</a></p>
+<p><strong>JIRA:</strong> <a href="https://issues.apache.org/jira/issues/?jql=project %3D BEAM AND resolution %3D Unresolved AND labels %3D portability order by priority DESC%2Cupdated DESC">query</a></p>
 
 <h2 id="status">Status</h2>
 
@@ -392,15 +392,8 @@ To run a basic Python wordcount (in batch mode) with embedded Flink:</p>
 
 <p>To run the pipeline in streaming mode: <code class="highlighter-rouge">./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming</code></p>
 
-<p>To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.5/quickstart/setup_quickstart.html">Flink cluster</a>:</p>
-
-<ol>
-  <li>Start Flink cluster (e.g. locally on <code class="highlighter-rouge">localhost:8081</code>)</li>
-  <li>Create shaded JobService jar: <code class="highlighter-rouge">./gradlew :beam-runners-flink_2.11-job-server:installShadowDist</code></li>
-  <li>Optional optimization step: Place the generated JobServer Jar <code class="highlighter-rouge">beam/runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-2.7.0-SNAPSHOT.jar</code> in <code class="highlighter-rouge">flink/lib</code> and change class loading order for Flink by adding <code class="highlighter-rouge">classloader.resolve-order: parent-first</code> to <code class="highlighter-rouge">conf/flink-conf.yaml</code>.</li>
-  <li>Start JobService with Flink web service endpoint: <code class="highlighter-rouge">./gradlew :beam-runners-flink_2.11-job-server:runShadow -PflinkMasterUrl=localhost:8081</code></li>
-  <li>Submit the pipeline as above.</li>
-</ol>
+<p>Please see the <a href="/documentation/runners/flink/">Flink Runner page</a> for more information on
+how to run portable pipelines on top of Flink.</p>
 
 
       </div>
