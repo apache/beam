@@ -47,6 +47,7 @@ func NewIntervalWindow() *WindowCoder {
 	return &WindowCoder{Kind: IntervalWindow}
 }
 
+// NewSessionWindow returns a window coder for session windows.
 func NewSessionWindow() *WindowCoder {
 	return &WindowCoder{Kind: SessionWindow}
 }
