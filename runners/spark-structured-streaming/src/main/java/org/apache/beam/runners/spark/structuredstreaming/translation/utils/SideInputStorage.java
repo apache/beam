@@ -24,6 +24,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * Cache deserialized side inputs for executor so every task doesn't need to deserialize them again.
