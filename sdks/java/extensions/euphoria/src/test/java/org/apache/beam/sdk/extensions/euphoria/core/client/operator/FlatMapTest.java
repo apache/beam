@@ -88,4 +88,28 @@ public class FlatMapTest {
     final FlatMap map = (FlatMap) TestUtils.getProducer(mapped);
     assertFalse(map.getName().isPresent());
   }
+
+  @Test
+  public void testBuild_TimestampSkew() {
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> mapped =
+        FlatMap.of(dataset)
+            .using((String s, Collector<String> c) -> c.collect(s))
+            .eventTimeBy(in -> System.currentTimeMillis(), 100)
+            .output();
+    final FlatMap map = (FlatMap) TestUtils.getProducer(mapped);
+    assertEquals(100, map.getAllowedTimestampSkew());
+  }
+
+  @Test
+  public void testBuild_NoTimestampSkew() {
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> mapped =
+        FlatMap.of(dataset)
+            .using((String s, Collector<String> c) -> c.collect(s))
+            .eventTimeBy(in -> System.currentTimeMillis())
+            .output();
+    final FlatMap map = (FlatMap) TestUtils.getProducer(mapped);
+    assertEquals(Long.MAX_VALUE, map.getAllowedTimestampSkew());
+  }
 }
