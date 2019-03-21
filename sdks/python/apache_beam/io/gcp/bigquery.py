@@ -687,9 +687,11 @@ class BigQueryWriteFn(DoFn):
     else:
       schema = self.schema
 
-    self._create_table_if_needed(
-        bigquery_tools.parse_table_reference(destination),
-        schema)
+    table_ref = bigquery_tools.parse_table_reference(destination)
+    if not table_ref.projectId:
+      table_ref.projectId = vp.RuntimeValueProvider.get_value('project',
+                                                              str, '')
+    self._create_table_if_needed(table_ref, schema)
 
     row = element[1]
     self._rows_buffer[destination].append(row)
