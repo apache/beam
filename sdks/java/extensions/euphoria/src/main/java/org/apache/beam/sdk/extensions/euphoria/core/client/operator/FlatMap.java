@@ -247,7 +247,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     super(name, outputType);
     this.functor = functor;
     this.eventTimeFn = evtTimeFn;
-    this.allowedTimestampSkew = allowedTimestampSkew;
+    this.allowedTimestampSkew = requireNonNull(allowedTimestampSkew);
   }
 
   /**
