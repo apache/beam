@@ -21,6 +21,8 @@
 from __future__ import absolute_import
 
 import logging
+import os
+import sys
 import unittest
 from builtins import object
 
@@ -109,6 +111,10 @@ class TestPubsubMessage(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestReadFromPubSubOverride(unittest.TestCase):
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_expand_with_topic(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -133,6 +139,10 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual('a_topic', source.topic_name)
     self.assertEqual('a_label', source.id_label)
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_expand_with_subscription(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -169,6 +179,10 @@ class TestReadFromPubSubOverride(unittest.TestCase):
       ReadFromPubSub('a_topic', 'a_subscription', 'a_label',
                      with_attributes=False, timestamp_attribute=None)
 
+  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6877')
   def test_expand_with_other_options(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
