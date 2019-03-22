@@ -65,9 +65,13 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     this.options = options;
   }
 
-  SamzaPipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
-    ConfigBuilder configBuilder = new ConfigBuilder(options);
+  public SamzaPipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder, options);
+
+    final Config config = configBuilder.build();
+    options.setConfigOverride(config);
+
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
     final StreamApplication app =
         appDescriptor -> {
@@ -76,7 +80,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
               pipeline, new PortableTranslationContext(appDescriptor, options));
         };
 
-    return runSamzaApp(app, configBuilder, executionContext);
+    return runSamzaApp(app, config, executionContext);
   }
 
   @Override
@@ -97,6 +101,10 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+
+    final Config config = configBuilder.build();
+    options.setConfigOverride(config);
+
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
     final Map<String, MetricsReporterFactory> reporterFactories = getMetricsReporters();
 
@@ -109,7 +117,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
               pipeline, new TranslationContext(appDescriptor, idMap, options));
         };
 
-    return runSamzaApp(app, configBuilder, executionContext);
+    return runSamzaApp(app, config, executionContext);
   }
 
   private Map<String, MetricsReporterFactory> getMetricsReporters() {
@@ -128,9 +136,8 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   }
 
   private SamzaPipelineResult runSamzaApp(
-      StreamApplication app, ConfigBuilder configBuilder, SamzaExecutionContext executionContext) {
+      StreamApplication app, Config config, SamzaExecutionContext executionContext) {
 
-    final Config config = configBuilder.build();
     final ApplicationRunner runner = ApplicationRunners.getApplicationRunner(app, config);
 
     final Iterator<SamzaPipelineLifeCycleListener.Registrar> listenerReg =
