@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
+import org.apache.samza.config.ConfigFactory;
 import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.JobCoordinatorConfig;
 import org.apache.samza.config.MapConfig;
@@ -100,7 +101,8 @@ public class ConfigBuilder {
     }
   }
 
-  private static Map<String, String> createUserConfig(SamzaPipelineOptions options) {
+  private static Map<String, String> createUserConfig(SamzaPipelineOptions options)
+      throws Exception {
     final Map<String, String> config = new HashMap<>();
 
     // apply user configs
@@ -109,9 +111,17 @@ public class ConfigBuilder {
     // If user provides a config file, use it as base configs.
     if (StringUtils.isNoneEmpty(configFilePath)) {
       final File configFile = new File(configFilePath);
-      checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
-      final PropertiesConfigFactory configFactory = new PropertiesConfigFactory();
       final URI configUri = configFile.toURI();
+      final ConfigFactory configFactory =
+          options.getConfigFactory().getDeclaredConstructor().newInstance();
+
+      // Config file must exist for default properties config
+      // TODO: add check to all non-empty files once we don't need to
+      // pass the command-line args through the containers
+      if (configFactory instanceof PropertiesConfigFactory) {
+        checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
+      }
+
       config.putAll(configFactory.getConfig(configUri));
     }
     // Apply override on top
