@@ -100,7 +100,7 @@ public class DoFnRunners {
           DoFn<InputT, OutputT> fn,
           DoFnRunner<InputT, OutputT> doFnRunner,
           WindowingStrategy<?, ?> windowingStrategy,
-          CleanupTimer cleanupTimer,
+          CleanupTimer<InputT> cleanupTimer,
           StateCleaner<W> stateCleaner) {
     return new StatefulDoFnRunner<>(doFnRunner, windowingStrategy, cleanupTimer, stateCleaner);
   }
