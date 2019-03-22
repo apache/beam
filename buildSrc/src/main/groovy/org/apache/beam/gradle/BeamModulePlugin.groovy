@@ -77,7 +77,7 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls the JDK source language and target compatibility. */
     double javaVersion = 1.8
 
-    /** Controls whether the findbugs plugin is enabled and configured. */
+    /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
     /** Controls whether the dependency analysis plugin is enabled. */
@@ -592,7 +592,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * propdeps-maven
     //  * propdeps-idea
     //  * checkstyle
-    //  * findbugs
+    //  * spotbugs
     //  * shadow
     //  * com.diffplug.gradle.spotless (code style plugin)
     //
@@ -793,7 +793,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
         project.spotbugs {
-          excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/findbugs-filter.xml')
+          excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
           sourceSets = [sourceSets.main]
         }
         project.tasks.withType(com.github.spotbugs.SpotBugsTask) {
