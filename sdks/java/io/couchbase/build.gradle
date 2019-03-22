@@ -27,13 +27,14 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.jackson_annotations
-  shadow "com.couchbase.mock:CouchbaseMock:1.5.22"
   shadow "com.couchbase.client:java-client:2.7.4"
-  shadow "com.couchbase.client:couchbase-client:1.4.6"
+  shadow "com.couchbase.client:encryption:1.0.0"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-runners-core-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  testCompile "com.couchbase.mock:CouchbaseMock:1.5.22"
+  
 }

@@ -17,10 +17,23 @@
  */
 package org.apache.beam.sdk.io.couchbase;
 
+import com.couchbase.client.java.Cluster;
+import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.bucket.BucketInfo;
+import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.document.json.JsonObject;
+import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
+import com.couchbase.client.java.query.N1qlQuery;
+import com.couchbase.client.java.query.N1qlQueryResult;
+import com.couchbase.client.java.query.N1qlQueryRow;
+import com.couchbase.mock.Bucket;
+import com.couchbase.mock.BucketConfiguration;
+import com.couchbase.mock.CouchbaseMock;
+import com.couchbase.mock.client.MockClient;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-
+import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -35,42 +48,36 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import com.couchbase.client.java.Cluster;
-import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.document.JsonDocument;
-import com.couchbase.client.java.document.json.JsonObject;
-import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
-import com.couchbase.mock.Bucket;
-import com.couchbase.mock.BucketConfiguration;
-import com.couchbase.mock.CouchbaseMock;
-import com.couchbase.mock.client.MockClient;
-
 /** A couchbase IO test class. */
 @RunWith(JUnit4.class)
 public class CouchbaseIOTest implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
-  protected static final BucketConfiguration bucketConfiguration = new BucketConfiguration();
   protected static MockClient mockClient;
   protected static CouchbaseMock couchbaseMock;
   protected static Cluster cluster;
   protected static com.couchbase.client.java.Bucket bucket;
   protected static int carrierPort;
   protected static int httpPort;
+  private static final String BUCKET_NAME = "scientists";
+  private static final String USERNAME = "Administration";
+  private static final String PWD = "password";
 
   protected static void getPortInfo(String bucket) throws Exception {
     httpPort = couchbaseMock.getHttpPort();
     carrierPort = couchbaseMock.getCarrierPort(bucket);
   }
 
-  protected static void createMock(@NotNull String name, @NotNull String password) throws Exception {
+  protected static void createMock(@NotNull String bucketName, @NotNull String pwd)
+      throws Exception {
+    BucketConfiguration bucketConfiguration = new BucketConfiguration();
     bucketConfiguration.numNodes = 1;
     bucketConfiguration.numReplicas = 1;
     bucketConfiguration.numVBuckets = 1024;
-    bucketConfiguration.name = name;
+    bucketConfiguration.name = bucketName;
     bucketConfiguration.type = Bucket.BucketType.COUCHBASE;
-    bucketConfiguration.password = password;
+    bucketConfiguration.password = pwd;
     ArrayList<BucketConfiguration> configList = new ArrayList<BucketConfiguration>();
     configList.add(bucketConfiguration);
     couchbaseMock = new CouchbaseMock(0, configList);
@@ -79,22 +86,37 @@ public class CouchbaseIOTest implements Serializable {
   }
 
   protected static void createClient() {
-    cluster = CouchbaseCluster.create(DefaultCouchbaseEnvironment.builder()
-            .bootstrapCarrierDirectPort(carrierPort)
-            .bootstrapHttpDirectPort(httpPort)
-            .build(), "couchbase://127.0.0.1");
-    bucket = cluster.openBucket("default");
+    cluster =
+        CouchbaseCluster.create(
+            DefaultCouchbaseEnvironment.builder()
+                .bootstrapCarrierDirectPort(carrierPort)
+                .bootstrapHttpDirectPort(httpPort)
+                .build(),
+            "couchbase://127.0.0.1");
+    bucket = cluster.openBucket(BUCKET_NAME, PWD);
   }
 
   @Test
   public void testSimple() {
     insertData();
+    for (int i = 0; i < 10; i++) {
+      JsonDocument doc = bucket.get(i + 1 + "");
+      System.out.println(doc);
+    }
+    BucketInfo info = bucket.bucketManager().info();
+    System.out.println(info);
+    N1qlQueryResult query =
+        bucket.query(N1qlQuery.simple(String.format("SELECT * FROM `%s`", BUCKET_NAME)));
+    List<N1qlQueryRow> rows = query.allRows();
+    for (N1qlQueryRow row : rows) {
+      System.out.println(row.value());
+    }
   }
 
   @BeforeClass
   public static void startCouchbase() throws Exception {
-    createMock("default", "");
-    getPortInfo("default");
+    createMock(BUCKET_NAME, PWD);
+    getPortInfo(BUCKET_NAME);
     createClient();
   }
 
@@ -114,16 +136,19 @@ public class CouchbaseIOTest implements Serializable {
   @Test
   public void testRead() {
     insertData();
-    PCollection<Scientist> output =
+    PCollection<JsonDocument> output =
         pipeline.apply(
             CouchbaseIO.read()
-                .withHosts(Arrays.asList("localhost"))
-                .withPort(8091)
-                .withBucket("default")
-                .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class));
+                .withHosts(Arrays.asList("couchbase://127.0.0.1"))
+                .withHttpPort(httpPort)
+                .withCarrierPort(carrierPort)
+                .withBucket(BUCKET_NAME)
+                .withUsername(USERNAME)
+                .withPassword(PWD)
+                .withCoder(SerializableCoder.of(JsonDocument.class))
+                .withEntity(JsonDocument.class));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(5L);
 
     pipeline.run();
   }
@@ -143,7 +168,9 @@ public class CouchbaseIOTest implements Serializable {
       "Maxwell"
     };
     for (int i = 0; i < scientists.length; i++) {
-      bucket.upsert(JsonDocument.create(String.valueOf(i + 1), JsonObject.create().put("name", scientists[i])));
+      bucket.upsert(
+          JsonDocument.create(
+              String.valueOf(i + 1), JsonObject.create().put("name", scientists[i])));
     }
   }
 
