@@ -39,6 +39,7 @@ from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -522,18 +523,26 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
       _ = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=value_provider.StaticValueProvider(str, output_table_1),
+               table=value_provider.StaticValueProvider(
+                   str, '%s:%s' % (self.project, output_table_1)),
                schema=value_provider.StaticValueProvider(dict, schema),
                method='STREAMING_INSERTS'))
       _ = (input
            | "WriteWithMultipleDests2" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=value_provider.StaticValueProvider(str, output_table_2),
-               method='FILE_LOADS'))
+               table=value_provider.StaticValueProvider(
+                   str, '%s:%s' % (self.project, output_table_2)),
+               method='FILE_LOADS',
+               custom_gcs_temp_location=(
+                   p.options.view_as(GoogleCloudOptions).temp_location)))
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
+
+    full_output_table_1 = '%s:%s' % (self.project, output_table_1)
+    full_output_table_2 = '%s:%s' % (self.project, output_table_2)
+
     schema1 = {'fields': [
         {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
         {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
@@ -569,15 +578,16 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
       r = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=lambda x: (output_table_1
+               table=lambda x: (full_output_table_1
                                 if 'language' in x
-                                else output_table_2),
-               schema=lambda dest: (schema1 if dest == output_table_1
+                                else full_output_table_2),
+               schema=lambda dest: (schema1
+                                    if dest == full_output_table_1
                                     else schema2),
                method='STREAMING_INSERTS'))
 
       assert_that(r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
-                  equal_to([(output_table_1, bad_record)]))
+                  equal_to([(full_output_table_1, bad_record)]))
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(

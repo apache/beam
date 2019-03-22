@@ -75,7 +75,7 @@ def run_bq_pipeline(argv=None):
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-           gs_location=location))
+           custom_gcs_temp_location=location))
 
   result = p.run()
   result.wait_until_finish()

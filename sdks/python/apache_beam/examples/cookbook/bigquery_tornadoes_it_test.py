@@ -60,10 +60,10 @@ class BigqueryTornadoesIT(unittest.TestCase):
                               project=project,
                               query=query,
                               checksum=self.DEFAULT_CHECKSUM)]
-    gs_location = 'gs://temp-storage-for-upload-tests/%s' % table
+    custom_gcs_temp_location = 'gs://temp-storage-for-upload-tests/%s' % table
     extra_opts = {'output': output_table,
                   'on_success_matcher': all_of(*pipeline_verifiers),
-                  'gcs_location': gs_location}
+                  'gcs_location': custom_gcs_temp_location}
 
     # Register cleanup before pipeline execution.
     # Note that actual execution happens in reverse order.

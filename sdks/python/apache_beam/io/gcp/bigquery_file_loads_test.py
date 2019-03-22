@@ -295,8 +295,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     transform = bigquery.WriteToBigQuery(
         destination,
-        gs_location=self._new_tempdir(),
-        test_client=bq_client)
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:

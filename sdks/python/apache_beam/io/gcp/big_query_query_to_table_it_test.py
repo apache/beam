@@ -131,10 +131,11 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         query=verify_query,
         checksum=expected_checksum)]
 
-    gs_location = 'gs://temp-storage-for-upload-tests/%s' % self.output_table
+    custom_gcs_temp_location = (
+        'gs://temp-storage-for-upload-tests/%s' % self.output_table)
     extra_opts = {'query': LEGACY_QUERY,
                   'output': self.output_table,
-                  'bq_temp_location': gs_location,
+                  'bq_temp_location': custom_gcs_temp_location,
                   'output_schema': DIALECT_OUTPUT_SCHEMA,
                   'use_standard_sql': False,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
@@ -149,10 +150,11 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         project=self.project,
         query=verify_query,
         checksum=expected_checksum)]
-    gs_location = 'gs://temp-storage-for-upload-tests/%s' % self.output_table
+    custom_gcs_temp_location = (
+        'gs://temp-storage-for-upload-tests/%s' % self.output_table)
     extra_opts = {'query': STANDARD_QUERY,
                   'output': self.output_table,
-                  'bq_temp_location': gs_location,
+                  'bq_temp_location': custom_gcs_temp_location,
                   'output_schema': DIALECT_OUTPUT_SCHEMA,
                   'use_standard_sql': True,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
@@ -197,11 +199,12 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         query=verify_query,
         checksum=expected_checksum)]
     self._setup_new_types_env()
-    gs_location = 'gs://temp-storage-for-upload-tests/%s' % self.output_table
+    custom_gcs_temp_location = (
+        'gs://temp-storage-for-upload-tests/%s' % self.output_table)
     extra_opts = {
         'query': NEW_TYPES_QUERY % (self.dataset_id, NEW_TYPES_INPUT_TABLE),
         'output': self.output_table,
-        'bq_temp_location': gs_location,
+        'bq_temp_location': custom_gcs_temp_location,
         'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
         'use_standard_sql': False,
         'on_success_matcher': all_of(*pipeline_verifiers)}

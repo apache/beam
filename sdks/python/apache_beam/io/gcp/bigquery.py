@@ -775,9 +775,10 @@ class WriteToBigQuery(PTransform):
                max_file_size=None,
                max_files_per_bundle=None,
                test_client=None,
-               gs_location=None,
+               custom_gcs_temp_location=None,
                method=None,
-               insert_retry_strategy=None):
+               insert_retry_strategy=None,
+               validate=True):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -839,8 +840,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         written by a worker. The default here is 20. Larger values will allow
         writing to multiple destinations without having to reshard - but they
         increase the memory burden on the workers.
-      gs_location (str): A GCS location to store files to be used for file
-        loads into BigQuery. By default, this will use the pipeline's
+      custom_gcs_temp_location (str): A GCS location to store files to be used
+        for file loads into BigQuery. By default, this will use the pipeline's
         temp_location, but for pipelines whose temp_location is not appropriate
         for BQ File Loads, users should pass a specific one.
       method: The method to use to write to BigQuery. It may be
@@ -850,6 +851,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         FILE_LOADS on Batch pipelines.
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
+      validate (boolean): Indicates whether to perform validation checks on
+        inputs. This parameter is primarily used for testing.
     """
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
@@ -861,11 +864,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.batch_size = batch_size
     self.kms_key = kms_key
     self.test_client = test_client
-    self.gs_location = gs_location
+    self.custom_gcs_temp_location = custom_gcs_temp_location
     self.max_file_size = max_file_size
     self.max_files_per_bundle = max_files_per_bundle
     self.method = method or WriteToBigQuery.Method.DEFAULT
     self.insert_retry_strategy = insert_retry_strategy
+    self._validate = validate
 
   @staticmethod
   def get_table_schema_from_string(schema):
@@ -981,15 +985,17 @@ bigquery_v2_messages.TableSchema):
             'File Loads to BigQuery are only supported on Batch pipelines.')
 
       from apache_beam.io.gcp import bigquery_file_loads
-      return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
-          destination=self.table_reference,
-          schema=self.schema,
-          create_disposition=self.create_disposition,
-          write_disposition=self.write_disposition,
-          max_file_size=self.max_file_size,
-          max_files_per_bundle=self.max_files_per_bundle,
-          gs_location=self.gs_location,
-          test_client=self.test_client)
+      return (pcoll
+              | bigquery_file_loads.BigQueryBatchFileLoads(
+                  destination=self.table_reference,
+                  schema=self.schema,
+                  create_disposition=self.create_disposition,
+                  write_disposition=self.write_disposition,
+                  max_file_size=self.max_file_size,
+                  max_files_per_bundle=self.max_files_per_bundle,
+                  custom_gcs_temp_location=self.custom_gcs_temp_location,
+                  test_client=self.test_client,
+                  validate=self._validate))
 
   def display_data(self):
     res = {}
