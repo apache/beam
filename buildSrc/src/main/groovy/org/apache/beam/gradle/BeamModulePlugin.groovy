@@ -78,7 +78,7 @@ class BeamModulePlugin implements Plugin<Project> {
     double javaVersion = 1.8
 
     /** Controls whether the findbugs plugin is enabled and configured. */
-    boolean enableFindbugs = true
+    boolean enableSpotbugs = true
 
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
@@ -790,7 +790,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
-      if (configuration.enableFindbugs) {
+      if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/findbugs-filter.xml')
@@ -1432,7 +1432,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.ext.applyJavaNature(
               exportJavadoc: false,
-              enableFindbugs: false,
+              enableSpotbugs: false,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
               shadowClosure: GrpcVendoring.shadowClosure() << {
                 // We perform all the code relocations but don't include
