@@ -39,7 +39,6 @@ from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.options import value_provider
-from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -531,9 +530,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
            | "WriteWithMultipleDests2" >> beam.io.gcp.bigquery.WriteToBigQuery(
                table=value_provider.StaticValueProvider(
                    str, '%s:%s' % (self.project, output_table_2)),
-               method='FILE_LOADS',
-               custom_gcs_temp_location=(
-                   p.options.view_as(GoogleCloudOptions).temp_location)))
+               method='FILE_LOADS'))
 
   @attr('IT')
   def test_multiple_destinations_transform(self):

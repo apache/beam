@@ -44,6 +44,7 @@ from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.options import value_provider as vp
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 
 ONE_TERABYTE = (1 << 40)
 
@@ -500,7 +501,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
     self.max_files_per_bundle = (max_files_per_bundle or
                                  _DEFAULT_MAX_WRITERS_PER_BUNDLE)
-    self._input_custom_gcs_temp_location = custom_gcs_temp_location
+    self._custom_gcs_temp_location = custom_gcs_temp_location
     self.test_client = test_client
     self.schema = schema
     self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
@@ -516,8 +517,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
       self.verify()
 
   def verify(self):
-    if (isinstance(self._input_custom_gcs_temp_location, str) and
-        not self._input_custom_gcs_temp_location.startswith('gs://')):
+    if (isinstance(self._custom_gcs_temp_location, str) and
+        not self._custom_gcs_temp_location.startswith('gs://')):
       # Only fail if the custom location is provided, and it is not a GCS
       # location.
       raise ValueError('Invalid GCS location.\n'
@@ -529,6 +530,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
   def expand(self, pcoll):
     p = pcoll.pipeline
 
+    self._custom_gcs_temp_location = (
+        self._custom_gcs_temp_location
+        or p.options.view_as(GoogleCloudOptions).temp_location)
+
     load_job_name_pcv = pvalue.AsSingleton(
         p
         | "ImpulseJobName" >> beam.Create([None])
@@ -537,7 +542,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     file_prefix_pcv = pvalue.AsSingleton(
         p
         | "CreateFilePrefixView" >> beam.Create(
-            [self._input_custom_gcs_temp_location])
+            [self._custom_gcs_temp_location])
         | "GenerateFilePrefix" >> beam.Map(
             file_prefix_generator(self._validate)))
 
