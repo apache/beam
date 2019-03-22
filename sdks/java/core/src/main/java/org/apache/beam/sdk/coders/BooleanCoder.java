@@ -51,4 +51,10 @@ public class BooleanCoder extends AtomicCoder<Boolean> {
   protected long getEncodedElementByteSize(Boolean value) throws Exception {
     return 1;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Boolean value) {
+    return value;
+  }
 }

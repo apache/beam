@@ -198,4 +198,10 @@ public class RowCoder extends CustomCoder<Row> {
         return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Row value) {
+    return value;
+  }
 }

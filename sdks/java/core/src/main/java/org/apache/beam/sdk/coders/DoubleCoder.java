@@ -99,4 +99,10 @@ public class DoubleCoder extends AtomicCoder<Double> {
     }
     return 8;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Double value) {
+    return value;
+  }
 }

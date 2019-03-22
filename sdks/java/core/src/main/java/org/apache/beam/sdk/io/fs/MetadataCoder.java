@@ -67,4 +67,9 @@ public class MetadataCoder extends AtomicCoder<Metadata> {
         .setIsReadSeekEfficient(isReadSeekEfficient)
         .setSizeBytes(sizeBytes);
   }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
 }

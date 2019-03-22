@@ -85,6 +85,16 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   }
 
   /**
+   * {@code LengthPrefixCoder} is consistent with equals if the nested {@code Coder} is.
+   *
+   * <p>{@inheritDoc}
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return valueCoder.consistentWithEquals();
+  }
+
+  /**
    * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known to be the size of the value plus the number of bytes
    * required to prefix the length.

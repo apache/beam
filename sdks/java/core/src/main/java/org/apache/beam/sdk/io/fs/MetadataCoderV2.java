@@ -53,4 +53,9 @@ public class MetadataCoderV2 extends AtomicCoder<Metadata> {
     long lastModifiedMillis = LONG_CODER.decode(is);
     return builder.setLastModifiedMillis(lastModifiedMillis).build();
   }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
 }

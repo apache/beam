@@ -98,4 +98,10 @@ public class ByteCoder extends AtomicCoder<Byte> {
     }
     return 1;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Byte value) {
+    return value;
+  }
 }

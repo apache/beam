@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -102,7 +102,7 @@ public class MapCoderTest {
   @Test
   public void testConsistentWithEquals() {
     MapCoder<Integer, Integer> coder = MapCoder.of(VarIntCoder.of(), VarIntCoder.of());
-    assertTrue(coder.consistentWithEquals());
+    assertFalse(coder.consistentWithEquals());
   }
 
   @Test
@@ -110,5 +110,12 @@ public class MapCoderTest {
     TypeDescriptor<Map<Integer, String>> typeDescriptor =
         new TypeDescriptor<Map<Integer, String>>() {};
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(typeDescriptor));
+  }
+
+  @Test
+  public void testStructuralValueReturnTheSameValueForConsistsType() {
+    Map<Integer, String> expected = Collections.singletonMap(10, "test");
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
   }
 }

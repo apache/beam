@@ -90,4 +90,9 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   public void verifyDeterministic() throws NonDeterministicException {
     rowCoder.verifyDeterministic();
   }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return rowCoder.consistentWithEquals();
+  }
 }

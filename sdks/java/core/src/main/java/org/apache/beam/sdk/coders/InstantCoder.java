@@ -104,4 +104,10 @@ public class InstantCoder extends AtomicCoder<Instant> {
   public TypeDescriptor<Instant> getEncodedTypeDescriptor() {
     return TYPE_DESCRIPTOR;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Instant value) {
+    return value;
+  }
 }

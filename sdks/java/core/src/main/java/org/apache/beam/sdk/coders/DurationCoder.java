@@ -92,4 +92,10 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   public TypeDescriptor<ReadableDuration> getEncodedTypeDescriptor() {
     return TYPE_DESCRIPTOR;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(ReadableDuration value) {
+    return value;
+  }
 }

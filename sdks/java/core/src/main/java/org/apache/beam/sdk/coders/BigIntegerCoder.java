@@ -89,4 +89,10 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
     return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray());
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(BigInteger value) {
+    return value;
+  }
 }

@@ -93,4 +93,10 @@ public class VarLongCoder extends StructuredCoder<Long> {
     }
     return VarInt.getLength(value);
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Long value) {
+    return value;
+  }
 }

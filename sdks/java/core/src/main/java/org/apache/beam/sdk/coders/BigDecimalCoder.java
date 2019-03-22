@@ -102,4 +102,10 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
     return VAR_INT_CODER.getEncodedElementByteSize(value.scale())
         + BIG_INT_CODER.getEncodedElementByteSize(value.unscaledValue());
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(BigDecimal value) {
+    return value;
+  }
 }

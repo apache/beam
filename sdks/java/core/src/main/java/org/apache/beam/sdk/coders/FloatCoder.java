@@ -99,4 +99,10 @@ public class FloatCoder extends AtomicCoder<Float> {
     }
     return 4;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Float value) {
+    return value;
+  }
 }

@@ -89,4 +89,10 @@ public class BigEndianShortCoder extends AtomicCoder<Short> {
     }
     return 2;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Short value) {
+    return value;
+  }
 }

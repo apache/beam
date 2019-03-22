@@ -89,4 +89,10 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
     }
     return 4;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Integer value) {
+    return value;
+  }
 }

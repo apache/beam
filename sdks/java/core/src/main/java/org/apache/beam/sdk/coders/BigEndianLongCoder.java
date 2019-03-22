@@ -89,4 +89,10 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
     }
     return 8;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Long value) {
+    return value;
+  }
 }
