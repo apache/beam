@@ -85,16 +85,16 @@ func DecodeVarUint64(r io.Reader) (uint64, error) {
 	}
 }
 
-// EncodeVarInt encodes an int32.
-func EncodeVarInt(value int32, w io.Writer) error {
-	return EncodeVarUint64((uint64)(value)&0xffffffff, w)
+// EncodeVarInt encodes an int64.
+func EncodeVarInt(value int64, w io.Writer) error {
+	return EncodeVarUint64((uint64)(value), w)
 }
 
-// DecodeVarInt decodes an int32.
-func DecodeVarInt(r io.Reader) (int32, error) {
+// DecodeVarInt decodes an int64.
+func DecodeVarInt(r io.Reader) (int64, error) {
 	ret, err := DecodeVarUint64(r)
 	if err != nil {
 		return 0, err
 	}
-	return (int32)(ret), nil
+	return (int64)(ret), nil
 }
