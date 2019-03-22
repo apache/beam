@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation;
+package org.apache.beam.runners.fnexecution.translation;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
@@ -23,20 +23,17 @@ import static org.junit.Assert.assertThat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
-/**
- * Tests for {@link org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils}.
- */
-public class FlinkPipelineTranslatorUtilsTest {
+/** Tests for {@link PipelineTranslatorUtils}. */
+public class PipelineTranslatorUtilsTest {
 
   @Test
   public void testOutputMapCreation() {
     List<String> outputs = Arrays.asList("output1", "output2", "output3");
-    BiMap<String, Integer> outputMap = FlinkPipelineTranslatorUtils.createOutputMap(outputs);
+    BiMap<String, Integer> outputMap = PipelineTranslatorUtils.createOutputMap(outputs);
     Map<Object, Object> expected =
         ImmutableMap.builder().put("output1", 0).put("output2", 1).put("output3", 2).build();
     assertThat(outputMap, is(expected));
