@@ -851,7 +851,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         FILE_LOADS on Batch pipelines.
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
-      validate (boolean): Indicates whether to perform validation checks on
+      validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
     """
     self.table_reference = bigquery_tools.parse_table_reference(
