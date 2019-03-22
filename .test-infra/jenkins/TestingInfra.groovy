@@ -18,10 +18,34 @@
 
 
 import CommonJobProperties as common
+import CommonTestProperties.SDK
 
 class TestingInfra {
 
-  static void setupFlinkCluster(def context, String jobName, Integer workerCount) {
+  static String prepareSDKHarness(def context, SDK sdk, String repositoryRoot, String dockerTag) {
+    context.steps {
+      String sdkName = sdk.name().toLowerCase()
+      String image = "${repositoryRoot}/${sdkName}"
+      String imageTag = "${repositoryRoot}/${sdkName}:${dockerTag}"
+
+      shell("echo \"Building SDK harness for ${sdkName} SDK.\"")
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        commonJobProperties.setGradleSwitches(delegate)
+        tasks(":beam-sdks-${sdkName}-container")
+        switches("-Pdocker-repository-root=${repositoryRoot}")
+        switches("-Pdocker-tag=${dockerTag}")
+      }
+      shell("echo \" Tagging harness' image\"...")
+      shell("docker tag ${image} ${imageTag}")
+      shell("echo \" Pushing harness' image\"...")
+      shell("docker push ${imageTag}")
+
+      return imageTag
+    }
+  }
+
+  static void setupFlinkCluster(def context, String jobName, Integer workerCount, String imagesToPull) {
     context.steps {
       environmentVariables {
         env("CLUSTER_NAME", getClusterName(jobName))
@@ -29,6 +53,10 @@ class TestingInfra {
         env("FLINK_DOWNLOAD_URL", 'http://archive.apache.org/dist/flink/flink-1.5.6/flink-1.5.6-bin-hadoop28-scala_2.11.tgz')
         env("FLINK_NUM_WORKERS", workerCount)
         env("DETACHED_MODE", 'true')
+
+        if(imagesToPull != null) {
+          env("HARNESS_IMAGES_TO_PULL", imagesToPull)
+        }
       }
 
       shell('echo Setting up flink cluster')

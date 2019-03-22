@@ -53,8 +53,10 @@ def loadTestJob = { scope, jobName, triggeringContext ->
   scope.description('Runs Java GBK load tests on Flink runner in batch mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
+  String repositoryRoot = 'gcr.io/apache-beam-io-testing/beam_fnapi'
+  String javaImage = infrastructure.prepareSDKHarness(scope, CommonTestProperties.SDK.JAVA, repositoryRoot, 'latest')
 
-  infrastructure.setupFlinkCluster(scope, jobName, 5)
+  infrastructure.setupFlinkCluster(scope, jobName, 5, javaImage)
 
   for (testConfiguration in loadTestConfigurations) {
     loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
