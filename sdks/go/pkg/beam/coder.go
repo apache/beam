@@ -135,7 +135,10 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
 		switch t.Type() {
-		case reflectx.Int, reflectx.Int8, reflectx.Int16, reflectx.Int32, reflectx.Int64:
+		case reflectx.Int64:
+			// use the beam varint coder.
+			return &coder.Coder{Kind: coder.VarInt, T: t}, nil
+		case reflectx.Int, reflectx.Int8, reflectx.Int16, reflectx.Int32:
 			c, err := coderx.NewVarIntZ(t.Type())
 			if err != nil {
 				return nil, err
