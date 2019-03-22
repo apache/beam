@@ -550,6 +550,7 @@ message StandardCoders {
     // Components: The key and value coder, in that order.
     KV = 1 [(beam_urn) = "beam:coder:kv:v1"];
 
+    // Variable length Encodes a 64-bit integer.
     // Components: None
     VARINT = 2 [(beam_urn) = "beam:coder:varint:v1"];
 
