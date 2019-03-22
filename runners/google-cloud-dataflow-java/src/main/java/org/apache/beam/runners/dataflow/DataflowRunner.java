@@ -897,9 +897,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
-                  + "exceeds the allowable limit for the API. Use experiment "
-                  + "'upload_graph' (--experiments=upload_graph) to direct the runner to "
-                  + "upload the JSON to your GCS staging bucket instead of embedding in the API request.";
+                  + "exceeds the allowable limit. "
+                  + "For more information, please see the documentation on job submission:\n"
+                  + "https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#jobs";
         } else {
           errorMessages = e.getDetails().getMessage();
         }
