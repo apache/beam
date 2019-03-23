@@ -19,7 +19,6 @@ package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
@@ -91,18 +90,6 @@ public class MapCoderTest {
     MapCoder<byte[], Integer> coder = MapCoder.of(ByteArrayCoder.of(), VarIntCoder.of());
     Map<byte[], Integer> value = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
     CoderProperties.structuralValueDecodeEncodeEqual(coder, value);
-  }
-
-  @Test
-  public void testNotConsistentWithEquals() {
-    MapCoder<Integer, byte[]> coder = MapCoder.of(VarIntCoder.of(), ByteArrayCoder.of());
-    assertFalse(coder.consistentWithEquals());
-  }
-
-  @Test
-  public void testConsistentWithEquals() {
-    MapCoder<Integer, Integer> coder = MapCoder.of(VarIntCoder.of(), VarIntCoder.of());
-    assertFalse(coder.consistentWithEquals());
   }
 
   @Test

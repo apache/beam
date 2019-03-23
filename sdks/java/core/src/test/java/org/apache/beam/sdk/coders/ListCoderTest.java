@@ -19,7 +19,6 @@ package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
@@ -117,18 +116,6 @@ public class ListCoderTest {
     ListCoder<byte[]> coder = ListCoder.of(ByteArrayCoder.of());
     List<byte[]> value = Collections.singletonList(new byte[] {1, 2, 3, 4});
     CoderProperties.structuralValueDecodeEncodeEqual(coder, value);
-  }
-
-  @Test
-  public void testNotConsistentWithEquals() {
-    ListCoder<byte[]> coder = ListCoder.of(ByteArrayCoder.of());
-    assertFalse(coder.consistentWithEquals());
-  }
-
-  @Test
-  public void testConsistentWithEquals() {
-    ListCoder<Integer> coder = ListCoder.of(VarIntCoder.of());
-    assertFalse(coder.consistentWithEquals());
   }
 
   @Test
