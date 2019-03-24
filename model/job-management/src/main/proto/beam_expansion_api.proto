@@ -25,8 +25,8 @@ syntax = "proto3";
 
 package org.apache.beam.model.expansion.v1;
 
-option go_package = "construction_v1";
-option java_package = "org.apache.beam.model.expansion.v1";
+option go_package = "jobmanagement_v1";
+option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "ExpansionApi";
 
 import "beam_runner_api.proto";
