@@ -101,7 +101,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with src as (select * from crosstab ('\n              select *\n                from (SELECT\n                    t.job_name,\n                    ROW_NUMBER() OVER (PARTITION BY job_name ORDER BY build_id desc) AS r,\n                    case when t.build_result like ''SUCCESS'' then 1 else 0 end as res\n                  FROM\n                    jenkins_builds t\n                  where job_name like ''beam_PostCommit_%'' \n                    and job_name not like ''%_PR''\n                    and (t.build_timestamp BETWEEN '$__timeFrom()' AND '$__timeTo()')\n                    ) x\n                where x.r < 11')\n            \n            AS (\n            job_name varchar,\n            job_1 integer,\n            job_2 integer,\n            job_3 integer,\n            job_4 integer,\n            job_5 integer,\n            job_6 integer,\n            job_7 integer,\n            job_8 integer,\n            job_9 integer,\n            job_10 integer\n            ))\nselect *\nfrom src\norder by job_name;",
+          "rawSql": "with src1 as (select * from crosstab ('\n              select *\n                from (SELECT\n                    t.job_name,\n                    ROW_NUMBER() OVER (PARTITION BY job_name ORDER BY build_id desc) AS r,\n                    case when t.build_result like ''SUCCESS'' then 1 else 0 end as res\n                  FROM\n                    jenkins_builds t\n                  where job_name like ''beam_PostCommit_%'' \n                    and job_name not like ''%_PR''\n                    and (t.build_timestamp BETWEEN '$__timeFrom()' AND '$__timeTo()')\n                    ) x\n                where x.r < 11')\n            \n            AS (\n            job_name varchar,\n            job_1 integer,\n            job_2 integer,\n            job_3 integer,\n            job_4 integer,\n            job_5 integer,\n            job_6 integer,\n            job_7 integer,\n            job_8 integer,\n            job_9 integer,\n            job_10 integer\n            )),\n    src2 as (select * from crosstab ('\n      select *\n        from (SELECT\n            t.job_name,\n            ROW_NUMBER() OVER (PARTITION BY job_name ORDER BY build_id desc) AS r,\n            case when t.build_result like ''SUCCESS'' then 1 else 0 end as res\n          FROM\n            jenkins_builds t\n          where job_name like ''beam_PreCommit_%_Cron''\n            and (t.build_timestamp BETWEEN '$__timeFrom()' AND '$__timeTo()')\n            ) x\n        where x.r < 11')\n    \n    AS (\n    job_name varchar,\n    job_1 integer,\n    job_2 integer,\n    job_3 integer,\n    job_4 integer,\n    job_5 integer,\n    job_6 integer,\n    job_7 integer,\n    job_8 integer,\n    job_9 integer,\n    job_10 integer\n    ))\n    \nselect *\nfrom src2\nunion all\nselect *\nfrom src1;",
           "refId": "A",
           "select": [
             [
@@ -140,7 +140,7 @@
     "list": []
   },
   "time": {
-    "from": "now-90d",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {
@@ -171,5 +171,5 @@
   "timezone": "",
   "title": "Post-Commits status dashboard",
   "uid": "8N6LVeCmk",
-  "version": 8
+  "version": 10
 }
