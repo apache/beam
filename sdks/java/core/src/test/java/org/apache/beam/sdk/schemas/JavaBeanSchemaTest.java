@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
@@ -123,7 +124,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
     assertEquals((long) 4, (Object) row.getInt64("aLong"));
-    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertTrue(row.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
     assertEquals(DATE.toInstant(), row.getDateTime("instant"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
@@ -143,7 +144,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, bean.getaShort());
     assertEquals((int) 3, bean.getAnInt());
     assertEquals((long) 4, bean.getaLong());
-    assertEquals(true, bean.isaBoolean());
+    assertTrue(bean.isaBoolean());
     assertEquals(DATE, bean.getDateTime());
     assertEquals(DATE.toInstant(), bean.getInstant());
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getBytes());
@@ -177,7 +178,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, (Object) nestedRow.getInt16("aShort"));
     assertEquals((int) 3, (Object) nestedRow.getInt32("anInt"));
     assertEquals((long) 4, (Object) nestedRow.getInt64("aLong"));
-    assertEquals(true, nestedRow.getBoolean("aBoolean"));
+    assertTrue(nestedRow.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), nestedRow.getDateTime("dateTime"));
     assertEquals(DATE.toInstant(), nestedRow.getDateTime("instant"));
     assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("bytes"));
@@ -199,7 +200,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, bean.getNested().getaShort());
     assertEquals((int) 3, bean.getNested().getAnInt());
     assertEquals((long) 4, bean.getNested().getaLong());
-    assertEquals(true, bean.getNested().isaBoolean());
+    assertTrue(bean.getNested().isaBoolean());
     assertEquals(DATE, bean.getNested().getDateTime());
     assertEquals(DATE.toInstant(), bean.getNested().getInstant());
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getNested().getBytes());
@@ -367,7 +368,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
     assertEquals((long) 4, (Object) row.getInt64("aLong"));
-    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertTrue(row.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
     assertEquals(DATE.toInstant(), row.getDateTime("instant"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));

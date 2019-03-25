@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
@@ -219,7 +220,7 @@ public class AutoValueSchemaTest {
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
     assertEquals((long) 4, (Object) row.getInt64("aLong"));
-    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertTrue(row.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
     assertEquals(DATE.toInstant(), row.getDateTime("instant"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
@@ -234,7 +235,7 @@ public class AutoValueSchemaTest {
     assertEquals((short) 2, value.getaShort());
     assertEquals((int) 3, value.getAnInt());
     assertEquals((long) 4, value.getaLong());
-    assertEquals(true, value.isaBoolean());
+    assertTrue(value.isaBoolean());
     assertEquals(DATE, value.getDateTime());
     assertEquals(DATE.toInstant(), value.getInstant());
     assertArrayEquals("not equal", BYTE_ARRAY, value.getBytes());

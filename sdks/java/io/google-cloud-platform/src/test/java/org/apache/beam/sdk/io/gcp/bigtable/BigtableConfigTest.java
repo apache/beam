@@ -117,7 +117,7 @@ public class BigtableConfigTest {
 
   @Test
   public void testWithValidate() {
-    assertEquals(true, config.withValidate(true).getValidate());
+    assertTrue(config.withValidate(true).getValidate());
   }
 
   @Test
@@ -208,7 +208,7 @@ public class BigtableConfigTest {
 
     assertEquals(PROJECT_ID.get(), service.getBigtableOptions().getProjectId());
     assertEquals(INSTANCE_ID.get(), service.getBigtableOptions().getInstanceId());
-    assertEquals(true, service.getBigtableOptions().getBulkOptions().useBulkApi());
+    assertTrue(service.getBigtableOptions().getBulkOptions().useBulkApi());
   }
 
   @Test

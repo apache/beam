@@ -142,7 +142,7 @@ public class POJOUtilsTest {
     assertEquals((short) 42, getters.get(2).get(simplePojo));
     assertEquals((int) 43, getters.get(3).get(simplePojo));
     assertEquals((long) 44, getters.get(4).get(simplePojo));
-    assertEquals(true, getters.get(5).get(simplePojo));
+    assertTrue((Boolean) getters.get(5).get(simplePojo));
     assertEquals(DATE.toInstant(), getters.get(6).get(simplePojo));
     assertEquals(INSTANT, getters.get(7).get(simplePojo));
     assertArrayEquals("Unexpected bytes", BYTE_ARRAY, (byte[]) getters.get(8).get(simplePojo));
@@ -177,7 +177,7 @@ public class POJOUtilsTest {
     assertEquals((short) 42, simplePojo.aShort);
     assertEquals((int) 43, simplePojo.anInt);
     assertEquals((long) 44, simplePojo.aLong);
-    assertEquals(true, simplePojo.aBoolean);
+    assertTrue(simplePojo.aBoolean);
     assertEquals(DATE, simplePojo.dateTime);
     assertEquals(INSTANT, simplePojo.instant);
     assertArrayEquals("Unexpected bytes", BYTE_ARRAY, simplePojo.bytes);
@@ -199,7 +199,7 @@ public class POJOUtilsTest {
     assertEquals((short) 42, getters.get(1).get(pojo));
     assertEquals((int) 43, getters.get(2).get(pojo));
     assertEquals((long) 44, getters.get(3).get(pojo));
-    assertEquals(true, getters.get(4).get(pojo));
+    assertTrue((Boolean) getters.get(4).get(pojo));
   }
 
   @Test
@@ -221,7 +221,7 @@ public class POJOUtilsTest {
     assertEquals((short) 42, pojo.aShort.shortValue());
     assertEquals((int) 43, pojo.anInt.intValue());
     assertEquals((long) 44, pojo.aLong.longValue());
-    assertEquals(true, pojo.aBoolean.booleanValue());
+    assertTrue(pojo.aBoolean.booleanValue());
   }
 
   @Test

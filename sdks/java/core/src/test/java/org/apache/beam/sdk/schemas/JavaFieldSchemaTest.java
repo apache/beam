@@ -30,6 +30,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -151,7 +152,7 @@ public class JavaFieldSchemaTest {
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
     assertEquals((long) 4, (Object) row.getInt64("aLong"));
-    assertEquals(true, row.getBoolean("aBoolean"));
+    assertTrue(row.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
     assertEquals(INSTANT, row.getDateTime("instant").toInstant());
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
@@ -171,7 +172,7 @@ public class JavaFieldSchemaTest {
     assertEquals((short) 2, pojo.aShort);
     assertEquals((int) 3, pojo.anInt);
     assertEquals((long) 4, pojo.aLong);
-    assertEquals(true, pojo.aBoolean);
+    assertTrue(pojo.aBoolean);
     assertEquals(DATE, pojo.dateTime);
     assertEquals(INSTANT, pojo.instant);
     assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes);
@@ -205,7 +206,7 @@ public class JavaFieldSchemaTest {
     assertEquals((short) 2, (Object) nestedRow.getInt16("aShort"));
     assertEquals((int) 3, (Object) nestedRow.getInt32("anInt"));
     assertEquals((long) 4, (Object) nestedRow.getInt64("aLong"));
-    assertEquals(true, nestedRow.getBoolean("aBoolean"));
+    assertTrue(nestedRow.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), nestedRow.getDateTime("dateTime"));
     assertEquals(INSTANT, nestedRow.getDateTime("instant").toInstant());
     assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("bytes"));
@@ -227,7 +228,7 @@ public class JavaFieldSchemaTest {
     assertEquals((short) 2, pojo.nested.aShort);
     assertEquals((int) 3, pojo.nested.anInt);
     assertEquals((long) 4, pojo.nested.aLong);
-    assertEquals(true, pojo.nested.aBoolean);
+    assertTrue(pojo.nested.aBoolean);
     assertEquals(DATE, pojo.nested.dateTime);
     assertEquals(INSTANT, pojo.nested.instant);
     assertArrayEquals("not equal", BYTE_ARRAY, pojo.nested.bytes);

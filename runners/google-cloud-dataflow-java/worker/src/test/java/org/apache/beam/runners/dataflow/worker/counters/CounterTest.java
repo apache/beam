@@ -335,51 +335,51 @@ public class CounterTest {
   @Test
   public void testBoolAnd() {
     Counter<Boolean, Boolean> c = counters.booleanAnd(name);
-    assertEquals(true, c.getAggregate());
+    assertTrue(c.getAggregate());
 
     c.addValue(true);
-    assertEquals(true, c.getAggregate());
+    assertTrue(c.getAggregate());
 
     c.addValue(false);
-    assertEquals(false, c.getAggregate());
+    assertFalse(c.getAggregate());
 
     c.getAndReset();
     c.addValue(true).addValue(true);
-    assertEquals(true, c.getAggregate());
+    assertTrue(c.getAggregate());
 
     c.addValue(false);
-    assertEquals(false, c.getAggregate());
+    assertFalse(c.getAggregate());
 
-    assertEquals(false, c.getAndReset());
-    assertEquals(true, c.getAggregate());
+    assertFalse(c.getAndReset());
+    assertTrue(c.getAggregate());
 
     c.addValue(false);
-    assertEquals(false, c.getAggregate());
+    assertFalse(c.getAggregate());
   }
 
   @Test
   public void testBoolOr() {
     Counter<Boolean, Boolean> c = counters.booleanOr(name);
-    assertEquals(false, c.getAggregate());
+    assertFalse(c.getAggregate());
 
     c.addValue(false);
-    assertEquals(false, c.getAggregate());
+    assertFalse(c.getAggregate());
 
     c.addValue(true);
-    assertEquals(true, c.getAggregate());
+    assertTrue(c.getAggregate());
 
     c.getAndReset();
     c.addValue(false).addValue(false);
-    assertEquals(false, c.getAggregate());
+    assertFalse(c.getAggregate());
 
     c.addValue(true);
-    assertEquals(true, c.getAggregate());
+    assertTrue(c.getAggregate());
 
-    assertEquals(true, c.getAndReset());
-    assertEquals(false, c.getAggregate());
+    assertTrue(c.getAndReset());
+    assertFalse(c.getAggregate());
 
     c.addValue(true);
-    assertEquals(true, c.getAggregate());
+    assertTrue(c.getAggregate());
   }
 
   @Test
