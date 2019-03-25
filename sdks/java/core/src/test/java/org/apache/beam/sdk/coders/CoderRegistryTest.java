@@ -384,11 +384,6 @@ public class CoderRegistryTest {
     public void verifyDeterministic() {}
 
     @Override
-    public boolean consistentWithEquals() {
-      return true;
-    }
-
-    @Override
     public Object structuralValue(MyValue value) {
       return value;
     }

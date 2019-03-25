@@ -134,11 +134,6 @@ public class RowCoder extends CustomCoder<Row> {
     Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
   }
 
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
   /** Returns the coder used for a given primitive type. */
   public static <T> Coder<T> coderForFieldType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
@@ -202,5 +197,11 @@ public class RowCoder extends CustomCoder<Row> {
       default:
         return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Row value) {
+    return value;
   }
 }

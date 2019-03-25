@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.junit.Assert.assertEquals;
+
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
@@ -234,5 +236,14 @@ public class RowCoderTest {
 
     Row row = Row.withSchema(schema).addValue(Collections.singletonMap(1, null)).build();
     CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    Schema schema = Schema.builder().addField("field", FieldType.INT32).build();
+    Row expected = Row.withSchema(schema).addValue(2123).build();
+    Coder<Row> rowCoder = RowCoder.of(schema);
+    Object actual = rowCoder.structuralValue(expected);
+    assertEquals(expected, actual);
   }
 }
