@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet.StateAndTimers;
-import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.GroupNonMergingWindowsFunctions.WindowedKey;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -47,10 +46,7 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
   public void registerClasses(Kryo kryo) {
     // MicrobatchSource is serialized as data and may not be Kryo-serializable.
     kryo.register(MicrobatchSource.class, new StatelessJavaSerializer());
-
-    kryo.register(
-        GroupCombineFunctions.SerializableAccumulator.class,
-        new GroupCombineFunctions.KryoAccumulatorSerializer());
+    kryo.register(ValueAndCoderLazySerializable.class, new KryoValueAndCoderLazySerializable());
 
     kryo.register(WrappedArray.ofRef.class);
     kryo.register(Object[].class);

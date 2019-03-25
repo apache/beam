@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.coders.ValueAndCoderLazySerializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -103,9 +104,9 @@ public class BoundedDataset<T> implements Dataset {
       Coder<WindowedValue<T>> windowedValueCoder = (Coder<WindowedValue<T>>) coder;
       this.rdd =
           getRDD()
-              .map(CoderHelpers.toByteFunction(windowedValueCoder))
+              .map(v -> ValueAndCoderLazySerializable.of(v, windowedValueCoder))
               .persist(level)
-              .map(CoderHelpers.fromByteFunction(windowedValueCoder));
+              .map(v -> v.getOrDecode(windowedValueCoder));
     }
   }
 
