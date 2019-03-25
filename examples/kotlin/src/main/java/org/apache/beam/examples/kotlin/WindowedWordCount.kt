@@ -99,7 +99,7 @@ public object WindowedWordCount {
      * his masterworks. Each line of the corpus will get a random associated timestamp somewhere in a
      * 2-hour period.
      */
-    internal class AddTimestampFn(private val minTimestamp: Instant, private val maxTimestamp: Instant) : DoFn<String, String>() {
+    public class AddTimestampFn(private val minTimestamp: Instant, private val maxTimestamp: Instant) : DoFn<String, String>() {
 
         @ProcessElement
         fun processElement(@Element element: String, receiver: DoFn.OutputReceiver<String>) {
@@ -115,14 +115,14 @@ public object WindowedWordCount {
     }
 
     /** A [DefaultValueFactory] that returns the current system time.  */
-    class DefaultToCurrentSystemTime : DefaultValueFactory<Long> {
+    public class DefaultToCurrentSystemTime : DefaultValueFactory<Long> {
         override fun create(options: PipelineOptions): Long? {
             return System.currentTimeMillis()
         }
     }
 
     /** A [DefaultValueFactory] that returns the minimum timestamp plus one hour.  */
-    class DefaultToMinTimestampPlusOneHour : DefaultValueFactory<Long> {
+    public class DefaultToMinTimestampPlusOneHour : DefaultValueFactory<Long> {
         override fun create(options: PipelineOptions): Long? {
             return (options as Options).minTimestampMillis!! + Duration.standardHours(1).millis
         }
@@ -136,7 +136,7 @@ public object WindowedWordCount {
      * well as the [WordCount.WordCountOptions] support for specification of the input and
      * output files.
      */
-    interface Options : WordCount.WordCountOptions, ExampleOptions, ExampleBigQueryTableOptions {
+    public interface Options : WordCount.WordCountOptions, ExampleOptions, ExampleBigQueryTableOptions {
         @get:Description("Fixed window duration, in minutes")
         @get:Default.Integer(WINDOW_SIZE)
         var windowSize: Int?

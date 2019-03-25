@@ -69,9 +69,9 @@ import java.util.regex.Pattern
  * The input file defaults to a public data set containing the text of of King Lear, by William
  * Shakespeare. You can override it and choose your own input with `--inputFile`.
  */
-object DebuggingWordCount {
+public object DebuggingWordCount {
     /** A DoFn that filters for a specific key based upon a regular expression.  */
-    class FilterTextFn(pattern: String) : DoFn<KV<String, Long>, KV<String, Long>>() {
+    public class FilterTextFn(pattern: String) : DoFn<KV<String, Long>, KV<String, Long>>() {
 
         private val filter: Pattern = Pattern.compile(pattern)
 
@@ -120,7 +120,7 @@ object DebuggingWordCount {
      *
      * Inherits standard configuration options and all options defined in [ ].
      */
-    interface WordCountOptions : WordCount.WordCountOptions {
+    public interface WordCountOptions : WordCount.WordCountOptions {
 
         @get:Description("Regex filter pattern to use in DebuggingWordCount. " + "Only words matching this pattern will be counted.")
         @get:Default.String("Flourish|stomach")
