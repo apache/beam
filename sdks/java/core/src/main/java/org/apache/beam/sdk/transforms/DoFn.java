@@ -232,6 +232,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * Returns the input element to be processed.
      *
      * <p>The element will not be changed -- it is safe to cache, etc. without copying.
+     * Implementation of {@link DoFn.ProcessElement} method should not mutate the element.
      */
     public abstract InputT element();
 
