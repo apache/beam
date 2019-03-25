@@ -18,7 +18,10 @@
 
 import groovy.json.JsonOutput
 
-plugins { id 'org.apache.beam.module' }
+plugins { id 'org.apache.beam.module'
+    id 'org.jetbrains.kotlin.jvm' version '1.3.21'
+}
+
 applyJavaNature(exportJavadoc: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -86,6 +89,7 @@ dependencies {
   sparkRunnerPreCommit project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
   sparkRunnerPreCommit library.java.spark_streaming
   sparkRunnerPreCommit library.java.spark_core
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
 /*
@@ -124,5 +128,19 @@ task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
   }
+}
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+repositories {
+  mavenCentral()
 }
 

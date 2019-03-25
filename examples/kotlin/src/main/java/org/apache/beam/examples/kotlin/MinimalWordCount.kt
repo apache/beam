@@ -55,7 +55,7 @@ import org.apache.beam.sdk.values.TypeDescriptors
  * "wordcounts-00001-of-00005. When running on a distributed service, you would use an appropriate
  * file service.
  */
-object MinimalWordCount {
+public object MinimalWordCount {
 
     @JvmStatic
     fun main(args: Array<String>) {

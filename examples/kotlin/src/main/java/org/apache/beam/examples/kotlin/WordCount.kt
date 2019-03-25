@@ -80,14 +80,14 @@ import org.apache.beam.sdk.values.PDone
  * The input file defaults to a public data set containing the text of of King Lear, by William
  * Shakespeare. You can override it and choose your own input with `--inputFile`.
  */
-object WordCount {
+public object WordCount {
 
     /**
      * Concept #2: You can make your pipeline assembly code less verbose by defining your DoFns
      * statically out-of-line. This DoFn tokenizes lines of text into individual words; we pass it to
      * a ParDo in the pipeline.
      */
-    internal class ExtractWordsFn : DoFn<String, String>() {
+    public class ExtractWordsFn : DoFn<String, String>() {
         private val emptyLines = Metrics.counter(ExtractWordsFn::class.java, "emptyLines")
         private val lineLenDist = Metrics.distribution(ExtractWordsFn::class.java, "lineLenDistro")
 
@@ -111,7 +111,7 @@ object WordCount {
     }
 
     /** A SimpleFunction that converts a Word and Count into a printable string.  */
-    class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
+    public class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
         override fun apply(input: KV<String, Long>): String {
             return "${input.key} : ${input.value}"
         }
@@ -126,7 +126,7 @@ object WordCount {
      * Count) as a reusable PTransform subclass. Using composite transforms allows for easy reuse,
      * modular testing, and an improved monitoring experience.
      */
-    class CountWords : PTransform<PCollection<String>, PCollection<KV<String, Long>>>() {
+    public class CountWords : PTransform<PCollection<String>, PCollection<KV<String, Long>>>() {
         override fun expand(lines: PCollection<String>): PCollection<KV<String, Long>> {
 
             // Convert lines of text into individual words.
@@ -150,7 +150,7 @@ object WordCount {
      *
      * Inherits standard configuration options.
      */
-    interface WordCountOptions : PipelineOptions {
+    public interface WordCountOptions : PipelineOptions {
 
         /**
          * By default, this example reads from a public dataset containing the text of King Lear. Set
