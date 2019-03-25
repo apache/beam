@@ -341,16 +341,18 @@ public class Combine {
     /**
      * Adds the given input value to the given accumulator, returning the new accumulator value.
      *
-     * <p>For efficiency, the input accumulator may be modified and returned.
+     * @param mutableAccumulator may be modified and returned for efficiency
+     * @param input should not be mutated
      */
-    public abstract AccumT addInput(AccumT accumulator, InputT input);
+    public abstract AccumT addInput(AccumT mutableAccumulator, InputT input);
 
     /**
      * Returns an accumulator representing the accumulation of all the input values accumulated in
      * the merging accumulators.
      *
-     * <p>May modify any of the argument accumulators. May return a fresh accumulator, or may return
-     * one of the (modified) argument accumulators.
+     * @param accumulators only the first accumulator may be modified and returned for efficiency;
+     *     the other accumulators should not be mutated, because they may be shared with other code
+     *     and mutating them could lead to incorrect results or data corruption.
      */
     public abstract AccumT mergeAccumulators(Iterable<AccumT> accumulators);
 
