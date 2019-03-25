@@ -28,9 +28,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
-import org.apache.beam.runners.spark.translation.GroupCombineFunctions.KryoAccumulatorSerializer;
-import org.apache.beam.runners.spark.translation.GroupCombineFunctions.SerializableAccumulator;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -39,35 +36,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-/** Unit tests of {@link GroupCombineFunctions}. */
-public class GroupCombineFunctionsTest {
-
-  @Test
-  public void serializableAccumulatorTest() {
-    Iterable<WindowedValue<Integer>> accumulatedValue =
-        Arrays.asList(winVal(0), winVal(1), winVal(3), winVal(4));
-
-    final WindowedValue.FullWindowedValueCoder<Integer> wvaCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
-
-    final IterableCoder<WindowedValue<Integer>> iterAccumCoder = IterableCoder.of(wvaCoder);
-
-    SerializableAccumulator<Integer> accUnderTest =
-        SerializableAccumulator.of(accumulatedValue, iterAccumCoder);
-    assertEquals(accumulatedValue, accUnderTest.getOrDecode(iterAccumCoder));
-
-    byte[] bytes = accUnderTest.toBytes();
-    assertEquals(accumulatedValue, CoderHelpers.fromByteArray(bytes, iterAccumCoder));
-
-    SerializableAccumulator<Integer> accFromBytes = SerializableAccumulator.ofBytes(bytes);
-    assertEquals(accumulatedValue, accFromBytes.getOrDecode(iterAccumCoder));
-  }
+/** Unit tests of {@link ValueAndCoderLazySerializable}. */
+public class ValueAndCoderLazySerializableTest {
 
   @Test
   public void serializableAccumulatorSerializationTest()
       throws IOException, ClassNotFoundException {
-    @SuppressWarnings("unchecked")
     Iterable<WindowedValue<Integer>> accumulatedValue =
         Arrays.asList(winVal(0), winVal(1), winVal(3), winVal(4));
 
@@ -77,8 +51,8 @@ public class GroupCombineFunctionsTest {
 
     final IterableCoder<WindowedValue<Integer>> iterAccumCoder = IterableCoder.of(wvaCoder);
 
-    SerializableAccumulator<Integer> accUnderTest =
-        SerializableAccumulator.of(accumulatedValue, iterAccumCoder);
+    ValueAndCoderLazySerializable<Iterable<WindowedValue<Integer>>> accUnderTest =
+        ValueAndCoderLazySerializable.of(accumulatedValue, iterAccumCoder);
 
     ByteArrayOutputStream inMemOut = new ByteArrayOutputStream();
     ObjectOutputStream oos = new ObjectOutputStream(inMemOut);
@@ -87,8 +61,8 @@ public class GroupCombineFunctionsTest {
     ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(inMemOut.toByteArray()));
 
     @SuppressWarnings("unchecked")
-    SerializableAccumulator<Integer> materialized =
-        (SerializableAccumulator<Integer>) ois.readObject();
+    ValueAndCoderLazySerializable<Iterable<WindowedValue<Integer>>> materialized =
+        (ValueAndCoderLazySerializable<Iterable<WindowedValue<Integer>>>) ois.readObject();
     assertEquals(accumulatedValue, materialized.getOrDecode(iterAccumCoder));
   }
 
@@ -103,12 +77,12 @@ public class GroupCombineFunctionsTest {
 
     final IterableCoder<WindowedValue<Integer>> iterAccumCoder = IterableCoder.of(wvaCoder);
 
-    SerializableAccumulator<Integer> accUnderTest =
-        SerializableAccumulator.of(accumulatedValue, iterAccumCoder);
+    ValueAndCoderLazySerializable<Iterable<WindowedValue<Integer>>> accUnderTest =
+        ValueAndCoderLazySerializable.of(accumulatedValue, iterAccumCoder);
 
-    KryoAccumulatorSerializer kryoSerializer = new KryoAccumulatorSerializer();
+    ValueAndCoderKryoSerializer kryoSerializer = new ValueAndCoderKryoSerializer();
     Kryo kryo = new Kryo();
-    kryo.register(SerializableAccumulator.class, kryoSerializer);
+    kryo.register(ValueAndCoderLazySerializable.class, kryoSerializer);
 
     ByteArrayOutputStream inMemOut = new ByteArrayOutputStream();
     Output out = new Output(inMemOut);
@@ -118,8 +92,9 @@ public class GroupCombineFunctionsTest {
     Input input = new Input(new ByteArrayInputStream(inMemOut.toByteArray()));
 
     @SuppressWarnings("unchecked")
-    SerializableAccumulator<Integer> materialized =
-        (SerializableAccumulator<Integer>) kryo.readObject(input, SerializableAccumulator.class);
+    ValueAndCoderLazySerializable<Iterable<WindowedValue<Integer>>> materialized =
+        (ValueAndCoderLazySerializable<Iterable<WindowedValue<Integer>>>)
+            kryo.readObject(input, ValueAndCoderLazySerializable.class);
     input.close();
 
     assertEquals(accumulatedValue, materialized.getOrDecode(iterAccumCoder));

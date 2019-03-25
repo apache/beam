@@ -112,9 +112,9 @@ public class BoundedDataset<T> implements Dataset {
       Coder<WindowedValue<T>> windowedValueCoder = (Coder<WindowedValue<T>>) coder;
       this.rdd =
           getRDD()
-              .map(CoderHelpers.toByteFunction(windowedValueCoder))
+              .map(v -> ValueAndCoderLazySerializable.of(v, windowedValueCoder))
               .persist(level)
-              .map(CoderHelpers.fromByteFunction(windowedValueCoder));
+              .map(v -> v.getOrDecode(windowedValueCoder));
     }
   }
 
