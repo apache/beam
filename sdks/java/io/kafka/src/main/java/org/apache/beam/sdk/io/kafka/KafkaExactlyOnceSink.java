@@ -609,7 +609,7 @@ class KafkaExactlyOnceSink<K, V>
 
         return new ShardWriter<>(shard, writerId, producer, producerName, spec, committedSeqId);
 
-      } catch (Exception e) {
+      } catch (IOException e) {
         producer.close();
         throw e;
       }
