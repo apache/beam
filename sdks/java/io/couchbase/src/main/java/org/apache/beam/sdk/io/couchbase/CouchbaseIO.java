@@ -19,6 +19,25 @@ package org.apache.beam.sdk.io.couchbase;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
+
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
@@ -29,22 +48,6 @@ import com.couchbase.client.java.query.N1qlQuery;
 import com.couchbase.client.java.query.N1qlQueryResult;
 import com.couchbase.client.java.query.N1qlQueryRow;
 import com.google.auto.value.AutoValue;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Couchbase IO. */
 public class CouchbaseIO {
@@ -222,22 +225,23 @@ public class CouchbaseIO {
         }
         sources.add(new CouchbaseSource(spec, cluster, bucket, lowerBound, upperBound));
       }
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(String.format("The original source is split to %d sources.", sources.size()));
+      }
       return sources;
     }
 
     private void connectToCouchbase() {
-      CouchbaseEnvironment env =
-          DefaultCouchbaseEnvironment.builder()
-              .bootstrapHttpDirectPort(spec.httpPort())
-              .bootstrapCarrierDirectPort(spec.carrierPort())
-              .build();
-      if (this.cluster == null) {
-        this.cluster =
-            CouchbaseCluster.create(env, spec.hosts())
+      if (cluster == null) {
+        CouchbaseEnvironment env = DefaultCouchbaseEnvironment.builder()
+                        .bootstrapHttpDirectPort(spec.httpPort())
+                        .bootstrapCarrierDirectPort(spec.carrierPort())
+                        .build();
+        cluster = CouchbaseCluster.create(env, spec.hosts())
                 .authenticate(spec.username(), spec.password());
       }
-      if (this.bucket == null) {
-        this.bucket = cluster.openBucket(spec.bucket());
+      if (bucket == null) {
+        bucket = cluster.openBucket(spec.bucket());
       }
     }
 
@@ -251,10 +255,13 @@ public class CouchbaseIO {
      */
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-      // TODO WARNING: More than 1 Couchbase Environments found (3), this can have severe impact on
-      // performance and stability. Reuse environments!
       connectToCouchbase();
-      itemCount = bucket.bucketManager().info().raw().getObject("basicStats").getInt("itemCount");
+      String query = String.format("SELECT RAW COUNT(META().id) FROM `%s`", bucket.name());
+      N1qlQueryResult result = bucket.query(N1qlQuery.simple(query));
+      if (!result.finalSuccess()) {
+        throw new CouchbaseIOException(result.errors().get(0).getString("msg"));
+      }
+      itemCount = Integer.valueOf(new String(result.allRows().get(0).byteValue(), Charset.defaultCharset()));
       return itemCount;
     }
 

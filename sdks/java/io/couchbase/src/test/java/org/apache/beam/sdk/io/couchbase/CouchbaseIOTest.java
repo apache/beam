@@ -17,88 +17,52 @@
  */
 package org.apache.beam.sdk.io.couchbase;
 
-import com.couchbase.client.java.Cluster;
-import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.bucket.BucketInfo;
-import com.couchbase.client.java.document.JsonDocument;
-import com.couchbase.client.java.document.json.JsonObject;
-import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
-import com.couchbase.client.java.query.N1qlQuery;
-import com.couchbase.client.java.query.N1qlQueryResult;
-import com.couchbase.client.java.query.N1qlQueryRow;
-import com.couchbase.mock.Bucket;
-import com.couchbase.mock.BucketConfiguration;
-import com.couchbase.mock.CouchbaseMock;
-import com.couchbase.mock.client.MockClient;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.jetbrains.annotations.NotNull;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.testcontainers.couchbase.CouchbaseContainer;
+
+import com.couchbase.client.java.Bucket;
+import com.couchbase.client.java.bucket.BucketInfo;
+import com.couchbase.client.java.bucket.BucketType;
+import com.couchbase.client.java.cluster.DefaultBucketSettings;
+import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.document.json.JsonObject;
+import com.couchbase.client.java.query.N1qlParams;
+import com.couchbase.client.java.query.N1qlQuery;
+import com.couchbase.client.java.query.N1qlQueryResult;
+import com.couchbase.client.java.query.N1qlQueryRow;
+import com.couchbase.client.java.query.consistency.ScanConsistency;
 
 /** A couchbase IO test class. */
 @RunWith(JUnit4.class)
 public class CouchbaseIOTest implements Serializable {
 
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public transient TestPipeline pipeline = TestPipeline.create();
 
-  protected static MockClient mockClient;
-  protected static CouchbaseMock couchbaseMock;
-  protected static Cluster cluster;
-  protected static com.couchbase.client.java.Bucket bucket;
-  protected static int carrierPort;
-  protected static int httpPort;
-  private static final String BUCKET_NAME = "scientists";
-  private static final String USERNAME = "Administration";
-  private static final String PWD = "password";
-
-  protected static void getPortInfo(String bucket) throws Exception {
-    httpPort = couchbaseMock.getHttpPort();
-    carrierPort = couchbaseMock.getCarrierPort(bucket);
-  }
-
-  protected static void createMock(@NotNull String bucketName, @NotNull String pwd)
-      throws Exception {
-    BucketConfiguration bucketConfiguration = new BucketConfiguration();
-    bucketConfiguration.numNodes = 1;
-    bucketConfiguration.numReplicas = 1;
-    bucketConfiguration.numVBuckets = 1024;
-    bucketConfiguration.name = bucketName;
-    bucketConfiguration.type = Bucket.BucketType.COUCHBASE;
-    bucketConfiguration.password = pwd;
-    ArrayList<BucketConfiguration> configList = new ArrayList<BucketConfiguration>();
-    configList.add(bucketConfiguration);
-    couchbaseMock = new CouchbaseMock(0, configList);
-    couchbaseMock.start();
-    couchbaseMock.waitForStartup();
-  }
-
-  protected static void createClient() {
-    cluster =
-        CouchbaseCluster.create(
-            DefaultCouchbaseEnvironment.builder()
-                .bootstrapCarrierDirectPort(carrierPort)
-                .bootstrapHttpDirectPort(httpPort)
-                .build(),
-            "couchbase://127.0.0.1");
-    bucket = cluster.openBucket(BUCKET_NAME, PWD);
-  }
+  private static CouchbaseContainer couchbase;
+  private static Bucket bucket;
+  private static final int CARRIER_PORT = 11210;
+  private static final int HTTP_PORT = 8091;
+  private static final String BUCKET_NAME = "bucket-name";
+  private static final String USERNAME = "admin";
+  private static final String PWD = "foobar";
 
   @Test
   public void testSimple() {
-    insertData();
     for (int i = 0; i < 10; i++) {
       JsonDocument doc = bucket.get(i + 1 + "");
       System.out.println(doc);
@@ -114,47 +78,52 @@ public class CouchbaseIOTest implements Serializable {
   }
 
   @BeforeClass
-  public static void startCouchbase() throws Exception {
-    createMock(BUCKET_NAME, PWD);
-    getPortInfo(BUCKET_NAME);
-    createClient();
+  public static void startCouchbase() {
+    couchbase = new CouchbaseContainer()
+            .withClusterAdmin(USERNAME, PWD)
+            .withNewBucket(DefaultBucketSettings.builder()
+                    .enableFlush(true)
+                    .name(BUCKET_NAME)
+                    .quota(100)
+                    .password(PWD)
+                    .type(BucketType.COUCHBASE)
+                    .build());
+    couchbase.start();
+    bucket = couchbase.getCouchbaseCluster().openBucket(BUCKET_NAME);
+    insertData();
   }
 
   @AfterClass
   public static void stopCouchbase() {
-    if (cluster != null) {
-      cluster.disconnect();
-    }
-    if (couchbaseMock != null) {
-      couchbaseMock.stop();
-    }
-    if (mockClient != null) {
-      mockClient.shutdown();
+    if (couchbase.isIndex() && couchbase.isQuery() && couchbase.isPrimaryIndex()) {
+      bucket.query(N1qlQuery.simple(String.format("DELETE FROM `%s`", bucket.name()),
+                      N1qlParams.build().consistency(ScanConsistency.STATEMENT_PLUS)));
+    } else {
+      bucket.bucketManager().flush();
     }
   }
 
   @Test
   public void testRead() {
-    insertData();
     PCollection<JsonDocument> output =
         pipeline.apply(
             CouchbaseIO.read()
-                .withHosts(Arrays.asList("couchbase://127.0.0.1"))
-                .withHttpPort(httpPort)
-                .withCarrierPort(carrierPort)
+                .withHosts(Arrays.asList(couchbase.getContainerIpAddress()))
+                .withHttpPort(couchbase.getMappedPort(HTTP_PORT))
+                .withCarrierPort(couchbase.getMappedPort(CARRIER_PORT))
                 .withBucket(BUCKET_NAME)
                 .withUsername(USERNAME)
                 .withPassword(PWD)
                 .withCoder(SerializableCoder.of(JsonDocument.class))
                 .withEntity(JsonDocument.class));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(5L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(10L);
 
     pipeline.run();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private void insertData() {
+  private static void insertData() {
     String[] scientists = {
       "Einstein",
       "Darwin",
@@ -174,33 +143,4 @@ public class CouchbaseIOTest implements Serializable {
     }
   }
 
-  /** Simple Cassandra entity used in test. */
-  static class Scientist implements Serializable {
-
-    String name;
-
-    int id;
-
-    @Override
-    public String toString() {
-      return id + ":" + name;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      Scientist scientist = (Scientist) o;
-      return id == scientist.id && Objects.equal(name, scientist.name);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(name, id);
-    }
-  }
 }

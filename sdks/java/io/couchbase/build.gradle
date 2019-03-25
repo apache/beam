@@ -33,8 +33,9 @@ dependencies {
   testCompile project(path: ":beam-runners-core-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile library.java.junit
+  testCompile library.java.slf4j_api
+  testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile "com.couchbase.mock:CouchbaseMock:1.5.22"
-  
+  testCompile "org.testcontainers:couchbase:1.9.1"
 }
