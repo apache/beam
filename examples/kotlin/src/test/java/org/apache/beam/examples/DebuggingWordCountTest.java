@@ -17,12 +17,11 @@
  */
 package org.apache.beam.examples;
 
-import com.google.common.io.Files;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.examples.kotlin.DebuggingWordCount;
-import org.apache.beam.examples.kotlin.DebuggingWordCount.WordCountOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -49,7 +48,8 @@ public class DebuggingWordCountTest {
         "stomach secret Flourish message Flourish here Flourish",
         inputFile,
         StandardCharsets.UTF_8);
-    WordCountOptions options = TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
+    DebuggingWordCount.WordCountOptions options =
+        TestPipeline.testingPipelineOptions().as(DebuggingWordCount.WordCountOptions.class);
     options.setInputFile(getFilePath(inputFile.getAbsolutePath()));
     options.setOutput(getFilePath(outputFile.getAbsolutePath()));
     DebuggingWordCount.runDebuggingWordCount(options);
