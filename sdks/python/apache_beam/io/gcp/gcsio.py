@@ -152,6 +152,37 @@ class GcsIO(object):
     """
     self._rewrite_cb = callback
 
+  def get_bucket(self, bucket_name):
+    """Returns an object bucket from its name, or None if it does not exist."""
+    try:
+      request = storage.StorageBucketsGetRequest(bucket=bucket_name)
+      return self.client.buckets.Get(request)
+    except HttpError:
+      return None
+
+  def insert_bucket(self,
+                    bucket_name,
+                    project,
+                    kms_key=None,
+                    location=None):
+    """Create and return a GCS bucket in a specific project."""
+    encryption = None
+    if kms_key:
+      encryption = storage.Bucket.EncryptionValue(kms_key)
+
+    request = storage.StorageBucketsInsertRequest(
+        bucket=storage.Bucket(
+            name=bucket_name,
+            location=location,
+            encryption=encryption
+        ),
+        project=project,
+    )
+    try:
+      return self.client.buckets.Insert(request)
+    except HttpError:
+      return None
+
   def open(self,
            filename,
            mode='r',

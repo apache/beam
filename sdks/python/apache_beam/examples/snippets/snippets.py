@@ -1137,7 +1137,8 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
       table_spec,
       schema=table_schema,
       write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+      validate=False)
   # [END model_bigqueryio_write]
 
 

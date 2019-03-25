@@ -675,7 +675,8 @@ class BigQueryWriteFn(DoFn):
         table_reference.datasetId,
         table_reference.tableId,
         table_schema,
-        self.create_disposition, self.write_disposition)
+        self.create_disposition, self.write_disposition,
+        kms_key=self.kms_key)
     self._observed_tables.add(str_table_reference)
 
   def process(self, element, unused_create_fn_output=None):
@@ -1016,6 +1017,7 @@ bigquery_v2_messages.TableSchema):
                   max_files_per_bundle=self.max_files_per_bundle,
                   custom_gcs_temp_location=self.custom_gcs_temp_location,
                   test_client=self.test_client,
+                  kms_key=self.kms_key,
                   validate=self._validate))
 
   def display_data(self):

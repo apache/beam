@@ -42,6 +42,8 @@ import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp import gcsio
+from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 
@@ -264,11 +266,13 @@ class TriggerCopyJobs(beam.DoFn):
                create_disposition=None,
                write_disposition=None,
                test_client=None,
-               temporary_tables=False):
+               temporary_tables=False,
+               kms_key=None):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.test_client = test_client
     self.temporary_tables = temporary_tables
+    self.kms_key = kms_key
 
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
@@ -328,10 +332,12 @@ class TriggerLoadJobs(beam.DoFn):
                create_disposition=None,
                write_disposition=None,
                test_client=None,
-               temporary_tables=False):
+               temporary_tables=False,
+               kms_key=None):
     self.schema = schema
     self.test_client = test_client
     self.temporary_tables = temporary_tables
+    self.kms_key = kms_key
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -488,6 +494,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       max_file_size=None,
       max_files_per_bundle=None,
       test_client=None,
+      kms_key=None,
       validate=True):
     self.destination = destination
     self.create_disposition = create_disposition
@@ -505,28 +512,91 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # If the destination is a single one, we assume that we will have only one
     # job to run - and thus we avoid using temporary tables
     self.temp_tables = True if callable(destination) else False
-
+    self.kms_key = kms_key
     self._validate = validate
-    if self._validate:
-      self.verify()
 
-  def verify(self):
-    if (isinstance(self._custom_gcs_temp_location, str) and
+  def verify(self, options):
+
+    self._custom_gcs_temp_location = (
+        self._custom_gcs_temp_location
+        or options.view_as(GoogleCloudOptions).temp_location)
+
+    if (not self._custom_gcs_temp_location or
         not self._custom_gcs_temp_location.startswith('gs://')):
-      # Only fail if the custom location is provided, and it is not a GCS
-      # location.
+
+      logging.info('No appropriate location was provided to perform file loads'
+                   'to GCS.')
+      bucket = self.try_to_create_default_gcs_bucket(options)
+
+      if bucket:
+        self._custom_gcs_temp_location = 'gs://%s/temp/' % bucket.name
+        return
+
       raise ValueError('Invalid GCS location.\n'
                        'Writing to BigQuery with FILE_LOADS method requires a '
                        'GCS location to be provided to write files to be '
                        'loaded into BigQuery. Please provide a GCS bucket, or '
                        'pass method="STREAMING_INSERTS" to WriteToBigQuery.')
 
+  def try_to_create_default_gcs_bucket(self, options):
+    DEFAULT_BUCKET_NAME = "dataflow-staging-%s-%s"
+    DEFAULT_REGION = "US"
+    logging.info('Attempting to get or create a default GCS bucket.')
+
+    project_name = options.view_as(GoogleCloudOptions).project
+
+    if not project_name and isinstance(self.destination,
+                                       bigquery_api.TableReference):
+      project_name = self.destination.projectId
+
+    region = options.view_as(GoogleCloudOptions).region
+
+    if not project_name:
+      raise ValueError('--project is a required option.'
+                       ' To create a default bucket, Beam needs a project '
+                       'parameter passed to your pipeline.')
+
+    # Retrieve the project number for the default bucket
+    from google.cloud import resource_manager
+    client = resource_manager.Client()
+    project_number = client.fetch_project(project_name).number
+
+    # We get the region, and cut off the zone id if there is one.
+    region = (region or DEFAULT_REGION).split('-')[0].lower()
+
+    bucket_name = DEFAULT_BUCKET_NAME % (region, project_number)
+
+    gcs = gcsio.GcsIO()
+    bucket = gcs.get_bucket(bucket_name)
+
+    if not bucket:
+      logging.warn(
+          'Attempting to create bucket gs://%s in region %s with KMS key %s',
+          bucket_name,
+          options.view_as(GoogleCloudOptions).dataflow_kms_key,
+          region)
+      bucket = gcs.insert_bucket(
+          bucket_name,
+          project_name,
+          kms_key=options.view_as(GoogleCloudOptions).dataflow_kms_key,
+          location=region)
+
+      if not bucket:
+        raise ValueError(
+          'Unable to create default bucket for BigQuery File Loads.')
+
+    if int(bucket.projectNumber) != int(project_number):
+      raise ValueError(
+          'Bucket %s does not seem to be owned by project %s' % (bucket_name,
+                                                                 project_name))
+
+    return bucket
+
   def expand(self, pcoll):
     p = pcoll.pipeline
 
-    self._custom_gcs_temp_location = (
-        self._custom_gcs_temp_location
-        or p.options.view_as(GoogleCloudOptions).temp_location)
+    if self._validate:
+      self.verify(p.options)
 
     load_job_name_pcv = pvalue.AsSingleton(
         p
@@ -590,7 +660,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
             write_disposition=self.write_disposition,
             create_disposition=self.create_disposition,
             test_client=self.test_client,
-            temporary_tables=self.temp_tables), load_job_name_pcv).with_outputs(
+            temporary_tables=self.temp_tables,
+            kms_key=self.kms_key), load_job_name_pcv).with_outputs(
                 TriggerLoadJobs.TEMP_TABLES, main='main')
     )
 
@@ -607,7 +678,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
             create_disposition=self.create_disposition,
             write_disposition=self.write_disposition,
             temporary_tables=self.temp_tables,
-            test_client=self.test_client), load_job_name_pcv))
+            test_client=self.test_client,
+            kms_key=self.kms_key), load_job_name_pcv))
 
     finished_copy_jobs_pc = (p
                              | "ImpulseMonitorCopyJobs" >> beam.Create([None])

@@ -290,10 +290,17 @@ class BigQueryWrapper(object):
                        from_table_reference,
                        to_table_reference,
                        create_disposition=None,
-                       write_disposition=None):
+                       write_disposition=None,
+                       kms_key=None):
     reference = bigquery.JobReference()
     reference.jobId = job_id
     reference.projectId = project_id
+
+    if kms_key:
+      encryption_config = bigquery.EncryptionConfiguration(kms_key)
+    else:
+      encryption_config = None
+
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=bigquery.Job(
@@ -303,6 +310,7 @@ class BigQueryWrapper(object):
                     sourceTable=from_table_reference,
                     createDisposition=create_disposition,
                     writeDisposition=write_disposition,
+                    destinationEncryptionConfiguration=encryption_config
                 )
             ),
             jobReference=reference,
@@ -324,8 +332,14 @@ class BigQueryWrapper(object):
                        source_uris,
                        schema=None,
                        write_disposition=None,
-                       create_disposition=None):
+                       create_disposition=None,
+                       kms_key=None):
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
+
+    if kms_key:
+      encryption_config = bigquery.EncryptionConfiguration(kms_key)
+    else:
+      encryption_config = None
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=bigquery.Job(
@@ -338,6 +352,7 @@ class BigQueryWrapper(object):
                     createDisposition=create_disposition,
                     sourceFormat='NEWLINE_DELIMITED_JSON',
                     autodetect=schema is None,
+                    destinationEncryptionConfiguration=encryption_config,
                 )
             ),
             jobReference=reference,
@@ -421,11 +436,18 @@ class BigQueryWrapper(object):
     response = self.client.tables.Get(request)
     return response
 
-  def _create_table(self, project_id, dataset_id, table_id, schema):
+  def _create_table(self, project_id, dataset_id, table_id, schema,
+                    kms_key=None):
+
+    if kms_key:
+      encryption_conf = bigquery.EncryptionConfiguration(kms_key)
+    else:
+      encryption_conf = None
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId=project_id, datasetId=dataset_id, tableId=table_id),
-        schema=schema)
+        schema=schema,
+        encryptionConfiguration=encryption_conf)
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
@@ -583,7 +605,7 @@ class BigQueryWrapper(object):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_table(
       self, project_id, dataset_id, table_id, schema,
-      create_disposition, write_disposition):
+      create_disposition, write_disposition, kms_key=None):
     """Gets or creates a table based on create and write dispositions.
 
     The function mimics the behavior of BigQuery import jobs when using the
@@ -596,6 +618,7 @@ class BigQueryWrapper(object):
       schema: A bigquery.TableSchema instance or None.
       create_disposition: CREATE_NEVER or CREATE_IF_NEEDED.
       write_disposition: WRITE_APPEND, WRITE_EMPTY or WRITE_TRUNCATE.
+      kms_key: Name of the encryption key to use when creating the table.
 
     Returns:
       A bigquery.Table instance if table was found or created.
@@ -647,7 +670,8 @@ class BigQueryWrapper(object):
       created_table = self._create_table(project_id=project_id,
                                          dataset_id=dataset_id,
                                          table_id=table_id,
-                                         schema=schema or found_table.schema)
+                                         schema=schema or found_table.schema,
+                                         kms_key=kms_key)
       logging.info('Created table %s.%s.%s with schema %s. Result: %s.',
                    project_id, dataset_id, table_id,
                    schema or found_table.schema,
