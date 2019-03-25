@@ -18,6 +18,8 @@
 package org.apache.beam.examples;
 
 import com.google.common.io.Files;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.examples.kotlin.DebuggingWordCount;
 import org.apache.beam.examples.kotlin.DebuggingWordCount.WordCountOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -26,9 +28,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.File;
-import java.nio.charset.StandardCharsets;
 
 /** Tests for {@link org.apache.beam.examples.kotlin.DebuggingWordCount}. */
 @RunWith(JUnit4.class)
