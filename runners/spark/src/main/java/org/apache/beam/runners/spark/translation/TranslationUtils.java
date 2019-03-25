@@ -350,13 +350,16 @@ public final class TranslationUtils {
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert value to bytes via coder
    */
-  public static PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>
+  public static PairFunction<
+          Tuple2<TupleTag<?>, WindowedValue<?>>,
+          TupleTag<?>,
+          ValueAndCoderLazySerializable<WindowedValue<?>>>
       getTupleTagEncodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       WindowedValue<?> windowedValue = tuple2._2;
       return new Tuple2<>(
-          tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
+          tupleTag, ValueAndCoderLazySerializable.of(windowedValue, coderMap.get(tupleTag)));
     };
   }
 
@@ -366,23 +369,28 @@ public final class TranslationUtils {
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert bytes to value via coder
    */
-  public static PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>
+  public static PairFunction<
+          Tuple2<TupleTag<?>, ValueAndCoderLazySerializable<WindowedValue<?>>>,
+          TupleTag<?>,
+          WindowedValue<?>>
       getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
-      byte[] windowedByteValue = tuple2._2;
-      return new Tuple2<>(
-          tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
+      ValueAndCoderLazySerializable<WindowedValue<?>> windowedByteValue = tuple2._2;
+      return new Tuple2<>(tupleTag, windowedByteValue.getOrDecode(coderMap.get(tupleTag)));
     };
   }
 
   /**
    * checking if we can avoid Serialization - relevant to RDDs. DStreams are memory ser in spark.
    *
+   * <p>See https://spark.apache.org/docs/latest/rdd-programming-guide.html#rdd-persistence for
+   * details.
+   *
    * @param level StorageLevel required
    * @return true if the level is memory only
    */
   public static boolean avoidRddSerialization(StorageLevel level) {
-    return level.equals(StorageLevel.MEMORY_ONLY()) || level.equals(StorageLevel.MEMORY_ONLY_2());
+    return level.equals(StorageLevel.MEMORY_ONLY());
   }
 }
