@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -521,7 +520,6 @@ class KafkaExactlyOnceSink<K, V>
       }
     }
 
-    @SuppressFBWarnings("REC_CATCH_EXCEPTION")
     private ShardWriter<K, V> initShardWriter(
         int shard, ValueState<String> writerIdState, long nextId) throws IOException {
 
@@ -611,7 +609,7 @@ class KafkaExactlyOnceSink<K, V>
 
         return new ShardWriter<>(shard, writerId, producer, producerName, spec, committedSeqId);
 
-      } catch (Exception e) {
+      } catch (IOException e) {
         producer.close();
         throw e;
       }
