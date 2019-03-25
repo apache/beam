@@ -32,6 +32,9 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -739,7 +742,7 @@ public class CassandraIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
-    abstract List<String> hosts();
+    abstract ImmutableList<String> hosts();
 
     @Nullable
     abstract Integer port();
