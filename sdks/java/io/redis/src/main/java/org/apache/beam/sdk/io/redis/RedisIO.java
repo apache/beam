@@ -319,7 +319,7 @@ public class RedisIO {
         for (String k : keys) {
           processContext.output(k);
         }
-        cursor = scanResult.getStringCursor();
+        cursor = scanResult.getCursor();
         if (cursor.equals(ScanParams.SCAN_POINTER_START)) {
           finished = true;
         }
