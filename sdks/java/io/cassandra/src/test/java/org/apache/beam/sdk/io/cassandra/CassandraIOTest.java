@@ -186,6 +186,7 @@ public class CassandraIOTest implements Serializable {
    * https://github.com/apache/cassandra/blob/cassandra-3.X
    * /src/java/org/apache/cassandra/tools/nodetool/Flush.java
    */
+  @SuppressWarnings("unused")
   private static void flushMemTables() throws Exception {
     JMXServiceURL url =
         new JMXServiceURL(
@@ -533,7 +534,7 @@ public class CassandraIOTest implements Serializable {
 
   /** Simple Cassandra entity used in test. */
   @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
-  static class Scientist implements Serializable {
+  static final class Scientist implements Serializable {
 
     @Column(name = "person_name")
     String name;
