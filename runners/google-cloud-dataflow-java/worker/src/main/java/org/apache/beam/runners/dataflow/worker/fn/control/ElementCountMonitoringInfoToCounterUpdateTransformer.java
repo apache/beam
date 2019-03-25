@@ -36,7 +36,7 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
 
   private final SpecMonitoringInfoValidator specValidator;
   private final Map<String, NameContext> pcollectionIdToNameContext;
-  private static final String supportedUrn = "beam:metric:element_count:v1";
+  private static final String SUPPORTED_URN = "beam:metric:element_count:v1";
 
   /**
    * @param specValidator SpecMonitoringInfoValidator to utilize for default validation.
@@ -63,7 +63,7 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urn.equals(supportedUrn)) {
+    if (!urn.equals(SUPPORTED_URN)) {
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
@@ -108,6 +108,6 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
 
   /** @return iterable of Urns that this transformer can convert to CounterUpdates. */
   public static String getSupportedUrn() {
-    return supportedUrn;
+    return SUPPORTED_URN;
   }
 }
