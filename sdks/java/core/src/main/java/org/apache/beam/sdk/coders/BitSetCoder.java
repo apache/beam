@@ -63,8 +63,9 @@ public class BitSetCoder extends AtomicCoder<BitSet> {
         this, "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
   }
 
+  /** {@inheritDoc} */
   @Override
-  public boolean consistentWithEquals() {
-    return true;
+  public Object structuralValue(BitSet value) {
+    return value;
   }
 }
