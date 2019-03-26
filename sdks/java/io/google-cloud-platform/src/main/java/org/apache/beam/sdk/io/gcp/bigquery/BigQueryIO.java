@@ -1618,7 +1618,7 @@ public class BigQueryIO {
       return toBuilder().setIgnoreUnknownValues(true).build();
     }
 
-    Write<T> withKmsKey(String kmsKey) {
+    public Write<T> withKmsKey(String kmsKey) {
       return toBuilder().setKmsKey(kmsKey).build();
     }
 
