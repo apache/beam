@@ -221,8 +221,7 @@ public class CassandraIOTest implements Serializable {
     CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(read, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
     // the size is non determanistic in Cassandra backend
-//    assertTrue((estimatedSizeBytes >= 4608L * 0.9f) && (estimatedSizeBytes <= 4608L * 1.1f));
-    assertEquals(543543L, estimatedSizeBytes);
+    assertTrue((estimatedSizeBytes >= 12960L * 0.9f) && (estimatedSizeBytes <= 12960L * 1.1f));
   }
 
   @Test
@@ -440,12 +439,12 @@ public class CassandraIOTest implements Serializable {
     CassandraIO.CassandraSource<Scientist> initialSource =
         new CassandraIO.CassandraSource<>(read, Collections.singletonList(splitQuery));
 
-    int desiredBundleSizeBytes = 2000;
+    int desiredBundleSizeBytes = 2048;
     List<BoundedSource<Scientist>> splits = initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
-    int expectedNumSplits =
-        (int) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
-    assertEquals(expectedNumSplits, splits.size());
+    float expectedNumSplitsloat = (float) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
+    int expectedNumSplits = (int) Math.ceil(expectedNumSplitsloat);
+    assertEquals("Wrong number of splits", expectedNumSplits, splits.size());
     int nonEmptySplits = 0;
     for (BoundedSource<Scientist> subSource : splits) {
       if (readFromSource(subSource, options).size() > 0) {
