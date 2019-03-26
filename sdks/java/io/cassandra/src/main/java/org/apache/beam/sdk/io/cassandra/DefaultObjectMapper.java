@@ -33,7 +33,7 @@ class DefaultObjectMapper<T> implements Mapper<T>, Serializable {
 
   private transient com.datastax.driver.mapping.Mapper<T> mapper;
 
-  public DefaultObjectMapper(com.datastax.driver.mapping.Mapper mapper) {
+  DefaultObjectMapper(com.datastax.driver.mapping.Mapper mapper) {
     this.mapper = mapper;
   }
 
