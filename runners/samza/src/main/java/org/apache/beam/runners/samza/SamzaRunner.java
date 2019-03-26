@@ -60,9 +60,14 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   }
 
   private final SamzaPipelineOptions options;
+  private final SamzaPipelineLifeCycleListener listener;
 
   private SamzaRunner(SamzaPipelineOptions options) {
     this.options = options;
+    final Iterator<SamzaPipelineLifeCycleListener.Registrar> listenerReg =
+        ServiceLoader.load(SamzaPipelineLifeCycleListener.Registrar.class).iterator();
+    this.listener =
+        listenerReg.hasNext() ? Iterators.getOnlyElement(listenerReg).getLifeCycleListener() : null;
   }
 
   public SamzaPipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
@@ -71,6 +76,10 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);
+
+    if (listener != null) {
+      listener.onInit(config);
+    }
 
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
     final StreamApplication app =
@@ -104,6 +113,10 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);
+
+    if (listener != null) {
+      listener.onInit(config);
+    }
 
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
     final Map<String, MetricsReporterFactory> reporterFactories = getMetricsReporters();
@@ -139,19 +152,12 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
       StreamApplication app, Config config, SamzaExecutionContext executionContext) {
 
     final ApplicationRunner runner = ApplicationRunners.getApplicationRunner(app, config);
-
-    final Iterator<SamzaPipelineLifeCycleListener.Registrar> listenerReg =
-        ServiceLoader.load(SamzaPipelineLifeCycleListener.Registrar.class).iterator();
-
-    final SamzaPipelineLifeCycleListener listener =
-        listenerReg.hasNext() ? Iterators.getOnlyElement(listenerReg).getLifeCycleListener() : null;
-
     final SamzaPipelineResult result =
         new SamzaPipelineResult(app, runner, executionContext, listener);
 
     ExternalContext externalContext = null;
     if (listener != null) {
-      externalContext = listener.onStart(config);
+      externalContext = listener.onStart();
     }
 
     runner.run(externalContext);

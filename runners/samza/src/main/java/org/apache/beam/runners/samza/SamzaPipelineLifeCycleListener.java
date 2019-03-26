@@ -22,9 +22,11 @@ import org.apache.samza.context.ExternalContext;
 
 /** Life cycle listener for a Samza pipeline during runtime. */
 public interface SamzaPipelineLifeCycleListener {
+  /** Callback when the pipeline options is created. */
+  void onInit(Config config);
 
   /** Callback when the pipeline is started. */
-  ExternalContext onStart(Config config);
+  ExternalContext onStart();
 
   /**
    * Callback after the pipeline is submmitted. This will be invoked only for Samza jobs submitted
