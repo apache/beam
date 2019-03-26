@@ -41,9 +41,11 @@ builder.build {
         checkStyle {
           pattern('**/build/reports/checkstyle/*.xml')
         }
-        spotbugs {
-          pattern('**/build/reports/spotbugs/*.xml')
-        }
+        configure { node ->
+          node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
+            pattern('**/build/reports/spotbugs/*.xml')
+          }
+       }
       }
       enabledForFailure(true)
     }
