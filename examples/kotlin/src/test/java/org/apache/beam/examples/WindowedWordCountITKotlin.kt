@@ -52,7 +52,7 @@ import java.util.concurrent.ThreadLocalRandom
 
 /** End-to-end integration test of [WindowedWordCount].  */
 @RunWith(JUnit4::class)
-class WindowedWordCountIT {
+class WindowedWordCountITKotlin {
 
     @Rule
     var testName = TestName()
@@ -102,7 +102,7 @@ class WindowedWordCountIT {
         options.output = FileSystems.matchNewResource(options.tempRoot, true)
                 .resolve(
                         String.format(
-                                "WindowedWordCountIT.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",
+                                "WindowedWordCountITKotlin.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",
                                 testName.methodName, Date(), ThreadLocalRandom.current().nextInt()),
                         StandardResolveOptions.RESOLVE_DIRECTORY)
                 .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)

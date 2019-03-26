@@ -46,7 +46,7 @@ import org.mockito.Mockito;
  * testable. This test file should be maintained with a copy of its code for a basic smoke test.
  */
 @RunWith(JUnit4.class)
-public class MinimalWordCountTest implements Serializable {
+public class MinimalWordCountTestKotlin implements Serializable {
 
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
