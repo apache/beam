@@ -102,13 +102,11 @@ public class CassandraIOTest implements Serializable {
   private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
   private static final int JMX_PORT = 7199;
-  private static final long SIZE_ESTIMATES_UPDATE_INTERVAL = 5000L;
-  private static final long STARTUP_TIMEOUT = 45000L;
   private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
+  private static final int FLUSH_TIMEOUT = 30000;
 
   private static Cluster cluster;
   private static Session session;
-  private static long startupTime;
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -116,8 +114,6 @@ public class CassandraIOTest implements Serializable {
 
   @BeforeClass
   public static void startCassandra() throws Exception {
-    startupTime = System.currentTimeMillis();
-
     shutdownHook = new CassandraShutDownHook();
     // randomized port at startup
     String data = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "data").getPath();
@@ -207,9 +203,7 @@ public class CassandraIOTest implements Serializable {
         JMX.newMBeanProxy(mBeanServerConnection, objectName, StorageServiceMBean.class);
     mBeanProxy.forceKeyspaceFlush(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
     jmxConnector.close();
-    // same method of waiting than cassandra spark connector
-    long initialDelay = Math.max(startupTime + STARTUP_TIMEOUT - System.currentTimeMillis(), 0L);
-    Thread.sleep(initialDelay + 2 * SIZE_ESTIMATES_UPDATE_INTERVAL);
+    Thread.sleep(FLUSH_TIMEOUT);
   }
 
   @Test
@@ -442,7 +436,6 @@ public class CassandraIOTest implements Serializable {
     String splitQuery = QueryBuilder.select().from(CASSANDRA_KEYSPACE, CASSANDRA_TABLE).toString();
     CassandraIO.CassandraSource<Scientist> initialSource =
         new CassandraIO.CassandraSource<>(read, Collections.singletonList(splitQuery));
-
     int desiredBundleSizeBytes = 2048;
     List<BoundedSource<Scientist>> splits = initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
@@ -459,7 +452,6 @@ public class CassandraIOTest implements Serializable {
         "There are too many empty splits, parallelism is sub-optimal",
         emptySplits,
         lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
-    LOGGER.info("*** after search empty splits : {}", Instant.now());
   }
 
   private List<Row> getRows() {
