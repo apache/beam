@@ -98,7 +98,7 @@ public class CassandraIOTest implements Serializable {
   private static final String CASSANDRA_TABLE = "scientist";
   private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
-  private static final String JMX_PORT = "7199";
+  private static final int JMX_PORT = 7199;
   private static final long SIZE_ESTIMATES_UPDATE_INTERVAL = 5000L;
   private static final long STARTUP_TIMEOUT = 45000L;
 
@@ -112,9 +112,6 @@ public class CassandraIOTest implements Serializable {
 
   @BeforeClass
   public static void startCassandra() throws Exception {
-    //TODO test when JMX is fixed (PR https://github.com/doanduyhai/Achilles/pull/361)
-//    System.setProperty("cassandra.jmx.local.port", JMX_PORT);
-//    System.setProperty("LOCAL_JMX", "yes");
     startupTime = System.currentTimeMillis();
 
     shutdownHook = new CassandraShutDownHook();
@@ -132,6 +129,7 @@ public class CassandraIOTest implements Serializable {
         .withHintsFolder(hints)
         .withSavedCachesFolder(savedCache)
         .withShutdownHook(shutdownHook)
+        .withJMXPort(JMX_PORT)
         .buildNativeCluster();
 
     session = CassandraIOTest.cluster.newSession();
@@ -180,8 +178,7 @@ public class CassandraIOTest implements Serializable {
               CASSANDRA_KEYSPACE,
               CASSANDRA_TABLE));
     }
-    //TODO test when JMX is fixed (PR https://github.com/doanduyhai/Achilles/pull/361)
-    //    flushMemTables();
+    flushMemTables();
   }
 
   /**
