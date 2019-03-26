@@ -347,16 +347,21 @@ class BigQueryWrapper(object):
             jobReference=reference))
 
     response = self.client.jobs.Insert(request)
-    return response.jobReference.jobId
+    return response.jobReference.jobId, response.jobReference.location
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_query_results(self, project_id, job_id,
-                         page_token=None, max_results=10000):
-    request = bigquery.BigqueryJobsGetQueryResultsRequest(
-        jobId=job_id, pageToken=page_token, projectId=project_id,
-        maxResults=max_results)
+                         page_token=None, max_results=10000, location=None):
+    if location:
+      request = bigquery.BigqueryJobsGetQueryResultsRequest(
+          jobId=job_id, pageToken=page_token, projectId=project_id,
+          maxResults=max_results, location=location)
+    else:
+      request = bigquery.BigqueryJobsGetQueryResultsRequest(
+          jobId=job_id, pageToken=page_token, projectId=project_id,
+          maxResults=max_results)
     response = self.client.jobs.GetQueryResults(request)
     return response
 
@@ -649,7 +654,7 @@ class BigQueryWrapper(object):
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
-    job_id = self._start_query_job(project_id, query, use_legacy_sql,
+    job_id, location = self._start_query_job(project_id, query, use_legacy_sql,
                                    flatten_results, job_id=uuid.uuid4().hex,
                                    dry_run=dry_run)
     if dry_run:
@@ -658,7 +663,7 @@ class BigQueryWrapper(object):
       return
     page_token = None
     while True:
-      response = self._get_query_results(project_id, job_id, page_token)
+      response = self._get_query_results(project_id, job_id, page_token, location)
       if not response.jobComplete:
         # The jobComplete field can be False if the query request times out
         # (default is 10 seconds). Note that this is a timeout for the query
