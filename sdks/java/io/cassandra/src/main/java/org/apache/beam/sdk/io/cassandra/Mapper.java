@@ -20,19 +20,17 @@ package org.apache.beam.sdk.io.cassandra;
 import com.datastax.driver.core.ResultSet;
 import java.util.Iterator;
 import java.util.concurrent.Future;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
- * The default behavior of {@link CassandraIO} is to use {@link DefaultObjectMapper} which in turn
- * uses <a
- * href="https://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper">Cassandra
- * Object Mapper</a> to map POJOs to CRUD events in Cassandra. This interface allows you to
- * implement a custom mapper.
+ * This interface allows you to implement a custom mapper to read and persist elements from/to
+ * Cassandra.
  *
- * <p>To Implement a custom mapper you need to: <br>
- * 1) Create a concrete implementation of {@link Mapper} <br>
- * 2) Create a factory that implements SerializableFunction as in (see {@link
- * DefaultObjectMapperFactory}) <br>
- * 3) Pass the mapper-factory in 2) through withMapperFactoryFn() in the CassandraIO builder.
+ * <p>To Implement a custom mapper you need to: 1) Create an implementation of {@link Mapper}. 2)
+ * Create a {@link SerializableFunction} that instantiates the {@link Mapper} for a given Session,
+ * for an example see {@link DefaultObjectMapperFactory}). 3) Pass this function to {@link
+ * CassandraIO.Read#withMapperFactoryFn(SerializableFunction)} in the CassandraIO builder. <br>
  * Example:
  *
  * <pre>{@code
@@ -43,24 +41,22 @@ import java.util.concurrent.Future;
  *        .withMapperFactoryFn(factory));
  * }</pre>
  */
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public interface Mapper<T> {
 
   /**
-   * This method is called when reading data from Cassandra. The resultset will contain a subset of
-   * rows from the table specified in {@link CassandraIO}. If a where-clause is specified through
-   * withWhere() in {@link CassandraIO} the rows in the resultset would also be filtered given by
-   * the provided where statement.
+   * This method is called when reading data from Cassandra. It should map a ResultSet into the
+   * corresponding Java objects.
    *
-   * @param resultSet A resultset containing rows given by withTable() and withWhere() specified in
-   *     {@link CassandraIO}.
-   * @return Return an iterator containing the objects that you want to provide to your downstream
-   *     Beam pipeline.
+   * @param resultSet A resultset containing rows.
+   * @return An iterator containing the objects that you want to provide to your downstream
+   *     pipeline.
    */
   Iterator<T> map(ResultSet resultSet);
 
   /**
-   * This method gets called for each delete event. The input argument is the Object that should be
-   * deleted in Cassandra. The return value should be a future that completes when the delete action
+   * This method is called for each delete event. The input argument is the Object that should be
+   * deleted in Cassandra. The return value should be a Future that completes when the delete action
    * is completed.
    *
    * @param entity Entity to be deleted.
@@ -68,7 +64,7 @@ public interface Mapper<T> {
   Future<Void> deleteAsync(T entity);
 
   /**
-   * This method gets called for each save event. The input argument is the Object that should be
+   * This method is called for each save event. The input argument is the Object that should be
    * saved or updated in Cassandra. The return value should be a future that completes when the save
    * action is completed.
    *

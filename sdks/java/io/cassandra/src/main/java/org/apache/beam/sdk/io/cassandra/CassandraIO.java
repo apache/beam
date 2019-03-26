@@ -384,10 +384,9 @@ public class CassandraIO {
 
       abstract Optional<SerializableFunction<Session, Mapper>> mapperFactoryFn();
 
-      abstract Read<T> autoBuild(); // not public
+      abstract Read<T> autoBuild();
 
       public Read<T> build() {
-
         if (!mapperFactoryFn().isPresent() && entity().isPresent()) {
           setMapperFactoryFn(new DefaultObjectMapperFactory(entity().get()));
         }
