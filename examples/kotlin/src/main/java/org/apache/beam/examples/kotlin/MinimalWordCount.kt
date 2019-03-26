@@ -108,7 +108,7 @@ public object MinimalWordCount {
                 // printable string, suitable for writing to an output file.
                 .apply(
                         MapElements.into(TypeDescriptors.strings())
-                                .via(ProcessFunction<KV<String, Long>, String> { input -> "${input?.key} : ${input?.value}" })
+                                .via(ProcessFunction<KV<String, Long>, String> { input -> "${input.key} : ${input.value}" })
                 )
                 // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
                 // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
