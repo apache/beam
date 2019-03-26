@@ -43,18 +43,6 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
 
   void setNumberOfShards(@Nullable Integer value);
 
-  @Description("BigQuery dataset to publish results to.")
-  @Nullable
-  String getBigQueryDataset();
-
-  void setBigQueryDataset(@Nullable String dataset);
-
-  @Description("BigQuery table to publish results to.")
-  @Nullable
-  String getBigQueryTable();
-
-  void setBigQueryTable(@Nullable String tableName);
-
   @Description("Option to report GCS performance metrics")
   @Default.Boolean(false)
   boolean getReportGcsPerformanceMetrics();
