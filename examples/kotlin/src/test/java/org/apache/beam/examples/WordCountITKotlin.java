@@ -33,7 +33,7 @@ import org.junit.runners.JUnit4;
 
 /** End-to-end tests of WordCount. */
 @RunWith(JUnit4.class)
-public class WordCountIT {
+public class WordCountITKotlin {
   private static final String DEFAULT_INPUT =
       "gs://apache-beam-samples/shakespeare/winterstale-personae";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "ebf895e7324e8a3edc72e7bcc96fa2ba7f690def";
@@ -59,7 +59,7 @@ public class WordCountIT {
     options.setOutput(
         FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
-                String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                String.format("WordCountITKotlin-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
                 StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", StandardResolveOptions.RESOLVE_FILE)

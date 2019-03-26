@@ -30,7 +30,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link org.apache.beam.examples.kotlin.DebuggingWordCount}. */
 @RunWith(JUnit4.class)
-public class DebuggingWordCountTest {
+public class DebuggingWordCountTestKotlin {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private String getFilePath(String filePath) {
