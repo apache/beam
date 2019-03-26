@@ -99,7 +99,7 @@ public class FlatMapTest {
             .eventTimeBy(in -> System.currentTimeMillis(), Duration.millis(100))
             .output();
     final FlatMap map = (FlatMap) TestUtils.getProducer(mapped);
-    assertEquals(100, map.getAllowedTimestampSkew());
+    assertEquals(100, map.getAllowedTimestampSkew().getMillis());
   }
 
   @Test
@@ -111,6 +111,6 @@ public class FlatMapTest {
             .eventTimeBy(in -> System.currentTimeMillis())
             .output();
     final FlatMap map = (FlatMap) TestUtils.getProducer(mapped);
-    assertEquals(Long.MAX_VALUE, map.getAllowedTimestampSkew());
+    assertEquals(Long.MAX_VALUE, map.getAllowedTimestampSkew().getMillis());
   }
 }
