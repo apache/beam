@@ -221,7 +221,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
   @unittest.skipIf(sys.version_info >= (3, 6, 0) and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.')
+                   'This test still needs to be fixed on Python 3.6.'
+                   'See BEAM-6878')
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
