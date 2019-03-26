@@ -46,6 +46,8 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core
+
   // for embedded cassandra
   testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
+  testCompile library.java.jackson_jaxb_annotations
 }
