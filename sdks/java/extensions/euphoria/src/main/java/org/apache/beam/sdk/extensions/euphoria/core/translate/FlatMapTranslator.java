@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -51,7 +52,8 @@ public class FlatMapTranslator<InputT, OutputT>
             operator.getName().orElse(null),
             operator.getFunctor(),
             accumulators,
-            operator.getEventTimeExtractor().orElse(null));
+            operator.getEventTimeExtractor().orElse(null),
+            operator.getAllowedTimestampSkew());
     return PCollectionLists.getOnlyElement(inputs)
         .apply("mapper", ParDo.of(mapper))
         .setTypeDescriptor(TypeAwareness.orObjects(operator.getOutputType()));
@@ -61,15 +63,19 @@ public class FlatMapTranslator<InputT, OutputT>
 
     private final UnaryFunctor<InputT, OutputT> mapper;
     private final AdaptableCollector<InputT, OutputT, OutputT> collector;
+    private final Duration timestampSkew;
 
     Mapper(
         @Nullable String operatorName,
         UnaryFunctor<InputT, OutputT> mapper,
         AccumulatorProvider accumulators,
-        @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
+        @Nullable ExtractEventTime<InputT> eventTimeExtractor,
+        Duration timestampSkew) {
+
       this.mapper = mapper;
       this.collector =
           new AdaptableCollector<>(accumulators, operatorName, new Collector<>(eventTimeExtractor));
+      this.timestampSkew = timestampSkew;
     }
 
     @ProcessElement
@@ -77,6 +83,11 @@ public class FlatMapTranslator<InputT, OutputT>
     public void processElement(ProcessContext ctx) {
       collector.setProcessContext(ctx);
       mapper.apply(ctx.element(), collector);
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return timestampSkew;
     }
   }
 
