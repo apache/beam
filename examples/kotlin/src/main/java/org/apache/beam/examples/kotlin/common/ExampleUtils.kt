@@ -52,8 +52,12 @@ import java.util.concurrent.TimeUnit
 class ExampleUtils
 /** Do resources and runner options setup.  */
 (private val options: PipelineOptions) {
-    private var bigQueryClient: Bigquery? = null
-    private var pubsubClient: Pubsub? = null
+    private val bigQueryClient: Bigquery by lazy {
+        newBigQueryClient(options as BigQueryOptions).build()
+    }
+    private val pubsubClient: Pubsub by lazy {
+        newPubsubClient(options as PubsubOptions).build()
+    }
     private val pipelinesToCancel = Sets.newHashSet<PipelineResult>()
     private val pendingMessages = Lists.newArrayList<String>()
 
@@ -192,11 +196,8 @@ class ExampleUtils
     @Throws(IOException::class)
     private fun setupBigQueryTable(
             projectId: String, datasetId: String, tableId: String, schema: TableSchema) {
-        if (bigQueryClient == null) {
-            bigQueryClient = newBigQueryClient(options as BigQueryOptions).build()
-        }
 
-        val datasetService = bigQueryClient!!.datasets()
+        val datasetService = bigQueryClient.datasets()
         if (executeNullIfNotFound(datasetService.get(projectId, datasetId)) == null) {
             val newDataset = Dataset()
                     .setDatasetReference(
@@ -204,7 +205,7 @@ class ExampleUtils
             datasetService.insert(projectId, newDataset).execute()
         }
 
-        val tableService = bigQueryClient!!.tables()
+        val tableService = bigQueryClient.tables()
         val table = executeNullIfNotFound(tableService.get(projectId, datasetId, tableId))
         if (table == null) {
             val newTable = Table()
@@ -228,23 +229,13 @@ class ExampleUtils
 
     @Throws(IOException::class)
     private fun setupPubsubTopic(topic: String) {
-        if (pubsubClient == null) {
-            pubsubClient = newPubsubClient(options as PubsubOptions).build()
-        }
-        if (executeNullIfNotFound(pubsubClient!!.projects().topics().get(topic)) == null) {
-            pubsubClient!!.projects().topics().create(topic, Topic().setName(topic)).execute()
-        }
+        pubsubClient.projects().topics().create(topic, Topic().setName(topic)).execute()
     }
 
     @Throws(IOException::class)
     private fun setupPubsubSubscription(topic: String, subscription: String) {
-        if (pubsubClient == null) {
-            pubsubClient = newPubsubClient(options as PubsubOptions).build()
-        }
-        if (executeNullIfNotFound(pubsubClient!!.projects().subscriptions().get(subscription)) == null) {
-            val subInfo = Subscription().setAckDeadlineSeconds(60).setTopic(topic)
-            pubsubClient!!.projects().subscriptions().create(subscription, subInfo).execute()
-        }
+        val subInfo = Subscription().setAckDeadlineSeconds(60).setTopic(topic)
+        pubsubClient.projects().subscriptions().create(subscription, subInfo).execute()
     }
 
     /**
@@ -254,11 +245,8 @@ class ExampleUtils
      */
     @Throws(IOException::class)
     private fun deletePubsubTopic(topic: String) {
-        if (pubsubClient == null) {
-            pubsubClient = newPubsubClient(options as PubsubOptions).build()
-        }
-        if (executeNullIfNotFound(pubsubClient!!.projects().topics().get(topic)) != null) {
-            pubsubClient!!.projects().topics().delete(topic).execute()
+        if (executeNullIfNotFound(pubsubClient.projects().topics().get(topic)) != null) {
+            pubsubClient.projects().topics().delete(topic).execute()
         }
     }
 
@@ -269,11 +257,8 @@ class ExampleUtils
      */
     @Throws(IOException::class)
     private fun deletePubsubSubscription(subscription: String) {
-        if (pubsubClient == null) {
-            pubsubClient = newPubsubClient(options as PubsubOptions).build()
-        }
-        if (executeNullIfNotFound(pubsubClient!!.projects().subscriptions().get(subscription)) != null) {
-            pubsubClient!!.projects().subscriptions().delete(subscription).execute()
+        if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) != null) {
+            pubsubClient.projects().subscriptions().delete(subscription).execute()
         }
     }
 
