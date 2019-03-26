@@ -23,7 +23,9 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getEs
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getRingFraction;
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMurmur3Partitioner;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertNull;
 
 import com.datastax.driver.core.Cluster;
@@ -39,6 +41,7 @@ import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
 import info.archinnov.achilles.embedded.CassandraShutDownHook;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -101,6 +104,7 @@ public class CassandraIOTest implements Serializable {
   private static final int JMX_PORT = 7199;
   private static final long SIZE_ESTIMATES_UPDATE_INTERVAL = 5000L;
   private static final long STARTUP_TIMEOUT = 45000L;
+  private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
 
   private static Cluster cluster;
   private static Session session;
@@ -445,13 +449,17 @@ public class CassandraIOTest implements Serializable {
     float expectedNumSplitsloat = (float) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
     int expectedNumSplits = (int) Math.ceil(expectedNumSplitsloat);
     assertEquals("Wrong number of splits", expectedNumSplits, splits.size());
-    int nonEmptySplits = 0;
+    int emptySplits = 0;
     for (BoundedSource<Scientist> subSource : splits) {
-      if (readFromSource(subSource, options).size() > 0) {
-        nonEmptySplits += 1;
+      if (readFromSource(subSource, options).isEmpty()) {
+        emptySplits += 1;
       }
     }
-    assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
+    assertThat(
+        "There are too many empty splits, parallelism is sub-optimal",
+        emptySplits,
+        lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
+    LOGGER.info("*** after search empty splits : {}", Instant.now());
   }
 
   private List<Row> getRows() {
