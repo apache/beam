@@ -58,8 +58,8 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.18.0"
-def avatica_version = "1.12.0"
+def calcite_version = "1.19.0"
+def avatica_version = "1.13.0"
 def hive_version = "2.1.0"
 def netty_version = "4.1.30.Final"
 
@@ -113,8 +113,8 @@ dependencies {
   permitUnusedDeclared library.java.jackson_dataformat_yaml
 
   // Dependencies that are bundled in when we bundle Calcite
-  permitUsedUndeclared "org.codehaus.janino:janino:3.0.9"
-  permitUsedUndeclared "org.codehaus.janino:commons-compiler:3.0.9"
+  permitUsedUndeclared "org.codehaus.janino:janino:3.0.11"
+  permitUsedUndeclared "org.codehaus.janino:commons-compiler:3.0.11"
 
   // Dependencies where one or the other appears "used" depending on classpath,
   // but it doesn't matter which is used
