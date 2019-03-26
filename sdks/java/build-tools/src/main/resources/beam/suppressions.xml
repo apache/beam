@@ -78,7 +78,6 @@
 
   <!-- Guava use exceptions -->
   <!-- Non-vendored guava imports are allowed for files that depend on libraries that expose guava in its public API -->
-  <suppress id="ForbidNonVendoredGuava" files=".*cassandra.*CassandraIO\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisIO\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisProducerMock\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*VendoredListenableFutureAdapter\.java" />
