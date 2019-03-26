@@ -28,6 +28,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -95,7 +96,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     /**
      * @param fn the event time extraction function
      * @param allowedTimestampSkew allowed timestamp skew when assigning timestamps back in time
-     *     {@see DoFn#getAllowedTimestampSkew}.
+     *     {@link DoFn#getAllowedTimestampSkew}.
      * @return the next builder to complete the setup
      * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
      */
