@@ -138,6 +138,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options import value_provider as vp
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -678,6 +679,8 @@ class BigQueryWriteFn(DoFn):
           bigquery_tools.parse_table_reference(destination),
           schema)
 
+    destination = bigquery_tools.get_hashable_destination(destination)
+
     row = element[1]
     self._rows_buffer[destination].append(row)
     self._total_buffered_rows += 1
@@ -933,19 +936,34 @@ bigquery_v2_messages.TableSchema):
     else:
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
-  def expand(self, pcoll):
-    p = pcoll.pipeline
+  def _compute_method(self, pipeline, options):
+    experiments = options.view_as(DebugOptions).experiments or []
 
     # TODO(pabloem): Use a different method to determine if streaming or batch.
-    standard_options = p.options.view_as(StandardOptions)
+    streaming_pipeline = pipeline.options.view_as(StandardOptions).streaming
+
+    # If the new BQ sink is not activated for experiment flags, then we use
+    # streaming inserts by default (it gets overridden in dataflow_runner.py).
+    if 'new_bq_sink' not in experiments:
+      return self.Method.STREAMING_INSERTS
+    elif self.method == self.Method.DEFAULT and streaming_pipeline:
+      return self.Method.STREAMING_INSERTS
+    elif self.method == self.Method.DEFAULT and not streaming_pipeline:
+      return self.Method.FILE_LOADS
+    else:
+      return self.method
+
+  def expand(self, pcoll):
+    p = pcoll.pipeline
 
     if (isinstance(self.table_reference, bigquery.TableReference)
         and self.table_reference.projectId is None):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
 
-    if (standard_options.streaming or
-        self.method == WriteToBigQuery.Method.STREAMING_INSERTS):
+    method_to_use = self._compute_method(p, p.options)
+
+    if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
       # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
           batch_size=self.batch_size,
@@ -964,7 +982,7 @@ bigquery_v2_messages.TableSchema):
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
-      if standard_options.streaming:
+      if p.options.view_as(StandardOptions).streaming:
         raise NotImplementedError(
             'File Loads to BigQuery are only supported on Batch pipelines.')
 

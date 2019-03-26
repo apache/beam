@@ -75,6 +75,15 @@ def default_encoder(obj):
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
 
 
+def get_hashable_destination(destination):
+  """Takes in a TableReference or string destination, and returns a string."""
+  if isinstance(destination, bigquery.TableReference):
+    return '%s:%s.%s' % (
+        destination.projectId, destination.datasetId, destination.tableId)
+  else:
+    return destination
+
+
 def parse_table_schema_from_json(schema_string):
   """Parse the Table Schema provided as string.
 

@@ -23,6 +23,7 @@ to the Dataflow Service for remote execution by a worker.
 from __future__ import absolute_import
 from __future__ import division
 
+import json
 import logging
 import threading
 import time
@@ -589,6 +590,32 @@ class DataflowRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+
+  def apply_WriteToBigQuery(self, transform, pcoll, options):
+    # Make sure this is the WriteToBigQuery class that we expected, and that
+    # users did not specifically request the new BQ sink by passing experiment
+    # flag.
+    experiments = options.view_as(DebugOptions).experiments or []
+    if (not isinstance(transform, beam.io.WriteToBigQuery)
+        or 'new_bq_sink' in experiments):
+      return self.apply_PTransform(transform, pcoll, options)
+    standard_options = options.view_as(StandardOptions)
+    if standard_options.streaming:
+      if (transform.write_disposition ==
+          beam.io.BigQueryDisposition.WRITE_TRUNCATE):
+        raise RuntimeError('Can not use write truncation mode in streaming')
+      return self.apply_PTransform(transform, pcoll, options)
+    else:
+      from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+      return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
+          beam.io.BigQuerySink(
+              transform.table_reference.tableId,
+              transform.table_reference.datasetId,
+              transform.table_reference.projectId,
+              parse_table_schema_from_json(json.dumps(transform.schema)),
+              transform.create_disposition,
+              transform.write_disposition,
+              kms_key=transform.kms_key))
 
   def apply_GroupByKey(self, transform, pcoll, options):
     # Infer coder of parent.
