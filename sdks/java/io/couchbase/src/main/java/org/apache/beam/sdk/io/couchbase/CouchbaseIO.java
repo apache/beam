@@ -53,6 +53,19 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link CouchbaseIO} provides a source to read data and returns a bounded set of JsonDocument.
  * The {@link JsonDocument} is the JSON form of Couchbase document.
+ *
+ * <p>The following example illustrates various options for configuring the IO:
+ *
+ * <pre>{@code
+ *  pipeline.apply(
+ *             CouchbaseIO.read()
+ *                 .withHosts(Arrays.asList("host1", "host2"))
+ *                 .withHttpPort(8091) // Optional
+ *                 .withCarrierPort(11210) // Optional
+ *                 .withBucket("bucket1")
+ *                 .withPassword("pwd")) // Bucket-level password
+ *
+ *  }</pre>
  */
 public class CouchbaseIO {
 
