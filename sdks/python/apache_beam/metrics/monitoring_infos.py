@@ -43,7 +43,7 @@ TOTAL_MSECS_URN = common_urns.monitoring_infos.TOTAL_MSECS.urn
 USER_COUNTER_URN_PREFIX = (
     common_urns.monitoring_infos.USER_COUNTER_URN_PREFIX.urn)
 USER_DISTRIBUTION_COUNTER_URN_PREFIX = (
-    common_urns.monitoring_infos.USER_DISTRUBUTION_COUNTER_URN_PREFIX.urn)
+    common_urns.monitoring_infos.USER_DISTRIBUTION_COUNTER_URN_PREFIX.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:

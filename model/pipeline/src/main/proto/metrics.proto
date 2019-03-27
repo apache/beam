@@ -59,7 +59,7 @@ message Annotation {
 // MonitoringInfo protos.
 message MonitoringInfoSpecs {
   enum Enum {
-    // TODO(ajamato): Add the PTRANSFORM name as a required label after
+    // TODO(BEAM-6926): Add the PTRANSFORM name as a required label after
     // upgrading the python SDK.
     USER_COUNTER = 0 [(monitoring_info_spec) = {
       urn: "beam:metric:user:",
@@ -119,7 +119,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    // TODO(ajamato): Add the PTRANSFORM name as a required label after
+    // TODO(BEAM-6926): Add the PTRANSFORM name as a required label after
     // upgrading the python SDK.
     USER_DISTRIBUTION_COUNTER = 6 [(monitoring_info_spec) = {
       urn: "beam:metric:user_distribution:",
@@ -212,7 +212,7 @@ message MonitoringInfoUrns {
         [(org.apache.beam.model.pipeline.v1.beam_urn) =
              "beam:metric:ptransform_execution_time:total_msecs:v1"];
 
-    USER_DISTRUBUTION_COUNTER_URN_PREFIX = 6
+    USER_DISTRIBUTION_COUNTER_URN_PREFIX = 6
         [(org.apache.beam.model.pipeline.v1.beam_urn) =
             "beam:metric:user_distribution:"];
   }

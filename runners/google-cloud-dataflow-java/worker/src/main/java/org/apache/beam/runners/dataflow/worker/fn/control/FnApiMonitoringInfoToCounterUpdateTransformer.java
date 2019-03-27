@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
@@ -71,6 +72,7 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
   }
 
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo src) {
     String urn = src.getUrn();
     if (urn.startsWith(userCounterTransformer.getSupportedUrnPrefix())) {

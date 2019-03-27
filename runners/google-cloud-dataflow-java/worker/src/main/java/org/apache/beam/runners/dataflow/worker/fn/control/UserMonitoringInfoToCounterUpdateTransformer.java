@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs.Enum;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
@@ -87,6 +88,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
    * @return Relevant CounterUpdate or null if transformation failed.
    */
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {

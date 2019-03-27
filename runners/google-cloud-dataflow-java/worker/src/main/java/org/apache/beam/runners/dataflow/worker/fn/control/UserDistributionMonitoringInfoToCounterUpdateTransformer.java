@@ -26,6 +26,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs.Enum;
@@ -93,6 +94,7 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
    * @return Relevant CounterUpdate or null if transformation failed.
    */
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
@@ -111,6 +113,7 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
     String nameWithNamespace =
         urn.substring(BEAM_METRICS_USER_DISTRIBUTION_PREFIX.length()).replace("^:", "");
 
+    // TODO(BEAM-6925) Extract common logic to separate class.
     final int lastColonIndex = nameWithNamespace.lastIndexOf(':');
     String counterName = nameWithNamespace.substring(lastColonIndex + 1);
     String counterNamespace =
