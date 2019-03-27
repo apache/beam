@@ -52,7 +52,7 @@ import org.junit.Test;
 /**
  * Tests for serialization and deserialization of {@link PipelineOptions} in {@link DoFnOperator}.
  */
-public class PipelineOptionsTest {
+public class FlinkPipelineOptionsTest {
 
   /** Pipeline options. */
   public interface MyOptions extends FlinkPipelineOptions {
