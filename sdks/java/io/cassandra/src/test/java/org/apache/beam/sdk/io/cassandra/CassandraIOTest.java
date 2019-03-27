@@ -270,7 +270,7 @@ public class CassandraIOTest implements Serializable {
                 .withTable(CASSANDRA_TABLE)
                 .withCoder(SerializableCoder.of(Scientist.class))
                 .withEntity(Scientist.class)
-                .withWhere("person_id=10"));
+                .withWhere("person_id = 10"));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
 
@@ -278,22 +278,20 @@ public class CassandraIOTest implements Serializable {
   }
 
   @Test
-  public void testCustomQuery() throws Exception {
+  public void testReadWithQuery() throws Exception {
     insertRecords();
 
     PCollection<Scientist> output =
         pipeline.apply(
             CassandraIO.<Scientist>read()
-                .withHosts(pipeline.newProvider(Arrays.asList(CASSANDRA_HOST)))
-                .withPort(pipeline.newProvider(CASSANDRA_PORT))
-                .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
-                .withTable(pipeline.newProvider(CASSANDRA_TABLE))
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(CASSANDRA_PORT)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withTable(CASSANDRA_TABLE)
                 .withQuery(
-                    pipeline.newProvider(
-                        "select person_id, writetime(person_name) from beam_ks.scientist where $CONDITIONS"))
+                    "select person_id, writetime(person_name) from beam_ks.scientist where person_id=10")
                 .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class)
-                .withWhere(pipeline.newProvider("person_id=10")));
+                .withEntity(Scientist.class));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
     PAssert.that(output)
@@ -323,7 +321,7 @@ public class CassandraIOTest implements Serializable {
                 .withTable(pipeline.newProvider(CASSANDRA_TABLE))
                 .withCoder(SerializableCoder.of(Scientist.class))
                 .withEntity(Scientist.class)
-                .withWhere(pipeline.newProvider("person_id=10")));
+                .withWhere(pipeline.newProvider("person_id = 10")));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
 
