@@ -809,7 +809,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         type of the field. Single string based schemas do not support nested
         fields, repeated fields, or specifying a BigQuery mode for fields
         (mode will always be set to ``'NULLABLE'``).
-        If a callable, then it should return a str, dict or TableSchema.
+        If a callable, then it should receive a destination (in the form of
+        a TableReference or a string, and return a str, dict or TableSchema.
       create_disposition (BigQueryDisposition): A string describing what
         happens if the table does not exist. Possible values are:
 
@@ -864,6 +865,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.batch_size = batch_size
     self.kms_key = kms_key
     self.test_client = test_client
+
+    # TODO(pabloem): Consider handling ValueProvider for this location.
     self.custom_gcs_temp_location = custom_gcs_temp_location
     self.max_file_size = max_file_size
     self.max_files_per_bundle = max_files_per_bundle
