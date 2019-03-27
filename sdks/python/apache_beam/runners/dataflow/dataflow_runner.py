@@ -377,9 +377,9 @@ class DataflowRunner(PipelineRunner):
         if ("enable_windmill_service" in debug_options.experiments
             or "enable_streaming_engine" in debug_options.experiments):
           raise ValueError("""Streaming engine both disabled and enabled:
-          enableStreamingEngine is set to false, but enable_windmill_service
+          enable_streaming_engine flag is not set, but enable_windmill_service
           and/or enable_streaming_engine are present. It is recommended you
-          only set enableStreamingEngine.""")
+          only set the enable_streaming_engine flag.""")
 
     # TODO(BEAM-6664): Remove once Dataflow supports --dataflow_kms_key.
     if google_cloud_options.dataflow_kms_key is not None:
