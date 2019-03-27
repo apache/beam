@@ -41,7 +41,6 @@ import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
 import info.archinnov.achilles.embedded.CassandraShutDownHook;
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -69,6 +68,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
@@ -77,7 +77,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.More
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -134,22 +133,23 @@ public class CassandraIOTest implements Serializable {
 
     session = CassandraIOTest.cluster.newSession();
 
-    LOGGER.info("Create Cassandra table");
+    LOGGER.info("Create Cassandra tables");
     session.execute(
         String.format(
             "CREATE TABLE IF NOT EXISTS %s.%s(person_id int, person_name text, PRIMARY KEY"
                 + "(person_id));",
             CASSANDRA_KEYSPACE, CASSANDRA_TABLE));
+    session.execute(
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s.%s(person_id int, person_name text, PRIMARY KEY"
+                + "(person_id));",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE_WRITE));
+    insertRecords();
   }
 
   @AfterClass
   public static void stopCassandra() throws InterruptedException {
       shutdownHook.shutDownNow();
-  }
-
-  @Before
-  public void purgeCassandra() {
-    session.execute(String.format("TRUNCATE TABLE %s.%s", CASSANDRA_KEYSPACE, CASSANDRA_TABLE));
   }
 
   private static void insertRecords() throws Exception {
@@ -208,7 +208,6 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testEstimatedSizeBytes() throws Exception {
-    insertRecords();
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     CassandraIO.Read<Scientist> read =
         CassandraIO.<Scientist>read()
@@ -224,8 +223,6 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testRead() throws Exception {
-    insertRecords();
-
     PCollection<Scientist> output =
         pipeline.apply(
             CassandraIO.<Scientist>read()
@@ -261,8 +258,6 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testReadWithQuery() throws Exception {
-    insertRecords();
-
     PCollection<Scientist> output =
         pipeline.apply(
             CassandraIO.<Scientist>read()
@@ -302,15 +297,17 @@ public class CassandraIOTest implements Serializable {
     pipeline
         .apply(Create.of(data))
         .apply(
-            CassandraIO.<Scientist>write()
+            CassandraIO.<ScientistWrite>write()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
+            CassandraIO.<ScientistWrite>write()
+                .withHosts(Arrays.asList(CASSANDRA_HOST))
                 .withPort(CASSANDRA_PORT)
                 .withKeyspace(CASSANDRA_KEYSPACE)
-                .withEntity(Scientist.class));
-    // table to write to is specified in the entity in @Table annotation (in that cas person)
+                .withEntity(ScientistWrite.class));
+    // table to write to is specified in the entity in @Table annotation (in that case scientist)
     pipeline.run();
 
-    List<Row> results = getRows();
+    List<Row> results = getRows(CASSANDRA_TABLE_WRITE);
     assertEquals(NUM_ROWS, results.size());
     for (Row row : results) {
       assertTrue(row.getString("person_name").matches("Name (\\d*)"));
@@ -420,7 +417,6 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testSplit() throws Exception {
-    insertRecords();
     PipelineOptions options = PipelineOptionsFactory.create();
     CassandraIO.Read<Scientist> read =
         CassandraIO.<Scientist>read()
@@ -464,8 +460,7 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testDelete() throws Exception {
-    insertRecords();
-    List<Row> results = getRows();
+    List<Row> results = getRows(CASSANDRA_TABLE);
     assertEquals(NUM_ROWS, results.size());
 
     Scientist einstein = new Scientist();
@@ -481,8 +476,18 @@ public class CassandraIOTest implements Serializable {
                 .withEntity(Scientist.class));
 
     pipeline.run();
-    results = getRows();
+    results = getRows(CASSANDRA_TABLE);
     assertEquals(NUM_ROWS - 1, results.size());
+    //re-insert suppressed doc to make the test autonomous
+    session.execute(
+        String.format(
+            "INSERT INTO %s.%s(person_id, person_name) values("
+                + einstein.id
+                + ", '"
+                + einstein.name
+                + "');",
+            CASSANDRA_KEYSPACE,
+            CASSANDRA_TABLE));
   }
 
   @Test
@@ -537,9 +542,9 @@ public class CassandraIOTest implements Serializable {
     assertEquals(8000, getEstimatedSizeBytesFromTokenRanges(tokenRanges));
   }
 
-  /** Simple Cassandra entity used in test. */
+  /** Simple Cassandra entity used in read tests. */
   @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
-  static final class Scientist implements Serializable {
+  static class Scientist implements Serializable {
 
     @Column(name = "person_name")
     String name;
@@ -573,4 +578,10 @@ public class CassandraIOTest implements Serializable {
       return Objects.hashCode(name, id);
     }
   }
-}
+
+  private static final String CASSANDRA_TABLE_WRITE = "scientist_write";
+  /** Simple Cassandra entity used in write tests. */
+  @Table(name = CASSANDRA_TABLE_WRITE, keyspace = CASSANDRA_KEYSPACE)
+  static class ScientistWrite extends Scientist {}
+
+  }
