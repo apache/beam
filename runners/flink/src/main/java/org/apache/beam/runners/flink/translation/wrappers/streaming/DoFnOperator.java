@@ -239,7 +239,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
 
     this.maxBundleSize = flinkOptions.getMaxBundleSize();
+    Preconditions.checkArgument(maxBundleSize > 0, "Bundle size must be at least 1");
     this.maxBundleTimeMills = flinkOptions.getMaxBundleTimeMills();
+    Preconditions.checkArgument(maxBundleTimeMills > 0, "Bundle time must be at least 1");
     this.doFnSchemaInformation = doFnSchemaInformation;
 
     this.requiresStableInput =
@@ -414,7 +416,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
     // Schedule timer to check timeout of finish bundle.
-    long bundleCheckPeriod = (maxBundleTimeMills + 1) / 2;
+    long bundleCheckPeriod = Math.max(maxBundleTimeMills / 2, 1);
     checkFinishBundleTimer =
         getProcessingTimeService()
             .scheduleAtFixedRate(
