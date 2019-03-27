@@ -165,9 +165,6 @@ public class CassandraIO {
     abstract ValueProvider<String> consistencyLevel();
 
     @Nullable
-    abstract ValueProvider<String> where();
-
-    @Nullable
     abstract ValueProvider<Integer> minNumberOfSplits();
 
     @Nullable
@@ -290,41 +287,6 @@ public class CassandraIO {
     }
 
     /**
-     * Specify a string with a partial {@code Where} clause. Note: Cassandra places restrictions on
-     * the {@code Where} clause you may use. (e.g. filter on a primary/clustering column only etc.)
-     *
-     * @param where Partial {@code Where} clause. Optional - If unspecified will not filter the
-     *     data.
-     * @see <a href="http://cassandra.apache.org/doc/4.0/cql/dml.html#where-clause">CQL
-     *     Documentation</a>
-     * @throws com.datastax.driver.core.exceptions.InvalidQueryException If {@code Where} clause
-     *     makes the generated query invalid. Please Consult <a
-     *     href="http://cassandra.apache.org/doc/4.0/cql/dml.html#where-clause">CQL
-     *     Documentation</a> for more info on correct usage of the {@code Where} clause.
-     */
-    public Read<T> withWhere(String where) {
-      checkArgument(where != null, "where can not be null");
-      return withWhere(ValueProvider.StaticValueProvider.of(where));
-    }
-
-    /**
-     * Specify a string with a partial {@code Where} clause. Note: Cassandra places restrictions on
-     * the {@code Where} clause you may use. (e.g. filter on a primary/clustering column only etc.)
-     *
-     * @param where Partial {@code Where} clause. Optional - If unspecified will not filter the
-     *     data.
-     * @see <a href="http://cassandra.apache.org/doc/4.0/cql/dml.html#where-clause">CQL
-     *     Documentation</a>
-     * @throws com.datastax.driver.core.exceptions.InvalidQueryException If {@code Where} clause
-     *     makes the generated query invalid. Please Consult <a
-     *     href="http://cassandra.apache.org/doc/4.0/cql/dml.html#where-clause">CQL
-     *     Documentation</a> for more info on correct usage of the {@code Where} clause.
-     */
-    public Read<T> withWhere(ValueProvider<String> where) {
-      return builder().setWhere(where).build();
-    }
-
-    /**
      * It's possible that system.size_estimates isn't populated or that the number of splits
      * computed by Beam is still to low for Cassandra to handle it. This setting allows to enforce a
      * minimum number of splits in case Beam cannot compute it correctly.
@@ -392,8 +354,6 @@ public class CassandraIO {
 
       abstract Builder<T> setConsistencyLevel(ValueProvider<String> consistencyLevel);
 
-      abstract Builder<T> setWhere(ValueProvider<String> where);
-
       abstract Builder<T> setMinNumberOfSplits(ValueProvider<Integer> minNumberOfSplits);
 
       abstract Builder<T> setMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn);
@@ -459,11 +419,7 @@ public class CassandraIO {
 
     private static String buildQuery(Read spec) {
       return (spec.query() == null)
-          ? String.format(
-              "SELECT * FROM %s.%s%s",
-              spec.keyspace().get(),
-              spec.table().get(),
-              (spec.where() == null) ? "" : " WHERE (" + spec.where().get() + ")")
+          ? String.format("SELECT * FROM %s.%s", spec.keyspace().get(), spec.table().get())
           : spec.query().get().toString();
     }
 
@@ -530,7 +486,7 @@ public class CassandraIO {
                       ? null
                       : String.format("(token(%s) < %d)", partitionKey, rangeEnd));
       final String query =
-          (spec.query() == null && spec.where() == null)
+          (spec.query() == null)
               ? buildQuery(spec) + " WHERE " + rangeFilter
               : buildQuery(spec) + " AND " + rangeFilter;
       LOG.debug("CassandraIO generated query : {}", query);

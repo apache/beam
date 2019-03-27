@@ -256,26 +256,6 @@ public class CassandraIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithWhere() throws Exception {
-    insertRecords();
-
-    PCollection<Scientist> output =
-        pipeline.apply(
-            CassandraIO.<Scientist>read()
-                .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
-                .withKeyspace(CASSANDRA_KEYSPACE)
-                .withTable(CASSANDRA_TABLE)
-                .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class)
-                .withWhere("person_id = 10"));
-
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
-
-    pipeline.run();
-  }
-
-  @Test
   public void testReadWithQuery() throws Exception {
     insertRecords();
 
@@ -301,26 +281,6 @@ public class CassandraIOTest implements Serializable {
               }
               return null;
             });
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testReadWithValueProvider() throws Exception {
-    insertRecords();
-
-    PCollection<Scientist> output =
-        pipeline.apply(
-            CassandraIO.<Scientist>read()
-                .withHosts(pipeline.newProvider(Collections.singletonList(CASSANDRA_HOST)))
-                .withPort(pipeline.newProvider(CASSANDRA_PORT))
-                .withKeyspace(pipeline.newProvider(CASSANDRA_KEYSPACE))
-                .withTable(pipeline.newProvider(CASSANDRA_TABLE))
-                .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class)
-                .withWhere(pipeline.newProvider("person_id = 10")));
-
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
 
     pipeline.run();
   }
