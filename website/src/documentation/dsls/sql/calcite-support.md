@@ -117,13 +117,13 @@ The following table describes the Calcite SQL operators and functions supported 
 
 <table class="table-bordered table-striped">
   <tr><th>Operators and functions</th><th>Beam SQL support status</th></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#operator-precedence">Operator precedence</a></td><td>Yes</td</tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#operator-precedence">Operator precedence</a></td><td>Yes</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#comparison-operators">Comparison operators</a></td><td class="style1">Yes</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#logical-operators">Logical operators</a></td><td>Yes</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#arithmetic-operators-and-functions">Arithmetic operators and functions</a></td><td>Yes</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#character-string-operators-and-functions">Character string operators and functions</a></td><td>Yes</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#binary-string-operators-and-functions">Binary string operators and functions</a></td><td>No</td></tr>
-<tr><td><a href="http://calcite.apache.org/docs/reference.html#datetime-functions">Date/time functions</a></td><td>Yes</td?</tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#datetime-functions">Date/time functions</a></td><td>Yes</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#system-functions">System functions</a></td><td>No</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#conditional-functions-and-operators">Conditional functions and operators</a></td><td>Yes</td></tr>
 <tr><td><a href="http://calcite.apache.org/docs/reference.html#type-conversion">Type conversion</a></td><td>Yes</td></tr>
