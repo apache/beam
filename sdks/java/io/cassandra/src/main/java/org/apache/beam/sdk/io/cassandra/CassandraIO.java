@@ -179,7 +179,7 @@ public class CassandraIO {
     public Read<T> withHosts(List<String> hosts) {
       checkArgument(hosts != null, "hosts can not be null");
       checkArgument(!hosts.isEmpty(), "hosts can not be empty");
-      return builder().setHosts(ValueProvider.StaticValueProvider.of(hosts)).build();
+      return withHosts(ValueProvider.StaticValueProvider.of(hosts));
     }
 
     /** Specify the hosts of the Apache Cassandra instances. */
@@ -190,7 +190,7 @@ public class CassandraIO {
     /** Specify the port number of the Apache Cassandra instances. */
     public Read<T> withPort(int port) {
       checkArgument(port > 0, "port must be > 0, but was: %s", port);
-      return builder().setPort(ValueProvider.StaticValueProvider.of(port)).build();
+      return withPort(ValueProvider.StaticValueProvider.of(port));
     }
 
     /** Specify the port number of the Apache Cassandra instances. */
@@ -201,7 +201,7 @@ public class CassandraIO {
     /** Specify the Cassandra keyspace where to read data. */
     public Read<T> withKeyspace(String keyspace) {
       checkArgument(keyspace != null, "keyspace can not be null");
-      return builder().setKeyspace(ValueProvider.StaticValueProvider.of(keyspace)).build();
+      return withKeyspace(ValueProvider.StaticValueProvider.of(keyspace));
     }
 
     /** Specify the Cassandra keyspace where to read data. */
@@ -212,7 +212,7 @@ public class CassandraIO {
     /** Specify the Cassandra table where to read data. */
     public Read<T> withTable(String table) {
       checkArgument(table != null, "table can not be null");
-      return builder().setTable(ValueProvider.StaticValueProvider.of(table)).build();
+      return withTable(ValueProvider.StaticValueProvider.of(table));
     }
 
     /** Specify the Cassandra table where to read data. */
@@ -250,7 +250,7 @@ public class CassandraIO {
     /** Specify the username for authentication. */
     public Read<T> withUsername(String username) {
       checkArgument(username != null, "username can not be null");
-      return builder().setUsername(ValueProvider.StaticValueProvider.of(username)).build();
+      return withUsername(ValueProvider.StaticValueProvider.of(username));
     }
 
     /** Specify the username for authentication. */
@@ -261,7 +261,7 @@ public class CassandraIO {
     /** Specify the password for authentication. */
     public Read<T> withPassword(String password) {
       checkArgument(password != null, "password can not be null");
-      return builder().setPassword(ValueProvider.StaticValueProvider.of(password)).build();
+      return withPassword(ValueProvider.StaticValueProvider.of(password));
     }
 
     /** Specify the clear password for authentication. */
@@ -272,7 +272,7 @@ public class CassandraIO {
     /** Specify the local DC used for the load balancing. */
     public Read<T> withLocalDc(String localDc) {
       checkArgument(localDc != null, "localDc can not be null");
-      return builder().setLocalDc(ValueProvider.StaticValueProvider.of(localDc)).build();
+      return withLocalDc(ValueProvider.StaticValueProvider.of(localDc));
     }
 
     /** Specify the local DC used for the load balancing. */
@@ -282,9 +282,7 @@ public class CassandraIO {
 
     public Read<T> withConsistencyLevel(String consistencyLevel) {
       checkArgument(consistencyLevel != null, "consistencyLevel can not be null");
-      return builder()
-          .setConsistencyLevel(ValueProvider.StaticValueProvider.of(consistencyLevel))
-          .build();
+      return withConsistencyLevel(ValueProvider.StaticValueProvider.of(consistencyLevel));
     }
 
     public Read<T> withConsistencyLevel(ValueProvider<String> consistencyLevel) {
@@ -306,7 +304,7 @@ public class CassandraIO {
      */
     public Read<T> withWhere(String where) {
       checkArgument(where != null, "where can not be null");
-      return builder().setWhere(ValueProvider.StaticValueProvider.of(where)).build();
+      return withWhere(ValueProvider.StaticValueProvider.of(where));
     }
 
     /**
@@ -334,9 +332,7 @@ public class CassandraIO {
     public Read<T> withMinNumberOfSplits(Integer minNumberOfSplits) {
       checkArgument(minNumberOfSplits != null, "minNumberOfSplits can not be null");
       checkArgument(minNumberOfSplits > 0, "minNumberOfSplits must be greater than 0");
-      return builder()
-          .setMinNumberOfSplits(ValueProvider.StaticValueProvider.of(minNumberOfSplits))
-          .build();
+      return withMinNumberOfSplits(ValueProvider.StaticValueProvider.of(minNumberOfSplits));
     }
 
     /**
@@ -1129,7 +1125,6 @@ public class CassandraIO {
     private List<Future<Void>> mutateFutures;
     private final BiFunction<Mapper<T>, T, Future<Void>> mutator;
     private final String operationName;
-    private final Class<T> entityClass;
 
     Mutator(Write<T> spec, BiFunction<Mapper<T>, T, Future<Void>> mutator, String operationName) {
       this.cluster =
@@ -1141,7 +1136,6 @@ public class CassandraIO {
               spec.localDc(),
               spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
-      this.entityClass = spec.entity();
       this.mapperFactoryFn = spec.mapperFactoryFn();
       this.mutateFutures = new ArrayList<>();
       this.mutator = mutator;
