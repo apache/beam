@@ -17,11 +17,18 @@
  */
 package org.apache.beam.sdk.io.couchbase;
 
+import com.couchbase.client.java.Bucket;
+import com.couchbase.client.java.bucket.BucketType;
+import com.couchbase.client.java.cluster.DefaultBucketSettings;
+import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.document.json.JsonObject;
+import com.couchbase.client.java.query.N1qlParams;
+import com.couchbase.client.java.query.N1qlQuery;
+import com.couchbase.client.java.query.consistency.ScanConsistency;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.List;
-
-import org.apache.beam.sdk.coders.SerializableCoder;
+import junit.framework.TestCase;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -34,24 +41,11 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.testcontainers.couchbase.CouchbaseContainer;
 
-import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.bucket.BucketInfo;
-import com.couchbase.client.java.bucket.BucketType;
-import com.couchbase.client.java.cluster.DefaultBucketSettings;
-import com.couchbase.client.java.document.JsonDocument;
-import com.couchbase.client.java.document.json.JsonObject;
-import com.couchbase.client.java.query.N1qlParams;
-import com.couchbase.client.java.query.N1qlQuery;
-import com.couchbase.client.java.query.N1qlQueryResult;
-import com.couchbase.client.java.query.N1qlQueryRow;
-import com.couchbase.client.java.query.consistency.ScanConsistency;
-
-/** A couchbase IO test class. */
+/** Test for {@link CouchbaseIO}. */
 @RunWith(JUnit4.class)
 public class CouchbaseIOTest implements Serializable {
 
-  @Rule
-  public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private static CouchbaseContainer couchbase;
   private static Bucket bucket;
@@ -59,33 +53,21 @@ public class CouchbaseIOTest implements Serializable {
   private static final int HTTP_PORT = 8091;
   private static final String BUCKET_NAME = "bucket-name";
   private static final String USERNAME = "admin";
-  private static final String PWD = "foobar";
-
-  @Test
-  public void testSimple() {
-    for (int i = 0; i < 10; i++) {
-      JsonDocument doc = bucket.get(i + 1 + "");
-      System.out.println(doc);
-    }
-    BucketInfo info = bucket.bucketManager().info();
-    System.out.println(info);
-    N1qlQueryResult query =
-        bucket.query(N1qlQuery.simple(String.format("SELECT * FROM `%s`", BUCKET_NAME)));
-    List<N1qlQueryRow> rows = query.allRows();
-    for (N1qlQueryRow row : rows) {
-      System.out.println(row.value());
-    }
-  }
+  private static final String ADMIN_PWD = "admin-pwd";
+  private static final String BUCKET_PWD = "bucket-pwd";
+  private static final int SAMPLE_SIZE = 100;
 
   @BeforeClass
   public static void startCouchbase() {
-    couchbase = new CouchbaseContainer()
-            .withClusterAdmin(USERNAME, PWD)
-            .withNewBucket(DefaultBucketSettings.builder()
+    couchbase =
+        new CouchbaseContainer()
+            .withClusterAdmin(USERNAME, ADMIN_PWD)
+            .withNewBucket(
+                DefaultBucketSettings.builder()
                     .enableFlush(true)
                     .name(BUCKET_NAME)
                     .quota(100)
-                    .password(PWD)
+                    .password(BUCKET_PWD)
                     .type(BucketType.COUCHBASE)
                     .build());
     couchbase.start();
@@ -96,11 +78,27 @@ public class CouchbaseIOTest implements Serializable {
   @AfterClass
   public static void stopCouchbase() {
     if (couchbase.isIndex() && couchbase.isQuery() && couchbase.isPrimaryIndex()) {
-      bucket.query(N1qlQuery.simple(String.format("DELETE FROM `%s`", bucket.name()),
-                      N1qlParams.build().consistency(ScanConsistency.STATEMENT_PLUS)));
+      bucket.query(
+          N1qlQuery.simple(
+              String.format("DELETE FROM `%s`", bucket.name()),
+              N1qlParams.build().consistency(ScanConsistency.STATEMENT_PLUS)));
     } else {
       bucket.bucketManager().flush();
     }
+  }
+
+  @Test
+  public void testEstimatedKeySize() throws Exception {
+    CouchbaseIO.Read read =
+        CouchbaseIO.read()
+            .withHosts(Arrays.asList(couchbase.getContainerIpAddress()))
+            .withHttpPort(couchbase.getMappedPort(HTTP_PORT))
+            .withCarrierPort(couchbase.getMappedPort(CARRIER_PORT))
+            .withBucket(BUCKET_NAME)
+            .withPassword(BUCKET_PWD);
+    CouchbaseIO.CouchbaseSource source = new CouchbaseIO.CouchbaseSource(read);
+    long resultSize = source.getEstimatedSizeBytes(PipelineOptionsFactory.create());
+    TestCase.assertEquals(SAMPLE_SIZE, resultSize);
   }
 
   @Test
@@ -112,12 +110,10 @@ public class CouchbaseIOTest implements Serializable {
                 .withHttpPort(couchbase.getMappedPort(HTTP_PORT))
                 .withCarrierPort(couchbase.getMappedPort(CARRIER_PORT))
                 .withBucket(BUCKET_NAME)
-                .withUsername(USERNAME)
-                .withPassword(PWD)
-                .withCoder(SerializableCoder.of(JsonDocument.class))
-                .withEntity(JsonDocument.class));
+                .withPassword(BUCKET_PWD));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(10L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally()))
+        .isEqualTo(Long.valueOf(SAMPLE_SIZE));
 
     pipeline.run();
   }
@@ -136,11 +132,11 @@ public class CouchbaseIOTest implements Serializable {
       "Galilei",
       "Maxwell"
     };
-    for (int i = 0; i < scientists.length; i++) {
+    for (int i = 0; i < SAMPLE_SIZE; i++) {
       bucket.upsert(
           JsonDocument.create(
-              String.valueOf(i + 1), JsonObject.create().put("name", scientists[i])));
+              String.valueOf(i + 1),
+              JsonObject.create().put("name", scientists[i % scientists.length])));
     }
   }
-
 }

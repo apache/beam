@@ -19,16 +19,24 @@ package org.apache.beam.sdk.io.couchbase;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.couchbase.client.java.Bucket;
+import com.couchbase.client.java.Cluster;
+import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
+import com.couchbase.client.java.query.N1qlQuery;
+import com.couchbase.client.java.query.N1qlQueryResult;
+import com.couchbase.client.java.query.N1qlQueryRow;
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -38,32 +46,31 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.Cluster;
-import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.document.JsonDocument;
-import com.couchbase.client.java.env.CouchbaseEnvironment;
-import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
-import com.couchbase.client.java.query.N1qlQuery;
-import com.couchbase.client.java.query.N1qlQueryResult;
-import com.couchbase.client.java.query.N1qlQueryRow;
-import com.google.auto.value.AutoValue;
-
-/** Couchbase IO. */
+/**
+ * IO to read and write data on Couchbase.
+ *
+ * <h3>Reading from Couchbase</h3>
+ *
+ * <p>{@link CouchbaseIO} provides a source to read data and returns a bounded set of JsonDocument.
+ * The {@link JsonDocument} is the JSON form of Couchbase document.
+ */
 public class CouchbaseIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CouchbaseIO.class);
 
   private CouchbaseIO() {}
 
-  /** Provide a {@link Read} {@link PTransform} to read data from a Cassandra database. */
+  /**
+   * Provide a {@link Read} {@link PTransform} to read data from a Couchbase database. Here some
+   * default options are provided.
+   */
   public static Read read() {
     return new AutoValue_CouchbaseIO_Read.Builder().build();
   }
 
-  /** Read the data and generate a PCollection. */
+  /** A {@link PTransform} to read data from Couchbase. */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<JsonDocument>> {
     @Nullable
     abstract List<String> hosts();
 
@@ -77,19 +84,7 @@ public class CouchbaseIO {
     abstract String bucket();
 
     @Nullable
-    abstract Class entity();
-
-    @Nullable
-    abstract Coder coder();
-
-    @Nullable
-    abstract String username();
-
-    @Nullable
     abstract String password();
-
-    @Nullable
-    abstract Integer minNumberOfSplits();
 
     abstract Builder builder();
 
@@ -103,79 +98,71 @@ public class CouchbaseIO {
 
       abstract Builder setBucket(String bucket);
 
-      abstract Builder setEntity(Class entity);
-
-      abstract Builder setCoder(Coder coder);
-
-      abstract Builder setUsername(String username);
-
       abstract Builder setPassword(String password);
-
-      abstract Builder setMinNumberOfSplits(Integer minNumberOfSplits);
 
       abstract Read build();
     }
 
+    /**
+     * Define a list of ip to the cluster nodes.
+     *
+     * @param hosts list of ip address
+     * @return a {@link PTransform} reading data from Couchbase
+     */
     public Read withHosts(List<String> hosts) {
       checkArgument(hosts != null, "hosts can not be null");
       checkArgument(!hosts.isEmpty(), "hosts can not be empty");
       return builder().setHosts(hosts).build();
     }
 
+    /**
+     * Define the http port connecting to Couchbase.
+     *
+     * @param port the http port
+     * @return a {@link PTransform} reading data from Couchbase
+     */
     public Read withHttpPort(int port) {
       checkArgument(port > 0, "httpPort must be > 0, but was: %s", port);
       return builder().setHttpPort(port).build();
     }
 
+    /**
+     * Define the carrier port connecting to Couchbase.
+     *
+     * @param port the carrier port
+     * @return a {@link PTransform} reading data from Couchbase
+     */
     public Read withCarrierPort(int port) {
       checkArgument(port > 0, "carrierPort must be > 0, but was: %s", port);
       return builder().setCarrierPort(port).build();
     }
 
+    /**
+     * Define the name of bucket.
+     *
+     * @param bucket the bucket name
+     * @return a {@link PTransform} reading data from Couchbase
+     */
     public Read withBucket(String bucket) {
       checkArgument(bucket != null, "bucket can not be null");
       return builder().setBucket(bucket).build();
     }
 
-    public Read withEntity(Class entity) {
-      checkArgument(entity != null, "entity can not be null");
-      return builder().setEntity(entity).build();
-    }
-
-    public Read withCoder(Coder coder) {
-      checkArgument(coder != null, "coder can not be null");
-      return builder().setCoder(coder).build();
-    }
-
-    public Read withUsername(String username) {
-      checkArgument(username != null, "username can not be null");
-      return builder().setUsername(username).build();
-    }
-
+    /**
+     * Define the bucket-level password to the target bucket.
+     *
+     * @param password password
+     * @return a {@link PTransform} reading data from Couchbase
+     */
     public Read withPassword(String password) {
       checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
-    /**
-     * It's possible that system.size_estimates isn't populated or that the number of splits
-     * computed by Beam is still to low for Cassandra to handle it. This setting allows to enforce a
-     * minimum number of splits in case Beam cannot compute it correctly.
-     */
-    public Read withMinNumberOfSplits(Integer minNumberOfSplits) {
-      checkArgument(minNumberOfSplits != null, "minNumberOfSplits can not be null");
-      checkArgument(minNumberOfSplits > 0, "minNumberOfSplits must be greater than 0");
-      return builder().setMinNumberOfSplits(minNumberOfSplits).build();
-    }
-
     @Override
-    public PCollection expand(PBegin input) {
-      checkArgument(
-          (hosts() != null && httpPort() != null && carrierPort() != null),
-          "WithHosts(), withHttpPort() and withCarrierPort() are required");
+    public PCollection<JsonDocument> expand(PBegin input) {
+      checkArgument((hosts() != null), "WithHosts()is required");
       checkArgument(bucket() != null, "withBucket() is required");
-      checkArgument(entity() != null, "withEntity() is required");
-      checkArgument(coder() != null, "withCoder() is required");
 
       CouchbaseSource source = new CouchbaseSource(this);
       PCollection<JsonDocument> result = input.apply(org.apache.beam.sdk.io.Read.from(source));
@@ -207,14 +194,42 @@ public class CouchbaseIO {
       this.upperBound = ub;
     }
 
+    private Bucket getBucket() {
+      if (cluster == null) {
+        DefaultCouchbaseEnvironment.Builder builder = DefaultCouchbaseEnvironment.builder();
+        if (spec.httpPort() != null) {
+          builder.bootstrapHttpDirectPort(spec.httpPort());
+        }
+        if (spec.carrierPort() != null) {
+          builder.bootstrapCarrierDirectPort(spec.carrierPort());
+        }
+        cluster = CouchbaseCluster.create(builder.build(), spec.hosts());
+      }
+      if (bucket == null) {
+        // For Couchbase Server, in the previous version than 5.0, the passwordless bucket can be
+        // supported.
+        // But after version 5.0, the newly created user should have a username equal to bucket name
+        // and a password.
+        // For more information, please go to
+        // https://docs.couchbase.com/java-sdk/2.7/sdk-authentication-overview.html#legacy-connection-code
+        bucket =
+            spec.password() == null
+                ? cluster.openBucket(spec.bucket())
+                : cluster.openBucket(spec.bucket(), spec.password());
+      }
+      return bucket;
+    }
+
     @Override
     public Coder<JsonDocument> getOutputCoder() {
-      return spec.coder();
+      return SerializableCoder.of(JsonDocument.class);
     }
 
     @Override
     public List<? extends BoundedSource<JsonDocument>> split(
-        long desiredBundleSize, PipelineOptions options) throws Exception {
+        long desiredBundleSize, PipelineOptions options) {
+      // If the desiredBundleSize equals to 0, it means that there will be only one bundle of data
+      // to be read.
       int totalBundle = desiredBundleSize == 0 ? 1 : (int) Math.ceil(itemCount / desiredBundleSize);
       List<CouchbaseSource> sources = new ArrayList<>(totalBundle);
       for (int i = 0, offset = 0; i < totalBundle; i++) {
@@ -225,48 +240,35 @@ public class CouchbaseIO {
         }
         sources.add(new CouchbaseSource(spec, cluster, bucket, lowerBound, upperBound));
       }
-      if (LOG.isDebugEnabled()) {
-        LOG.debug(String.format("The original source is split to %d sources.", sources.size()));
-      }
+      LOG.debug(String.format("The original source is split to %d sources.", sources.size()));
       return sources;
     }
 
-    private void connectToCouchbase() {
-      if (cluster == null) {
-        CouchbaseEnvironment env = DefaultCouchbaseEnvironment.builder()
-                        .bootstrapHttpDirectPort(spec.httpPort())
-                        .bootstrapCarrierDirectPort(spec.carrierPort())
-                        .build();
-        cluster = CouchbaseCluster.create(env, spec.hosts())
-                .authenticate(spec.username(), spec.password());
-      }
-      if (bucket == null) {
-        bucket = cluster.openBucket(spec.bucket());
-      }
-    }
-
     /**
-     * The idea is to divide the source by the number of documents. So here we try to fetch the
-     * total number of keys to the bucket
+     * Attention: The idea is to divide the {@link BoundedSource} by the number of documents. So we
+     * do not estimate the total data size in bytes. In fact, we just fetch the total number of keys
+     * to the target bucket.
      *
      * @param options Pipeline options
-     * @return The number of keys to the bucket
-     * @throws Exception
+     * @return the number of keys to the bucket
+     * @throws Exception throw {@link CouchbaseIOException} when querying Couchbase
      */
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-      connectToCouchbase();
-      String query = String.format("SELECT RAW COUNT(META().id) FROM `%s`", bucket.name());
-      N1qlQueryResult result = bucket.query(N1qlQuery.simple(query));
+      String query = String.format("SELECT RAW COUNT(META().id) FROM `%s`", getBucket().name());
+      LOG.debug(query);
+      N1qlQueryResult result = getBucket().query(N1qlQuery.simple(query));
       if (!result.finalSuccess()) {
         throw new CouchbaseIOException(result.errors().get(0).getString("msg"));
       }
-      itemCount = Integer.valueOf(new String(result.allRows().get(0).byteValue(), Charset.defaultCharset()));
+      itemCount =
+          Integer.valueOf(
+              new String(result.allRows().get(0).byteValue(), Charset.defaultCharset()));
       return itemCount;
     }
 
     @Override
-    public BoundedReader<JsonDocument> createReader(PipelineOptions options) throws IOException {
+    public BoundedReader<JsonDocument> createReader(PipelineOptions options) {
       return new CouchbaseReader(this);
     }
 
@@ -292,18 +294,15 @@ public class CouchbaseIO {
 
     @Override
     public boolean start() throws IOException {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Start the Couchbase reader");
-      }
-      // Fetch the keys inside the range
-      N1qlQueryResult result =
-          source.bucket.query(
-              N1qlQuery.simple(
-                  String.format(
-                      "SELECT RAW META().id FROM `%s` OFFSET %d LIMIT %d",
-                      source.spec.bucket(),
-                      source.lowerBound,
-                      source.upperBound - source.lowerBound)));
+      // Fetch the keys between the range
+      String query =
+          String.format(
+              "SELECT RAW META().id FROM `%s` OFFSET %d LIMIT %d",
+              source.spec.bucket(), source.lowerBound, source.upperBound - source.lowerBound);
+      LOG.debug(
+          String.format(
+              "Couchbase reader [%d, %d): %s", source.lowerBound, source.upperBound, query));
+      N1qlQueryResult result = source.bucket.query(N1qlQuery.simple(query));
       if (!result.finalSuccess()) {
         throw new CouchbaseIOException(result.errors().get(0).getString("msg"));
       }
@@ -313,11 +312,11 @@ public class CouchbaseIO {
     }
 
     @Override
-    public boolean advance() throws IOException {
+    public boolean advance() {
       if (keyIterator.hasNext()) {
         currentKey = new String(keyIterator.next().byteValue(), Charset.defaultCharset());
         // Need to remove the replicated quotes around the key (""key"" => "key").
-        // The type of key is limited to String according to Couchbase.
+        // The type of key is limited to String.
         currentKey = currentKey.substring(1, currentKey.length() - 1);
         return true;
       }
@@ -330,9 +329,9 @@ public class CouchbaseIO {
     }
 
     @Override
-    public void close() throws IOException {
-      // Delegate the disconnection to the method "expand" of CouchbaseSource,
-      // because the client instance is shared by all the thread.
+    public void close() {
+      // Delegate the disconnection of Couchbase to the method "expand" of CouchbaseSource,
+      // because the Couchbase client instance is shared by all the threads.
     }
 
     @Override

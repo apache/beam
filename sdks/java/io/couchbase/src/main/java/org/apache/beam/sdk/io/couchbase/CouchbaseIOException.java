@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.couchbase;
 
 import java.io.IOException;
 
-/** Exception threw by Couchbase IO. */
-public class CouchbaseIOException extends IOException {
+/** Exception of {@link CouchbaseIO}. */
+class CouchbaseIOException extends IOException {
 
-  public CouchbaseIOException(String message) {
+  CouchbaseIOException(String message) {
     super(message);
   }
 }

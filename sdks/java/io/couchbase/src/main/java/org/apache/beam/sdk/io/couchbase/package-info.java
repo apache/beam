@@ -17,7 +17,7 @@
  */
 
 /**
- * Transforms for reading and writing from/to Apache Cassandra.
+ * Transforms for reading and writing from/to Couchbase.
  *
  * @see org.apache.beam.sdk.io.couchbase.CouchbaseIO
  */
