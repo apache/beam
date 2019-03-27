@@ -50,10 +50,7 @@ def run_bq_pipeline(argv=None):
                       help='Output BQ table to write results to.')
   parser.add_argument('--kms_key', default=None,
                       help='Use this Cloud KMS key with BigQuery.')
-  parser.add_argument('--bq_temp_location',
-                      default=None,
-                      help=('GCS bucket to use to store files for '
-                            'loading data into BigQuery.'))
+
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   table_schema = parse_table_schema_from_json(known_args.output_schema)
@@ -61,10 +58,6 @@ def run_bq_pipeline(argv=None):
 
   p = TestPipeline(options=PipelineOptions(pipeline_args))
 
-  if 'temp_location' in p.options.get_all_options():
-    location = p.options.get_all_options()['temp_location']
-  else:
-    location = known_args.bq_temp_location
   # pylint: disable=expression-not-assigned
   # pylint: disable=bad-continuation
   (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
@@ -74,8 +67,7 @@ def run_bq_pipeline(argv=None):
            known_args.output,
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-           gs_location=location))
+           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   result = p.run()
   result.wait_until_finish()
