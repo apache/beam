@@ -425,7 +425,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
     client.tabledata.InsertAll.return_value = \
       bigquery.TableDataInsertAllResponse(insertErrors=[])
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
     fn = beam.io.gcp.bigquery.BigQueryWriteFn(
@@ -439,7 +439,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
-    fn.process((('project_id:dataset_id.table_id', None), {'month': 1}))
+    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit
@@ -522,18 +522,24 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
       _ = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=value_provider.StaticValueProvider(str, output_table_1),
+               table=value_provider.StaticValueProvider(
+                   str, '%s:%s' % (self.project, output_table_1)),
                schema=value_provider.StaticValueProvider(dict, schema),
                method='STREAMING_INSERTS'))
       _ = (input
            | "WriteWithMultipleDests2" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=value_provider.StaticValueProvider(str, output_table_2),
+               table=value_provider.StaticValueProvider(
+                   str, '%s:%s' % (self.project, output_table_2)),
                method='FILE_LOADS'))
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
+
+    full_output_table_1 = '%s:%s' % (self.project, output_table_1)
+    full_output_table_2 = '%s:%s' % (self.project, output_table_2)
+
     schema1 = {'fields': [
         {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
         {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
@@ -569,13 +575,16 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
       r = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=lambda x: ((output_table_1, schema1)
+               table=lambda x: (full_output_table_1
                                 if 'language' in x
-                                else (output_table_2, schema2)),
+                                else full_output_table_2),
+               schema=lambda dest: (schema1
+                                    if dest == full_output_table_1
+                                    else schema2),
                method='STREAMING_INSERTS'))
 
       assert_that(r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
-                  equal_to([(output_table_1, bad_record)]))
+                  equal_to([(full_output_table_1, bad_record)]))
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(
