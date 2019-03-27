@@ -29,7 +29,7 @@ clean {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/testing/tools'
+  packagePath = 'github.com/apache/beam/.test-infra/tools'
 }
 
 check.dependsOn goTest
