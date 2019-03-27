@@ -57,15 +57,16 @@ import org.slf4j.LoggerFactory;
  * <p>The following example illustrates various options for configuring the IO:
  *
  * <pre>{@code
- *  pipeline.apply(
- *             CouchbaseIO.read()
- *                 .withHosts(Arrays.asList("host1", "host2"))
- *                 .withHttpPort(8091) // Optional
- *                 .withCarrierPort(11210) // Optional
- *                 .withBucket("bucket1")
- *                 .withPassword("pwd")) // Bucket-level password
+ * pipeline.apply(
+ *            CouchbaseIO.read()
+ *                .withHosts(Arrays.asList("host1", "host2"))
+ *                .withHttpPort(8091) // Optional
+ *                .withCarrierPort(11210) // Optional
+ *                .withBucket("bucket1")
+ *                .withPassword("pwd")) // Bucket-level password
  *
- *  }</pre>
+ *
+ * }</pre>
  */
 public class CouchbaseIO {
 
@@ -76,6 +77,8 @@ public class CouchbaseIO {
   /**
    * Provide a {@link Read} {@link PTransform} to read data from a Couchbase database. Here some
    * default options are provided.
+   *
+   * @return a {@link PTransform} reading data from Couchbase
    */
   public static Read read() {
     return new AutoValue_CouchbaseIO_Read.Builder().build();
@@ -243,7 +246,8 @@ public class CouchbaseIO {
         long desiredBundleSize, PipelineOptions options) {
       // If the desiredBundleSize equals to 0, it means that there will be only one bundle of data
       // to be read.
-      int totalBundle = desiredBundleSize == 0 ? 1 : (int) Math.ceil(itemCount / desiredBundleSize);
+      int totalBundle =
+          desiredBundleSize == 0 ? 1 : (int) Math.ceil((double) itemCount / desiredBundleSize);
       List<CouchbaseSource> sources = new ArrayList<>(totalBundle);
       for (int i = 0, offset = 0; i < totalBundle; i++) {
         int lowerBound = offset;
@@ -275,7 +279,7 @@ public class CouchbaseIO {
         throw new CouchbaseIOException(result.errors().get(0).getString("msg"));
       }
       itemCount =
-          Integer.valueOf(
+          Integer.parseInt(
               new String(result.allRows().get(0).byteValue(), Charset.defaultCharset()));
       return itemCount;
     }
