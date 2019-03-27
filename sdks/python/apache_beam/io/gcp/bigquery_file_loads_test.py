@@ -23,7 +23,6 @@ import json
 import logging
 import os
 import random
-import sys
 import time
 import unittest
 
@@ -295,8 +294,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     transform = bigquery.WriteToBigQuery(
         destination,
-        gs_location=self._new_tempdir(),
-        test_client=bq_client)
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:
@@ -361,10 +361,6 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     logging.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-6711')
   @attr('IT')
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)

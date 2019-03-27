@@ -997,8 +997,8 @@ class AppendDestinationsFn(DoFn):
   Experimental; no backwards compatibility guarantees.
   """
 
-  def __init__(self, destination, schema=None):
-    self.destination = AppendDestinationsFn._get_table_fn(destination, schema)
+  def __init__(self, destination):
+    self.destination = AppendDestinationsFn._get_table_fn(destination)
 
   @staticmethod
   def _value_provider_or_static_val(elm):
@@ -1010,13 +1010,9 @@ class AppendDestinationsFn(DoFn):
       return value_provider.StaticValueProvider(lambda x: x, value=elm)
 
   @staticmethod
-  def _get_table_fn(destination, schema=None):
+  def _get_table_fn(destination):
     if callable(destination):
       return destination
-    elif not callable(destination) and schema is not None:
-      return lambda x: (
-          AppendDestinationsFn._value_provider_or_static_val(destination).get(),
-          AppendDestinationsFn._value_provider_or_static_val(schema).get())
     else:
       return lambda x: AppendDestinationsFn._value_provider_or_static_val(
           destination).get()
