@@ -707,8 +707,7 @@ class SdfProcessElements(DoOperation):
     for receiver in self.tagged_receivers.values():
       elements = receiver.opcounter.element_counter.value()
       if elements > 0:
-        (mean, unused_sum, unused_count) = (
-            receiver.opcounter.mean_byte_counter.value())
+        mean = (receiver.opcounter.mean_byte_counter.value())[0]
         total += elements * mean
     return total
 
