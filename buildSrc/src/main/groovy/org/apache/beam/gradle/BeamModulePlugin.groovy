@@ -873,7 +873,6 @@ class BeamModulePlugin implements Plugin<Project> {
       // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
       project.artifacts.shadow project.shadowJar
       project.artifacts.shadowTest project.shadowTestJar
-
       if (configuration.testShadowJar) {
         // Use a configuration and dependency set which represents the execution classpath using shaded artifacts for tests.
         project.configurations { shadowTestRuntimeClasspath }
@@ -985,9 +984,11 @@ class BeamModulePlugin implements Plugin<Project> {
           publications {
             mavenJava(MavenPublication) {
               artifact project.shadowJar
-              artifact project.shadowTestJar
+              if (!project.name.contains("cassandra")){
+                artifact project.shadowTestJar
+                artifact project.testSourcesJar
+              }
               artifact project.sourcesJar
-              artifact project.testSourcesJar
               artifact project.javadocJar
 
               pom {
