@@ -432,10 +432,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     @Override
     public AccumT getAccum() {
       try {
-        return flinkStateBackend
-            .getPartitionedState(
-                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-            .value();
+        AccumT accum =
+            flinkStateBackend
+                .getPartitionedState(
+                    namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                .value();
+        return accum != null ? accum : combineFn.createAccumulator();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -597,10 +599,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     @Override
     public AccumT getAccum() {
       try {
-        return flinkStateBackend
-            .getPartitionedState(
-                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-            .value();
+        AccumT accum =
+            flinkStateBackend
+                .getPartitionedState(
+                    namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                .value();
+        return accum != null ? accum : combineFn.createAccumulator(context);
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
