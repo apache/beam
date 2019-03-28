@@ -994,6 +994,9 @@ structured_counter_translations = {
     cy_combiners.MeanInt64Fn: (
         dataflow.CounterMetadata.KindValueValuesEnum.MEAN,
         MetricUpdateTranslators.translate_scalar_mean_int),
+    cy_combiners.DistributionInt64Fn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.MEAN,
+        MetricUpdateTranslators.translate_scalar_mean_int),
     cy_combiners.SumFloatFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,
         MetricUpdateTranslators.translate_scalar_counter_float),
