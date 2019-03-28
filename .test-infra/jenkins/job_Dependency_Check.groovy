@@ -28,7 +28,7 @@ job('beam_Dependency_Check') {
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Beam Dependency Check',
-    'Run Dependency Check')
+    'Run Dump Thread')
 
   // This is a job that runs weekly.
   commonJobProperties.setAutoJob(
@@ -36,38 +36,8 @@ job('beam_Dependency_Check') {
     '0 12 * * 1')
 
   steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runBeamDependencyCheck')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Drevision=release')
-    }
-
     shell('cd ' + commonJobProperties.checkoutDir +
-            ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
+            ' && ulimit -a && ps -o nlwp,pid -fe && jps -lvm')
   }
 
-  wrappers{
-    credentialsBinding {
-        usernamePassword('BEAM_JIRA_BOT_USERNAME', 'BEAM_JIRA_BOT_PASSWORD', 'beam-jira-bot')
-    }
-  }
-    
-  def date = new Date().format('yyyy-MM-dd')
-  publishers {
-    extendedEmail {
-      triggers {
-        always {
-          recipientList('dev@beam.apache.org')
-          contentType('text/html')
-          subject("Beam Dependency Check Report (${date})")
-          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')
-        }
-      }
-    }
-    archiveArtifacts {
-      pattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
-      onlyIfSuccessful()
-    }
-  }
 }
