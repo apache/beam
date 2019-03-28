@@ -24,13 +24,6 @@
 # The exit-code of the script indicates success or a failure.
 
 # Check that the script is running in a known directory.
-echo "START"
-echo "START"
-echo "START"
-echo "START"
-echo "START"
-echo "START"
-
 if [[ $PWD != *sdks/python* ]]; then
   echo 'Unable to locate Apache Beam Python SDK root directory'
   exit 1
