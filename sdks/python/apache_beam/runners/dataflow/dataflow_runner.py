@@ -595,9 +595,11 @@ class DataflowRunner(PipelineRunner):
     # Make sure this is the WriteToBigQuery class that we expected, and that
     # users did not specifically request the new BQ sink by passing experiment
     # flag.
+
+    # TODO(BEAM-6928): Remove this function for release 2.14.0.
     experiments = options.view_as(DebugOptions).experiments or []
     if (not isinstance(transform, beam.io.WriteToBigQuery)
-        or 'new_bq_sink' in experiments):
+        or 'use_beam_bq_sink' in experiments):
       return self.apply_PTransform(transform, pcoll, options)
     standard_options = options.view_as(StandardOptions)
     if standard_options.streaming:

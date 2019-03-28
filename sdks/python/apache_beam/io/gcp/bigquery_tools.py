@@ -76,7 +76,17 @@ def default_encoder(obj):
 
 
 def get_hashable_destination(destination):
-  """Takes in a TableReference or string destination, and returns a string."""
+  """Parses a table reference into a (project, dataset, table) tuple.
+
+  Args:
+    destination: Either a TableReference object from the bigquery API.
+      The object has the following attributes: projectId, datasetId, and
+      tableId. Or a string representing the destination containing
+      'PROJECT:DATASET.TABLE'.
+  Returns:
+    A string representing the destination containing
+    'PROJECT:DATASET.TABLE'.
+  """
   if isinstance(destination, bigquery.TableReference):
     return '%s:%s.%s' % (
         destination.projectId, destination.datasetId, destination.tableId)

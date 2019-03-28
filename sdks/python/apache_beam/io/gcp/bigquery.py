@@ -944,7 +944,7 @@ bigquery_v2_messages.TableSchema):
 
     # If the new BQ sink is not activated for experiment flags, then we use
     # streaming inserts by default (it gets overridden in dataflow_runner.py).
-    if 'new_bq_sink' not in experiments:
+    if 'use_beam_bq_sink' not in experiments:
       return self.Method.STREAMING_INSERTS
     elif self.method == self.Method.DEFAULT and streaming_pipeline:
       return self.Method.STREAMING_INSERTS
