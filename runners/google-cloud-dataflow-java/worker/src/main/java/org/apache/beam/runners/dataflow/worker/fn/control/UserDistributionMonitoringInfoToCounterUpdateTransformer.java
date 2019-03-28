@@ -23,9 +23,11 @@ import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
+import com.google.api.services.dataflow.model.DistributionUpdate;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs.Enum;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
@@ -39,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * Class for transforming MonitoringInfo's containing User counter values, to relevant CounterUpdate
  * proto.
  */
-class UserMonitoringInfoToCounterUpdateTransformer
+class UserDistributionMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
@@ -48,15 +50,19 @@ class UserMonitoringInfoToCounterUpdateTransformer
 
   private final SpecMonitoringInfoValidator specValidator;
 
-  public UserMonitoringInfoToCounterUpdateTransformer(
+  public UserDistributionMonitoringInfoToCounterUpdateTransformer(
       final SpecMonitoringInfoValidator specMonitoringInfoValidator,
       final Map<String, DataflowStepContext> transformIdMapping) {
     this.transformIdMapping = transformIdMapping;
     this.specValidator = specMonitoringInfoValidator;
   }
 
-  static final String BEAM_METRICS_USER_PREFIX =
-      Enum.USER_COUNTER.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec).getUrn();
+  static final String BEAM_METRICS_USER_DISTRIBUTION_PREFIX =
+      Enum.USER_DISTRIBUTION_COUNTER
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(monitoringInfoSpec)
+          .getUrn();
 
   private Optional<String> validate(MonitoringInfo monitoringInfo) {
     Optional<String> validatorResult = specValidator.validate(monitoringInfo);
@@ -65,11 +71,11 @@ class UserMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
+    if (!urn.startsWith(BEAM_METRICS_USER_DISTRIBUTION_PREFIX)) {
       throw new RuntimeException(
           String.format(
               "Received unexpected counter urn. Expected urn starting with: %s, received: %s",
-              BEAM_METRICS_USER_PREFIX, urn));
+              BEAM_METRICS_USER_DISTRIBUTION_PREFIX, urn));
     }
 
     final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
@@ -96,15 +102,18 @@ class UserMonitoringInfoToCounterUpdateTransformer
       return null;
     }
 
-    long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
+    IntDistributionData value =
+        monitoringInfo.getMetric().getDistributionData().getIntDistributionData();
     String urn = monitoringInfo.getUrn();
 
     final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
 
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
 
-    String nameWithNamespace = urn.substring(BEAM_METRICS_USER_PREFIX.length()).replace("^:", "");
+    String nameWithNamespace =
+        urn.substring(BEAM_METRICS_USER_DISTRIBUTION_PREFIX.length()).replace("^:", "");
 
+    // TODO(BEAM-6925) Extract common logic to separate class.
     final int lastColonIndex = nameWithNamespace.lastIndexOf(':');
     String counterName = nameWithNamespace.substring(lastColonIndex + 1);
     String counterNamespace =
@@ -117,16 +126,21 @@ class UserMonitoringInfoToCounterUpdateTransformer
                 .setName(counterName)
                 .setOriginalStepName(stepContext.getNameContext().originalName())
                 .setOriginNamespace(counterNamespace))
-        .setMetadata(new CounterMetadata().setKind("SUM"));
+        .setMetadata(new CounterMetadata().setKind("DISTRIBUTION"));
 
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
         .setCumulative(true)
-        .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(value));
+        .setDistribution(
+            new DistributionUpdate()
+                .setMax(DataflowCounterUpdateExtractor.longToSplitInt(value.getMax()))
+                .setMin(DataflowCounterUpdateExtractor.longToSplitInt(value.getMin()))
+                .setSum(DataflowCounterUpdateExtractor.longToSplitInt(value.getSum()))
+                .setCount(DataflowCounterUpdateExtractor.longToSplitInt(value.getCount())));
   }
 
   /** @return MonitoringInfo urns prefix that this transformer can convert to CounterUpdates. */
   public String getSupportedUrnPrefix() {
-    return BEAM_METRICS_USER_PREFIX;
+    return BEAM_METRICS_USER_DISTRIBUTION_PREFIX;
   }
 }

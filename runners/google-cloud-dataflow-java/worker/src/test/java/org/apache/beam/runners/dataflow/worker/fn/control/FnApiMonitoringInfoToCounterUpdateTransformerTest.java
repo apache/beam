@@ -35,6 +35,10 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
 
   @Mock private UserMonitoringInfoToCounterUpdateTransformer mockUserCounterTransformer;
 
+  @Mock
+  private UserDistributionMonitoringInfoToCounterUpdateTransformer
+      mockUserDistributionCounterTransformer;
+
   @Mock private UserMonitoringInfoToCounterUpdateTransformer mockGenericTransformer1;
 
   @Before
@@ -48,7 +52,9 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
         Collections.EMPTY_MAP;
     FnApiMonitoringInfoToCounterUpdateTransformer testObject =
         new FnApiMonitoringInfoToCounterUpdateTransformer(
-            mockUserCounterTransformer, genericTransformers);
+            mockUserCounterTransformer,
+            mockUserDistributionCounterTransformer,
+            genericTransformers);
 
     CounterUpdate expectedResult = new CounterUpdate();
     when(mockUserCounterTransformer.transform(any())).thenReturn(expectedResult);
@@ -72,10 +78,14 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
     genericTransformers.put(validUrn, mockGenericTransformer1);
 
     when(mockUserCounterTransformer.getSupportedUrnPrefix()).thenReturn("invalid:prefix:");
+    when(mockUserDistributionCounterTransformer.getSupportedUrnPrefix())
+        .thenReturn("invalid:prefix2:");
 
     FnApiMonitoringInfoToCounterUpdateTransformer testObject =
         new FnApiMonitoringInfoToCounterUpdateTransformer(
-            mockUserCounterTransformer, genericTransformers);
+            mockUserCounterTransformer,
+            mockUserDistributionCounterTransformer,
+            genericTransformers);
 
     CounterUpdate expectedResult = new CounterUpdate();
     when(mockGenericTransformer1.transform(any())).thenReturn(expectedResult);
