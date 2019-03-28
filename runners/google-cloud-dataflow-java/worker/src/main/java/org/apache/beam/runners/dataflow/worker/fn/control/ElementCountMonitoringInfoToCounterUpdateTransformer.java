@@ -21,6 +21,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.NameAndKind;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
@@ -84,6 +85,7 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
    * @return CounterUpdate generated based on provided monitoringInfo
    */
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {

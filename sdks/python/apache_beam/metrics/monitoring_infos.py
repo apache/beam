@@ -42,6 +42,8 @@ FINISH_BUNDLE_MSECS_URN = common_urns.monitoring_infos.FINISH_BUNDLE_MSECS.urn
 TOTAL_MSECS_URN = common_urns.monitoring_infos.TOTAL_MSECS.urn
 USER_COUNTER_URN_PREFIX = (
     common_urns.monitoring_infos.USER_COUNTER_URN_PREFIX.urn)
+USER_DISTRIBUTION_COUNTER_URN_PREFIX = (
+    common_urns.monitoring_infos.USER_DISTRIBUTION_COUNTER_URN_PREFIX.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
@@ -192,6 +194,17 @@ def user_metric_urn(namespace, name):
   return '%s%s:%s' % (USER_COUNTER_URN_PREFIX, namespace, name)
 
 
+def user_distribution_metric_urn(namespace, name):
+  """Returns the metric URN for a user distribution metric,
+  with a proper URN prefix.
+
+  Args:
+    namespace: The namespace of the metric.
+    name: The name of the metric.
+  """
+  return '%s%s:%s' % (USER_DISTRIBUTION_COUNTER_URN_PREFIX, namespace, name)
+
+
 def is_counter(monitoring_info_proto):
   """Returns true if the monitoring info is a coutner metric."""
   return monitoring_info_proto.type in COUNTER_TYPES
@@ -207,9 +220,22 @@ def is_gauge(monitoring_info_proto):
   return monitoring_info_proto.type in GAUGE_TYPES
 
 
+def _is_user_monitoring_info(monitoring_info_proto):
+  return monitoring_info_proto.urn.startswith(
+      USER_COUNTER_URN_PREFIX)
+
+
+def _is_user_distribution_monitoring_info(monitoring_info_proto):
+  return monitoring_info_proto.urn.startswith(
+      USER_DISTRIBUTION_COUNTER_URN_PREFIX)
+
+
 def is_user_monitoring_info(monitoring_info_proto):
   """Returns true if the monitoring info is a user metric."""
-  return monitoring_info_proto.urn.startswith(USER_COUNTER_URN_PREFIX)
+
+  return _is_user_monitoring_info(
+      monitoring_info_proto) or _is_user_distribution_monitoring_info(
+          monitoring_info_proto)
 
 
 def extract_metric_result_map_value(monitoring_info_proto):
@@ -235,9 +261,15 @@ def extract_metric_result_map_value(monitoring_info_proto):
 def parse_namespace_and_name(monitoring_info_proto):
   """Returns the (namespace, name) tuple of the URN in the monitoring info."""
   to_split = monitoring_info_proto.urn
-  if is_user_monitoring_info(monitoring_info_proto):
-    # Remove the URN prefix which indicates that it is a user counter.
-    to_split = monitoring_info_proto.urn[len(USER_COUNTER_URN_PREFIX):]
+
+  # Remove the URN prefix which indicates that it is a user counter.
+  prefix_len = 0
+  if _is_user_distribution_monitoring_info(monitoring_info_proto):
+    prefix_len = len(USER_DISTRIBUTION_COUNTER_URN_PREFIX)
+  elif _is_user_monitoring_info(monitoring_info_proto):
+    prefix_len = len(USER_COUNTER_URN_PREFIX)
+  to_split = monitoring_info_proto.urn[prefix_len:]
+
   # If it is not a user counter, just use the first part of the URN, i.e. 'beam'
   split = to_split.split(':')
   return split[0], ':'.join(split[1:])

@@ -40,6 +40,7 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.monitoring_infos import user_distribution_metric_urn
 from apache_beam.metrics.monitoring_infos import user_metric_urn
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import statesampler
@@ -245,7 +246,7 @@ class MetricsContainer(object):
 
     for k, v in self.distributions.items():
       all_user_metrics.append(monitoring_infos.int64_distribution(
-          user_metric_urn(k.namespace, k.name),
+          user_distribution_metric_urn(k.namespace, k.name),
           v.get_cumulative().to_runner_api_monitoring_info(),
           ptransform=transform_id
       ))
