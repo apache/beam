@@ -28,5 +28,3 @@ Before executing the script, ensure that your account has cluster-admin
 privileges, as setting RBAC cluster roles requires that.
 
 The scripts are based on [Yolean kubernetes-kafka](https://github.com/Yolean/kubernetes-kafka)
-
-Scripts were tested on GKE.
