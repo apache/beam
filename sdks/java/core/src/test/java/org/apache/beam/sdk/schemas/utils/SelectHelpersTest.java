@@ -321,4 +321,25 @@ public class SelectHelpersTest {
             .build();
     assertEquals(expectedRow, row);
   }
+
+  @Test
+  public void testSelectFieldOfRecord() {
+    Schema f1 = Schema.builder().addInt64Field("f0").build();
+    Schema f2 = Schema.builder().addRowField("f1", f1).build();
+    Schema f3 = Schema.builder().addRowField("f2", f2).build();
+
+    Row r1 = Row.withSchema(f1).addValue(42L).build(); // {"f0": 42}
+    Row r2 = Row.withSchema(f2).addValue(r1).build(); // {"f1": {"f0": 42}}
+    Row r3 = Row.withSchema(f3).addValue(r2).build(); // {"f2": {"f1": {"f0": 42}}}
+
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("f2.f1").resolve(f3);
+
+    Schema outputSchema = SelectHelpers.getOutputSchema(f3, fieldAccessDescriptor);
+
+    Row out = SelectHelpers.selectRow(r3, fieldAccessDescriptor, r3.getSchema(), outputSchema);
+
+    assertEquals(outputSchema, f2);
+    assertEquals(out, r2);
+  }
 }

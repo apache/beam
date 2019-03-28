@@ -107,7 +107,7 @@ public class Convert {
 
     @Nullable
     private static Schema getBoxedNestedSchema(Schema schema) {
-      if (schema.getFieldCount() > 1) {
+      if (schema.getFieldCount() != 1) {
         return null;
       }
       FieldType fieldType = schema.getField(0).getType();

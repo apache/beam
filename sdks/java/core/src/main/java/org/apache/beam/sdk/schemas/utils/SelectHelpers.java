@@ -164,16 +164,13 @@ public class SelectHelpers {
     }
 
     Row.Builder output = Row.withSchema(outputSchema);
-    selectIntoRow(input, output, fieldAccessDescriptor, inputSchema);
+    selectIntoRow(input, output, fieldAccessDescriptor);
     return output.build();
   }
 
   /** Select out of a given {@link Row} object. */
   public static void selectIntoRow(
-      Row input,
-      Row.Builder output,
-      FieldAccessDescriptor fieldAccessDescriptor,
-      Schema inputSchema) {
+      Row input, Row.Builder output, FieldAccessDescriptor fieldAccessDescriptor) {
     if (fieldAccessDescriptor.getAllFields()) {
       output.addValues(input.getValues());
       return;
@@ -189,28 +186,15 @@ public class SelectHelpers {
         fieldAccessDescriptor.getNestedFieldsAccessed().entrySet()) {
       FieldDescriptor field = nested.getKey();
       FieldAccessDescriptor nestedAccess = nested.getValue();
-      FieldType nestedInputType = inputSchema.getField(field.getFieldId()).getType();
+      FieldType nestedInputType = input.getSchema().getField(field.getFieldId()).getType();
       FieldType nestedOutputType = outputSchema.getField(output.nextFieldId()).getType();
-
-      if (nestedOutputType.getTypeName().isCompositeType()) {
-        Row.Builder nestedBuilder = Row.withSchema(nestedOutputType.getRowSchema());
-        selectIntoRowHelper(
-            field.getQualifiers(),
-            input.getValue(field.getFieldId()),
-            nestedBuilder,
-            nestedAccess,
-            nestedInputType,
-            nestedOutputType);
-        output.addValue(nestedBuilder.build());
-      } else {
-        selectIntoRowHelper(
-            field.getQualifiers(),
-            input.getValue(field.getFieldId()),
-            output,
-            nestedAccess,
-            nestedInputType,
-            nestedOutputType);
-      }
+      selectIntoRowHelper(
+          field.getQualifiers(),
+          input.getValue(field.getFieldId()),
+          output,
+          nestedAccess,
+          nestedInputType,
+          nestedOutputType);
     }
   }
 
@@ -224,7 +208,7 @@ public class SelectHelpers {
       FieldType outputType) {
     if (qualifiers.isEmpty()) {
       Row row = (Row) value;
-      selectIntoRow(row, output, fieldAccessDescriptor, inputType.getRowSchema());
+      selectIntoRow(row, output, fieldAccessDescriptor);
       return;
     }
 
@@ -245,7 +229,7 @@ public class SelectHelpers {
       // We have already constructed all arrays and maps. What remains must be a Row.
       Row row = (Row) value;
       Row.Builder output = Row.withSchema(outputType.getRowSchema());
-      selectIntoRow(row, output, fieldAccessDescriptor, inputType.getRowSchema());
+      selectIntoRow(row, output, fieldAccessDescriptor);
       return output.build();
     }
 
