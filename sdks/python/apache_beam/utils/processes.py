@@ -73,11 +73,4 @@ def check_output(*args, **kwargs):
 def Popen(*args, **kwargs):  # pylint: disable=invalid-name
   if force_shell:
     kwargs['shell'] = True
-  try:
-    pipe = subprocess.Popen(["ls", "-l"], stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
-    out,error=pipe.communicate()
-    if ""!=error:
-        raise RuntimeError(error)
-  except OSError:
-    raise RuntimeError("Executable: {}, not found".format("Hej"))
-  return output
+  return subprocess.Popen(*args,**kwargs)
