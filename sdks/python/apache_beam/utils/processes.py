@@ -40,7 +40,7 @@ def call(*args, **kwargs):
   if force_shell:
     kwargs['shell'] = True
   try:
-    out =  subprocess.call(*args, **kwargs)
+    out = subprocess.call(*args, **kwargs)
   except OSError:
     raise RuntimeError("Executable {} not found".format(args[0]))
   return out
@@ -50,7 +50,7 @@ def check_call(*args, **kwargs):
   if force_shell:
     kwargs['shell'] = True
   try:
-    out = subprocess.check_call(*args,**kwargs)
+    out = subprocess.check_call(*args, **kwargs)
   except OSError:
     raise RuntimeError("Executable {} not found".format(args[0]))
   except subprocess.CalledProcessError:
@@ -62,7 +62,7 @@ def check_output(*args, **kwargs):
   if force_shell:
     kwargs['shell'] = True
   try:
-    out =  subprocess.check_output(*args, **kwargs)
+    out = subprocess.check_output(*args, **kwargs)
   except OSError:
     raise RuntimeError("Executable {} not found".format(args[0]))
   except subprocess.CalledProcessError:
@@ -73,4 +73,4 @@ def check_output(*args, **kwargs):
 def Popen(*args, **kwargs):  # pylint: disable=invalid-name
   if force_shell:
     kwargs['shell'] = True
-  return subprocess.Popen(*args,**kwargs)
+  return subprocess.Popen(*args, **kwargs)
