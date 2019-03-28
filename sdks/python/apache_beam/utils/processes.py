@@ -24,6 +24,7 @@ from __future__ import absolute_import
 
 import platform
 import subprocess
+import traceback
 
 # On Windows, we need to use shell=True when creating subprocesses for binary
 # paths to be resolved correctly.
@@ -38,22 +39,47 @@ CalledProcessError = subprocess.CalledProcessError
 def call(*args, **kwargs):
   if force_shell:
     kwargs['shell'] = True
-  return subprocess.call(*args, **kwargs)
+  try:
+    out =  subprocess.call(*args, **kwargs)
+  except OSError:
+    raise RuntimeError("Executable {} not found".format(args[0]))
+  return out
 
 
 def check_call(*args, **kwargs):
   if force_shell:
     kwargs['shell'] = True
-  return subprocess.check_call(*args, **kwargs)
+  try:
+    out = subprocess.check_call(*args,**kwargs)
+  except OSError:
+    raise RuntimeError("Executable {} not found".format(args[0]))
+  except subprocess.CalledProcessError:
+    raise RuntimeError(traceback.format_exc())
+  return out
 
 
 def check_output(*args, **kwargs):
   if force_shell:
     kwargs['shell'] = True
-  return subprocess.check_output(*args, **kwargs)
+  try:
+    out =  subprocess.check_output(*args, **kwargs)
+  except OSError:
+    raise RuntimeError("Executable {} not found".format(args[0]))
+  except subprocess.CalledProcessError:
+    raise RuntimeError(traceback.format_exc())
+  return out
 
 
 def Popen(*args, **kwargs):  # pylint: disable=invalid-name
   if force_shell:
     kwargs['shell'] = True
-  return subprocess.Popen(*args, **kwargs)
+  try:
+    pipe = subprocess.Popen(["ls", "-l"], stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                universal_newlines=True)
+    out,error=pipe.communicate()
+    if ""!=error:
+        raise RuntimeError(error)
+  except OSError:
+    raise RuntimeError("Executable: {}, not found".format("Hej"))
+  return output
