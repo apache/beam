@@ -81,6 +81,8 @@ include "beam-runners-reference-job-server"
 project(":beam-runners-reference-job-server").dir = file("runners/reference/job-server")
 include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
+include "beam-runners-spark-job-server"
+project(":beam-runners-spark-job-server").dir = file("runners/spark/job-server")
 include "beam-runners-samza"
 project(":beam-runners-samza").dir = file("runners/samza")
 include "beam-runners-samza-job-server"
