@@ -73,6 +73,12 @@ def run(argv=None):
       help=
       ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
        'or DATASET.TABLE.'))
+
+  parser.add_argument('--gcs_location',
+                      required=False,
+                      help=('GCS Location to store files to load '
+                            'data into Bigquery'))
+
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:

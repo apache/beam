@@ -43,7 +43,7 @@ public class TrafficRoutesIT {
   private BigqueryClient bqClient;
 
   @Before
-  public void setupTestEnvironment() {
+  public void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(TrafficRoutesOptions.class);
     this.options = TestPipeline.testingPipelineOptions().as(TrafficRoutesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();

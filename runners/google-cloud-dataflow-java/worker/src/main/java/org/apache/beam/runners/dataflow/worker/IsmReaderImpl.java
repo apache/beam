@@ -17,22 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.cache.Cache;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.Ordering;
-import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,12 +62,26 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSortedMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Longs;
 
 /**
  * A {@link NativeReader} that reads Ism files.
  *
  * @param <V> the type of the value written to the sink
  */
+// Possible real inconsistency - https://issues.apache.org/jira/browse/BEAM-6560
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 public class IsmReaderImpl<V> extends IsmReader<V> {
   /**
    * This constant represents the distance we would rather read and drop bytes for versus doing an
@@ -468,6 +471,8 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
    * have not been initialized yet. Re-uses the provided channel, returning it or a new one if this
    * method was required to open one.
    */
+  // Real bug - https://issues.apache.org/jira/browse/BEAM-6559
+  @SuppressFBWarnings("NP_NULL_ON_SOME_PATH")
   private Optional<SeekableByteChannel> initializeForKeyedRead(
       int shardId, Optional<SeekableByteChannel> inChannel, SideInputReadCounter readCounter)
       throws IOException {

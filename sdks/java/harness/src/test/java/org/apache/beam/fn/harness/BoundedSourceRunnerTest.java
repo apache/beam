@@ -23,12 +23,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,15 +32,21 @@ import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
@@ -125,11 +127,20 @@ public class BoundedSourceRunnerTest {
   public void testCreatingAndProcessingSourceFromFactory() throws Exception {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
-        "outputPC", (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register(
+        "outputPC",
+        "pTransformId",
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
@@ -157,13 +168,13 @@ public class BoundedSourceRunnerTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
     // This is testing a deprecated way of running sources and should be removed
     // once all source definitions are instead propagated along the input edge.
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     assertThat(
         outputValues,
         contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L), valueInGlobalWindow(2L)));
@@ -171,11 +182,12 @@ public class BoundedSourceRunnerTest {
 
     // Check that when passing a source along as an input, the source is processed.
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
-    Iterables.getOnlyElement(consumers.get("inputPC"))
+    consumers
+        .getMultiplexingConsumer("inputPC")
         .accept(valueInGlobalWindow(CountingSource.upTo(2)));
     assertThat(outputValues, contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L)));
 
-    assertThat(finishFunctions, Matchers.empty());
+    assertThat(finishFunctionRegistry.getFunctions(), Matchers.empty());
   }
 
   @Test

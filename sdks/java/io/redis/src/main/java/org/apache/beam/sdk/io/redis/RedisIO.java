@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.io.redis;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
@@ -43,6 +41,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ScanParams;
@@ -167,7 +167,7 @@ public class RedisIO {
 
     public Read withEndpoint(String host, int port) {
       checkArgument(host != null, "host can not be null");
-      checkArgument(port > 0, "port can not be negative or 0");
+      checkArgument(0 < port && port < 65536, "port must be a positive integer less than 65536");
       return builder()
           .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
           .build();
@@ -319,8 +319,8 @@ public class RedisIO {
         for (String k : keys) {
           processContext.output(k);
         }
-        cursor = scanResult.getStringCursor();
-        if ("0".equals(cursor)) {
+        cursor = scanResult.getCursor();
+        if (cursor.equals(ScanParams.SCAN_POINTER_START)) {
           finished = true;
         }
       }
@@ -444,7 +444,13 @@ public class RedisIO {
        * exist, it is created as empty list before performing the push operations. When key holds a
        * value that is not a list, an error is returned.
        */
-      RPUSH
+      RPUSH,
+
+      /** Use SADD command. Insert value in a set. Duplicated values are ignored. */
+      SADD,
+
+      /** Use PFADD command. Insert value in a HLL structure. Create key if it doesn't exist */
+      PFADD
     }
 
     @Nullable
@@ -552,6 +558,7 @@ public class RedisIO {
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           pipeline.exec();
+          pipeline.sync();
           pipeline.multi();
           batchCount = 0;
         }
@@ -567,6 +574,10 @@ public class RedisIO {
           writeUsingSetCommand(record, expireTime);
         } else if (Method.LPUSH == method || Method.RPUSH == method) {
           writeUsingListCommand(record, method, expireTime);
+        } else if (Method.SADD == method) {
+          writeUsingSaddCommand(record, expireTime);
+        } else if (Method.PFADD == method) {
+          writeUsingHLLCommand(record, expireTime);
         }
       }
 
@@ -605,6 +616,20 @@ public class RedisIO {
         setExpireTimeWhenRequired(key, expireTime);
       }
 
+      private void writeUsingSaddCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.sadd(key, value);
+      }
+
+      private void writeUsingHLLCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.pfadd(key, value);
+      }
+
       private void setExpireTimeWhenRequired(String key, Long expireTime) {
         if (expireTime != null) {
           pipeline.pexpire(key, expireTime);
@@ -615,6 +640,7 @@ public class RedisIO {
       public void finishBundle() {
         if (pipeline.isInMulti()) {
           pipeline.exec();
+          pipeline.sync();
         }
         batchCount = 0;
       }

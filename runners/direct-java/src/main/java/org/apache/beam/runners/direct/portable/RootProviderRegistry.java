@@ -17,16 +17,16 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * A {@link RootInputProvider} that delegates to primitive {@link RootInputProvider} implementations

@@ -32,7 +32,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query7}. */
-public class Query7Model extends NexmarkQueryModel implements Serializable {
+public class Query7Model extends NexmarkQueryModel<Bid> implements Serializable {
   /** Simulator for query 7. */
   private class Simulator extends AbstractSimulator<Event, Bid> {
     /** Bids with highest bid price seen in the current window. */
@@ -113,12 +113,12 @@ public class Query7Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, Bid> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<Bid>> itr) {
     return toValue(itr);
   }
 }

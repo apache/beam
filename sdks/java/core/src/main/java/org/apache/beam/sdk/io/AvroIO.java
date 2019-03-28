@@ -17,16 +17,11 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
@@ -64,6 +59,11 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.joda.time.Duration;
 
 /**
@@ -278,6 +278,7 @@ public class AvroIO {
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
+        .setInferBeamSchema(false)
         .setHintMatchesManyFiles(false)
         .build();
   }
@@ -288,6 +289,7 @@ public class AvroIO {
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
+        .setInferBeamSchema(false)
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
@@ -301,6 +303,7 @@ public class AvroIO {
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
+        .setInferBeamSchema(false)
         .setHintMatchesManyFiles(false)
         .build();
   }
@@ -314,6 +317,7 @@ public class AvroIO {
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
+        .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
         .build();
   }
@@ -427,7 +431,21 @@ public class AvroIO {
         .setNumShards(0)
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .setMetadata(ImmutableMap.of())
-        .setWindowedWrites(false);
+        .setWindowedWrites(false)
+        .setNoSpilling(false);
+  }
+
+  private static <T> PCollection<T> setBeamSchema(
+      PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
+    org.apache.beam.sdk.schemas.Schema beamSchema =
+        org.apache.beam.sdk.schemas.utils.AvroUtils.getSchema(clazz, schema);
+    if (beamSchema != null) {
+      pc.setSchema(
+          beamSchema,
+          org.apache.beam.sdk.schemas.utils.AvroUtils.getToRowFunction(clazz, schema),
+          org.apache.beam.sdk.schemas.utils.AvroUtils.getFromRowFunction(clazz));
+    }
+    return pc;
   }
 
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
@@ -444,6 +462,8 @@ public class AvroIO {
     @Nullable
     abstract Schema getSchema();
 
+    abstract boolean getInferBeamSchema();
+
     abstract boolean getHintMatchesManyFiles();
 
     abstract Builder<T> toBuilder();
@@ -457,6 +477,8 @@ public class AvroIO {
       abstract Builder<T> setRecordClass(Class<T> recordClass);
 
       abstract Builder<T> setSchema(Schema schema);
+
+      abstract Builder<T> setInferBeamSchema(boolean infer);
 
       abstract Builder<T> setHintMatchesManyFiles(boolean hintManyFiles);
 
@@ -488,6 +510,11 @@ public class AvroIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    @Experimental(Kind.SCHEMAS)
+    public Read<T> withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
+    }
+
     /**
      * Continuously watches for new files matching the filepattern, polling it at the given
      * interval, until the given termination condition is reached. The returned {@link PCollection}
@@ -516,19 +543,22 @@ public class AvroIO {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public PCollection<T> expand(PBegin input) {
       checkNotNull(getFilepattern(), "filepattern");
       checkNotNull(getSchema(), "schema");
 
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
-        return input.apply(
-            "Read",
-            org.apache.beam.sdk.io.Read.from(
-                createSource(
-                    getFilepattern(),
-                    getMatchConfiguration().getEmptyMatchTreatment(),
-                    getRecordClass(),
-                    getSchema())));
+        PCollection<T> read =
+            input.apply(
+                "Read",
+                org.apache.beam.sdk.io.Read.from(
+                    createSource(
+                        getFilepattern(),
+                        getMatchConfiguration().getEmptyMatchTreatment(),
+                        getRecordClass(),
+                        getSchema())));
+        return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
       }
       // All other cases go through ReadAll.
 
@@ -580,6 +610,8 @@ public class AvroIO {
 
     abstract long getDesiredBundleSizeBytes();
 
+    abstract boolean getInferBeamSchema();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -591,6 +623,8 @@ public class AvroIO {
       abstract Builder<T> setSchema(Schema schema);
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
+      abstract Builder<T> setInferBeamSchema(boolean infer);
 
       abstract ReadAll<T> build();
     }
@@ -618,18 +652,29 @@ public class AvroIO {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
+    /**
+     * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
+     * to be used by SQL and by the schema-transform library.
+     */
+    @Experimental(Kind.SCHEMAS)
+    public ReadAll<T> withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
+    }
+
     @Override
     public PCollection<T> expand(PCollection<String> input) {
       checkNotNull(getSchema(), "schema");
-      return input
-          .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
-          .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply(
-              "Read all via FileBasedSource",
-              new ReadAllViaFileBasedSource<>(
-                  getDesiredBundleSizeBytes(),
-                  new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
-                  AvroCoder.of(getRecordClass(), getSchema())));
+      PCollection<T> read =
+          input
+              .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+              .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+              .apply(
+                  "Read all via FileBasedSource",
+                  new ReadAllViaFileBasedSource<>(
+                      getDesiredBundleSizeBytes(),
+                      new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
+                      AvroCoder.of(getRecordClass(), getSchema())));
+      return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
     @Override
@@ -910,6 +955,8 @@ public class AvroIO {
 
     abstract boolean getWindowedWrites();
 
+    abstract boolean getNoSpilling();
+
     @Nullable
     abstract FilenamePolicy getFilenamePolicy();
 
@@ -934,7 +981,8 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setFilenamePrefix(
           ValueProvider<ResourceId> filenamePrefix);
 
-      abstract Builder<UserT, DestinationT, OutputT> setFilenameSuffix(String filenameSuffix);
+      abstract Builder<UserT, DestinationT, OutputT> setFilenameSuffix(
+          @Nullable String filenameSuffix);
 
       abstract Builder<UserT, DestinationT, OutputT> setTempDirectory(
           ValueProvider<ResourceId> tempDirectory);
@@ -949,6 +997,8 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setSchema(Schema schema);
 
       abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT, OutputT> setNoSpilling(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT, OutputT> setFilenamePolicy(
           FilenamePolicy filenamePolicy);
@@ -1144,6 +1194,11 @@ public class AvroIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public TypedWrite<UserT, DestinationT, OutputT> withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     /** Writes to Avro file(s) compressed using specified codec. */
     public TypedWrite<UserT, DestinationT, OutputT> withCodec(CodecFactory codec) {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
@@ -1229,6 +1284,9 @@ public class AvroIO {
       }
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
+      }
+      if (getNoSpilling()) {
+        write = write.withNoSpilling();
       }
       return input.apply("Write", write);
     }

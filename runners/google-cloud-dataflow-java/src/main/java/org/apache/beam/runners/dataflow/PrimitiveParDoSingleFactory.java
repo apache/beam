@@ -17,19 +17,20 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DisplayData;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
@@ -53,6 +55,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /**
  * A {@link PTransformOverrideFactory} that produces {@link ParDoSingle} instances from {@link
@@ -66,7 +70,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
   public PTransformReplacement<PCollection<? extends InputT>, PCollection<OutputT>>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<? extends InputT>, PCollection<OutputT>,
+                  PCollection<? extends InputT>,
+                  PCollection<OutputT>,
                   SingleOutput<InputT, OutputT>>
               transform) {
     return PTransformReplacement.of(
@@ -144,7 +149,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, ParDoSingle<?, ?>> transform, SdkComponents components)
         throws IOException {
-      RunnerApi.ParDoPayload payload = payloadForParDoSingle(transform.getTransform(), components);
+      RunnerApi.ParDoPayload payload = payloadForParDoSingle(transform, components);
+
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(PAR_DO_TRANSFORM_URN)
           .setPayload(payload.toByteString())
@@ -152,7 +158,9 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     }
 
     private static RunnerApi.ParDoPayload payloadForParDoSingle(
-        final ParDoSingle<?, ?> parDo, SdkComponents components) throws IOException {
+        final AppliedPTransform<?, ?, ParDoSingle<?, ?>> transform, SdkComponents components)
+        throws IOException {
+      final ParDoSingle<?, ?> parDo = transform.getTransform();
       final DoFn<?, ?> doFn = parDo.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       checkArgument(
@@ -161,12 +169,28 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
               "Not expecting a splittable %s: should have been overridden",
               ParDoSingle.class.getSimpleName()));
 
+      // TODO: Is there a better way to do this?
+      Set<String> allInputs =
+          transform.getInputs().keySet().stream().map(TupleTag::getId).collect(Collectors.toSet());
+      Set<String> sideInputs =
+          parDo.getSideInputs().stream()
+              .map(s -> s.getTagInternal().getId())
+              .collect(Collectors.toSet());
+      Set<String> timerInputs = signature.timerDeclarations().keySet();
+      String mainInputName =
+          Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
+      PCollection<?> mainInput =
+          (PCollection<?>) transform.getInputs().get(new TupleTag<>(mainInputName));
+
+      final DoFnSchemaInformation doFnSchemaInformation =
+          ParDo.getDoFnSchemaInformation(doFn, mainInput);
+
       return ParDoTranslation.payloadForParDoLike(
           new ParDoTranslation.ParDoLike() {
             @Override
             public RunnerApi.SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
               return ParDoTranslation.translateDoFn(
-                  parDo.getFn(), parDo.getMainOutputTag(), newComponents);
+                  parDo.getFn(), parDo.getMainOutputTag(), doFnSchemaInformation, newComponents);
             }
 
             @Override
@@ -201,7 +225,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
               for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
                   signature.timerDeclarations().entrySet()) {
                 RunnerApi.TimerSpec spec =
-                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn));
+                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
                 timerSpecs.put(timer.getKey(), spec);
               }
               return timerSpecs;

@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -80,7 +80,7 @@ public class MetricsHttpSinkTest {
   @Test
   public void testWriteMetricsWithCommittedSupported() throws Exception {
     MetricQueryResults metricQueryResults = new CustomMetricQueryResults(true);
-    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    MetricsOptions pipelineOptions = PipelineOptionsFactory.create().as(MetricsOptions.class);
     pipelineOptions.setMetricsHttpSinkUrl(String.format("http://localhost:%s", port));
     MetricsHttpSink metricsHttpSink = new MetricsHttpSink(pipelineOptions);
     countDownLatch = new CountDownLatch(1);
@@ -102,7 +102,7 @@ public class MetricsHttpSinkTest {
   @Test
   public void testWriteMetricsWithCommittedUnSupported() throws Exception {
     MetricQueryResults metricQueryResults = new CustomMetricQueryResults(false);
-    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    MetricsOptions pipelineOptions = PipelineOptionsFactory.create().as(MetricsOptions.class);
     pipelineOptions.setMetricsHttpSinkUrl(String.format("http://localhost:%s", port));
     MetricsHttpSink metricsHttpSink = new MetricsHttpSink(pipelineOptions);
     countDownLatch = new CountDownLatch(1);

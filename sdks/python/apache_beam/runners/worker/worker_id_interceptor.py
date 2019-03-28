@@ -40,8 +40,9 @@ class WorkerIdInterceptor(grpc.StreamStreamClientInterceptor):
   # Unique worker Id for this worker.
   _worker_id = os.environ.get('WORKER_ID')
 
-  def __init__(self):
-    pass
+  def __init__(self, worker_id=None):
+    if worker_id:
+      self._worker_id = worker_id
 
   def intercept_stream_stream(self, continuation, client_call_details,
                               request_iterator):

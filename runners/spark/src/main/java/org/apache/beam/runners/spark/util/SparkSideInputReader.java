@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.Iterables;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** A {@link SideInputReader} for the SparkRunner. */
 public class SparkSideInputReader implements SideInputReader {
@@ -49,16 +49,16 @@ public class SparkSideInputReader implements SideInputReader {
   @Nullable
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
-    //--- validate sideInput.
+    // --- validate sideInput.
     checkNotNull(view, "The PCollectionView passed to sideInput cannot be null ");
     KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>> windowedBroadcastHelper =
         sideInputs.get(view.getTagInternal());
     checkNotNull(windowedBroadcastHelper, "SideInput for view " + view + " is not available.");
 
-    //--- sideInput window
+    // --- sideInput window
     final BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(window);
 
-    //--- match the appropriate sideInput window.
+    // --- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
     // now that we've obtained the appropriate sideInputWindow, all that's left is to filter by it.
     Iterable<WindowedValue<KV<?, ?>>> availableSideInputs =

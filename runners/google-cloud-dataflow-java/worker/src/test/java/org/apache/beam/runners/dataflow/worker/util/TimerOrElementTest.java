@@ -55,7 +55,8 @@ public class TimerOrElementTest {
             "com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder");
     List<CloudObject> component =
         Collections.singletonList(
-            CloudObjects.asCloudObject(KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of())));
+            CloudObjects.asCloudObject(
+                KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()), /*sdkComponents=*/ null));
     Structs.addList(cloudObject, PropertyNames.COMPONENT_ENCODINGS, component);
 
     Coder<?> decoded = CloudObjects.coderFromCloudObject(cloudObject);

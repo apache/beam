@@ -23,8 +23,27 @@ limitations under the License.
 Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at [WordCount example]({{ site.baseurl
 }}/documentation/sdks/java/euphoria/#wordcount-example).
 
-This roadmap is in progress. In the meantime, here are some resources:
-
-- Feature branch: [dsl-euphoria](https://github.com/apache/beam/tree/dsl-euphoria)
 - JIRA: [dsl-euphoria](https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria) / [BEAM-3900](https://issues.apache.org/jira/browse/BEAM-3900)
-- Contact: [David Moravek](mailto:david.moravek@gmail.com)
+- Contact: [David Moravek](mailto:dmvk@apache.org)
+
+## "Salted" join implementation
+
+Implementation of a join, that can handle large scale join of highly skewed data sets. This implementation breaks
+the large keys into multiple splits, using key distribution approximated by count min sketch data structure. 
+
+## Pipeline sampling
+
+In order to pick the right translation for the operator without user interference, we can leverage knowledge from
+previous pipeline runs. We want to provide a convenient and portable way to gather this knowledge.
+
+## Fluent API
+
+Implementation of an easy to use Fluent API on top of Euphoria DSL.
+
+## Side Outputs
+
+An convenient API for multiple outputs.
+
+## Table-stream joins
+
+Introduce API for converting streams to tables (KStream <-> KTable approach) and various types of (windowed and unwindowed) joins on them.

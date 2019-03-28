@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
@@ -39,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.TestOutputRece
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
@@ -68,7 +68,7 @@ public class RemoteGrpcPortReadOperationTest {
   @Mock private FnDataService beamFnDataService;
   @Mock private OperationContext operationContext;
   @Captor private ArgumentCaptor<FnDataReceiver<WindowedValue<String>>> consumerCaptor;
-  @Mock private Supplier<String> bundleIdSupplier;
+  @Mock private IdGenerator bundleIdSupplier;
   private RemoteGrpcPortReadOperation<String> operation;
   private TestOutputReceiver testReceiver;
 
@@ -96,7 +96,7 @@ public class RemoteGrpcPortReadOperationTest {
     InboundDataClient inboundDataClient = CompletableFutureInboundDataClient.create();
     when(beamFnDataService.receive(any(), Matchers.<Coder<WindowedValue<String>>>any(), any()))
         .thenReturn(inboundDataClient);
-    when(bundleIdSupplier.get()).thenReturn(BUNDLE_ID);
+    when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
 
     operation.start();
     verify(beamFnDataService)
@@ -122,14 +122,14 @@ public class RemoteGrpcPortReadOperationTest {
     inboundDataClient.complete();
     operationFinish.get();
 
-    verify(bundleIdSupplier, times(1)).get();
+    verify(bundleIdSupplier, times(1)).getId();
     assertThat(
         testReceiver.outputElems,
         contains(
             valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
 
     // Ensure that the old bundle id is cleared.
-    when(bundleIdSupplier.get()).thenReturn(BUNDLE_ID_2);
+    when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID_2);
     operation.start();
     verify(beamFnDataService)
         .receive(eq(LogicalEndpoint.of(BUNDLE_ID_2, TARGET)), eq(CODER), consumerCaptor.capture());
@@ -140,7 +140,7 @@ public class RemoteGrpcPortReadOperationTest {
     InboundDataClient inboundDataClient = CompletableFutureInboundDataClient.create();
     when(beamFnDataService.receive(any(), Matchers.<Coder<WindowedValue<String>>>any(), any()))
         .thenReturn(inboundDataClient);
-    when(bundleIdSupplier.get()).thenReturn(BUNDLE_ID);
+    when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
 
     operation.start();
     verify(beamFnDataService)
@@ -149,6 +149,6 @@ public class RemoteGrpcPortReadOperationTest {
     assertFalse(inboundDataClient.isDone());
     operation.abort();
     assertTrue(inboundDataClient.isDone());
-    verify(bundleIdSupplier, times(1)).get();
+    verify(bundleIdSupplier, times(1)).getId();
   }
 }

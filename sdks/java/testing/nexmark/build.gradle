@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
@@ -49,7 +49,7 @@ configurations {
 }
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
@@ -71,6 +71,7 @@ dependencies {
   provided library.java.hamcrest_core
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
 

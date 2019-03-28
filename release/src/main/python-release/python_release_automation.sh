@@ -19,7 +19,12 @@
 source release/src/main/python-release/run_release_candidate_python_quickstart.sh
 source release/src/main/python-release/run_release_candidate_python_mobile_gaming.sh
 
-run_release_candidate_python_quickstart "tar"
-run_release_candidate_python_mobile_gaming "tar"
-run_release_candidate_python_quickstart "wheel"
-run_release_candidate_python_mobile_gaming "wheel"
+run_release_candidate_python_quickstart    "tar"   "python2.7"
+run_release_candidate_python_mobile_gaming "tar"   "python2.7"
+run_release_candidate_python_quickstart    "wheel" "python2.7"
+run_release_candidate_python_mobile_gaming "wheel" "python2.7"
+
+run_release_candidate_python_quickstart    "tar"   "python3.5"
+run_release_candidate_python_mobile_gaming "tar"   "python3.5"
+run_release_candidate_python_quickstart    "wheel" "python3.5"
+run_release_candidate_python_mobile_gaming "wheel" "python3.5"

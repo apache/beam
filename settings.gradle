@@ -38,12 +38,29 @@ include "beam-runners-direct-java"
 project(":beam-runners-direct-java").dir = file("runners/direct-java")
 include "beam-runners-extensions-java-metrics"
 project(":beam-runners-extensions-java-metrics").dir = file("runners/extensions-java/metrics")
+/* Begin Flink Runner related settings */
+// 1.5 version with Scala 2.11 suffix
 include "beam-runners-flink_2.11"
 project(":beam-runners-flink_2.11").dir = file("runners/flink")
 include "beam-runners-flink_2.11-job-server"
 project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
 include "beam-runners-flink_2.11-job-server-container"
 project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/job-server-container")
+// 1.6 version
+include "beam-runners-flink-1.6"
+project(":beam-runners-flink-1.6").dir = file("runners/flink/1.6")
+include "beam-runners-flink-1.6-job-server"
+project(":beam-runners-flink-1.6-job-server").dir = file("runners/flink/1.6/job-server")
+include "beam-runners-flink-1.6-job-server-container"
+project(":beam-runners-flink-1.6-job-server-container").dir = file("runners/flink/1.6/job-server-container")
+// 1.7 version
+include "beam-runners-flink-1.7"
+project(":beam-runners-flink-1.7").dir = file("runners/flink/1.7")
+include "beam-runners-flink-1.7-job-server"
+project(":beam-runners-flink-1.7-job-server").dir = file("runners/flink/1.7/job-server")
+include "beam-runners-flink-1.7-job-server-container"
+project(":beam-runners-flink-1.7-job-server-container").dir = file("runners/flink/1.7/job-server-container")
+/* End Flink Runner related settings */
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
@@ -110,6 +127,8 @@ include "beam-sdks-java-io-amqp"
 project(":beam-sdks-java-io-amqp").dir = file("sdks/java/io/amqp")
 include "beam-sdks-java-io-cassandra"
 project(":beam-sdks-java-io-cassandra").dir = file("sdks/java/io/cassandra")
+include "beam-sdks-java-io-clickhouse"
+project(":beam-sdks-java-io-clickhouse").dir = file("sdks/java/io/clickhouse")
 include "beam-sdks-java-io-common"
 project(":beam-sdks-java-io-common").dir = file("sdks/java/io/common")
 include "beam-sdks-java-io-elasticsearch"
@@ -132,6 +151,8 @@ include "beam-sdks-java-io-hadoop-file-system"
 project(":beam-sdks-java-io-hadoop-file-system").dir = file("sdks/java/io/hadoop-file-system")
 include "beam-sdks-java-io-hadoop-input-format"
 project(":beam-sdks-java-io-hadoop-input-format").dir = file("sdks/java/io/hadoop-input-format")
+include "beam-sdks-java-io-hadoop-format"
+project(":beam-sdks-java-io-hadoop-format").dir = file("sdks/java/io/hadoop-format")
 include "beam-sdks-java-io-hbase"
 project(":beam-sdks-java-io-hbase").dir = file("sdks/java/io/hbase")
 include "beam-sdks-java-io-hcatalog"
@@ -180,12 +201,26 @@ include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
 include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
-include "beam-vendor-java-grpc-v1"
-project(":beam-vendor-java-grpc-v1").dir = file("vendor/java-grpc-v1")
+include "beam-sdks-python-test-suites-dataflow"
+project(":beam-sdks-python-test-suites-dataflow").dir = file("sdks/python/test-suites/dataflow")
+include "beam-sdks-python-test-suites-dataflow-py3"
+project(":beam-sdks-python-test-suites-dataflow-py3").dir = file("sdks/python/test-suites/dataflow/py3")
+include "beam-sdks-python-test-suites-direct-py3"
+project(":beam-sdks-python-test-suites-direct-py3").dir = file("sdks/python/test-suites/direct/py3")
+include "beam-sdks-python-test-suites-tox-py35"
+project(":beam-sdks-python-test-suites-tox-py35").dir = file("sdks/python/test-suites/tox/py35")
+include "beam-sdks-python-test-suites-tox-py36"
+project(":beam-sdks-python-test-suites-tox-py36").dir = file("sdks/python/test-suites/tox/py36")
+include "beam-sdks-python-load-tests"
+project(":beam-sdks-python-load-tests").dir = file("sdks/python/apache_beam/testing/load_tests")
+include "beam-vendor-grpc-1_13_1"
+project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
 include "beam-sdks-java-test-utils"
 project(":beam-sdks-java-test-utils").dir = file("sdks/java/testing/test-utils")
 include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
+include "beam-vendor-guava-20_0"
+project(":beam-vendor-guava-20_0").dir = file("vendor/guava-20_0")
 include "beam-website"
 project(":beam-website").dir = file("website")
 include "beam-runners-google-cloud-dataflow-java-legacy-worker"
@@ -196,3 +231,7 @@ include "beam-runners-google-cloud-dataflow-java-windmill"
 project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
 include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
+include "beam-sdks-java-bom"
+project(":beam-sdks-java-bom").dir = file("sdks/java/bom")
+include "beam-test-tools"
+project(":beam-test-tools").dir = file(".test-infra/tools")

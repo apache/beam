@@ -21,9 +21,11 @@ import atexit
 import logging
 import os
 import signal
+import socket
 import sys
 import time
 from subprocess import Popen
+from subprocess import check_output
 from threading import Lock
 
 
@@ -33,12 +35,14 @@ class DockerizedJobServer(object):
   """
 
   def __init__(self, job_host="localhost",
-               job_port=8099,
-               artifact_port=8098,
+               job_port=None,
+               artifact_port=None,
+               expansion_port=None,
                harness_port_range=(8100, 8200),
                max_connection_retries=5):
     self.job_host = job_host
     self.job_port = job_port
+    self.expansion_port = expansion_port
     self.artifact_port = artifact_port
     self.harness_port_range = harness_port_range
     self.max_connection_retries = max_connection_retries
@@ -49,12 +53,22 @@ class DockerizedJobServer(object):
     # TODO This is hardcoded to Flink at the moment but should be changed
     job_server_image_name = os.environ['USER'] + \
         "-docker-apache.bintray.io/beam/flink-job-server:latest"
+    docker_path = check_output(['which', 'docker']).strip()
     cmd = ["docker", "run",
            # We mount the docker binary and socket to be able to spin up
            # "sibling" containers for the SDK harness.
-           "-v", "/usr/local/bin/docker:/bin/docker",
+           "-v", ':'.join([docker_path, "/bin/docker"]),
            "-v", "/var/run/docker.sock:/var/run/docker.sock"]
-    args = ["--job-host", self.job_host, "--job-port", str(self.job_port)]
+
+    self.job_port, self.artifact_port, self.expansion_port = \
+      DockerizedJobServer._pick_port(self.job_port,
+                                     self.artifact_port,
+                                     self.expansion_port)
+
+    args = ['--job-host', self.job_host,
+            '--job-port', str(self.job_port),
+            '--artifact-port', str(self.artifact_port),
+            '--expansion-port', str(self.expansion_port)]
 
     if sys.platform == "darwin":
       # Docker-for-Mac doesn't support host networking, so we need to explictly
@@ -64,9 +78,9 @@ class DockerizedJobServer(object):
       cmd += ["-e", "DOCKER_MAC_CONTAINER=1"]
       cmd += ["-p", "{}:{}".format(self.job_port, self.job_port)]
       cmd += ["-p", "{}:{}".format(self.artifact_port, self.artifact_port)]
+      cmd += ["-p", "{}:{}".format(self.expansion_port, self.expansion_port)]
       cmd += ["-p", "{0}-{1}:{0}-{1}".format(
           self.harness_port_range[0], self.harness_port_range[1])]
-      args += ["--artifact-port", "{}".format(self.artifact_port)]
     else:
       # This shouldn't be set for MacOS because it detroys port forwardings,
       # even though host networking is not supported on MacOS.
@@ -99,3 +113,27 @@ class DockerizedJobServer(object):
         time.sleep(1)
       if self.docker_process.poll is None:
         self.docker_process.kill()
+
+  @staticmethod
+  def _pick_port(*ports):
+    """
+    Returns a list of ports, same length as input ports list, but replaces
+    all None or 0 ports with a random free port.
+    """
+    sockets = []
+
+    def find_free_port(port):
+      if port:
+        return port
+      else:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sockets.append(s)
+        s.bind(('localhost', 0))
+        _, free_port = s.getsockname()
+        return free_port
+
+    ports = list(map(find_free_port, ports))
+    # Close sockets only now to avoid the same port to be chosen twice
+    for s in sockets:
+      s.close()
+    return ports

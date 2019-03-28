@@ -19,7 +19,6 @@ from __future__ import print_function
 
 import inspect
 import logging
-import os
 import platform
 import signal
 import socket
@@ -36,6 +35,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -43,15 +43,14 @@ from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
-  TIMEOUT_SECS = 30
+  TIMEOUT_SECS = 60
 
-  _use_grpc = False
+  # Controls job service interaction, not sdk harness interaction.
   _use_subprocesses = False
 
   def setUp(self):
@@ -74,28 +73,42 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     if platform.system() != 'Windows':
       signal.alarm(0)
 
+  @classmethod
+  def _pick_unused_port(cls):
+    return cls._pick_unused_ports(num_ports=1)[0]
+
   @staticmethod
-  def _pick_unused_port():
+  def _pick_unused_ports(num_ports):
     """Not perfect, but we have to provide a port to the subprocess."""
     # TODO(robertwb): Consider letting the subprocess communicate a choice of
     # port back.
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 0))
-    _, port = s.getsockname()
-    s.close()
-    return port
+    sockets = []
+    ports = []
+    for _ in range(0, num_ports):
+      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      sockets.append(s)
+      s.bind(('localhost', 0))
+      _, port = s.getsockname()
+      ports.append(port)
+    try:
+      return ports
+    finally:
+      for s in sockets:
+        s.close()
 
   @classmethod
   def _start_local_runner_subprocess_job_service(cls):
     cls._maybe_kill_subprocess()
     # TODO(robertwb): Consider letting the subprocess pick one and
     # communicate it back...
-    port = cls._pick_unused_port()
-    logging.info('Starting server on port %d.', port)
-    cls._subprocess = subprocess.Popen(cls._subprocess_command(port))
-    address = 'localhost:%d' % port
+    # pylint: disable=unbalanced-tuple-unpacking
+    job_port, expansion_port = cls._pick_unused_ports(num_ports=2)
+    logging.info('Starting server on port %d.', job_port)
+    cls._subprocess = subprocess.Popen(
+        cls._subprocess_command(job_port, expansion_port))
+    address = 'localhost:%d' % job_port
     job_service = beam_job_api_pb2_grpc.JobServiceStub(
-        grpc.insecure_channel(address))
+        GRPCChannelFactory.insecure_channel(address))
     logging.info('Waiting for server to be ready...')
     start = time.time()
     timeout = 30
@@ -130,18 +143,13 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   def _create_job_endpoint(cls):
     if cls._use_subprocesses:
       return cls._start_local_runner_subprocess_job_service()
-    elif cls._use_grpc:
-      # Use GRPC for workers.
-      cls._servicer = LocalJobServicer(use_grpc=True)
-      return 'localhost:%d' % cls._servicer.start_grpc_server()
     else:
-      # Do not use GRPC for worker.
-      cls._servicer = LocalJobServicer(use_grpc=False)
+      cls._servicer = LocalJobServicer()
       return 'localhost:%d' % cls._servicer.start_grpc_server()
 
   @classmethod
   def get_runner(cls):
-    return portable_runner.PortableRunner(is_embedded_fnapi_runner=True)
+    return portable_runner.PortableRunner()
 
   @classmethod
   def tearDownClass(cls):
@@ -165,62 +173,54 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
         'job_name': get_pipeline_name() + '_' + str(time.time())
     })
     options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
+    # Override the default environment type for testing.
+    options.view_as(PortableOptions).environment_type = (
+        python_urns.EMBEDDED_PYTHON)
     return options
 
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner(), self.create_options())
 
-  def test_assert_that(self):
-    # TODO: figure out a way for runner to parse and raise the
-    # underlying exception.
-    with self.assertRaises(Exception):
-      with self.create_pipeline() as p:
-        assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
-
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_error_message_includes_stage(self):
-    # TODO: figure out a way for runner to parse and raise the
-    # underlying exception.
-    with self.assertRaises(Exception):
-      with self.create_pipeline() as p:
-        def raise_error(x):
-          raise RuntimeError('x')
-        # pylint: disable=expression-not-assigned
-        (p
-         | beam.Create(['a', 'b'])
-         | 'StageA' >> beam.Map(lambda x: x)
-         | 'StageB' >> beam.Map(lambda x: x)
-         | 'StageC' >> beam.Map(raise_error)
-         | 'StageD' >> beam.Map(lambda x: x))
-
-  def test_error_traceback_includes_user_code(self):
-    # TODO: figure out a way for runner to parse and raise the
-    # underlying exception.
-    raise unittest.SkipTest('TODO')
-
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
 
-class PortableRunnerTestWithGrpc(PortableRunnerTest):
-  _use_grpc = True
+class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
+
+  @classmethod
+  def setUpClass(cls):
+    cls._worker_address, cls._worker_server = (
+        portable_runner.BeamFnExternalWorkerPoolServicer.start())
+
+  @classmethod
+  def tearDownClass(cls):
+    cls._worker_server.stop(1)
+
+  def create_options(self):
+    options = super(PortableRunnerTestWithExternalEnv, self).create_options()
+    options.view_as(PortableOptions).environment_type = 'EXTERNAL'
+    options.view_as(PortableOptions).environment_config = self._worker_address
+    return options
 
 
 @unittest.skip("BEAM-3040")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
-  _use_grpc = True
   _use_subprocesses = True
 
+  def create_options(self):
+    options = super(PortableRunnerTestWithSubprocesses, self).create_options()
+    options.view_as(PortableOptions).environment_type = (
+        python_urns.SUBPROCESS_SDK)
+    options.view_as(PortableOptions).environment_config = (
+        b'%s -m apache_beam.runners.worker.sdk_worker_main' %
+        sys.executable.encode('ascii'))
+    return options
+
   @classmethod
-  def _subprocess_command(cls, port):
+  def _subprocess_command(cls, job_port, _):
     return [
         sys.executable,
         '-m', 'apache_beam.runners.portability.local_job_service_main',
-        '-p', str(port),
-        '--worker_command_line',
-        '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable,
+        '-p', str(job_port),
     ]
 
 

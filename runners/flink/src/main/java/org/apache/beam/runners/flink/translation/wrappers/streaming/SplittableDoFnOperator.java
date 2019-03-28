@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -93,7 +94,8 @@ public class SplittableDoFnOperator<
         sideInputs,
         options,
         keyCoder,
-        keySelector);
+        keySelector,
+        DoFnSchemaInformation.create());
   }
 
   @Override
@@ -157,6 +159,7 @@ public class SplittableDoFnOperator<
 
   @Override
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
+    timerInternals.cleanupPendingTimer(timer.getNamespace());
     if (timer.getNamespace().getDomain().equals(TimeDomain.EVENT_TIME)) {
       // ignore this, it can only be a state cleanup timers from StatefulDoFnRunner and ProcessFn
       // does its own state cleanup and should never set event-time timers.

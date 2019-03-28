@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
 
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
+  shadow library.java.google_cloud_bigquery
+  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
 
   shadowTest library.java.junit
   shadowTest library.java.mockito_core

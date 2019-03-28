@@ -17,12 +17,6 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
-import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Table;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,7 +39,6 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.coders.Coder;
@@ -61,6 +54,12 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.streaming.Duration;
@@ -97,8 +96,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
 
-  private static class StateAndTimers implements Serializable {
-    //Serializable state for internals (namespace to state tag to coded value).
+  /** State and Timers wrapper. */
+  public static class StateAndTimers implements Serializable {
+    // Serializable state for internals (namespace to state tag to coded value).
     private final Table<String, String, byte[]> state;
     private final Collection<byte[]> serTimers;
 
@@ -150,7 +150,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       extends AbstractFunction1<
           Iterator<
               Tuple3<
-                  /*K*/ ByteArray, Seq</*Itr<WV<I>>*/ byte[]>,
+                  /*K*/ ByteArray,
+                  Seq</*Itr<WV<I>>*/ byte[]>,
                   Option<Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>,
           Iterator<
               Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>
@@ -411,10 +412,11 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         apply(
             final Iterator<
                     Tuple3<
-                        /*K*/ ByteArray, Seq</*Itr<WV<I>>*/ byte[]>,
+                        /*K*/ ByteArray,
+                        Seq</*Itr<WV<I>>*/ byte[]>,
                         Option<Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>
                 input) {
-      //--- ACTUAL STATEFUL OPERATION:
+      // --- ACTUAL STATEFUL OPERATION:
       //
       // Input Iterator: the partition (~bundle) of a co-grouping of the input
       // and the previous state (if exists).
@@ -552,8 +554,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             .transformToPair(
                 (rdd, time) ->
                     rdd.mapPartitions(
-                            TranslationUtils.functionToFlatMapFunction(
-                                WindowingHelpers.unwindowFunction()),
+                            TranslationUtils.functionToFlatMapFunction(WindowedValue::getValue),
                             true)
                         .mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
                         .mapValues(

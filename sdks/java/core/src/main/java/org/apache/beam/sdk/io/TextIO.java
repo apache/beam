@@ -17,17 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.compress.utils.CharsetNames.UTF_8;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -61,6 +57,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 
 /**
@@ -252,6 +252,7 @@ public class TextIO {
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNumShards(0)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -629,6 +630,9 @@ public class TextIO {
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
+    /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
+    abstract boolean getNoSpilling();
+
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -640,7 +644,7 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder<UserT, DestinationT> {
       abstract Builder<UserT, DestinationT> setFilenamePrefix(
-          ValueProvider<ResourceId> filenamePrefix);
+          @Nullable ValueProvider<ResourceId> filenamePrefix);
 
       abstract Builder<UserT, DestinationT> setTempDirectory(
           @Nullable ValueProvider<ResourceId> tempDirectory);
@@ -672,6 +676,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setNumShards(int numShards);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -899,6 +905,11 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public TypedWrite<UserT, DestinationT> withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -944,8 +955,7 @@ public class TextIO {
       checkArgument(
           1
               == Iterables.size(
-                  allToArgs
-                      .stream()
+                  allToArgs.stream()
                       .filter(Predicates.notNull()::apply)
                       .collect(Collectors.toList())),
           "Exactly one of filename policy, dynamic destinations, filename prefix, or destination "
@@ -981,6 +991,9 @@ public class TextIO {
       }
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
+      }
+      if (getNoSpilling()) {
+        write = write.withNoSpilling();
       }
       return input.apply("WriteFiles", write);
     }
@@ -1146,6 +1159,11 @@ public class TextIO {
       return new Write(inner.withWindowedWrites());
     }
 
+    /** See {@link TypedWrite#withNoSpilling}. */
+    public Write withNoSpilling() {
+      return new Write(inner.withNoSpilling());
+    }
+
     /**
      * Specify that output filenames are wanted.
      *
@@ -1192,7 +1210,10 @@ public class TextIO {
     /** @see Compression#ZIP */
     ZIP(Compression.ZIP),
 
-    /** @see Compression#ZIP */
+    /** @see Compression#ZSTD */
+    ZSTD(Compression.ZSTD),
+
+    /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
     private final Compression canonical;

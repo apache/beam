@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps.uniqueIndex;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.isEmptyString;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -46,17 +49,15 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
-import com.google.common.base.Charsets;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -66,6 +67,13 @@ import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -2048,5 +2056,89 @@ public class PipelineOptionsFactoryTest {
     static String myStaticMethod(OptionsWithStaticMethod o) {
       return o.getMyMethod();
     }
+  }
+
+  /** Test interface. */
+  public interface TestDescribeOptions extends PipelineOptions {
+    String getString();
+
+    void setString(String value);
+
+    @Description("integer property")
+    Integer getInteger();
+
+    void setInteger(Integer value);
+
+    @Description("float number property")
+    Float getFloat();
+
+    void setFloat(Float value);
+
+    @Description("simple boolean property")
+    @Default.Boolean(true)
+    boolean getBooleanSimple();
+
+    void setBooleanSimple(boolean value);
+
+    @Default.Boolean(false)
+    Boolean getBooleanWrapper();
+
+    void setBooleanWrapper(Boolean value);
+
+    List<Integer> getList();
+
+    void setList(List<Integer> value);
+  }
+
+  @Test
+  public void testDescribe() {
+    List<PipelineOptionDescriptor> described =
+        PipelineOptionsFactory.describe(
+            Sets.newHashSet(PipelineOptions.class, TestDescribeOptions.class));
+
+    Map<String, PipelineOptionDescriptor> mapped = uniqueIndex(described, input -> input.getName());
+    assertEquals("no duplicates", described.size(), mapped.size());
+
+    Collection<PipelineOptionDescriptor> filtered =
+        Collections2.filter(
+            described, input -> input.getGroup().equals(TestDescribeOptions.class.getName()));
+    assertEquals(6, filtered.size());
+    mapped = uniqueIndex(filtered, input -> input.getName());
+
+    PipelineOptionDescriptor listDesc = mapped.get("list");
+    assertThat(listDesc, notNullValue());
+    assertThat(listDesc.getDescription(), isEmptyString());
+    assertEquals(PipelineOptionType.Enum.ARRAY, listDesc.getType());
+    assertThat(listDesc.getDefaultValue(), isEmptyString());
+
+    PipelineOptionDescriptor stringDesc = mapped.get("string");
+    assertThat(stringDesc, notNullValue());
+    assertThat(stringDesc.getDescription(), isEmptyString());
+    assertEquals(PipelineOptionType.Enum.STRING, stringDesc.getType());
+    assertThat(stringDesc.getDefaultValue(), isEmptyString());
+
+    PipelineOptionDescriptor integerDesc = mapped.get("integer");
+    assertThat(integerDesc, notNullValue());
+    assertEquals("integer property", integerDesc.getDescription());
+    assertEquals(PipelineOptionType.Enum.INTEGER, integerDesc.getType());
+    assertThat(integerDesc.getDefaultValue(), isEmptyString());
+
+    PipelineOptionDescriptor floatDesc = mapped.get("float");
+    assertThat(integerDesc, notNullValue());
+    assertEquals("float number property", floatDesc.getDescription());
+    assertEquals(PipelineOptionType.Enum.NUMBER, floatDesc.getType());
+    assertThat(floatDesc.getDefaultValue(), isEmptyString());
+
+    PipelineOptionDescriptor booleanSimpleDesc = mapped.get("boolean_simple");
+    assertThat(booleanSimpleDesc, notNullValue());
+    assertEquals("simple boolean property", booleanSimpleDesc.getDescription());
+    assertEquals(PipelineOptionType.Enum.BOOLEAN, booleanSimpleDesc.getType());
+    assertThat(booleanSimpleDesc.getDefaultValue(), equalTo("true"));
+
+    PipelineOptionDescriptor booleanWrapperDesc = mapped.get("boolean_wrapper");
+    assertThat(booleanWrapperDesc, notNullValue());
+    assertThat(booleanWrapperDesc.getDescription(), isEmptyString());
+    assertEquals(PipelineOptionType.Enum.BOOLEAN, booleanWrapperDesc.getType());
+    assertThat(booleanWrapperDesc.getDefaultValue(), equalTo("false"));
   }
 }

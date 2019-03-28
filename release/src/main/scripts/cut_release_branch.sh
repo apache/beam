@@ -42,10 +42,10 @@ if [[ $# -eq 1 && $1 = "-h" ]]; then
 else
 	for param in "$@"
 	do
-		if [[ $param =~ --release\=([0-9]\.[0-9]\.[0-9]) ]]; then
+		if [[ $param =~ --release\=([0-9]\.[0-9]*\.[0-9]) ]]; then
 			RELEASE=${BASH_REMATCH[1]}
 		fi
-		if [[ $param =~ --next_release\=([0-9]\.[0-9]\.[0-9]) ]]; then
+		if [[ $param =~ --next_release\=([0-9]\.[0-9]*\.[0-9]) ]]; then
 			NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}
 		fi
 	done

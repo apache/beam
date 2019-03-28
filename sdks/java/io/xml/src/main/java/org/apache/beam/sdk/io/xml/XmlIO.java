@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.xml;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.ReadAllViaFileBasedSource;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** Transforms for reading and writing XML files using JAXB mappers. */
 public class XmlIO {
@@ -85,7 +86,7 @@ public class XmlIO {
    * <p>Example:
    *
    * <pre>{@code
-   * PCollection<String> output = p.apply(XmlIO.<Record>read()
+   * PCollection<Record> output = p.apply(XmlIO.<Record>read()
    *     .from(file.toPath().toString())
    *     .withRootElement("root")
    *     .withRecordElement("record")
@@ -126,7 +127,7 @@ public class XmlIO {
    *       Duration.standardSeconds(30), afterTimeSinceNewOutput(Duration.standardMinutes(5))))
    *     .apply(FileIO.readMatches().withCompression(GZIP));
    *
-   * PCollection<String> output = files.apply(XmlIO.<Record>readFiles()
+   * PCollection<Record> output = files.apply(XmlIO.<Record>readFiles()
    *     .withRootElement("root")
    *     .withRecordElement("record")
    *     .withRecordClass(Record.class));
@@ -232,7 +233,7 @@ public class XmlIO {
     abstract MappingConfiguration<T> getConfiguration();
 
     @Nullable
-    abstract String getFileOrPatternSpec();
+    abstract ValueProvider<String> getFileOrPatternSpec();
 
     abstract Compression getCompression();
 
@@ -244,7 +245,7 @@ public class XmlIO {
     abstract static class Builder<T> {
       abstract Builder<T> setConfiguration(MappingConfiguration<T> configuration);
 
-      abstract Builder<T> setFileOrPatternSpec(String fileOrPatternSpec);
+      abstract Builder<T> setFileOrPatternSpec(ValueProvider<String> fileOrPatternSpec);
 
       abstract Builder<T> setCompression(Compression compression);
 
@@ -291,6 +292,14 @@ public class XmlIO {
      * file should be of the form defined in {@link #read}.
      */
     public Read<T> from(String fileOrPatternSpec) {
+      return from(StaticValueProvider.of(fileOrPatternSpec));
+    }
+
+    /**
+     * Reads a single XML file or a set of XML files defined by a Java "glob" file pattern. Each XML
+     * file should be of the form defined in {@link #read}. Using ValueProviders.
+     */
+    public Read<T> from(ValueProvider<String> fileOrPatternSpec) {
       return toBuilder().setFileOrPatternSpec(fileOrPatternSpec).build();
     }
 
@@ -371,9 +380,7 @@ public class XmlIO {
 
     @VisibleForTesting
     BoundedSource<T> createSource() {
-      return CompressedSource.from(
-              new XmlSource<>(
-                  StaticValueProvider.of(getFileOrPatternSpec()), getConfiguration(), 1L))
+      return CompressedSource.from(new XmlSource<>(getFileOrPatternSpec(), getConfiguration(), 1L))
           .withCompression(getCompression());
     }
 

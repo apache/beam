@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.math.LongMath;
-import com.google.common.primitives.Longs;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Longs;
 
 /**
  * This module provides routines for encoding a sequence of typed entities into a byte array. The
@@ -68,7 +68,7 @@ public class OrderedCode {
 
   public static final byte[] ESCAPE1_SEPARATOR = {ESCAPE1, SEPARATOR};
 
-  public static final byte[] INFINITY_ENCODED = {ESCAPE2, INFINITY};
+  static final byte[] INFINITY_ENCODED = {ESCAPE2, INFINITY};
 
   /**
    * This array maps encoding length to header bits in the first two bytes for SignedNumIncreasing

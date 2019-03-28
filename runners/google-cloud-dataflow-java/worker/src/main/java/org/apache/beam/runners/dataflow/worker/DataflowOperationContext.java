@@ -23,23 +23,23 @@ import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
 import java.io.Closeable;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
@@ -65,14 +65,14 @@ public class DataflowOperationContext implements OperationContext {
   private final ExecutionState abortState;
   private final MetricsContainer metricsContainer;
   private final ExecutionStateTracker executionStateTracker;
-  private final ExecutionStateRegistry executionStateRegistry;
+  private final DataflowExecutionStateRegistry executionStateRegistry;
 
   DataflowOperationContext(
       CounterFactory counterFactory,
       NameContext nameContext,
       MetricsContainer metricsContainer,
       ExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry) {
+      DataflowExecutionStateRegistry executionStateRegistry) {
     this(
         counterFactory,
         nameContext,
@@ -88,7 +88,7 @@ public class DataflowOperationContext implements OperationContext {
       NameContext nameContext,
       MetricsContainer metricsContainer,
       ExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry,
+      DataflowExecutionStateRegistry executionStateRegistry,
       ScopedProfiler scopedProfiler) {
     this.counterFactory = counterFactory;
     this.nameContext = nameContext;
@@ -173,6 +173,8 @@ public class DataflowOperationContext implements OperationContext {
      */
     @Nullable private final Integer inputIndex;
 
+    private final NameContext stepName;
+
     private final ProfileScope profileScope;
     @Nullable private final MetricsContainer metricsContainer;
 
@@ -183,11 +185,19 @@ public class DataflowOperationContext implements OperationContext {
         @Nullable Integer inputIndex,
         @Nullable MetricsContainer metricsContainer,
         ProfileScope profileScope) {
-      super(nameContext, stateName);
+      super(stateName);
+      this.stepName = nameContext;
       this.requestingStepName = requestingStepName;
       this.inputIndex = inputIndex;
       this.profileScope = Preconditions.checkNotNull(profileScope);
       this.metricsContainer = metricsContainer;
+    }
+
+    /**
+     * Returns the {@link NameContext} identifying the executing step associated with this state.
+     */
+    public NameContext getStepName() {
+      return stepName;
     }
 
     @Override
@@ -202,7 +212,7 @@ public class DataflowOperationContext implements OperationContext {
     private static final ImmutableSet<String> FRAMEWORK_CLASSES =
         ImmutableSet.of(SimpleDoFnRunner.class.getName(), DoFnInstanceManagers.class.getName());
 
-    private String getLullMessage(Thread trackedThread, Duration millis) {
+    protected String getLullMessage(Thread trackedThread, Duration millis) {
       StringBuilder message = new StringBuilder();
       message.append("Processing stuck");
       if (getStepName() != null) {

@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
  *
  * @param <T> type of element coder can handle
  */
+@Experimental
 public class KryoCoder<T> extends CustomCoder<T> {
 
   /**

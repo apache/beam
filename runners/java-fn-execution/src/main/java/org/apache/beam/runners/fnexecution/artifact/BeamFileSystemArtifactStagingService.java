@@ -17,18 +17,15 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Collections;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
@@ -45,11 +42,13 @@ import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,8 +134,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * @param basePath Base path to upload artifacts.
    * @return Encoded stagingSessionToken.
    */
-  public static String generateStagingSessionToken(String sessionId, String basePath)
-      throws Exception {
+  public static String generateStagingSessionToken(String sessionId, String basePath) {
     StagingSessionToken stagingSessionToken = new StagingSessionToken();
     stagingSessionToken.setSessionId(sessionId);
     stagingSessionToken.setBasePath(basePath);
@@ -227,7 +225,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           LOG.debug(
               "Going to stage artifact {} to {}.", metadata.getMetadata().getName(), artifactId);
           artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
-          hasher = Hashing.md5().newHasher();
+          hasher = Hashing.sha256().newHasher();
         } catch (Exception e) {
           String message =
               String.format(
@@ -290,16 +288,16 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           return;
         }
       }
-      String expectedMd5 = metadata.getMetadata().getMd5();
-      if (expectedMd5 != null && !expectedMd5.isEmpty()) {
-        String actualMd5 = Base64.getEncoder().encodeToString(hasher.hash().asBytes());
-        if (!actualMd5.equals(expectedMd5)) {
+      String expectedSha256 = metadata.getMetadata().getSha256();
+      if (expectedSha256 != null && !expectedSha256.isEmpty()) {
+        String actualSha256 = hasher.hash().toString();
+        if (!actualSha256.equals(expectedSha256)) {
           outboundObserver.onError(
               new StatusRuntimeException(
                   Status.INVALID_ARGUMENT.withDescription(
                       String.format(
-                          "Artifact %s is corrupt: expected md5 %s, but has md5 %s",
-                          metadata.getMetadata().getName(), expectedMd5, actualMd5))));
+                          "Artifact %s is corrupt: expected sah256 %s, but has sha256 %s",
+                          metadata.getMetadata().getName(), expectedSha256, actualSha256))));
           return;
         }
       }

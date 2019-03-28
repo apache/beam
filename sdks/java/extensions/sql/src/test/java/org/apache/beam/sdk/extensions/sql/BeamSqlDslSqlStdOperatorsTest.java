@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseDate;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTime;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
@@ -44,6 +43,10 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
@@ -161,9 +164,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     Set<SqlOperatorId> declaredOperators = new HashSet<>();
 
     declaredOperators.addAll(
-        SqlStdOperatorTable.instance()
-            .getOperatorList()
-            .stream()
+        SqlStdOperatorTable.instance().getOperatorList().stream()
             .map(operator -> sqlOperatorId(operator.getName(), operator.getKind()))
             .collect(Collectors.toList()));
 
@@ -335,14 +336,14 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float * c_bigint", 1.0f)
             .addExpr("c_double * c_bigint", 1.0)
             .addExpr("1 / 1", 1)
-            .addExpr("1.0 / 1", ONE10)
-            .addExpr("1 / 1.0", ONE10)
-            .addExpr("1.0 / 1.0", ONE10)
+            .addExpr("1.0 / 1", ONE)
+            .addExpr("1 / 1.0", BigDecimal.ONE)
+            .addExpr("1.0 / 1.0", BigDecimal.ONE)
             .addExpr("c_tinyint / c_tinyint", (byte) 1)
             .addExpr("c_smallint / c_smallint", (short) 1)
             .addExpr("c_bigint / c_bigint", 1L)
-            .addExpr("c_decimal / c_decimal", ONE10)
-            .addExpr("c_tinyint / c_decimal", ONE10)
+            .addExpr("c_decimal / c_decimal", BigDecimal.ONE)
+            .addExpr("c_tinyint / c_decimal", BigDecimal.ONE)
             .addExpr("c_float / c_decimal", 1.0)
             .addExpr("c_double / c_decimal", 1.0)
             .addExpr("c_float / c_float", 1.0f)
@@ -352,13 +353,13 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_double / c_bigint", 1.0)
             .addExpr("mod(1, 1)", 0)
             .addExpr("mod(1.0, 1)", 0)
-            .addExpr("mod(1, 1.0)", ZERO)
+            .addExpr("mod(1, 1.0)", BigDecimal.ZERO)
             .addExpr("mod(1.0, 1.0)", ZERO)
             .addExpr("mod(c_tinyint, c_tinyint)", (byte) 0)
             .addExpr("mod(c_smallint, c_smallint)", (short) 0)
             .addExpr("mod(c_bigint, c_bigint)", 0L)
-            .addExpr("mod(c_decimal, c_decimal)", ZERO)
-            .addExpr("mod(c_tinyint, c_decimal)", ZERO)
+            .addExpr("mod(c_decimal, c_decimal)", BigDecimal.ZERO)
+            .addExpr("mod(c_tinyint, c_decimal)", BigDecimal.ZERO)
             // Test overflow
             .addExpr("c_tinyint_max + c_tinyint_max", (byte) -2)
             .addExpr("c_smallint_max + c_smallint_max", (short) -2)
@@ -544,7 +545,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("3 = 5 IS NOT UNKNOWN", true)
             .addExpr("5 = 5 IS NOT UNKNOWN", true)
             .addExpr("(NOT 5 = 5) IS NOT UNKNOWN", true)
-            .addExpr("(3 = NULL) IS UNKNOWN", false)
+            .addExpr("(3 = NULL) IS UNKNOWN", true)
             .addExpr("(3 = NULL) IS NOT UNKNOWN", false)
             .addExpr("(NULL = NULL) IS NOT UNKNOWN", false)
             .addExpr("(NOT NULL = NULL) IS NOT UNKNOWN", false)
@@ -581,7 +582,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("MAX(c_float)", 3.0f)
             .addExpr("MAX(c_double)", 3.0)
             .addExpr("MAX(c_decimal)", BigDecimal.valueOf(3.0))
-            .addExpr("MAX(ts)", parseDate("1986-04-15 11:35:26"));
+            .addExpr("MAX(ts)", parseTimestampWithUTCTimeZone("1986-04-15 11:35:26"));
     checker.buildRunAndCheck(getAggregationTestPCollection());
   }
 
@@ -597,7 +598,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("MIN(c_float)", 1.0f)
             .addExpr("MIN(c_double)", 1.0)
             .addExpr("MIN(c_decimal)", BigDecimal.valueOf(1.0))
-            .addExpr("MIN(ts)", parseDate("1986-02-15 11:35:26"));
+            .addExpr("MIN(ts)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"));
     checker.buildRunAndCheck(getAggregationTestPCollection());
   }
 
@@ -631,7 +632,6 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     checker.buildRunAndCheck(getAggregationTestPCollection());
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-5111")
   @Test
   @SqlOperatorTest(name = "$SUM0", kind = "SUM0")
   public void testSUM0() {
@@ -701,7 +701,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "LOWER", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "POSITION", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "POSITION", kind = "POSITION")
   @SqlOperatorTest(name = "OVERLAY", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "TRIM", kind = "TRIM")
@@ -1044,7 +1044,9 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   @SqlOperatorTest(name = "RAND", kind = "OTHER_FUNCTION")
   public void testRand() {
     ExpressionChecker checker =
-        new ExpressionChecker().addExpr("RAND(c_integer)", new Random(INTEGER_VALUE).nextDouble());
+        new ExpressionChecker()
+            .addExpr(
+                "RAND(c_integer)", new Random(INTEGER_VALUE ^ (INTEGER_VALUE << 16)).nextDouble());
 
     checker.buildRunAndCheck();
   }
@@ -1117,8 +1119,12 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   public void testFloor() {
     ExpressionChecker checker =
         new ExpressionChecker()
-            .addExpr("FLOOR(ts TO MONTH)", parseDate("1986-02-01 00:00:00"))
-            .addExpr("FLOOR(ts TO YEAR)", parseDate("1986-01-01 00:00:00"))
+            .addExpr("FLOOR(ts TO SECOND)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"))
+            .addExpr("FLOOR(ts TO MINUTE)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:00"))
+            .addExpr("FLOOR(ts TO HOUR)", parseTimestampWithUTCTimeZone("1986-02-15 11:00:00"))
+            .addExpr("FLOOR(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-15 00:00:00"))
+            .addExpr("FLOOR(ts TO MONTH)", parseTimestampWithUTCTimeZone("1986-02-01 00:00:00"))
+            .addExpr("FLOOR(ts TO YEAR)", parseTimestampWithUTCTimeZone("1986-01-01 00:00:00"))
             .addExpr("FLOOR(c_double)", 1.0);
 
     checker.buildRunAndCheck(getFloorCeilingTestPCollection());
@@ -1130,20 +1136,15 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   public void testCeil() {
     ExpressionChecker checker =
         new ExpressionChecker()
-            .addExpr("CEIL(ts TO MONTH)", parseDate("1986-03-01 00:00:00"))
-            .addExpr("CEIL(ts TO YEAR)", parseDate("1987-01-01 00:00:00"))
+            .addExpr("CEIL(ts TO SECOND)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"))
+            .addExpr("CEIL(ts TO MINUTE)", parseTimestampWithUTCTimeZone("1986-02-15 11:36:00"))
+            .addExpr("CEIL(ts TO HOUR)", parseTimestampWithUTCTimeZone("1986-02-15 12:00:00"))
+            .addExpr("CEIL(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-16 00:00:00"))
+            .addExpr("CEIL(ts TO MONTH)", parseTimestampWithUTCTimeZone("1986-03-01 00:00:00"))
+            .addExpr("CEIL(ts TO YEAR)", parseTimestampWithUTCTimeZone("1987-01-01 00:00:00"))
             .addExpr("CEIL(c_double)", 2.0);
 
     checker.buildRunAndCheck(getFloorCeilingTestPCollection());
-  }
-
-  @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4622")
-  public void testFloorAndCeilResolutionLimit() {
-    thrown.expect(IllegalArgumentException.class);
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("FLOOR(ts TO DAY)", parseDate("1986-02-01 00:00:00"));
-    checker.buildRunAndCheck();
   }
 
   @Test
@@ -1153,22 +1154,22 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
         new ExpressionChecker()
             .addExpr(
                 "TIMESTAMPADD(SECOND, 3, TIMESTAMP '1984-04-19 01:02:03')",
-                parseDate("1984-04-19 01:02:06"))
+                parseTimestampWithUTCTimeZone("1984-04-19 01:02:06"))
             .addExpr(
                 "TIMESTAMPADD(MINUTE, 3, TIMESTAMP '1984-04-19 01:02:03')",
-                parseDate("1984-04-19 01:05:03"))
+                parseTimestampWithUTCTimeZone("1984-04-19 01:05:03"))
             .addExpr(
                 "TIMESTAMPADD(HOUR, 3, TIMESTAMP '1984-04-19 01:02:03')",
-                parseDate("1984-04-19 04:02:03"))
+                parseTimestampWithUTCTimeZone("1984-04-19 04:02:03"))
             .addExpr(
                 "TIMESTAMPADD(DAY, 3, TIMESTAMP '1984-04-19 01:02:03')",
-                parseDate("1984-04-22 01:02:03"))
+                parseTimestampWithUTCTimeZone("1984-04-22 01:02:03"))
             .addExpr(
                 "TIMESTAMPADD(MONTH, 2, TIMESTAMP '1984-01-19 01:02:03')",
-                parseDate("1984-03-19 01:02:03"))
+                parseTimestampWithUTCTimeZone("1984-03-19 01:02:03"))
             .addExpr(
                 "TIMESTAMPADD(YEAR, 2, TIMESTAMP '1985-01-19 01:02:03')",
-                parseDate("1987-01-19 01:02:03"));
+                parseTimestampWithUTCTimeZone("1987-01-19 01:02:03"));
     checker.buildRunAndCheck();
   }
 
@@ -1179,22 +1180,29 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
         new ExpressionChecker()
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '3' SECOND",
-                parseDate("1984-01-19 01:02:06"))
+                parseTimestampWithUTCTimeZone("1984-01-19 01:02:06"))
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MINUTE",
-                parseDate("1984-01-19 01:04:03"))
+                parseTimestampWithUTCTimeZone("1984-01-19 01:04:03"))
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' HOUR",
-                parseDate("1984-01-19 03:02:03"))
+                parseTimestampWithUTCTimeZone("1984-01-19 03:02:03"))
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' DAY",
-                parseDate("1984-01-21 01:02:03"))
+                parseTimestampWithUTCTimeZone("1984-01-21 01:02:03"))
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MONTH",
-                parseDate("1984-03-19 01:02:03"))
+                parseTimestampWithUTCTimeZone("1984-03-19 01:02:03"))
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' YEAR",
-                parseDate("1986-01-19 01:02:03"));
+                parseTimestampWithUTCTimeZone("1986-01-19 01:02:03"))
+            .addExpr("DATE '1984-04-19' + INTERVAL '2' DAY", parseDate("1984-04-21"))
+            .addExpr("DATE '1984-04-19' + INTERVAL '1' MONTH", parseDate("1984-05-19"))
+            .addExpr("DATE '1984-04-19' + INTERVAL '3' YEAR", parseDate("1987-04-19"))
+            .addExpr("TIME '14:28:30' + INTERVAL '15' SECOND", parseTime("14:28:45"))
+            .addExpr("TIME '14:28:30.239' + INTERVAL '4' MINUTE", parseTime("14:32:30.239"))
+            .addExpr("TIME '14:28:30.2' + INTERVAL '4' HOUR", parseTime("18:28:30.2"));
+
     checker.buildRunAndCheck();
   }
 
@@ -1288,27 +1296,34 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
 
   @Test
   // More needed @SqlOperatorTest(name = "-", kind = "MINUS")
-  public void testTimestampMinusInterval() throws Exception {
+  public void testTimestampMinusInterval() {
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr(
                 "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '2' SECOND",
-                parseDate("1984-04-19 01:01:56"))
+                parseTimestampWithUTCTimeZone("1984-04-19 01:01:56"))
             .addExpr(
                 "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '1' MINUTE",
-                parseDate("1984-04-19 01:00:58"))
+                parseTimestampWithUTCTimeZone("1984-04-19 01:00:58"))
             .addExpr(
                 "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '4' HOUR",
-                parseDate("1984-04-18 21:01:58"))
+                parseTimestampWithUTCTimeZone("1984-04-18 21:01:58"))
             .addExpr(
                 "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '5' DAY",
-                parseDate("1984-04-14 01:01:58"))
+                parseTimestampWithUTCTimeZone("1984-04-14 01:01:58"))
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '2' MONTH",
-                parseDate("1983-11-19 01:01:58"))
+                parseTimestampWithUTCTimeZone("1983-11-19 01:01:58"))
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '1' YEAR",
-                parseDate("1983-01-19 01:01:58"));
+                parseTimestampWithUTCTimeZone("1983-01-19 01:01:58"))
+            .addExpr("DATE '1984-04-19' - INTERVAL '2' DAY", parseDate("1984-04-17"))
+            .addExpr("DATE '1984-04-19' - INTERVAL '1' MONTH", parseDate("1984-03-19"))
+            .addExpr("DATE '1984-04-19' - INTERVAL '3' YEAR", parseDate("1981-04-19"))
+            .addExpr("TIME '14:28:30' - INTERVAL '15' SECOND", parseTime("14:28:15"))
+            .addExpr("TIME '14:28:30.239' - INTERVAL '4' MINUTE", parseTime("14:24:30.239"))
+            .addExpr("TIME '14:28:30.2' - INTERVAL '4' HOUR", parseTime("10:28:30.2"));
+
     checker.buildRunAndCheck();
   }
 

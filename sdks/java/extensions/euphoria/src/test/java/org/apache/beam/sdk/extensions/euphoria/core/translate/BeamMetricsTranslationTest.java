@@ -18,11 +18,9 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
-import static org.junit.Assert.assertThat;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
@@ -37,6 +35,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -71,9 +70,9 @@ public class BeamMetricsTranslationTest {
     final String counterName1 = "counter1";
     final String operatorName1 = "count_elements_and_save_even_numbers";
 
-    final Dataset<KV<Integer, Integer>> kvInput =
+    final PCollection<KV<Integer, Integer>> kvInput =
         ReduceByKey.named(operatorName1)
-            .of(Dataset.of(input))
+            .of(input)
             .keyBy(e -> e)
             .reduceBy(
                 (Stream<Integer> list, Collector<Integer> coll) ->
@@ -91,7 +90,7 @@ public class BeamMetricsTranslationTest {
     final String operatorName2 = "map_to_integer";
     final String operatorName3 = "map_elements";
 
-    final Dataset<Integer> mapElementsOutput =
+    final PCollection<Integer> mapElementsOutput =
         MapElements.named(operatorName2)
             .of(kvInput) // kvInput = [<2,2>, <4,4>]
             .using(
@@ -103,7 +102,7 @@ public class BeamMetricsTranslationTest {
                 })
             .output();
 
-    final Dataset<Integer> output =
+    final PCollection<Integer> output =
         MapElements.named(operatorName3)
             .of(mapElementsOutput) // mapElementsOutput = [2,4]
             .using(
@@ -114,7 +113,7 @@ public class BeamMetricsTranslationTest {
                 })
             .output();
 
-    PAssert.that(output.getPCollection()).containsInAnyOrder(2, 4);
+    PAssert.that(output).containsInAnyOrder(2, 4);
 
     final PipelineResult result = testPipeline.run();
     result.waitUntilFinish();
@@ -135,11 +134,11 @@ public class BeamMetricsTranslationTest {
   }
 
   private void testStep1Metrics(MetricQueryResults metrics, String counterName1, String stepName1) {
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getCounters(),
         Matchers.hasItem(metricsResult(stepName1, counterName1, stepName1, 5L, true)));
 
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getDistributions(),
         Matchers.hasItem(
             metricsResult(
@@ -147,11 +146,11 @@ public class BeamMetricsTranslationTest {
   }
 
   private void testStep2Metrics(MetricQueryResults metrics, String counterName2, String stepName2) {
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getCounters(),
         Matchers.hasItem(metricsResult(stepName2, counterName2, stepName2, 2L, true)));
 
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getDistributions(),
         Matchers.hasItem(
             metricsResult(
@@ -160,11 +159,11 @@ public class BeamMetricsTranslationTest {
 
   private void testStep3WithDefaultOperatorName(
       MetricQueryResults metrics, String counterName2, String stepName3) {
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getCounters(),
         Matchers.hasItem(metricsResult(stepName3, counterName2, stepName3, 6L, true)));
 
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getDistributions(),
         Matchers.hasItem(
             metricsResult(

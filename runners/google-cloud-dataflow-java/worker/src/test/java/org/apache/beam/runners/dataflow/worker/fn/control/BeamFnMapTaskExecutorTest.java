@@ -19,35 +19,51 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableTable;
-import com.google.common.collect.Iterables;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metrics;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.apache.beam.model.pipeline.v1.MetricsApi.Metric;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.CounterHamcrestMatchers;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -80,11 +96,11 @@ public class BeamFnMapTaskExecutorTest {
   private static final String FAKE_OUTPUT_NAME = "fake_output_name";
   private static final String FAKE_OUTPUT_PCOLLECTION_ID = "fake_pcollection_id";
 
-  private static final BeamFnApi.Metrics.PTransform FAKE_ELEMENT_COUNT_METRICS =
-      BeamFnApi.Metrics.PTransform.newBuilder()
+  private static final Metrics.PTransform FAKE_ELEMENT_COUNT_METRICS =
+      Metrics.PTransform.newBuilder()
           .setProcessedElements(
-              BeamFnApi.Metrics.PTransform.ProcessedElements.newBuilder()
-                  .setMeasured(BeamFnApi.Metrics.PTransform.Measured.getDefaultInstance()))
+              Metrics.PTransform.ProcessedElements.newBuilder()
+                  .setMeasured(Metrics.PTransform.Measured.getDefaultInstance()))
           .build();
 
   private static final BeamFnApi.RegisterRequest REGISTER_REQUEST =
@@ -103,8 +119,6 @@ public class BeamFnMapTaskExecutorTest {
 
   @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
   public void testTentativeUserMetrics() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
-
     final String stepName = "fakeStepNameWithUserMetrics";
     final String namespace = "sdk/whatever";
     final String name = "someCounter";
@@ -112,11 +126,8 @@ public class BeamFnMapTaskExecutorTest {
     final CountDownLatch progressSentLatch = new CountDownLatch(1);
     final CountDownLatch processBundleLatch = new CountDownLatch(1);
 
-    final BeamFnApi.Metrics.User.MetricName metricName =
-        BeamFnApi.Metrics.User.MetricName.newBuilder()
-            .setNamespace(namespace)
-            .setName(name)
-            .build();
+    final Metrics.User.MetricName metricName =
+        Metrics.User.MetricName.newBuilder().setNamespace(namespace).setName(name).build();
 
     InstructionRequestHandler instructionRequestHandler =
         new InstructionRequestHandler() {
@@ -140,17 +151,16 @@ public class BeamFnMapTaskExecutorTest {
                         .setProcessBundleProgress(
                             BeamFnApi.ProcessBundleProgressResponse.newBuilder()
                                 .setMetrics(
-                                    BeamFnApi.Metrics.newBuilder()
+                                    Metrics.newBuilder()
                                         .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
                                         .putPtransforms(
                                             stepName,
-                                            BeamFnApi.Metrics.PTransform.newBuilder()
+                                            Metrics.PTransform.newBuilder()
                                                 .addUser(
-                                                    BeamFnApi.Metrics.User.newBuilder()
+                                                    Metrics.User.newBuilder()
                                                         .setMetricName(metricName)
                                                         .setCounterData(
-                                                            BeamFnApi.Metrics.User.CounterData
-                                                                .newBuilder()
+                                                            Metrics.User.CounterData.newBuilder()
                                                                 .setValue(counterValue)))
                                                 .build())))
                         .build());
@@ -166,7 +176,7 @@ public class BeamFnMapTaskExecutorTest {
 
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
-            idGenerator,
+            IdGenerators.decrementingLongs(),
             instructionRequestHandler,
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -174,6 +184,7 @@ public class BeamFnMapTaskExecutorTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     BeamFnMapTaskExecutor mapTaskExecutor =
@@ -204,8 +215,6 @@ public class BeamFnMapTaskExecutorTest {
   /** Tests that successive metric updates overwrite the previous. */
   @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
   public void testTentativeUserMetricsOverwrite() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
-
     final String stepName = "fakeStepNameWithUserMetrics";
     final String namespace = "sdk/whatever";
     final String name = "someCounter";
@@ -214,11 +223,8 @@ public class BeamFnMapTaskExecutorTest {
     final CountDownLatch progressSentTwiceLatch = new CountDownLatch(2);
     final CountDownLatch processBundleLatch = new CountDownLatch(1);
 
-    final BeamFnApi.Metrics.User.MetricName metricName =
-        BeamFnApi.Metrics.User.MetricName.newBuilder()
-            .setNamespace(namespace)
-            .setName(name)
-            .build();
+    final Metrics.User.MetricName metricName =
+        Metrics.User.MetricName.newBuilder().setNamespace(namespace).setName(name).build();
 
     InstructionRequestHandler instructionRequestHandler =
         new InstructionRequestHandler() {
@@ -242,17 +248,16 @@ public class BeamFnMapTaskExecutorTest {
                         .setProcessBundleProgress(
                             BeamFnApi.ProcessBundleProgressResponse.newBuilder()
                                 .setMetrics(
-                                    BeamFnApi.Metrics.newBuilder()
+                                    Metrics.newBuilder()
                                         .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
                                         .putPtransforms(
                                             stepName,
-                                            BeamFnApi.Metrics.PTransform.newBuilder()
+                                            Metrics.PTransform.newBuilder()
                                                 .addUser(
-                                                    BeamFnApi.Metrics.User.newBuilder()
+                                                    Metrics.User.newBuilder()
                                                         .setMetricName(metricName)
                                                         .setCounterData(
-                                                            BeamFnApi.Metrics.User.CounterData
-                                                                .newBuilder()
+                                                            Metrics.User.CounterData.newBuilder()
                                                                 .setValue(
                                                                     progressSentTwiceLatch
                                                                                 .getCount()
@@ -271,9 +276,11 @@ public class BeamFnMapTaskExecutorTest {
           public void close() {}
         };
 
+    when(grpcPortWriteOperation.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
+
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
-            idGenerator,
+            IdGenerators.decrementingLongs(),
             instructionRequestHandler,
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -281,6 +288,7 @@ public class BeamFnMapTaskExecutorTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     BeamFnMapTaskExecutor mapTaskExecutor =
@@ -309,9 +317,7 @@ public class BeamFnMapTaskExecutorTest {
   }
 
   @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
-  public void testFinalUserMetrics() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
-
+  public void testFinalUserMetricsDeprecated() throws Exception {
     final String stepName = "fakeStepNameWithUserMetrics";
     final String namespace = "sdk/whatever";
     final String name = "someCounter";
@@ -320,11 +326,8 @@ public class BeamFnMapTaskExecutorTest {
     final CountDownLatch progressSentLatch = new CountDownLatch(1);
     final CountDownLatch processBundleLatch = new CountDownLatch(1);
 
-    final BeamFnApi.Metrics.User.MetricName metricName =
-        BeamFnApi.Metrics.User.MetricName.newBuilder()
-            .setNamespace(namespace)
-            .setName(name)
-            .build();
+    final Metrics.User.MetricName metricName =
+        Metrics.User.MetricName.newBuilder().setNamespace(namespace).setName(name).build();
 
     InstructionRequestHandler instructionRequestHandler =
         new InstructionRequestHandler() {
@@ -341,17 +344,16 @@ public class BeamFnMapTaskExecutorTest {
                           .setProcessBundle(
                               BeamFnApi.ProcessBundleResponse.newBuilder()
                                   .setMetrics(
-                                      BeamFnApi.Metrics.newBuilder()
+                                      Metrics.newBuilder()
                                           .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
                                           .putPtransforms(
                                               stepName,
-                                              BeamFnApi.Metrics.PTransform.newBuilder()
+                                              Metrics.PTransform.newBuilder()
                                                   .addUser(
-                                                      BeamFnApi.Metrics.User.newBuilder()
+                                                      Metrics.User.newBuilder()
                                                           .setMetricName(metricName)
                                                           .setCounterData(
-                                                              BeamFnApi.Metrics.User.CounterData
-                                                                  .newBuilder()
+                                                              Metrics.User.CounterData.newBuilder()
                                                                   .setValue(finalCounterValue)))
                                                   .build())))
                           .build();
@@ -363,17 +365,16 @@ public class BeamFnMapTaskExecutorTest {
                         .setProcessBundleProgress(
                             BeamFnApi.ProcessBundleProgressResponse.newBuilder()
                                 .setMetrics(
-                                    BeamFnApi.Metrics.newBuilder()
+                                    Metrics.newBuilder()
                                         .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
                                         .putPtransforms(
                                             stepName,
-                                            BeamFnApi.Metrics.PTransform.newBuilder()
+                                            Metrics.PTransform.newBuilder()
                                                 .addUser(
-                                                    BeamFnApi.Metrics.User.newBuilder()
+                                                    Metrics.User.newBuilder()
                                                         .setMetricName(metricName)
                                                         .setCounterData(
-                                                            BeamFnApi.Metrics.User.CounterData
-                                                                .newBuilder()
+                                                            Metrics.User.CounterData.newBuilder()
                                                                 .setValue(counterValue)))
                                                 .build())))
                         .build());
@@ -389,7 +390,7 @@ public class BeamFnMapTaskExecutorTest {
 
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
-            idGenerator,
+            IdGenerators.decrementingLongs(),
             instructionRequestHandler,
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -397,6 +398,7 @@ public class BeamFnMapTaskExecutorTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     BeamFnMapTaskExecutor mapTaskExecutor =
@@ -428,9 +430,193 @@ public class BeamFnMapTaskExecutorTest {
         contains(new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(finalCounterValue)));
   }
 
-  private Supplier<String> makeIdGeneratorStartingFrom(long initialValue) {
-    AtomicLong longIdGenerator = new AtomicLong(initialValue);
-    return () -> Long.toString(longIdGenerator.getAndIncrement());
+  @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 60)
+  public void testExtractCounterUpdatesReturnsValidProgressTrackerCounterUpdatesIfPresent()
+      throws Exception {
+    final String stepName = "fakeStepNameWithUserMetrics";
+    final String namespace = "sdk/whatever";
+    final String name = "someCounter";
+    final int counterValue = 42;
+    final int finalCounterValue = 77;
+    final CountDownLatch progressSentLatch = new CountDownLatch(1);
+    final CountDownLatch processBundleLatch = new CountDownLatch(1);
+
+    final Metrics.User.MetricName metricName =
+        Metrics.User.MetricName.newBuilder().setNamespace(namespace).setName(name).build();
+
+    final Metrics deprecatedMetrics =
+        Metrics.newBuilder()
+            .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
+            .putPtransforms(
+                stepName,
+                Metrics.PTransform.newBuilder()
+                    .addUser(
+                        Metrics.User.newBuilder()
+                            .setMetricName(metricName)
+                            .setCounterData(
+                                Metrics.User.CounterData.newBuilder().setValue(finalCounterValue)))
+                    .build())
+            .build();
+
+    final int expectedCounterValue = 5;
+    final MonitoringInfo expectedMonitoringInfo =
+        MonitoringInfo.newBuilder()
+            .setUrn("beam:metric:user:ExpectedCounter")
+            .setType("beam:metrics:sum_int_64")
+            .putLabels("PTRANSFORM", "ExpectedPTransform")
+            .setMetric(
+                Metric.newBuilder()
+                    .setCounterData(
+                        MetricsApi.CounterData.newBuilder()
+                            .setInt64Value(expectedCounterValue)
+                            .build())
+                    .build())
+            .build();
+
+    InstructionRequestHandler instructionRequestHandler =
+        new InstructionRequestHandler() {
+          @Override
+          public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
+            switch (request.getRequestCase()) {
+              case REGISTER:
+                return CompletableFuture.completedFuture(responseFor(request).build());
+              case PROCESS_BUNDLE:
+                return MoreFutures.supplyAsync(
+                    () -> {
+                      processBundleLatch.await();
+                      return responseFor(request)
+                          .setProcessBundle(
+                              BeamFnApi.ProcessBundleResponse.newBuilder()
+                                  .setMetrics(deprecatedMetrics)
+                                  .addMonitoringInfos(expectedMonitoringInfo))
+                          .build();
+                    });
+              case PROCESS_BUNDLE_PROGRESS:
+                progressSentLatch.countDown();
+                return CompletableFuture.completedFuture(
+                    responseFor(request)
+                        .setProcessBundleProgress(
+                            BeamFnApi.ProcessBundleProgressResponse.newBuilder()
+                                .setMetrics(deprecatedMetrics)
+                                .addMonitoringInfos(expectedMonitoringInfo))
+                        .build());
+              default:
+                throw new RuntimeException("Reached unexpected code path");
+            }
+          }
+
+          @Override
+          public void close() {}
+        };
+
+    Map<String, DataflowStepContext> stepContextMap = new HashMap<>();
+    stepContextMap.put("ExpectedPTransform", generateDataflowStepContext("Expected"));
+
+    RegisterAndProcessBundleOperation processOperation =
+        new RegisterAndProcessBundleOperation(
+            IdGenerators.decrementingLongs(),
+            instructionRequestHandler,
+            mockBeamFnStateDelegator,
+            REGISTER_REQUEST,
+            ImmutableMap.of(),
+            stepContextMap,
+            ImmutableMap.of(),
+            ImmutableTable.of(),
+            ImmutableMap.of(),
+            mockContext);
+
+    BeamFnMapTaskExecutor mapTaskExecutor =
+        BeamFnMapTaskExecutor.forOperations(
+            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
+            executionStateTracker);
+
+    // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one
+    // tentative update
+    CompletionStage<Void> doneFuture = MoreFutures.runAsync(mapTaskExecutor::execute);
+    progressSentLatch.await();
+
+    Iterable<CounterUpdate> metricsCounterUpdates = Collections.emptyList();
+    while (Iterables.size(metricsCounterUpdates) == 0) {
+      Thread.sleep(ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS);
+      metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
+    }
+
+    // Get the final metrics
+    processBundleLatch.countDown();
+    MoreFutures.get(doneFuture);
+    metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
+
+    assertThat(Iterables.size(metricsCounterUpdates), equalTo(1));
+    CounterUpdate resultCounter = metricsCounterUpdates.iterator().next();
+
+    assertTrue(
+        new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(expectedCounterValue)
+            .matches(resultCounter));
+    assertEquals(
+        "ExpectedCounter", resultCounter.getStructuredNameAndMetadata().getName().getName());
+  }
+
+  /**
+   * Generates bare minumum DataflowStepContext to use for testing.
+   *
+   * @param valuesPrefix prefix for all types of names that are specified in DataflowStepContext.
+   * @return new instance of DataflowStepContext
+   */
+  private DataflowStepContext generateDataflowStepContext(String valuesPrefix) {
+    NameContext nc =
+        new NameContext() {
+          @Nullable
+          @Override
+          public String stageName() {
+            return valuesPrefix + "Stage";
+          }
+
+          @Nullable
+          @Override
+          public String originalName() {
+            return valuesPrefix + "OriginalName";
+          }
+
+          @Nullable
+          @Override
+          public String systemName() {
+            return valuesPrefix + "SystemName";
+          }
+
+          @Nullable
+          @Override
+          public String userName() {
+            return valuesPrefix + "UserName";
+          }
+        };
+    DataflowStepContext dsc =
+        new DataflowStepContext(nc) {
+          @Nullable
+          @Override
+          public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+            return null;
+          }
+
+          @Override
+          public <W extends BoundedWindow> void setStateCleanupTimer(
+              String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {}
+
+          @Override
+          public DataflowStepContext namespacedToUser() {
+            return this;
+          }
+
+          @Override
+          public StateInternals stateInternals() {
+            return null;
+          }
+
+          @Override
+          public TimerInternals timerInternals() {
+            return null;
+          }
+        };
+    return dsc;
   }
 
   private BeamFnApi.InstructionResponse.Builder responseFor(BeamFnApi.InstructionRequest request) {

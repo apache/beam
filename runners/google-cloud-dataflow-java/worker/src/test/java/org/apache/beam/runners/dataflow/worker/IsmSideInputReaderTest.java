@@ -17,15 +17,16 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.Iterables.concat;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.concat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -38,20 +39,6 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.SplitInt64;
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.TreeMultimap;
-import com.google.common.io.Closer;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -119,6 +106,20 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -1392,7 +1393,7 @@ public class IsmSideInputReaderTest {
           executionContext.getExecutionStateRegistry().extractUpdates(true);
       assertThat(counterUpdates, hasItem(expectedSideInputMsecUpdate));
       Counter<?, ?> expectedCounter = counterFactory.getExistingCounter(expectedCounterName);
-      assertTrue(expectedCounter != null);
+      assertNotNull(expectedCounter);
     }
   }
 
@@ -1770,7 +1771,8 @@ public class IsmSideInputReaderTest {
   private <K, V> Source newIsmSource(IsmRecordCoder<WindowedValue<V>> coder, String tmpFilePath) {
     Source source = new Source();
     source.setCodec(
-        CloudObjects.asCloudObject(WindowedValue.getFullCoder(coder, GLOBAL_WINDOW_CODER)));
+        CloudObjects.asCloudObject(
+            WindowedValue.getFullCoder(coder, GLOBAL_WINDOW_CODER), /*sdkComponents=*/ null));
     source.setSpec(new HashMap<String, Object>());
     source.getSpec().put(PropertyNames.OBJECT_TYPE_NAME, "IsmSource");
     source.getSpec().put(WorkerPropertyNames.FILENAME, tmpFilePath);

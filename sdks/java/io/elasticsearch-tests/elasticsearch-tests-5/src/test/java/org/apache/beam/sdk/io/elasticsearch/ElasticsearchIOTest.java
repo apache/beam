@@ -19,7 +19,10 @@ package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_INDEX;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
+import static org.elasticsearch.test.ESIntegTestCase.Scope.SUITE;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
@@ -44,6 +47,8 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 
 /** Tests for {@link ElasticsearchIO} version 5. */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
+// use cluster of 1 node that has data + master roles
+@ESIntegTestCase.ClusterScope(scope = SUITE, numDataNodes = 1, supportsDedicatedMasters = false)
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
@@ -73,7 +78,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public Settings indexSettings() {
     return Settings.builder()
         .put(super.indexSettings())
-        //useful to have updated sizes for getEstimatedSize
+        // useful to have updated sizes for getEstimatedSize
         .put("index.store.stats_refresh_interval", 0)
         .build();
   }
@@ -86,10 +91,12 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Before
-  public void setup() {
+  public void setup() throws IOException {
     if (connectionConfiguration == null) {
       connectionConfiguration =
-          ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE);
+          ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
+              .withSocketAndRetryTimeout(120000)
+              .withConnectTimeout(5000);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
     }
@@ -186,6 +193,17 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Test
+  public void testWritePartialUpdateWithErrors() throws Exception {
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ConnectionConfiguration connectionConfiguration =
+        ConnectionConfiguration.create(fillAddresses(), UPDATE_INDEX, UPDATE_TYPE);
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
+        new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
+    elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
+    elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
+  }
+
+  @Test
   public void testReadWithMetadata() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithMetadata();
@@ -201,5 +219,11 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     elasticsearchIOTestCommon.setExpectedException(expectedException);
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetry();
+  }
+
+  @Test
+  public void testWriteRetryValidRequest() throws Throwable {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetryValidRequest();
   }
 }

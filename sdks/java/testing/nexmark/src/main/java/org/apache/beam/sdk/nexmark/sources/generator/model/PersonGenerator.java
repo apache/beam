@@ -37,18 +37,18 @@ public class PersonGenerator {
    * Keep the number of states small so that the example queries will find results even with a small
    * batch of events.
    */
-  private static final List<String> US_STATES = Arrays.asList(("AZ,CA,ID,OR,WA,WY").split(","));
+  private static final List<String> US_STATES = Arrays.asList("AZ,CA,ID,OR,WA,WY".split(","));
 
   private static final List<String> US_CITIES =
       Arrays.asList(
-          ("Phoenix,Los Angeles,San Francisco,Boise,Portland,Bend,Redmond,Seattle,Kent,Cheyenne")
+          "Phoenix,Los Angeles,San Francisco,Boise,Portland,Bend,Redmond,Seattle,Kent,Cheyenne"
               .split(","));
 
   private static final List<String> FIRST_NAMES =
-      Arrays.asList(("Peter,Paul,Luke,John,Saul,Vicky,Kate,Julie,Sarah,Deiter,Walter").split(","));
+      Arrays.asList("Peter,Paul,Luke,John,Saul,Vicky,Kate,Julie,Sarah,Deiter,Walter".split(","));
 
   private static final List<String> LAST_NAMES =
-      Arrays.asList(("Shultz,Abrams,Spencer,White,Bartels,Walton,Smith,Jones,Noris").split(","));
+      Arrays.asList("Shultz,Abrams,Spencer,White,Bartels,Walton,Smith,Jones,Noris".split(","));
 
   /** Generate and return a random person with next available id. */
   public static Person nextPerson(

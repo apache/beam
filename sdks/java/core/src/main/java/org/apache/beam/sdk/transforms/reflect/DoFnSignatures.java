@@ -17,14 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
@@ -73,6 +68,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
@@ -87,7 +87,7 @@ public class DoFnSignatures {
           ImmutableList.of(
               Parameter.ProcessContextParameter.class,
               Parameter.ElementParameter.class,
-              Parameter.RowParameter.class,
+              Parameter.SchemaElementParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
@@ -102,7 +102,6 @@ public class DoFnSignatures {
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
-              Parameter.RowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
@@ -225,8 +224,7 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link RestrictionTrackerParameter} is known in this context. */
     public boolean hasRestrictionTrackerParameter() {
-      return extraParameters
-          .stream()
+      return extraParameters.stream()
           .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
 
@@ -237,8 +235,7 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link Parameter.PipelineOptionsParameter} is known in this context. */
     public boolean hasPipelineOptionsParamter() {
-      return extraParameters
-          .stream()
+      return extraParameters.stream()
           .anyMatch(Predicates.instanceOf(Parameter.PipelineOptionsParameter.class)::apply);
     }
 
@@ -822,7 +819,6 @@ public class DoFnSignatures {
     TypeDescriptor<?> trackerT = getTrackerType(fnClass, m);
     TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
     for (int i = 0; i < params.length; ++i) {
-
       Parameter extraParam =
           analyzeExtraParameter(
               errors.forMethod(DoFn.ProcessElement.class, m),
@@ -893,15 +889,11 @@ public class DoFnSignatures {
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
     if (hasElementAnnotation(param.getAnnotations())) {
-      if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
-        // a null id means that there is no registered FieldAccessDescriptor, so we should default
-        // to all fields. If the input type of the DoFn is already Row, then no need to do
-        // anything special.
-        return Parameter.rowParameter(null);
-      } else {
-        methodErrors.checkArgument(
-            paramT.equals(inputT), "@Element argument must have type %s", inputT);
+      if (paramT.equals(inputT)) {
         return Parameter.elementParameter(paramT);
+      } else {
+        String fieldAccessString = getFieldAccessId(param.getAnnotations());
+        return Parameter.schemaElementParameter(paramT, fieldAccessString);
       }
     } else if (hasTimestampAnnotation(param.getAnnotations())) {
       methodErrors.checkArgument(
@@ -1030,15 +1022,6 @@ public class DoFnSignatures {
           stateDecl.field().getDeclaringClass().getName());
 
       return Parameter.stateParameter(stateDecl);
-    } else if (rawType.equals(Row.class)) {
-      String id = getFieldAccessId(param.getAnnotations());
-      paramErrors.checkArgument(
-          id != null, "missing %s annotation", DoFn.FieldAccess.class.getSimpleName());
-      FieldAccessDeclaration fieldAccessDeclaration =
-          fnContext.getFieldAccessDeclarations().get(id);
-      paramErrors.checkArgument(
-          fieldAccessDeclaration != null, "No FieldAccessDescriptor defined.");
-      return Parameter.rowParameter(id);
     } else {
       List<String> allowedParamTypes =
           Arrays.asList(
@@ -1078,21 +1061,11 @@ public class DoFnSignatures {
   }
 
   private static boolean hasElementAnnotation(List<Annotation> annotations) {
-    for (Annotation anno : annotations) {
-      if (anno.annotationType().equals(DoFn.Element.class)) {
-        return true;
-      }
-    }
-    return false;
+    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Element.class));
   }
 
   private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
-    for (Annotation anno : annotations) {
-      if (anno.annotationType().equals(DoFn.Timestamp.class)) {
-        return true;
-      }
-    }
-    return false;
+    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Timestamp.class));
   }
 
   @Nullable

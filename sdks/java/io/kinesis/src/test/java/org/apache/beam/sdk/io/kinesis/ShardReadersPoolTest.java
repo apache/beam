@@ -26,12 +26,12 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -148,7 +148,7 @@ public class ShardReadersPoolTest {
         .thenAnswer(
             (Answer<List<KinesisRecord>>)
                 invocation -> {
-                  Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+                  Thread.sleep(TIMEOUT_IN_MILLIS / 2);
                   return Collections.emptyList();
                 });
     shardReadersPool.start();

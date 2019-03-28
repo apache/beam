@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
-import com.google.common.base.Splitter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.apache.hadoop.io.Text;
 
 /**
  * Test Utils used in {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat} for
  * computing splits.
  */
-class TestEmployeeDataSet {
+public class TestEmployeeDataSet {
   public static final long NUMBER_OF_RECORDS_IN_EACH_SPLIT = 5L;
   public static final long NUMBER_OF_SPLITS = 3L;
   private static final List<KV<String, String>> data = new ArrayList<>();
@@ -68,11 +68,12 @@ class TestEmployeeDataSet {
   public static List<KV<Text, Employee>> getEmployeeData() {
     return (data.isEmpty() ? populateEmployeeData() : data)
         .stream()
-        .map(
-            input -> {
-              List<String> empData = Splitter.on('_').splitToList(input.getValue());
-              return KV.of(new Text(input.getKey()), new Employee(empData.get(0), empData.get(1)));
-            })
-        .collect(Collectors.toList());
+            .map(
+                input -> {
+                  List<String> empData = Splitter.on('_').splitToList(input.getValue());
+                  return KV.of(
+                      new Text(input.getKey()), new Employee(empData.get(0), empData.get(1)));
+                })
+            .collect(Collectors.toList());
   }
 }

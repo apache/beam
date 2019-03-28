@@ -15,86 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// See build_rules.gradle for documentation on default build tasks
-// and properties that are enabled in addition to natures
-// that can be applied to configure a project for certain common
-// tasks.
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins {
+  id 'base'
+  // Enable publishing build scans
+  id 'com.gradle.build-scan' version '2.1' apply false
+  // This plugin provides a task to determine which dependencies have updates.
+  // Additionally, the plugin checks for updates to Gradle itself.
+  //
+  // See https://github.com/ben-manes/gradle-versions-plugin for further details.
+  id 'com.github.ben-manes.versions' version '0.17.0'
+  // Apply one top level rat plugin to perform any required license enforcement analysis
+  id 'org.nosphere.apache.rat' version '0.3.1'
+  // Enable gradle-based release management
+  id 'net.researchgate.release' version '2.6.0'
+  id 'org.apache.beam.module'
+  id "org.sonarqube" version "2.7"
+}
 
 // Add performanceTest task to this build.gradle file
 // so that running Performance tests using PerfKitBenchmarker is possible.
 createPerformanceTestHarness()
 
-// Define the set of repositories and dependencies required to
-// fetch and enable plugins.
-buildscript {
-  repositories {
-    maven { url offlineRepositoryRoot }
-
-    // To run gradle in offline mode, one must first invoke
-    // 'updateOfflineRepository' to create an offline repo
-    // inside the root project directory. See the application
-    // of the offline repo plugin within build_rules.gradle
-    // for further details.
-    if (gradle.startParameter.isOffline()) {
-      return
-    }
-
-    mavenLocal()
-    mavenCentral()
-    jcenter()
-    maven { url "https://plugins.gradle.org/m2/" }
-    maven { url "http://repo.spring.io/plugins-release" }
-  }
-  dependencies {
-    classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
-    classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
-    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                        // Enable proto code generation
-    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
-    classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
-    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
-    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.7.0"                                      // Enable a code formatting plugin
-    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.10"                                      // Enable Go code compilation
-    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"                           // Enable building Docker containers
-    classpath "cz.malohlava:visteg:1.0.3"                                                               // Enable generating Gradle task dependencies as ".dot" files
-    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"                                        // Enable shading Java dependencies
-    classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
-    classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
-    classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
-    classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
-    classpath "org.ajoberstar.grgit:grgit-gradle:3.0.0-beta.1"                                          // Enable website git publish to asf-site branch
-    classpath "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                     // Enable docker compose tasks
-
-    // Plugins which require online access should not be enabled when running in offline mode.
-    if (!gradle.startParameter.isOffline()) {
-      classpath "com.gradle:build-scan-plugin:1.13.1"                                                   // Enable publishing build scans
-    }
-  }
-}
-
 /*************************************************************************************************/
 // Configure the root project
-
-apply plugin: "base"
 
 // Plugins which require online access should not be enabled when running in offline mode.
 if (!gradle.startParameter.isOffline()) {
   apply plugin: "com.gradle.build-scan"
 }
-
-// Apply a task dependency visualization plugin which creates a ".dot" file containing the
-// task dependencies for the current build. This command can help create a visual representation:
-//   dot -Tsvg build/reports/visteg.dot > build_dependencies.svg
-//
-// See https://github.com/mmalohlava/gradle-visteg for further details.
-apply plugin: "cz.malohlava.visteg"
-
-// This plugin provides a task to determine which dependencies have updates.
-// Additionally, the plugin checks for updates to Gradle itself.
-//
-// See https://github.com/ben-manes/gradle-versions-plugin for further details.
-apply plugin: 'com.github.ben-manes.versions'
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
@@ -108,9 +57,6 @@ if (isCIBuild) {
   }
 }
 
-// Apply one top level rat plugin to perform any required license enforcement analysis
-apply plugin: "org.nosphere.apache.rat"
-
 rat {
   // Set input directory to that of the root project instead of the CWD. This
   // makes .gitignore rules (added below) work properly.
@@ -121,6 +67,7 @@ rat {
     "**/.github/**/*",
 
     "**/package-list",
+    "**/test.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
     "**/test/**/.placeholder",
@@ -193,6 +140,7 @@ task javaPreCommit() {
   dependsOn ":beam-examples-java:preCommit"
   dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
   dependsOn ":beam-sdks-java-javadoc:allJavadoc"
+  dependsOn ":beam-runners-direct-java:needsRunnerTests"
 }
 
 task javaPreCommitPortabilityApi() {
@@ -201,9 +149,12 @@ task javaPreCommitPortabilityApi() {
 }
 
 task javaPostCommit() {
-  dependsOn ":javaPreCommit"
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+  dependsOn ":beam-sdks-java-extensions-google-cloud-platform-core:postCommit"
   dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
+}
+
+task sqlPostCommit() {
   dependsOn ":beam-sdks-java-extensions-sql:postCommit"
   dependsOn ":beam-sdks-java-extensions-sql-jdbc:postCommit"
 }
@@ -213,7 +164,7 @@ task javaPostCommitPortabilityApi () {
 }
 
 task goPreCommit() {
-  dependsOn ":beam-sdks-go:test"
+  dependsOn ":beam-sdks-go:goTest"
 
   dependsOn ":beam-sdks-go-examples:build"
   dependsOn ":beam-sdks-go-test:build"
@@ -225,7 +176,6 @@ task goPreCommit() {
 }
 
 task goPostCommit() {
-  dependsOn ":goPreCommit"
   dependsOn ":goIntegrationTests"
 }
 
@@ -241,11 +191,24 @@ task goIntegrationTests() {
 }
 
 task pythonPreCommit() {
-  dependsOn ":beam-sdks-python:preCommit"
+  dependsOn ":beam-sdks-python:preCommitPy2"
+  dependsOn ":beam-sdks-python-test-suites-tox-py35:preCommitPy35"
+  dependsOn ":beam-sdks-python-test-suites-tox-py36:preCommitPy36"
+  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
 
 task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
+}
+
+task python3PostCommit() {
+  dependsOn ":beam-sdks-python-test-suites-dataflow-py3:postCommitIT"
+  dependsOn ":beam-sdks-python-test-suites-dataflow-py3:validatesRunnerBatchTests"
+  dependsOn ":beam-sdks-python-test-suites-direct-py3:postCommitIT"
+}
+
+task portablePythonPreCommit() {
+  dependsOn ":beam-sdks-python:portablePreCommit"
 }
 
 task websitePreCommit() {
@@ -270,11 +233,13 @@ task runBeamDependencyCheck() {
   dependsOn ":beam-sdks-python:dependencyUpdates"
 }
 
-apply plugin: 'net.researchgate.release'
+// Configure the release plugin to do only local work; the release manager determines what, if
+// anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
-  revertOnFail = true
+  revertOnFail = false
   tagTemplate = 'v${version}'
   git {
     requireBranch = 'release-.*|master'
+    pushToRemote = ''
   }
 }

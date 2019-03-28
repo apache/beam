@@ -70,7 +70,7 @@ class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
         }
         c.output(result);
       }
-      tracker.markDone();
+      tracker.tryClaim(ByteKey.EMPTY);
     }
   }
 

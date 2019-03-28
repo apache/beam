@@ -24,10 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -309,6 +312,147 @@ public class TestJavaBeans {
           .addDecimalField("bigDecimal")
           .addStringField("stringBuilder")
           .build();
+
+  /** A simple Bean containing basic types. * */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class SimpleBeanWithAnnotations {
+    private final String str;
+    private final byte aByte;
+    private final short aShort;
+    private final int anInt;
+    private final long aLong;
+    private final boolean aBoolean;
+    private final DateTime dateTime;
+    private final Instant instant;
+    private final byte[] bytes;
+    private final ByteBuffer byteBuffer;
+    private final BigDecimal bigDecimal;
+    private final StringBuilder stringBuilder;
+
+    @SchemaCreate
+    public SimpleBeanWithAnnotations(
+        String str,
+        byte aByte,
+        short aShort,
+        int anInt,
+        long aLong,
+        boolean aBoolean,
+        DateTime dateTime,
+        Instant instant,
+        byte[] bytes,
+        BigDecimal bigDecimal,
+        StringBuilder stringBuilder) {
+      this.str = str;
+      this.aByte = aByte;
+      this.aShort = aShort;
+      this.anInt = anInt;
+      this.aLong = aLong;
+      this.aBoolean = aBoolean;
+      this.dateTime = dateTime;
+      this.instant = instant;
+      this.bytes = bytes;
+      this.byteBuffer = ByteBuffer.wrap(bytes);
+      this.bigDecimal = bigDecimal;
+      this.stringBuilder = stringBuilder;
+    }
+
+    @SchemaIgnore
+    public String getUnknown() {
+      return "";
+    }
+
+    public String getStr() {
+      return str;
+    }
+
+    @SchemaFieldName("aByte")
+    public byte getTheByteByte() {
+      return aByte;
+    }
+
+    @SchemaFieldName("aShort")
+    public short getNotAShort() {
+      return aShort;
+    }
+
+    public int getAnInt() {
+      return anInt;
+    }
+
+    public long getaLong() {
+      return aLong;
+    }
+
+    public boolean isaBoolean() {
+      return aBoolean;
+    }
+
+    public DateTime getDateTime() {
+      return dateTime;
+    }
+
+    public byte[] getBytes() {
+      return bytes;
+    }
+
+    public ByteBuffer getByteBuffer() {
+      return byteBuffer;
+    }
+
+    public Instant getInstant() {
+      return instant;
+    }
+
+    public BigDecimal getBigDecimal() {
+      return bigDecimal;
+    }
+
+    public StringBuilder getStringBuilder() {
+      return stringBuilder;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SimpleBeanWithAnnotations that = (SimpleBeanWithAnnotations) o;
+      return aByte == that.aByte
+          && aShort == that.aShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder.toString());
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+  }
 
   /** A Bean containing a nested class. * */
   @DefaultSchema(JavaBeanSchema.class)

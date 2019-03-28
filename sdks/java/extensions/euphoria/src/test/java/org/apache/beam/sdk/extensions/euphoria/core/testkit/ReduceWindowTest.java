@@ -20,12 +20,12 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
@@ -38,8 +38,8 @@ public class ReduceWindowTest extends AbstractOperatorTest {
     execute(
         new AbstractTestCase<Integer, Integer>() {
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-            Dataset<Integer> withEventTime =
+          protected PCollection<Integer> getOutput(PCollection<Integer> input) {
+            PCollection<Integer> withEventTime =
                 AssignEventTime.of(input).using(i -> 1000L * i).output();
 
             return ReduceWindow.of(withEventTime)
@@ -72,11 +72,11 @@ public class ReduceWindowTest extends AbstractOperatorTest {
     execute(
         new AbstractTestCase<Integer, Integer>() {
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-            Dataset<Integer> withEventTime =
+          protected PCollection<Integer> getOutput(PCollection<Integer> input) {
+            PCollection<Integer> withEventTime =
                 AssignEventTime.of(input).using(i -> 1000L * i).output();
 
-            Dataset<Integer> first =
+            PCollection<Integer> first =
                 ReduceWindow.named("first-reduce")
                     .of(withEventTime)
                     .combineBy(Sums.ofInts())
@@ -110,11 +110,11 @@ public class ReduceWindowTest extends AbstractOperatorTest {
     execute(
         new AbstractTestCase<Integer, Integer>() {
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-            Dataset<Integer> withEventTime =
+          protected PCollection<Integer> getOutput(PCollection<Integer> input) {
+            PCollection<Integer> withEventTime =
                 AssignEventTime.of(input).using(i -> 1000L * i).output();
 
-            Dataset<Integer> first =
+            PCollection<Integer> first =
                 ReduceWindow.named("first-reduce")
                     .of(withEventTime)
                     .combineBy(Sums.ofInts())

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util.gcsfs;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.services.storage.model.StorageObject;
 import java.io.File;

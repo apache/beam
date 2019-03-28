@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;

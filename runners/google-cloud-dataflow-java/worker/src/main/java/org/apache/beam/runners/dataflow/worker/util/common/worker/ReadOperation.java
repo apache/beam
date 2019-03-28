@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Observable;
@@ -34,6 +31,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -329,7 +329,7 @@ public class ReadOperation extends Operation {
     public void update(Observable obs, Object obj) {
       Preconditions.checkArgument(obs == reader, "unexpected observable");
       Preconditions.checkArgument(obj instanceof Long, "unexpected parameter object");
-      byteCount.addValue((long) obj);
+      byteCount.addValue((Long) obj);
     }
   }
 

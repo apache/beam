@@ -32,13 +32,14 @@ import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
-import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
 public class GroupByKeyOp<K, InputT, OutputT>
     implements Op<KeyedWorkItem<K, InputT>, KV<K, OutputT>, K> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByKeyOp.class);
+  private static final String TIMER_STATE_ID = "timer";
 
   private final TupleTag<KV<K, OutputT>> mainOutputTag;
   private final KeyedWorkItemCoder<K, InputT> inputCoder;
@@ -96,7 +98,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   public void open(
       Config config,
       TaskContext context,
-      TimerRegistry<TimerKey<K>> timerRegistry,
+      TimerRegistry<KeyedTimerData<K>> timerRegistry,
       OpEmitter<KV<K, OutputT>> emitter) {
     this.pipelineOptions =
         Base64Serializer.deserializeUnchecked(
@@ -104,17 +106,29 @@ public class GroupByKeyOp<K, InputT, OutputT>
             .get()
             .as(SamzaPipelineOptions.class);
 
+    final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
+        SamzaStoreStateInternals.createStateInternalFactory(
+            null, context, pipelineOptions, null, mainOutputTag);
+
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
             mainOutputTag.getId(),
-            SamzaStoreStateInternals.getBeamStore(context),
+            Collections.singletonMap(
+                SamzaStoreStateInternals.BEAM_STORE,
+                SamzaStoreStateInternals.getBeamStore(context)),
             keyCoder,
             pipelineOptions.getStoreBatchGetSize());
 
     this.timerInternalsFactory =
-        new SamzaTimerInternalsFactory<>(inputCoder.getKeyCoder(), timerRegistry);
+        SamzaTimerInternalsFactory.createTimerInternalFactory(
+            keyCoder,
+            timerRegistry,
+            TIMER_STATE_ID,
+            nonKeyedStateInternalsFactory,
+            windowingStrategy,
+            pipelineOptions);
 
     final DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
         GroupAlsoByWindowViaWindowSetNewDoFn.create(
@@ -153,7 +167,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
             stepContext,
             null,
             Collections.emptyMap(),
-            windowingStrategy);
+            windowingStrategy,
+            DoFnSchemaInformation.create());
 
     final SamzaExecutionContext executionContext = (SamzaExecutionContext) context.getUserContext();
     this.fnRunner =
@@ -190,6 +205,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
     fnRunner.startBundle();
     fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
     fnRunner.finishBundle();
+
+    timerInternalsFactory.removeProcessingTimer(keyedTimerData);
   }
 
   private void fireTimer(K key, TimerData timer) {

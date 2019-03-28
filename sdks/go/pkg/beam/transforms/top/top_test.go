@@ -16,10 +16,10 @@
 package top
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -29,7 +29,7 @@ func TestCombineFn3String(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := &combineFn{N: 3, Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}}
+	fn := newCombineFn(less, 3, reflectx.String, false)
 
 	tests := []struct {
 		Elms     []string
@@ -52,12 +52,12 @@ func TestCombineFn3String(t *testing.T) {
 }
 
 // TestCombineFn3RevString verifies that the accumulator correctly
-// maintains the top 3 shorest strings.
+// maintains the top 3 shortest strings.
 func TestCombineFn3RevString(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := &combineFn{N: 3, Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, Reversed: true}
+	fn := newCombineFn(less, 3, reflectx.String, true)
 
 	tests := []struct {
 		Elms     []string
@@ -84,28 +84,30 @@ func TestCombineFnMerge(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := &combineFn{N: 3, Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}}
-
+	fn := newCombineFn(less, 3, reflectx.String, false)
 	tests := []struct {
 		Elms     [][]string
 		Expected []string
 	}{
 		{[][]string{nil}, nil},
 		{[][]string{{"foo"}}, []string{"foo"}},
-		{[][]string{{"1", "2"}, {"3"}, {"4", "5"}}, []string{"1", "2", "3"}},
+		{[][]string{{"1", "2"}, {"3"}, {"4", "5"}, {"6", "7"}}, []string{"1", "2", "3"}},
 		{[][]string{{"a1"}, {"b22", "c22"}, {"d333"}, {"e22"}}, []string{"d333", "b22", "c22"}},
+		{[][]string{{"a55555"}, {"b22", "c4444"}, {"d333"}, {"e22"}}, []string{"a55555", "c4444", "d333"}},
 	}
 
-	for _, test := range tests {
-		var list []accum
-		for _, a := range test.Elms {
-			list = append(list, load(fn, a...))
-		}
-
-		actual := output(fn, fn.MergeAccumulators(list))
-		if !reflect.DeepEqual(actual, test.Expected) {
-			t.Errorf("CombineFn(3; %v) = %v, want %v", test.Elms, actual, test.Expected)
-		}
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("%02d", i), func(t *testing.T) {
+			var list []accum
+			for _, a := range test.Elms {
+				list = append(list, load(fn, a...))
+			}
+			a := merge(t, fn, list...)
+			actual := output(fn, a)
+			if !reflect.DeepEqual(actual, test.Expected) {
+				t.Errorf("CombineFn(3; %v) = %v, want %v", test.Elms, actual, test.Expected)
+			}
+		})
 	}
 }
 
@@ -113,6 +115,23 @@ func load(fn *combineFn, elms ...string) accum {
 	a := fn.CreateAccumulator()
 	for _, elm := range elms {
 		a = fn.AddInput(a, elm)
+	}
+	return a
+}
+
+func merge(t *testing.T, fn *combineFn, as ...accum) accum {
+	t.Helper()
+	a := fn.CreateAccumulator()
+	for i, b := range as {
+		buf, err := b.MarshalJSON()
+		if err != nil {
+			t.Fatalf("failure marshalling accum[%d]: %v, %+v", i, err, b)
+		}
+		var c accum
+		if err := c.UnmarshalJSON(buf); err != nil {
+			t.Fatalf("failure unmarshalling accum[%d]: %v, %+v", i, err, b)
+		}
+		a = fn.MergeAccumulators(a, c)
 	}
 	return a
 }

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /** A {@link Pipeline} which has been separated into collections of executable components. */
 @AutoValue
@@ -65,8 +65,7 @@ public abstract class FusedPipeline {
     Set<String> executableTransformIds =
         Sets.union(
             executableStageTransforms.keySet(),
-            getRunnerExecutedTransforms()
-                .stream()
+            getRunnerExecutedTransforms().stream()
                 .map(PTransformNode::getId)
                 .collect(Collectors.toSet()));
 

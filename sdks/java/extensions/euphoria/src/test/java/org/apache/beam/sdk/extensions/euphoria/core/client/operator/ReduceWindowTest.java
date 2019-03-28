@@ -22,13 +22,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.stream.Stream;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueContext;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowDesc;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
@@ -40,11 +40,10 @@ public class ReduceWindowTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuild() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<Long> output =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<Long> output =
         ReduceWindow.of(dataset).valueBy(e -> "").reduceBy(e -> 1L).output();
-    assertTrue(output.getProducer().isPresent());
-    final ReduceWindow rw = (ReduceWindow) output.getProducer().get();
+    final ReduceWindow rw = (ReduceWindow) TestUtils.getProducer(output);
     assertEquals(1L, (long) collectSingle(rw.getReducer(), Stream.of("blah")));
     assertEquals("", rw.getValueExtractor().apply("blah"));
   }
@@ -52,8 +51,8 @@ public class ReduceWindowTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuildWithoutValue() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<Long> output =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
@@ -62,8 +61,7 @@ public class ReduceWindowTest {
             .withAllowedLateness(Duration.millis(1000))
             .output();
 
-    assertTrue(output.getProducer().isPresent());
-    final ReduceWindow rw = (ReduceWindow) output.getProducer().get();
+    final ReduceWindow rw = (ReduceWindow) TestUtils.getProducer(output);
 
     assertEquals(1L, (long) collectSingle(rw.getReducer(), Stream.of("blah")));
     assertEquals("blah", rw.getValueExtractor().apply("blah"));
@@ -81,8 +79,8 @@ public class ReduceWindowTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuildWithValueSorted() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<Long> output =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
             .withSortedValues(String::compareTo)
@@ -90,15 +88,14 @@ public class ReduceWindowTest {
             .triggeredBy(DefaultTrigger.of())
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
-    assertTrue(output.getProducer().isPresent());
-    final ReduceWindow rw = (ReduceWindow) output.getProducer().get();
+    final ReduceWindow rw = (ReduceWindow) TestUtils.getProducer(output);
     assertTrue(rw.getValueComparator().isPresent());
   }
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<Long> output =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
             .withSortedValues(String::compareTo)
@@ -109,8 +106,7 @@ public class ReduceWindowTest {
                         .triggeredBy(DefaultTrigger.of())
                         .discardingFiredPanes())
             .output();
-    assertTrue(output.getProducer().isPresent());
-    final ReduceWindow rw = (ReduceWindow) output.getProducer().get();
+    final ReduceWindow rw = (ReduceWindow) TestUtils.getProducer(output);
     assertTrue(rw.getWindow().isPresent());
     @SuppressWarnings("unchecked")
     final WindowDesc<?> windowDesc = WindowDesc.of((Window) rw.getWindow().get());

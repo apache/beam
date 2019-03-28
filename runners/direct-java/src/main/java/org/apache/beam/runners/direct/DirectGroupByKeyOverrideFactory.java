@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -26,17 +25,20 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** A {@link PTransformOverrideFactory} for {@link GroupByKey} PTransforms. */
 final class DirectGroupByKeyOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
-        PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>,
+        PCollection<KV<K, V>>,
+        PCollection<KV<K, Iterable<V>>>,
         PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>> {
   @Override
   public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>,
+                  PCollection<KV<K, V>>,
+                  PCollection<KV<K, Iterable<V>>>,
                   PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>>
               transform) {
 

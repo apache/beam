@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.Closeable;
 import java.util.concurrent.Callable;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -25,6 +24,7 @@ import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

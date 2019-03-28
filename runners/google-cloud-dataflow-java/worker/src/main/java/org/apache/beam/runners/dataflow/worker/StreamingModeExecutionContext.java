@@ -17,16 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Supplier;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableSet;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
@@ -34,7 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
@@ -43,12 +37,12 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StepContext;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -60,7 +54,13 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -86,7 +86,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
 
   // Per-key cache of active Reader objects in use by this process.
-  private final ConcurrentMap<String, String> stateNameMap;
+  private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
 
   private Windmill.WorkItem work;
@@ -100,7 +100,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       CounterFactory counterFactory,
       String computationId,
       ReaderCache readerCache,
-      ConcurrentMap<String, String> stateNameMap,
+      Map<String, String> stateNameMap,
       WindmillStateCache.ForComputation stateCache,
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
@@ -115,7 +115,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.computationId = computationId;
     this.readerCache = readerCache;
     this.sideInputCache = new HashMap<>();
-    this.stateNameMap = stateNameMap;
+    this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
   }
@@ -133,13 +133,31 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     // 2. The reporting thread calls extractUpdate which reads the current sum *AND* sets it to 0.
     private final AtomicLong totalMillisInState = new AtomicLong();
 
+    // The worker that created this state.  Used to report lulls back to the worker.
+    private final StreamingDataflowWorker worker;
+
     public StreamingModeExecutionState(
         NameContext nameContext,
         String stateName,
         MetricsContainer metricsContainer,
-        ProfileScope profileScope) {
+        ProfileScope profileScope,
+        StreamingDataflowWorker worker) {
       // TODO: Take in the requesting step name and side input index for streaming.
       super(nameContext, stateName, null, null, metricsContainer, profileScope);
+      this.worker = worker;
+    }
+
+    /*
+     * Report the lull to the StreamingDataflowWorker that is stuck in addition to logging the
+     * lull.
+     */
+    @Override
+    public void reportLull(Thread trackedThread, long millis) {
+      super.reportLull(trackedThread, millis);
+      // Also report the failure to the list of pending failures to report on the worker thread
+      // so that the failure gets communicated to the StreamingDataflowWorker.
+      String errorMessage = getLullMessage(trackedThread, Duration.millis(millis));
+      worker.addFailure(errorMessage);
     }
 
     /**
@@ -170,8 +188,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
-  /** Implementation of ExecutionStateRegistry that creates Streaming versions of ExecutionState. */
-  public static class StreamingModeExecutionStateRegistry extends ExecutionStateRegistry {
+  /**
+   * Implementation of DataflowExecutionStateRegistry that creates Streaming versions of
+   * ExecutionState.
+   */
+  public static class StreamingModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
+    private final StreamingDataflowWorker worker;
+
+    public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {
+      this.worker = worker;
+    }
 
     @Override
     protected DataflowOperationContext.DataflowExecutionState createState(
@@ -181,7 +207,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         Integer inputIndex,
         MetricsContainer container,
         ProfileScope profileScope) {
-      return new StreamingModeExecutionState(nameContext, stateName, container, profileScope);
+      return new StreamingModeExecutionState(
+          nameContext, stateName, container, profileScope, worker);
     }
   }
 

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -31,10 +29,12 @@ import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query3}. */
-public class Query3Model extends NexmarkQueryModel implements Serializable {
+public class Query3Model extends NexmarkQueryModel<NameCityStateId> implements Serializable {
   /** Simulator for query 3. */
   private static class Simulator extends AbstractSimulator<Event, NameCityStateId> {
     /** Auctions, indexed by seller id. */
@@ -107,12 +107,12 @@ public class Query3Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, NameCityStateId> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<NameCityStateId>> itr) {
     return toValue(itr);
   }
 }

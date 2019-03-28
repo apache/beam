@@ -19,11 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -34,6 +29,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.CounterCell;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -41,7 +37,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -49,6 +44,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /** {@link DataflowExecutionContext} for use in batch mode. */
@@ -74,7 +74,7 @@ public class BatchModeExecutionContext
       ReaderFactory readerFactory,
       PipelineOptions options,
       DataflowExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry) {
+      DataflowExecutionStateRegistry executionStateRegistry) {
     super(
         counterFactory,
         createMetricsContainerRegistry(),
@@ -192,9 +192,11 @@ public class BatchModeExecutionContext
     }
   }
 
-  /** {@link ExecutionStateRegistry} that creates {@link BatchModeExecutionState} instances. */
+  /**
+   * {@link DataflowExecutionStateRegistry} that creates {@link BatchModeExecutionState} instances.
+   */
   @VisibleForTesting
-  public static class BatchModeExecutionStateRegistry extends ExecutionStateRegistry {
+  public static class BatchModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
 
     @Override
     protected DataflowOperationContext.DataflowExecutionState createState(

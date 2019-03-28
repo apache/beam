@@ -23,12 +23,12 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
-import com.google.common.primitives.UnsignedBytes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -393,6 +393,52 @@ public class MutationKeyEncoderTest {
                 .to((Boolean) null)
                 .set("boolkeydesc")
                 .to(false)
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void unspecifiedStringKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "STRING");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "STRING");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("a")
+                .set("keydesc")
+                .to("b")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("a")
+                .set("keydesc")
+                .to("a")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                // leave keydesc value unspecified --> maxvalue descending.
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("a")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                // leave 'key' value unspecified -> maxvalue
+                .set("keydesc")
+                .to("a")
                 .build());
 
     verifyEncodedOrdering(schema, sortedMutations);

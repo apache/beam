@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +30,7 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -85,9 +86,23 @@ public class MapCoderTest {
   }
 
   @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    MapCoder<byte[], Integer> coder = MapCoder.of(ByteArrayCoder.of(), VarIntCoder.of());
+    Map<byte[], Integer> value = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+    CoderProperties.structuralValueDecodeEncodeEqual(coder, value);
+  }
+
+  @Test
   public void testEncodedTypeDescriptor() throws Exception {
     TypeDescriptor<Map<Integer, String>> typeDescriptor =
         new TypeDescriptor<Map<Integer, String>>() {};
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(typeDescriptor));
+  }
+
+  @Test
+  public void testStructuralValueReturnTheSameValueForConsistsType() {
+    Map<Integer, String> expected = Collections.singletonMap(10, "test");
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
   }
 }

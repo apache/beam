@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.collect.Iterables;
-import com.google.common.io.Closer;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
@@ -33,17 +31,21 @@ import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closer;
 import org.joda.time.Instant;
 
 /** Execution context for the Dataflow worker. */
@@ -52,7 +54,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
   private final CounterFactory counterFactory;
   private final MetricsContainerRegistry<?> metricsContainerRegistry;
   private final ExecutionStateTracker executionStateTracker;
-  protected final ExecutionStateRegistry executionStateRegistry;
+  protected final DataflowExecutionStateRegistry executionStateRegistry;
   // Desired limit on amount of data sinked. Cumulative
   // across all the sinks, when there are more than one sinks.
   private final long sinkByteLimit;
@@ -62,7 +64,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       CounterFactory counterFactory,
       MetricsContainerRegistry<?> metricsRegistry,
       DataflowExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry,
+      DataflowExecutionStateRegistry executionStateRegistry,
       long sinkByteLimit) {
     this.counterFactory = counterFactory;
     this.metricsContainerRegistry = metricsRegistry;
@@ -217,7 +219,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     return metricsContainerRegistry;
   }
 
-  protected ExecutionStateRegistry getExecutionStateRegistry() {
+  protected DataflowExecutionStateRegistry getExecutionStateRegistry() {
     return executionStateRegistry;
   }
 
@@ -231,6 +233,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
    */
   public static class DataflowExecutionStateTracker extends ExecutionStateTracker {
 
+    private final ElementExecutionTracker elementExecutionTracker;
     private final DataflowOperationContext.DataflowExecutionState otherState;
     private final ContextActivationObserverRegistry contextActivationObserverRegistry;
     private final String workItemId;
@@ -241,7 +244,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         CounterFactory counterFactory,
         PipelineOptions options,
         String workItemId) {
-      super(sampler, DataflowElementExecutionTracker.create(counterFactory, options));
+      super(sampler);
+      this.elementExecutionTracker =
+          DataflowElementExecutionTracker.create(counterFactory, options);
       this.otherState = otherState;
       this.workItemId = workItemId;
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
@@ -267,6 +272,29 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         }
         throw e;
       }
+    }
+
+    @Override
+    protected void takeSample(long millisSinceLastSample) {
+      elementExecutionTracker.takeSample(millisSinceLastSample);
+      super.takeSample(millisSinceLastSample);
+    }
+
+    @Override
+    public Closeable enterState(ExecutionState newState) {
+      Closeable baseCloseable = super.enterState(newState);
+      final boolean isDataflowProcessElementState =
+          newState.isProcessElementState && newState instanceof DataflowExecutionState;
+      if (isDataflowProcessElementState) {
+        elementExecutionTracker.enter(((DataflowExecutionState) newState).getStepName());
+      }
+
+      return () -> {
+        if (isDataflowProcessElementState) {
+          elementExecutionTracker.exit();
+        }
+        baseCloseable.close();
+      };
     }
 
     public String getWorkItemId() {

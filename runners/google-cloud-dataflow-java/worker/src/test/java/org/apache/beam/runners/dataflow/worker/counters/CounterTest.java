@@ -21,12 +21,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CommitState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -49,10 +49,10 @@ public class CounterTest {
   @Test
   public void testCompatibility() {
     // Equal counters are compatible, of all kinds.
-    assertTrue(counters.longSum(name).equals(counters.longSum(name)));
-    assertTrue(counters.intSum(name).equals(counters.intSum(name)));
-    assertTrue(counters.doubleSum(name).equals(counters.doubleSum(name)));
-    assertTrue(counters.booleanOr(name).equals(counters.booleanOr(name)));
+    assertEquals(counters.longSum(name), counters.longSum(name));
+    assertEquals(counters.intSum(name), counters.intSum(name));
+    assertEquals(counters.doubleSum(name), counters.doubleSum(name));
+    assertEquals(counters.booleanOr(name), counters.booleanOr(name));
 
     // The name, kind, and type of the counter must match.
     assertFalse(counters.longSum(name).equals(counters.longSum(name2)));
@@ -60,7 +60,7 @@ public class CounterTest {
     assertFalse(counters.longSum(name).equals(counters.intSum(name)));
 
     // The value of the counters are ignored.
-    assertTrue(counters.longSum(name).addValue(666L).equals(counters.longSum(name).addValue(42L)));
+    assertEquals(counters.longSum(name).addValue(666L), counters.longSum(name).addValue(42L));
   }
 
   // Tests for SUM.
@@ -466,7 +466,7 @@ public class CounterTest {
     assertFalse(unstructured.equals(structuredCompatible));
 
     // structuredOriginal is only equal to structuredCompatible
-    assertTrue(structuredOriginal.equals(structuredCompatible));
+    assertEquals(structuredOriginal, structuredCompatible);
     assertFalse(structuredOriginal.equals(structuredSystem));
 
     // structuredSystem is equal to nothing

@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.apex.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.datatorrent.api.Context.PortContext;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.Operator;
 import com.datatorrent.api.Operator.InputPort;
 import com.datatorrent.api.Operator.OutputPort;
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -104,7 +104,7 @@ class TranslationContext {
     return (OutputT) Iterables.getOnlyElement(getCurrentTransform().getOutputs().values());
   }
 
-  private AppliedPTransform<?, ?, ?> getCurrentTransform() {
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
     checkArgument(currentTransform != null, "current transform not set");
     return currentTransform;
   }

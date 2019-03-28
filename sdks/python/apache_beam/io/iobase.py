@@ -30,6 +30,7 @@ the sink.
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import math
@@ -51,6 +52,7 @@ from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -1020,11 +1022,13 @@ class _WriteBundleDoFn(core.DoFn):
   """
 
   def __init__(self, sink):
-    self.writer = None
     self.sink = sink
 
   def display_data(self):
     return {'sink_dd': self.sink}
+
+  def start_bundle(self):
+    self.writer = None
 
   def process(self, element, init_result):
     if self.writer is None:
@@ -1052,7 +1056,7 @@ class _WriteKeyedBundleDoFn(core.DoFn):
     writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     for e in bundle[1]:  # values
       writer.write(e)
-    return [window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)]
+    return [window.TimestampedValue(writer.close(), timestamp.MAX_TIMESTAMP)]
 
 
 def _pre_finalize(unused_element, sink, init_result, write_results):
@@ -1072,7 +1076,8 @@ def _finalize_write(unused_element, sink, init_result, write_results,
   outputs = sink.finalize_write(init_result, write_results + extra_shards,
                                 pre_finalize_results)
   if outputs:
-    return (window.TimestampedValue(v, window.MAX_TIMESTAMP) for v in outputs)
+    return (
+        window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
 
 
 class _RoundRobinKeyFn(core.DoFn):
@@ -1120,6 +1125,11 @@ class RestrictionTracker(object):
     """
     raise NotImplementedError
 
+  def current_progress(self):
+    """Returns a RestrictionProgress object representing the current progress.
+    """
+    raise NotImplementedError
+
   def checkpoint(self):
     """Performs a checkpoint of the current restriction.
 
@@ -1163,3 +1173,56 @@ class RestrictionTracker(object):
       ~exceptions.ValueError: if there is still any unclaimed work remaining.
     """
     raise NotImplementedError
+
+
+class RestrictionProgress(object):
+  """Used to record the progress of a restriction.
+
+  Experimental; no backwards-compatibility guarantees.
+  """
+  def __init__(self, **kwargs):
+    # Only accept keyword arguments.
+    self._fraction = kwargs.pop('fraction', None)
+    self._completed = kwargs.pop('completed', None)
+    self._remaining = kwargs.pop('remaining', None)
+    assert not kwargs
+
+  def __repr__(self):
+    return 'RestrictionProgress(fraction=%s, completed=%s, remaining=%s)' % (
+        self._fraction, self._completed, self._remaining)
+
+  @property
+  def completed_work(self):
+    if self._completed:
+      return self._completed
+    elif self._remaining and self._fraction:
+      return self._remaining * self._fraction / (1 - self._fraction)
+
+  @property
+  def remaining_work(self):
+    if self._remaining:
+      return self._remaining
+    elif self._completed:
+      return self._completed * (1 - self._fraction) / self._fraction
+
+  @property
+  def total_work(self):
+    return self.completed_work + self.remaining_work
+
+  @property
+  def fraction_completed(self):
+    if self._fraction is not None:
+      return self._fraction
+    else:
+      return float(self._completed) / self.total_work
+
+  @property
+  def fraction_remaining(self):
+    if self._fraction is not None:
+      return 1 - self._fraction
+    else:
+      return float(self._remaining) / self.total_work
+
+  def with_completed(self, completed):
+    return RestrictionProgress(
+        fraction=self._fraction, remaining=self._remaining, completed=completed)

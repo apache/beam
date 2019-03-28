@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A source that reads from a key-sharded dataset, and returns KVs without any values grouping.
@@ -119,8 +119,12 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
         PartitioningShuffleReader<K, V> shuffleReader, ShuffleEntryReader entryReader) {
       this.iterator =
           entryReader.read(
-              ByteArrayShufflePosition.fromBase64(shuffleReader.startShufflePosition),
-              ByteArrayShufflePosition.fromBase64(shuffleReader.stopShufflePosition));
+              shuffleReader.startShufflePosition == null
+                  ? null
+                  : ByteArrayShufflePosition.fromBase64(shuffleReader.startShufflePosition),
+              shuffleReader.stopShufflePosition == null
+                  ? null
+                  : ByteArrayShufflePosition.fromBase64(shuffleReader.stopShufflePosition));
       this.shuffleReader = shuffleReader;
       this.entryReader = entryReader;
     }

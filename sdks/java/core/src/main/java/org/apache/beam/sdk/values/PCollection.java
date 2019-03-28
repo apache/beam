@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
 import java.util.Map;
@@ -318,7 +318,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   /** Returns whether this {@link PCollection} has an attached schema. */
   @Experimental(Kind.SCHEMAS)
   public boolean hasSchema() {
-    return getCoder() instanceof SchemaCoder;
+    return coderOrFailure.coder != null && coderOrFailure.coder instanceof SchemaCoder;
   }
 
   /** Returns the attached schema. */

@@ -17,17 +17,16 @@
  */
 package org.apache.beam.fn.harness;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -43,9 +42,9 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,9 +83,9 @@ public class BeamFnDataWriteRunner<InputT> {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener)
         throws IOException {
       BeamFnApi.Target target =
@@ -108,11 +107,13 @@ public class BeamFnDataWriteRunner<InputT> {
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
               pTransform, processBundleInstructionId, target, coderSpec, coders, beamFnDataClient);
-      addStartFunction.accept(runner::registerForOutput);
-      pCollectionIdsToConsumers.put(
+      startFunctionRegistry.register(pTransformId, runner::registerForOutput);
+      pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
+          pTransformId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume);
-      addFinishFunction.accept(runner::close);
+
+      finishFunctionRegistry.register(pTransformId, runner::close);
       return runner;
     }
   }

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 

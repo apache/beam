@@ -131,7 +131,7 @@ public class S3WritableByteChannelTest {
     verify(mockAmazonS3, times(2))
         .initiateMultipartUpload(notNull(InitiateMultipartUploadRequest.class));
     int partQuantity =
-        ((int) Math.ceil((double) contentSize / options.getS3UploadBufferSizeBytes()) + 1);
+        (int) Math.ceil((double) contentSize / options.getS3UploadBufferSizeBytes()) + 1;
     verify(mockAmazonS3, times(partQuantity)).uploadPart(notNull(UploadPartRequest.class));
     verify(mockAmazonS3, times(1))
         .completeMultipartUpload(notNull(CompleteMultipartUploadRequest.class));

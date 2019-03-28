@@ -412,9 +412,21 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					return nil, err
 				}
 				cn.UsesKey = typex.IsKV(in[0].Type)
+
 				switch urn {
 				case urnPerKeyCombinePre:
-					u = &LiftedCombine{Combine: cn}
+					inputs := unmarshalKeyedValues(transform.GetInputs())
+					if len(inputs) != 1 {
+						return nil, fmt.Errorf("unexpected sideinput to combine: got %d, want 1", len(inputs))
+					}
+					ec, _, err := b.makeCoderForPCollection(inputs[0])
+					if err != nil {
+						return nil, err
+					}
+					if !coder.IsKV(ec) {
+						return nil, fmt.Errorf("unexpected non-KV coder PCollection input to combine: %v", ec)
+					}
+					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0]}
 				case urnPerKeyCombineMerge:
 					u = &MergeAccumulators{Combine: cn}
 				case urnPerKeyCombineExtract:

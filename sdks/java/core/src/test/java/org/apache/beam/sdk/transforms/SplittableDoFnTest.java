@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Ordering;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,6 +40,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
@@ -60,9 +61,11 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -348,7 +351,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesSideInputs.class})
   public void testSideInputBounded() {
     testSideInput(IsBounded.BOUNDED);
   }
@@ -631,7 +634,8 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
-  @Test
+  @Test(timeout = 15000L)
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-6354")
   @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesTestStream.class})
   public void testLateData() {
 
@@ -761,6 +765,8 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testBoundedness() {
+    // use TestPipeline.create() because we assert without p.run();
+    Pipeline p = TestPipeline.create();
     PCollection<String> foo = p.apply(Create.of("foo"));
     {
       PCollection<String> res =

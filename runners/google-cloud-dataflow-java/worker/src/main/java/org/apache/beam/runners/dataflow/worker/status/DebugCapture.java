@@ -26,7 +26,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
 import com.google.api.services.dataflow.model.GetDebugConfigResponse;
 import com.google.api.services.dataflow.model.SendDebugCaptureRequest;
-import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -35,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,8 +74,15 @@ public class DebugCapture {
       this.content = content;
     }
 
-    @Key public String name;
-    @Key public String content;
+    // Implicitly read. Not a bug.
+    @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    @Key
+    public String name;
+
+    // Implicitly read. Not a bug.
+    @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    @Key
+    public String content;
   }
 
   /** Interface for capturable components. */

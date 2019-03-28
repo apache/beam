@@ -22,14 +22,10 @@
 
 from __future__ import absolute_import
 
-# TODO (altay): Move shared names to a common location.
 # Standard file names used for staging files.
 from builtins import object
 
-PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
-STAGED_PIPELINE_FILENAME = "pipeline.pb"
-STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'
@@ -42,19 +38,24 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20181018'
+BEAM_CONTAINER_VERSION = 'beam-master-20190226'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20181018'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20190213'
+
+# TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
+PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
+STAGED_PIPELINE_FILENAME = "pipeline.pb"
+STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
 
 # Package names for different distributions
-# TODO(BEAM-5939): Deduplicate with apache_beam/runners/portability/stager.py
 BEAM_PACKAGE_NAME = 'apache-beam'
 
 # SDK identifiers for different distributions
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
+# TODO(BEAM-5393): End duplicated constants (see above).
 
-DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
 
 class TransformNames(object):
@@ -77,13 +78,14 @@ class PropertyNames(object):
   Property strings as they are expected in the CloudWorkflow protos."""
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
-  BIGQUERY_QUERY = 'bigquery_query'
-  BIGQUERY_USE_LEGACY_SQL = 'bigquery_use_legacy_sql'
-  BIGQUERY_FLATTEN_RESULTS = 'bigquery_flatten_results'
   BIGQUERY_EXPORT_FORMAT = 'bigquery_export_format'
-  BIGQUERY_TABLE = 'table'
+  BIGQUERY_FLATTEN_RESULTS = 'bigquery_flatten_results'
+  BIGQUERY_KMS_KEY = 'bigquery_kms_key'
   BIGQUERY_PROJECT = 'project'
+  BIGQUERY_QUERY = 'bigquery_query'
   BIGQUERY_SCHEMA = 'schema'
+  BIGQUERY_TABLE = 'table'
+  BIGQUERY_USE_LEGACY_SQL = 'bigquery_use_legacy_sql'
   BIGQUERY_WRITE_DISPOSITION = 'write_disposition'
   DISPLAY_DATA = 'display_data'
   ELEMENT = 'element'

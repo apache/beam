@@ -24,9 +24,6 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Supplier;
-import com.google.common.io.CountingOutputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -43,9 +40,13 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
 
 /**
  * Formats {@link LogRecord} into JSON format for Cloud Logging. Any exception is represented using
@@ -107,10 +108,16 @@ public class DataflowWorkerLoggingHandler extends Handler {
 
   @Override
   public synchronized void publish(LogRecord record) {
-    publish(ExecutionStateTracker.getCurrentExecutionState(), record);
+    DataflowExecutionState currrentDataflowState = null;
+    ExecutionState currrentState = ExecutionStateTracker.getCurrentExecutionState();
+    if (currrentState instanceof DataflowExecutionState) {
+      currrentDataflowState = (DataflowExecutionState) currrentState;
+    }
+    // It's okay to pass in the null state, publish() handles and tests this.
+    publish(currrentDataflowState, record);
   }
 
-  public synchronized void publish(ExecutionState currentExecutionState, LogRecord record) {
+  public synchronized void publish(DataflowExecutionState currentExecutionState, LogRecord record) {
     if (!isLoggable(record)) {
       return;
     }

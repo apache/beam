@@ -33,6 +33,7 @@ from future.utils import itervalues
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
+from apache_beam.portability import common_urns
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
@@ -50,10 +51,12 @@ from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
+from apache_beam.utils.annotations import deprecated
 
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
+    'Distinct',
     'Keys',
     'KvSwap',
     'RemoveDuplicates',
@@ -192,12 +195,19 @@ def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
 
 
 @ptransform_fn
-def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
-  """Produces a PCollection containing the unique elements of a PCollection."""
+def Distinct(pcoll):  # pylint: disable=invalid-name
+  """Produces a PCollection containing distinct elements of a PCollection."""
   return (pcoll
           | 'ToPairs' >> Map(lambda v: (v, None))
           | 'Group' >> CombinePerKey(lambda vs: None)
-          | 'RemoveDuplicates' >> Keys())
+          | 'Distinct' >> Keys())
+
+
+@deprecated(since='2.12', current='Distinct')
+@ptransform_fn
+def RemoveDuplicates(pcoll):
+  """Produces a PCollection containing distinct elements of a PCollection."""
+  return pcoll | 'RemoveDuplicates' >> Distinct()
 
 
 class _BatchSizeEstimator(object):
@@ -223,7 +233,7 @@ class _BatchSizeEstimator(object):
     if target_batch_duration_secs and target_batch_duration_secs <= 0:
       raise ValueError("target_batch_duration_secs (%s) must be positive" % (
           target_batch_duration_secs))
-    if max(0, target_batch_overhead, target_batch_duration_secs) == 0:
+    if not (target_batch_overhead or target_batch_duration_secs):
       raise ValueError("At least one of target_batch_overhead or "
                        "target_batch_duration_secs must be positive.")
     self._min_batch_size = min_batch_size
@@ -281,6 +291,11 @@ class _BatchSizeEstimator(object):
     n = float(len(xs))
     xbar = sum(xs) / n
     ybar = sum(ys) / n
+    if xbar == 0:
+      return ybar, 0
+    if all(xs[0] == x for x in xs):
+      # Simply use the mean if all values in xs are same.
+      return 0, ybar / xbar
     b = (sum([(x - xbar) * (y - ybar) for x, y in zip(xs, ys)])
          / sum([(x - xbar)**2 for x in xs]))
     a = ybar - b * xbar
@@ -291,13 +306,16 @@ class _BatchSizeEstimator(object):
     # pylint: disable=wrong-import-order, wrong-import-position
     import numpy as np
     from numpy import sum
+    n = len(xs)
+    if all(xs[0] == x for x in xs):
+      # If all values of xs are same then fallback to linear_regression_no_numpy
+      return _BatchSizeEstimator.linear_regression_no_numpy(xs, ys)
     xs = np.asarray(xs, dtype=float)
     ys = np.asarray(ys, dtype=float)
 
     # First do a simple least squares fit for y = a + bx over all points.
     b, a = np.polyfit(xs, ys, 1)
 
-    n = len(xs)
     if n < 10:
       return a, b
     else:
@@ -628,3 +646,10 @@ class Reshuffle(PTransform):
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
             | ReshufflePerKey()
             | 'RemoveRandomKeys' >> Map(lambda t: t[1]))
+
+  def to_runner_api_parameter(self, unused_context):
+    return common_urns.composites.RESHUFFLE.urn, None
+
+  @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
+  def from_runner_api_parameter(unused_parameter, unused_context):
+    return Reshuffle()

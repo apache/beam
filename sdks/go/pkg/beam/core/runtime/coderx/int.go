@@ -13,20 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package coderx contains primitive coders.
 package coderx
 
 import (
 	"encoding/binary"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+// Fixed-sized custom coders for integers.
 var (
-	// Fixed-sized custom coders for integers.
-
 	Uint32 *coder.CustomCoder
 	Int32  *coder.CustomCoder
 	Uint64 *coder.CustomCoder
@@ -51,15 +48,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-
-	runtime.RegisterFunction(encUint32)
-	runtime.RegisterFunction(decUint32)
-	runtime.RegisterFunction(encInt32)
-	runtime.RegisterFunction(decInt32)
-	runtime.RegisterFunction(encUint64)
-	runtime.RegisterFunction(decUint64)
-	runtime.RegisterFunction(encInt64)
-	runtime.RegisterFunction(decInt64)
 }
 
 func encUint32(v uint32) []byte {

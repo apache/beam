@@ -18,19 +18,19 @@ package gcsproxy
 
 import (
 	"bytes"
-	"crypto/md5"
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash"
 	"path"
 	"sync"
 
+	"cloud.google.com/go/storage"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
-	"google.golang.org/api/storage/v1"
 )
 
 // StagingServer is a artifact staging server backed by Google Cloud Storage
@@ -81,11 +81,11 @@ func (s *StagingServer) CommitManifest(ctx context.Context, req *pb.CommitManife
 		return nil, fmt.Errorf("failed to marshal proxy manifest: %v", err)
 	}
 
-	cl, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+	cl, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCS client: %v", err)
 	}
-	if err := gcsx.WriteObject(cl, s.bucket, s.manifest, bytes.NewReader(data)); err != nil {
+	if err := gcsx.WriteObject(ctx, cl, s.bucket, s.manifest, bytes.NewReader(data)); err != nil {
 		return nil, fmt.Errorf("failed to write manifest: %v", err)
 	}
 
@@ -106,11 +106,11 @@ func matchLocations(artifacts []*pb.ArtifactMetadata, blobs map[string]staged) (
 		if !ok {
 			return nil, fmt.Errorf("artifact %v not staged", a.Name)
 		}
-		if a.Md5 == "" {
-			a.Md5 = info.hash
+		if a.Sha256 == "" {
+			a.Sha256 = info.hash
 		}
-		if info.hash != a.Md5 {
-			return nil, fmt.Errorf("staged artifact for %v has invalid MD5: %v, want %v", a.Name, info.hash, a.Md5)
+		if info.hash != a.Sha256 {
+			return nil, fmt.Errorf("staged artifact for %v has invalid SHA256: %v, want %v", a.Name, info.hash, a.Sha256)
 		}
 
 		loc = append(loc, &pb.ProxyManifest_Location{Name: a.Name, Uri: info.object})
@@ -135,18 +135,19 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 	// Stream content to GCS. We don't have to worry about partial
 	// or abandoned writes, because object writes are atomic.
 
-	cl, err := gcsx.NewClient(ps.Context(), storage.DevstorageReadWriteScope)
+	ctx := ps.Context()
+	cl, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
 		return fmt.Errorf("failed to create GCS client: %v", err)
 	}
 
-	r := &reader{md5W: md5.New(), stream: ps}
-	if err := gcsx.WriteObject(cl, s.bucket, object, r); err != nil {
+	r := &reader{sha256W: sha256.New(), stream: ps}
+	if err := gcsx.WriteObject(ctx, cl, s.bucket, object, r); err != nil {
 		return fmt.Errorf("failed to stage artifact %v: %v", md.Name, err)
 	}
-	hash := r.MD5()
-	if md.Md5 != "" && md.Md5 != hash {
-		return fmt.Errorf("invalid MD5 for artifact %v: %v want %v", md.Name, hash, md.Md5)
+	hash := r.SHA256()
+	if md.Sha256 != "" && md.Sha256 != hash {
+		return fmt.Errorf("invalid SHA256 for artifact %v: %v want %v", md.Name, hash, md.Sha256)
 	}
 
 	s.mu.Lock()
@@ -157,11 +158,11 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 }
 
 // reader is an adapter between the artifact stream and the GCS stream reader.
-// It also computes the MD5 of the content.
+// It also computes the SHA256 of the content.
 type reader struct {
-	md5W   hash.Hash
-	buf    []byte
-	stream pb.ArtifactStagingService_PutArtifactServer
+	sha256W hash.Hash
+	buf     []byte
+	stream  pb.ArtifactStagingService_PutArtifactServer
 }
 
 func (r *reader) Read(buf []byte) (int, error) {
@@ -188,13 +189,13 @@ func (r *reader) Read(buf []byte) (int, error) {
 	for i := 0; i < n; i++ {
 		buf[i] = r.buf[i]
 	}
-	if _, err := r.md5W.Write(r.buf[:n]); err != nil {
+	if _, err := r.sha256W.Write(r.buf[:n]); err != nil {
 		panic(err) // cannot fail
 	}
 	r.buf = r.buf[n:]
 	return n, nil
 }
 
-func (r *reader) MD5() string {
-	return base64.StdEncoding.EncodeToString(r.md5W.Sum(nil))
+func (r *reader) SHA256() string {
+	return hex.EncodeToString(r.sha256W.Sum(nil))
 }

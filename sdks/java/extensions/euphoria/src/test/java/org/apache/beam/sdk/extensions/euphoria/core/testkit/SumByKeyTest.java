@@ -19,12 +19,12 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 
@@ -36,8 +36,9 @@ public class SumByKeyTest extends AbstractOperatorTest {
     execute(
         new AbstractTestCase<Integer, KV<Integer, Long>>() {
           @Override
-          protected Dataset<KV<Integer, Long>> getOutput(Dataset<Integer> input) {
-            final Dataset<Integer> inputWithTime = AssignEventTime.of(input).using(i -> 0).output();
+          protected PCollection<KV<Integer, Long>> getOutput(PCollection<Integer> input) {
+            final PCollection<Integer> inputWithTime =
+                AssignEventTime.of(input).using(i -> 0).output();
             return SumByKey.of(inputWithTime)
                 .keyBy(e -> e % 2)
                 .valueBy(e -> (long) e)

@@ -30,17 +30,17 @@ __all__ = ['TestDirectRunner']
 
 
 class TestDirectRunner(DirectRunner):
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     """Execute test pipeline and verify test matcher"""
-    options = pipeline._options.view_as(TestOptions)
-    on_success_matcher = options.on_success_matcher
+    test_options = options.view_as(TestOptions)
+    on_success_matcher = test_options.on_success_matcher
     is_streaming = options.view_as(StandardOptions).streaming
 
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
     # send this option to remote executors.
-    options.on_success_matcher = None
+    test_options.on_success_matcher = None
 
-    self.result = super(TestDirectRunner, self).run_pipeline(pipeline)
+    self.result = super(TestDirectRunner, self).run_pipeline(pipeline, options)
 
     try:
       if not is_streaming:

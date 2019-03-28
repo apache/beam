@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -72,16 +72,6 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. This coder is injective.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
@@ -98,5 +88,11 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   protected long getEncodedElementByteSize(BigInteger value) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
     return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray());
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(BigInteger value) {
+    return value;
   }
 }

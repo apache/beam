@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -34,10 +33,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -73,7 +73,7 @@ public class FnApiWindowMappingFnTest {
 
     FnApiWindowMappingFn windowMappingFn =
         new FnApiWindowMappingFn(
-            IdGenerator::generate,
+            IdGenerators.decrementingLongs(),
             testSdkHarness,
             DATA_SERVICE,
             testSdkHarness,
@@ -136,6 +136,9 @@ public class FnApiWindowMappingFnTest {
           inboundReceiver.accept(windowedValue.withValue(KV.of(kv.getKey(), outputValue)));
           inboundDataClient.complete();
         }
+
+        @Override
+        public void flush() throws Exception {}
 
         @Override
         public void close() throws Exception {}

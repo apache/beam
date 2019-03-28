@@ -103,8 +103,7 @@ public class RabbitMqIOTest implements Serializable {
                         new String(message.getBody(), StandardCharsets.UTF_8)));
 
     List<String> records =
-        generateRecords(maxNumRecords)
-            .stream()
+        generateRecords(maxNumRecords).stream()
             .map(record -> new String(record, StandardCharsets.UTF_8))
             .collect(Collectors.toList());
     PAssert.that(output).containsInAnyOrder(records);
@@ -149,8 +148,7 @@ public class RabbitMqIOTest implements Serializable {
                         new String(message.getBody(), StandardCharsets.UTF_8)));
 
     List<String> records =
-        generateRecords(maxNumRecords)
-            .stream()
+        generateRecords(maxNumRecords).stream()
             .map(record -> new String(record, StandardCharsets.UTF_8))
             .collect(Collectors.toList());
     PAssert.that(output).containsInAnyOrder(records);
@@ -201,8 +199,7 @@ public class RabbitMqIOTest implements Serializable {
   public void testWriteQueue() throws Exception {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
-        generateRecords(maxNumRecords)
-            .stream()
+        generateRecords(maxNumRecords).stream()
             .map(bytes -> new RabbitMqMessage(bytes))
             .collect(Collectors.toList());
     p.apply(Create.of(data))
@@ -245,8 +242,7 @@ public class RabbitMqIOTest implements Serializable {
   public void testWriteExchange() throws Exception {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
-        generateRecords(maxNumRecords)
-            .stream()
+        generateRecords(maxNumRecords).stream()
             .map(bytes -> new RabbitMqMessage(bytes))
             .collect(Collectors.toList());
     p.apply(Create.of(data))

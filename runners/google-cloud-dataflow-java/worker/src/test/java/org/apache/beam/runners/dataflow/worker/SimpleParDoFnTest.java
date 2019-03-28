@@ -31,9 +31,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,18 +38,19 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -61,6 +59,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -203,7 +204,8 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT);
+            MAIN_OUTPUT,
+            DoFnSchemaInformation.create());
     TestReceiver receiver = new TestReceiver();
     TestReceiver receiver1 = new TestReceiver();
     TestReceiver receiver2 = new TestReceiver();
@@ -227,6 +229,7 @@ public class SimpleParDoFnTest {
             BatchModeExecutionContext.forTesting(options, "testStage")
                 .getStepContext(operationContext),
             operationContext,
+            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     userParDoFn.startBundle(receiver, receiver1, receiver2, receiver3);
@@ -280,7 +283,8 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT);
+            MAIN_OUTPUT,
+            DoFnSchemaInformation.create());
     TestReceiver receiver = new TestReceiver();
 
     ParDoFn userParDoFn =
@@ -293,6 +297,7 @@ public class SimpleParDoFnTest {
             BatchModeExecutionContext.forTesting(options, "testStage")
                 .getStepContext(operationContext),
             operationContext,
+            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     try {
@@ -327,7 +332,8 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT);
+            MAIN_OUTPUT,
+            DoFnSchemaInformation.create());
     TestReceiver receiver = new TestReceiver();
 
     ParDoFn userParDoFn =
@@ -340,6 +346,7 @@ public class SimpleParDoFnTest {
             BatchModeExecutionContext.forTesting(options, "testStage")
                 .getStepContext(operationContext),
             operationContext,
+            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     try {
@@ -416,7 +423,8 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT);
+            MAIN_OUTPUT,
+            DoFnSchemaInformation.create());
     CounterSet counters = new CounterSet();
     TestOperationContext operationContext = TestOperationContext.create(counters);
     ParDoFn userParDoFn =
@@ -429,6 +437,7 @@ public class SimpleParDoFnTest {
             BatchModeExecutionContext.forTesting(options, "testStage")
                 .getStepContext(operationContext),
             operationContext,
+            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     userParDoFn.startBundle(new TestReceiver(), new TestReceiver());
@@ -474,7 +483,8 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT);
+            MAIN_OUTPUT,
+            DoFnSchemaInformation.create());
 
     ParDoFn userParDoFn =
         new SimpleParDoFn<>(
@@ -487,6 +497,7 @@ public class SimpleParDoFnTest {
                     options, operationContext.counterFactory(), "testStage")
                 .getStepContext(operationContext),
             operationContext,
+            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     // This test ensures proper behavior of the state sampling even with lazy initialization.
@@ -563,7 +574,8 @@ public class SimpleParDoFnTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            MAIN_OUTPUT);
+            MAIN_OUTPUT,
+            DoFnSchemaInformation.create());
 
     ParDoFn parDoFn =
         new SimpleParDoFn<>(
@@ -574,6 +586,7 @@ public class SimpleParDoFnTest {
             ImmutableMap.of(MAIN_OUTPUT, 0),
             stepContext,
             operationContext,
+            DoFnSchemaInformation.create(),
             SimpleDoFnRunnerFactory.INSTANCE);
 
     parDoFn.startBundle(new TestReceiver());

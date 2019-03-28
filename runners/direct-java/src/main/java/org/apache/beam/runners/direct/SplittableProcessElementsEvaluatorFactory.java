@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.cache.CacheLoader;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,6 +32,7 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElem
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -43,6 +41,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -109,7 +110,8 @@ class SplittableProcessElementsEvaluatorFactory<
   @SuppressWarnings({"unchecked", "rawtypes"})
   private TransformEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> createEvaluator(
       AppliedPTransform<
-              PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple,
+              PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>,
+              PCollectionTuple,
               ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
           application,
       CommittedBundle<InputT> inputBundle)
@@ -127,7 +129,8 @@ class SplittableProcessElementsEvaluatorFactory<
                 inputBundle.getKey(),
                 application.getTransform().getSideInputs(),
                 application.getTransform().getMainOutputTag(),
-                application.getTransform().getAdditionalOutputTags().getAll());
+                application.getTransform().getAdditionalOutputTags().getAll(),
+                DoFnSchemaInformation.create());
     final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
         evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
@@ -190,7 +193,8 @@ class SplittableProcessElementsEvaluatorFactory<
         stepContext,
         inputCoder,
         outputCoders,
-        windowingStrategy) -> {
+        windowingStrategy,
+        doFnSchemaInformation) -> {
       ProcessFn<InputT, OutputT, RestrictionT, ?> processFn = (ProcessFn) fn;
       return DoFnRunners.newProcessFnRunner(
           processFn,
@@ -203,7 +207,8 @@ class SplittableProcessElementsEvaluatorFactory<
           stepContext,
           inputCoder,
           outputCoders,
-          windowingStrategy);
+          windowingStrategy,
+          doFnSchemaInformation);
     };
   }
 }

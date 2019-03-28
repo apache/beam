@@ -19,8 +19,8 @@ package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -31,7 +31,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -209,12 +208,12 @@ public class AvroCoderTest {
     Pojo value = new Pojo("Hello", 42);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
-    //Serialization of object
+    // Serialization of object
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ObjectOutputStream out = new ObjectOutputStream(bos);
     out.writeObject(coder);
 
-    //De-serialization of object
+    // De-serialization of object
     ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
     ObjectInputStream in = new ObjectInputStream(bis);
     AvroCoder<Pojo> copied = (AvroCoder<Pojo>) in.readObject();
@@ -232,11 +231,11 @@ public class AvroCoderTest {
     Pojo value = new Pojo("Hello", 42);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
-    //Kryo instantiation
+    // Kryo instantiation
     Kryo kryo = new Kryo();
     kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
 
-    //Serialization of object without any memoization
+    // Serialization of object without any memoization
     ByteArrayOutputStream coderWithoutMemoizationBos = new ByteArrayOutputStream();
     try (Output output = new Output(coderWithoutMemoizationBos)) {
       kryo.writeObject(output, coder);
@@ -719,7 +718,7 @@ public class AvroCoderTest {
     coder.encode(size1, outStream1, context);
     coder.encode(size2, outStream2, context);
 
-    assertTrue(Arrays.equals(outStream1.toByteArray(), outStream2.toByteArray()));
+    assertArrayEquals(outStream1.toByteArray(), outStream2.toByteArray());
   }
 
   private static class TreeMapField {

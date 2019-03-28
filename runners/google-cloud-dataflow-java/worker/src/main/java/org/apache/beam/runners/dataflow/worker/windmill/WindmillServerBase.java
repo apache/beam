@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import com.google.common.net.HostAndPort;
 import java.io.IOException;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 
 /**
  * Implementation of a WindmillServerStub which communcates with an actual windmill server at the
@@ -35,7 +35,7 @@ public class WindmillServerBase extends WindmillServerStub {
   }
 
   @Override
-  public void finalize() {
+  protected void finalize() {
     destroy(nativePointer);
   }
 
@@ -107,6 +107,12 @@ public class WindmillServerBase extends WindmillServerStub {
     } catch (IOException e) {
       throw new RuntimeException("Proto deserialization failed: " + e);
     }
+  }
+
+  @Override
+  public long getAndResetThrottleTime() {
+    // Windmill appliance does not have throttling.
+    return 0;
   }
 
   @Override

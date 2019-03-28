@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import javax.annotation.Nullable;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * The {@link TransformEvaluatorFactory} for {@link #URN}, which reads from a {@link
@@ -130,20 +130,13 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
                   BundleFactoryOutputReceiverFactory.create(
                       bundleFactory, stage.getComponents(), outputs::add),
                   StateRequestHandler.unsupported(),
+                  // TODO: Wire in splitting via a split listener
                   new BundleProgressHandler() {
                     @Override
-                    public void onProgress(ProcessBundleProgressResponse progress) {
-                      if (progress.hasSplit()) {
-                        feeder.split(progress.getSplit());
-                      }
-                    }
+                    public void onProgress(ProcessBundleProgressResponse progress) {}
 
                     @Override
-                    public void onCompleted(ProcessBundleResponse response) {
-                      if (response.hasSplit()) {
-                        feeder.split(response.getSplit());
-                      }
-                    }
+                    public void onCompleted(ProcessBundleResponse response) {}
                   });
       this.mainInput = Iterables.getOnlyElement(bundle.getInputReceivers().values());
     }

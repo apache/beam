@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,16 +44,20 @@ import org.joda.time.Duration;
  * side-input in order to exercise that functionality. (A combiner, as used in Query 5, is a more
  * efficient approach.).
  */
-public class Query7 extends NexmarkQuery {
+public class Query7 extends NexmarkQueryTransform<Bid> {
+  private final NexmarkConfiguration configuration;
+
   public Query7(NexmarkConfiguration configuration) {
-    super(configuration, "Query7");
+    super("Query7");
+    this.configuration = configuration;
   }
 
-  private PCollection<Bid> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<Bid> expand(PCollection<Event> events) {
     // Window the bids.
     PCollection<Bid> slidingBids =
         events
-            .apply(JUST_BIDS)
+            .apply(NexmarkQueryUtil.JUST_BIDS)
             .apply(
                 Window.into(
                     FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))));
@@ -67,7 +69,7 @@ public class Query7 extends NexmarkQuery {
     // its I/O. We'll keep this implementation since it illustrates the use of side inputs.
     final PCollectionView<Long> maxPriceView =
         slidingBids
-            .apply("BidToPrice", BID_TO_PRICE)
+            .apply("BidToPrice", NexmarkQueryUtil.BID_TO_PRICE)
             .apply(Max.longsGlobally().withFanout(configuration.fanout).asSingletonView());
 
     return slidingBids
@@ -86,10 +88,5 @@ public class Query7 extends NexmarkQuery {
                   }
                 })
             .withSideInputs(maxPriceView));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

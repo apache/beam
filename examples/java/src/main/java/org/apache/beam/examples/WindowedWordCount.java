@@ -117,7 +117,7 @@ public class WindowedWordCount {
       /*
        * Concept #2: Set the data element with that timestamp.
        */
-      receiver.outputWithTimestamp(element, new Instant(randomTimestamp));
+      receiver.outputWithTimestamp(element, randomTimestamp);
     }
   }
 
@@ -186,7 +186,8 @@ public class WindowedWordCount {
         pipeline
             /* Read from the GCS file. */
             .apply(TextIO.read().from(options.getInputFile()))
-            // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
+            // Concept #2: Add an element timestamp, using an artificial time just to show
+            // windowing.
             // See AddTimestampFn for more detail on this.
             .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
 

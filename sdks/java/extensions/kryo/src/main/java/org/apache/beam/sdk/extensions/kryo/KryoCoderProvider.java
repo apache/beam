@@ -20,22 +20,24 @@ package org.apache.beam.sdk.extensions.kryo;
 import com.esotericsoftware.kryo.ClassResolver;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
-import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Implementation of {@link CoderProvider}, which provides {@link KryoCoder} for any type registered
  * to {@link Kryo} by user-provided {@link KryoRegistrar}.
  */
+@Experimental
 public class KryoCoderProvider extends CoderProvider {
 
   private static final TypeDescriptor<Object> OBJECT_TYPE = new TypeDescriptor<Object>() {};

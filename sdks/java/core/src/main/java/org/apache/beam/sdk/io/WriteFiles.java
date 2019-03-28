@@ -17,16 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Objects;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -83,6 +77,12 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -271,6 +271,17 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setWindowedWrites(true).build();
   }
 
+  /**
+   * Returns a new {@link WriteFiles} that writes all data without spilling, simplifying the
+   * pipeline. This option should not be used with {@link #withMaxNumWritersPerBundle(int)} and it
+   * will eliminate this limit possibly causing many writers to be opened. Use with caution.
+   *
+   * <p>This option only applies to writes {@link #withRunnerDeterminedSharding()}.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withNoSpilling() {
+    return toBuilder().setMaxNumWritersPerBundle(-1).build();
+  }
+
   @Override
   public void validate(PipelineOptions options) {
     getSink().validate(options);
@@ -403,15 +414,21 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @Override
     public PCollection<FileResult<DestinationT>> expand(PCollection<UserT> input) {
+      if (getMaxNumWritersPerBundle() < 0) {
+        return input
+            .apply(
+                "WritedUnshardedBundles",
+                ParDo.of(new WriteUnshardedTempFilesFn(null, destinationCoder))
+                    .withSideInputs(getSideInputs()))
+            .setCoder(fileResultCoder);
+      }
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecords");
       TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag =
           new TupleTag<>("unwrittenRecords");
       PCollectionTuple writeTuple =
           input.apply(
               "WriteUnshardedBundles",
-              ParDo.of(
-                      new WriteUnshardedTempFilesWithSpillingFn(
-                          unwrittenRecordsTag, destinationCoder))
+              ParDo.of(new WriteUnshardedTempFilesFn(unwrittenRecordsTag, destinationCoder))
                   .withSideInputs(getSideInputs())
                   .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittenRecordsTag)));
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
@@ -453,9 +470,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * Writes all the elements in a bundle using a {@link Writer} produced by the {@link
    * WriteOperation} associated with the {@link FileBasedSink}.
    */
-  private class WriteUnshardedTempFilesWithSpillingFn
-      extends DoFn<UserT, FileResult<DestinationT>> {
-    private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
+  private class WriteUnshardedTempFilesFn extends DoFn<UserT, FileResult<DestinationT>> {
+    @Nullable private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
     private final Coder<DestinationT> destinationCoder;
 
     // Initialized in startBundle()
@@ -463,8 +479,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     private int spilledShardNum = UNKNOWN_SHARDNUM;
 
-    WriteUnshardedTempFilesWithSpillingFn(
-        TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag,
+    WriteUnshardedTempFilesFn(
+        @Nullable TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag,
         Coder<DestinationT> destinationCoder) {
       this.unwrittenRecordsTag = unwrittenRecordsTag;
       this.destinationCoder = destinationCoder;
@@ -489,7 +505,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<DestinationT, OutputT> writer = writers.get(key);
       if (writer == null) {
-        if (writers.size() <= getMaxNumWritersPerBundle()) {
+        if (getMaxNumWritersPerBundle() < 0 || writers.size() <= getMaxNumWritersPerBundle()) {
           String uuid = UUID.randomUUID().toString();
           LOG.info(
               "Opening writer {} for window {} pane {} destination {}",

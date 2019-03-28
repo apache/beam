@@ -18,7 +18,7 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Apex"
@@ -99,6 +99,9 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
   }
+
+  // apex runner is run in embedded mode. Increase default HeapSize
+  maxHeapSize = '4g'
 }
 
 task validatesRunner {

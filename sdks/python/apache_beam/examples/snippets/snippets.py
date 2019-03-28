@@ -479,11 +479,10 @@ def examples_wordcount_wordcount(renames):
                           default='gs://my-bucket/input')
 
   options = PipelineOptions(argv)
+  word_count_options = options.view_as(WordCountOptions)
   with beam.Pipeline(options=options) as p:
+    lines = p | beam.io.ReadFromText(word_count_options.input)
     # [END examples_wordcount_wordcount_options]
-
-    lines = p | beam.io.ReadFromText(
-        'gs://dataflow-samples/shakespeare/kinglear.txt')
 
     # [START examples_wordcount_wordcount_composite]
     class CountWords(beam.PTransform):
@@ -1117,21 +1116,10 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [END model_bigqueryio_schema]
 
   # [START model_bigqueryio_schema_object]
-  from apache_beam.io.gcp.internal.clients import bigquery
-
-  table_schema = bigquery.TableSchema()
-
-  source_field = bigquery.TableFieldSchema()
-  source_field.name = 'source'
-  source_field.type = 'STRING'
-  source_field.mode = 'NULLABLE'
-  table_schema.fields.append(source_field)
-
-  quote_field = bigquery.TableFieldSchema()
-  quote_field.name = 'quote'
-  quote_field.type = 'STRING'
-  quote_field.mode = 'REQUIRED'
-  table_schema.fields.append(quote_field)
+  table_schema = {'fields': [
+      {'name': 'source', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'quote', 'type': 'STRING', 'mode': 'REQUIRED'}
+  ]}
   # [END model_bigqueryio_schema_object]
 
   if write_project and write_dataset and write_table:

@@ -38,9 +38,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.bigtable.v2.Mutation;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -71,6 +68,9 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -133,6 +133,10 @@ public class BigQueryIOReadTest implements Serializable {
     checkReadQueryObjectWithValidate(read, query, true);
   }
 
+  private void checkTypedReadQueryObject(BigQueryIO.TypedRead read, String query, String kmsKey) {
+    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, true);
+  }
+
   private void checkReadTableObjectWithValidate(
       BigQueryIO.Read read, String project, String dataset, String table, boolean validate) {
     assertEquals(project, read.getTable().getProjectId());
@@ -146,6 +150,14 @@ public class BigQueryIOReadTest implements Serializable {
       BigQueryIO.Read read, String query, boolean validate) {
     assertNull(read.getTable());
     assertEquals(query, read.getQuery().get());
+    assertEquals(validate, read.getValidate());
+  }
+
+  private void checkTypedReadQueryObjectWithValidate(
+      BigQueryIO.TypedRead read, String query, String kmsKey, boolean validate) {
+    assertNull(read.getTable());
+    assertEquals(query, read.getQuery().get());
+    assertEquals(kmsKey, read.getKmsKey());
     assertEquals(validate, read.getValidate());
   }
 
@@ -200,6 +212,13 @@ public class BigQueryIOReadTest implements Serializable {
             .setTableId("sometable");
     BigQueryIO.Read read = BigQueryIO.read().from(table);
     checkReadTableObject(read, "foo.com:project", "somedataset", "sometable");
+  }
+
+  @Test
+  public void testBuildQueryBasedTypedReadSource() {
+    BigQueryIO.TypedRead read =
+        BigQueryIO.readTableRows().fromQuery("foo_query").withKmsKey("kms_key");
+    checkTypedReadQueryObject(read, "foo_query", "kms_key");
   }
 
   @Test
@@ -620,6 +639,7 @@ public class BigQueryIOReadTest implements Serializable {
             TableRowJsonCoder.of(),
             BigQueryIO.TableRowParser.INSTANCE,
             QueryPriority.BATCH,
+            null,
             null);
 
     fakeJobService.expectDryRunQuery(
@@ -688,6 +708,7 @@ public class BigQueryIOReadTest implements Serializable {
             TableRowJsonCoder.of(),
             BigQueryIO.TableRowParser.INSTANCE,
             QueryPriority.BATCH,
+            null,
             null);
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
@@ -778,6 +799,7 @@ public class BigQueryIOReadTest implements Serializable {
             TableRowJsonCoder.of(),
             BigQueryIO.TableRowParser.INSTANCE,
             QueryPriority.BATCH,
+            null,
             null);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());

@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
@@ -47,12 +47,12 @@ public class JoinTest {
 
   @Test
   public void testBuild() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -61,8 +61,7 @@ public class JoinTest {
                   // no-op
                 })
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     assertTrue(join.getName().isPresent());
     assertEquals("Join1", join.getName().get());
     assertNotNull(join.getLeftKeyExtractor());
@@ -73,13 +72,13 @@ public class JoinTest {
 
   @Test
   public void testBuild_OutputValues() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
 
-    final Dataset<String> joined =
+    final PCollection<String> joined =
         Join.named("JoinValues")
             .of(left, right)
             .by(String::length, String::length)
@@ -88,20 +87,19 @@ public class JoinTest {
                   // no-op
                 })
             .outputValues();
-    assertTrue(joined.getProducer().isPresent());
-    final MapElements mapElements = (MapElements) joined.getProducer().get();
-    assertTrue(mapElements.getName().isPresent());
-    assertEquals("JoinValues::extract-values", mapElements.getName().get());
+    final OutputValues outputValues = (OutputValues) TestUtils.getProducer(joined);
+    assertTrue(outputValues.getName().isPresent());
+    assertEquals("JoinValues", outputValues.getName().get());
   }
 
   @Test
   public void testBuild_WithCounters() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -111,8 +109,7 @@ public class JoinTest {
                   c.collect(l + r);
                 })
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     assertTrue(join.getName().isPresent());
     assertEquals("Join1", join.getName().get());
     assertNotNull(join.getLeftKeyExtractor());
@@ -123,12 +120,12 @@ public class JoinTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<KV<Integer, String>> joined =
         Join.of(left, right)
             .by(String::length, String::length)
             .using(
@@ -136,19 +133,18 @@ public class JoinTest {
                   // no-op
                 })
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     assertFalse(join.getName().isPresent());
   }
 
   @Test
   public void testBuild_LeftJoin() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<KV<Integer, String>> joined =
         LeftJoin.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -157,19 +153,18 @@ public class JoinTest {
                   // no-op
                 })
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     assertEquals(Join.Type.LEFT, join.getType());
   }
 
   @Test
   public void testBuild_RightJoin() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<KV<Integer, String>> joined =
         RightJoin.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -178,19 +173,18 @@ public class JoinTest {
                   // no-op
                 })
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     assertEquals(Join.Type.RIGHT, join.getType());
   }
 
   @Test
   public void testBuild_FullJoin() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<KV<Integer, String>> joined =
         FullJoin.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -198,19 +192,18 @@ public class JoinTest {
                 (Optional<String> l, Optional<String> r, Collector<String> c) ->
                     c.collect(l.orElse(null) + r.orElse(null)))
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     assertEquals(Join.Type.FULL, join.getType());
   }
 
   @Test
   public void testBuild_Windowing() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -220,8 +213,7 @@ public class JoinTest {
             .discardingFiredPanes()
             .withAllowedLateness(Duration.millis(1000))
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     assertTrue(join.getWindow().isPresent());
     @SuppressWarnings("unchecked")
     final WindowDesc<?> windowDesc = WindowDesc.of((Window) join.getWindow().get());
@@ -234,12 +226,12 @@ public class JoinTest {
 
   @Test
   public void testBuild_OptionalWindowing() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -251,8 +243,7 @@ public class JoinTest {
                         .triggeredBy(AfterWatermark.pastEndOfWindow())
                         .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     assertTrue(join.getWindow().isPresent());
     final Window<?> window = (Window) join.getWindow().get();
     assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
@@ -264,14 +255,14 @@ public class JoinTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testBuildTypePropagation() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
     final TypeDescriptor<String> outputType = TypeDescriptors.strings();
-    final Dataset<KV<Integer, String>> joined =
+    final PCollection<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length, keyType)
@@ -281,22 +272,21 @@ public class JoinTest {
                 },
                 outputType)
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     TypePropagationAssert.assertOperatorTypeAwareness(join, keyType, outputType);
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testBuild_LeftJoinTypePropagation() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
     TypeDescriptor<String> outputType = TypeDescriptors.strings();
-    final Dataset<KV<Integer, String>> joined =
+    final PCollection<KV<Integer, String>> joined =
         LeftJoin.named("Join1")
             .of(left, right)
             .by(String::length, String::length, keyType)
@@ -306,22 +296,21 @@ public class JoinTest {
                 },
                 outputType)
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     TypePropagationAssert.assertOperatorTypeAwareness(join, keyType, outputType);
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testBuild_RightJoinTypePropagation() {
-    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Pipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
     final TypeDescriptor<String> outputType = TypeDescriptors.strings();
-    final Dataset<KV<Integer, String>> joined =
+    final PCollection<KV<Integer, String>> joined =
         RightJoin.named("Join1")
             .of(left, right)
             .by(String::length, String::length, keyType)
@@ -331,8 +320,7 @@ public class JoinTest {
                 },
                 outputType)
             .output();
-    assertTrue(joined.getProducer().isPresent());
-    final Join join = (Join) joined.getProducer().get();
+    final Join join = (Join) TestUtils.getProducer(joined);
     TypePropagationAssert.assertOperatorTypeAwareness(join, keyType, outputType);
   }
 }

@@ -23,7 +23,6 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // ReusableEmitter is a resettable value needed to hold the implicit context and
@@ -47,9 +46,6 @@ func RegisterEmitter(t reflect.Type, maker func(ElementProcessor) ReusableEmitte
 	defer emittersMu.Unlock()
 
 	key := t.String()
-	if _, exists := emitters[key]; exists {
-		log.Warnf(context.Background(), "Emitter for %v already registered. Overwriting.", key)
-	}
 	emitters[key] = maker
 }
 
@@ -106,7 +102,7 @@ func (e *emitValue) Value() interface{} {
 }
 
 func (e *emitValue) invoke(args []reflect.Value) []reflect.Value {
-	value := FullValue{Windows: e.ws, Timestamp: e.et}
+	value := &FullValue{Windows: e.ws, Timestamp: e.et}
 	isKey := true
 	for i, t := range e.types {
 		switch {

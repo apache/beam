@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
+import org.joda.time.Duration;
 
 /**
  * Configuration controlling how a query is run. May be supplied by command line or
@@ -55,6 +56,24 @@ public class NexmarkConfiguration implements Serializable {
    * overall query pipeline.
    */
   @JsonProperty public NexmarkUtils.PubSubMode pubSubMode = NexmarkUtils.PubSubMode.COMBINED;
+
+  /** The type of side input to use. */
+  @JsonProperty public NexmarkUtils.SideInputType sideInputType = NexmarkUtils.SideInputType.DIRECT;
+
+  /** Specify the number of rows to write to the side input. */
+  @JsonProperty public int sideInputRowCount = 500;
+
+  /** Specify the number of shards to write to the side input. */
+  @JsonProperty public int sideInputNumShards = 3;
+
+  /**
+   * Specify a prefix URL for side input files, which will be created for use queries that join the
+   * stream to static enrichment data.
+   */
+  @JsonProperty public String sideInputUrl = null;
+
+  /** Gap for the session in {@link org.apache.beam.sdk.nexmark.queries.SessionSideInputJoin}. */
+  @JsonProperty public Duration sessionGap = Duration.standardMinutes(10);
 
   /**
    * Number of events to generate. If zero, generate as many as possible without overflowing

@@ -28,7 +28,7 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
-/** Options which can be used to configure a Flink PipelineRunner. */
+/** Options which can be used to configure a Flink PortablePipelineRunner. */
 public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
@@ -74,6 +74,14 @@ public interface FlinkPipelineOptions
   void setParallelism(Integer value);
 
   @Description(
+      "The pipeline wide maximum degree of parallelism to be used. The maximum parallelism specifies the upper limit "
+          + "for dynamic scaling and the number of key groups used for partitioned state.")
+  @Default.Integer(-1)
+  Integer getMaxParallelism();
+
+  void setMaxParallelism(Integer value);
+
+  @Description(
       "The interval in milliseconds at which to trigger checkpoints of the running pipeline. "
           + "Default: No checkpointing.")
   @Default.Long(-1L)
@@ -99,6 +107,15 @@ public interface FlinkPipelineOptions
   Long getMinPauseBetweenCheckpoints();
 
   void setMinPauseBetweenCheckpoints(Long minPauseInterval);
+
+  @Description(
+      "Sets the expected behaviour for tasks in case that they encounter an error in their "
+          + "checkpointing procedure. If this is set to true, the task will fail on checkpointing error. "
+          + "If this is set to false, the task will only decline a the checkpoint and continue running. ")
+  @Default.Boolean(true)
+  Boolean getFailOnCheckpointingErrors();
+
+  void setFailOnCheckpointingErrors(Boolean failOnCheckpointingErrors);
 
   @Description(
       "Sets the number of times that failed tasks are re-executed. "
@@ -190,6 +207,11 @@ public interface FlinkPipelineOptions
 
   void setLatencyTrackingInterval(Long interval);
 
+  @Description("The interval in milliseconds for automatic watermark emission.")
+  Long getAutoWatermarkInterval();
+
+  void setAutoWatermarkInterval(Long interval);
+
   @Description(
       "Flink mode for data exchange of batch pipelines. "
           + "Reference {@link org.apache.flink.api.common.ExecutionMode}. "
@@ -199,4 +221,18 @@ public interface FlinkPipelineOptions
   ExecutionMode getExecutionModeForBatch();
 
   void setExecutionModeForBatch(ExecutionMode executionMode);
+
+  @Description(
+      "Savepoint restore path. If specified, restores the streaming pipeline from the provided path.")
+  String getSavepointPath();
+
+  void setSavepointPath(String path);
+
+  @Description(
+      "Flag indicating whether non restored state is allowed if the savepoint "
+          + "contains state for an operator that is no longer part of the pipeline.")
+  @Default.Boolean(false)
+  Boolean getAllowNonRestoredState();
+
+  void setAllowNonRestoredState(Boolean allowNonRestoredState);
 }

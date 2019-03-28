@@ -27,17 +27,18 @@
 #
 # Pipeline related flags:
 #     runner        -> Runner that execute pipeline job.
-#                      e.g. TestDataflowRunner, DirectRunner
+#                      e.g. TestDataflowRunner, TestDirectRunner
 #     project       -> Project name of the cloud service.
 #     gcs_location  -> Base location on GCS. Some pipeline options are
-#                      dirived from it including output, staging_location
+#                      derived from it including output, staging_location
 #                      and temp_location.
 #     sdk_location  -> Python tar ball location. Glob is accepted.
 #     num_workers   -> Number of workers.
 #     sleep_secs    -> Number of seconds to wait before verification.
 #     streaming     -> True if a streaming job.
 #     worker_jar    -> Customized worker jar for dataflow runner.
-#     pipeline_opts -> List of space separateed pipeline options. If this
+#     kms_key_name  -> Name of Cloud KMS encryption key to use in some tests.
+#     pipeline_opts -> List of space separated pipeline options. If this
 #                      flag is specified, all above flag will be ignored.
 #                      Please include all required pipeline options when
 #                      using this flag.
@@ -70,10 +71,12 @@ NUM_WORKERS=1
 SLEEP_SECS=20
 STREAMING=false
 WORKER_JAR=""
+KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 # Default test (nose) options.
-# Default test sets are full integration tests.
-TEST_OPTS="--attr=IT --nocapture"
+# Run WordCountIT.test_wordcount_it by default if no test options are
+# provided.
+TEST_OPTS="--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it --nocapture"
 
 while [[ $# -gt 0 ]]
 do
@@ -119,6 +122,16 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --kms_key_name)
+        KMS_KEY_NAME="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --dataflow_endpoint)
+        DATAFLOW_ENDPOINT="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --pipeline_opts)
         PIPELINE_OPTS="$2"
         shift # past argument
@@ -137,7 +150,6 @@ esac
 done
 
 set -o errexit
-set -o verbose
 
 
 ###########################################################################
@@ -152,16 +164,16 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   # Go to the Apache Beam Python SDK root
-  if [[ "*sdks/python" != $PWD ]]; then
+  if [[ $PWD != *sdks/python ]]; then
     cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
   fi
 
   # Create a tarball if not exists
-  if [[ $(find ${SDK_LOCATION}) ]]; then
+  if [[ $(find ${SDK_LOCATION} 2> /dev/null) ]]; then
     SDK_LOCATION=$(find ${SDK_LOCATION})
   else
     python setup.py -q sdist
-    SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
+    SDK_LOCATION=$(ls dist/apache-beam-*.tar.gz | tail -n1)
   fi
 
   # Install test dependencies for ValidatesRunner tests.
@@ -192,15 +204,26 @@ if [[ -z $PIPELINE_OPTS ]]; then
     opts+=("--dataflow_worker_jar=$WORKER_JAR")
   fi
 
+  if [[ ! -z "$KMS_KEY_NAME" ]]; then
+    opts+=(
+      "--kms_key_name=$KMS_KEY_NAME"
+      "--dataflow_kms_key=$KMS_KEY_NAME"
+    )
+  fi
+
+  if [[ ! -z "$DATAFLOW_ENDPOINT" ]]; then
+    opts+=("--dataflow_endpoint=$DATAFLOW_ENDPOINT")
+  fi
+
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
 
 fi
-
 
 ###########################################################################
 # Run tests and validate that jobs finish successfully.
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
+echo ">>>   test options: $TEST_OPTS"
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
   $TEST_OPTS

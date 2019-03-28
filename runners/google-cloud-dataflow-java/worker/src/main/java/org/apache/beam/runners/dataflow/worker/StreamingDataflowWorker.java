@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -30,15 +30,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.collect.EvictingQueue;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.net.HostAndPort;
-import com.google.common.util.concurrent.Uninterruptibles;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -47,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -70,6 +63,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -85,7 +80,6 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
 import org.apache.beam.runners.dataflow.worker.graph.CreateRegisterFnOperationFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceFlattenLocationsFunction;
@@ -112,16 +106,17 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -130,7 +125,19 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.EvictingQueue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -140,12 +147,14 @@ import org.slf4j.LoggerFactory;
 public class StreamingDataflowWorker {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
 
+  /** The idGenerator to generate unique id globally. */
+  private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
   /**
    * Fix up MapTask representation because MultiOutputInfos are missing from system generated
    * ParDoInstructions.
    */
   private static final Function<MapTask, MapTask> fixMultiOutputInfos =
-      new FixMultiOutputInfosOnParDoInstructions(IdGenerator::generate);
+      new FixMultiOutputInfosOnParDoInstructions(idGenerator);
 
   /**
    * Function which converts map tasks to their network representation for execution.
@@ -156,7 +165,9 @@ public class StreamingDataflowWorker {
    * </ul>
    */
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToBaseNetwork =
-      new MapTaskToNetworkFunction();
+      new MapTaskToNetworkFunction(idGenerator);
+
+  private static Random clientIdGenerator = new Random();
 
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
@@ -165,7 +176,7 @@ public class StreamingDataflowWorker {
   // retrieving extra work from Windmill without working on it, leading to better
   // prioritization / utilization.
   static final int MAX_WORK_UNITS_QUEUED = 100;
-  static final long MAX_COMMIT_BYTES = 32 << 20;
+  static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
   static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
   static final int NUM_COMMIT_STREAMS = 1;
   static final Duration COMMIT_STREAM_TIMEOUT = Duration.standardMinutes(1);
@@ -194,6 +205,35 @@ public class StreamingDataflowWorker {
       t = t.getCause();
     }
     return false;
+  }
+
+  private static class KeyCommitTooLargeException extends Exception {
+    public static KeyCommitTooLargeException causedBy(
+        String computationId, long byteLimit, WorkItemCommitRequest request) {
+      StringBuilder message = new StringBuilder();
+      message.append("Commit request for stage ");
+      message.append(computationId);
+      message.append(" and key ");
+      message.append(request.getKey().toStringUtf8());
+      if (request.getSerializedSize() > 0) {
+        message.append(
+            " has size "
+                + request.getSerializedSize()
+                + " which is more than the limit of "
+                + byteLimit);
+      } else {
+        message.append(" is larger than 2GB and cannot be processed");
+      }
+      message.append(
+          ". This may be caused by grouping a very "
+              + "large amount of data in a single window without using Combine,"
+              + " or by producing a large amount of data from a single input element.");
+      return new KeyCommitTooLargeException(message.toString());
+    }
+
+    private KeyCommitTooLargeException(String message) {
+      super(message);
+    }
   }
 
   private static MapTask parseMapTask(String input) throws IOException {
@@ -303,6 +343,7 @@ public class StreamingDataflowWorker {
     public Commit(
         Windmill.WorkItemCommitRequest request, ComputationState computationState, Work work) {
       this.request = request;
+      assert request.getSerializedSize() > 0;
       this.computationState = computationState;
       this.work = work;
     }
@@ -320,20 +361,7 @@ public class StreamingDataflowWorker {
     }
 
     public int getSize() {
-      int commitSize = request.getSerializedSize();
-      if (commitSize < 0) {
-        throw new IllegalStateException(
-            "Commit request for stage "
-                + computationState.getComputationId()
-                + " and key "
-                + request.getKey().toStringUtf8()
-                + " is larger than 2GB and cannot be processed."
-                + " This may be caused by grouping a very "
-                + "large amount of data in a single window without using Combine,"
-                + " or by producing a "
-                + "large amount of data from a single input element.");
-      }
-      return commitSize;
+      return request.getSerializedSize();
     }
   }
 
@@ -347,6 +375,8 @@ public class StreamingDataflowWorker {
   private final ConcurrentMap<Long, Runnable> commitCallbacks = new ConcurrentHashMap<>();
 
   // Map of user state names to system state names.
+  // TODO(drieber): obsolete stateNameMap. Use transformUserNameToStateFamily in
+  // ComputationState instead.
   private final ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, String> systemNameToComputationIdMap =
       new ConcurrentHashMap<>();
@@ -375,9 +405,11 @@ public class StreamingDataflowWorker {
   private final Counter<Long, Long> windmillShuffleBytesRead;
   private final Counter<Long, Long> windmillStateBytesRead;
   private final Counter<Long, Long> windmillStateBytesWritten;
+  private final Counter<Long, Long> windmillQuotaThrottling;
   // Built-in cumulative counters.
   private final Counter<Long, Long> javaHarnessUsedMemory;
   private final Counter<Long, Long> javaHarnessMaxMemory;
+  private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
   private Timer refreshActiveWorkTimer;
   private Timer statusPageTimer;
 
@@ -392,14 +424,14 @@ public class StreamingDataflowWorker {
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
 
-  private final boolean useStreamingRpcs;
-
   private final WorkerStatusPages statusPages;
   // Periodic sender of debug information to the debug capture service.
   private DebugCapture.Manager debugCaptureManager = null;
 
   // Limit on bytes sinked (committed) in a work item.
   private final long maxSinkBytes; // = MAX_SINK_BYTES unless disabled in options.
+  // Possibly overridden by streaming engine config.
+  private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
 
   private final EvictingQueue<String> pendingFailuresToReport =
       EvictingQueue.<String>create(MAX_FAILURES_TO_REPORT_IN_UPDATE);
@@ -434,11 +466,11 @@ public class StreamingDataflowWorker {
     final Counter<Long, Long> totalProcessingMsecs;
     final Counter<Long, Long> timerProcessingMsecs;
 
-    StageInfo(String stageName, String systemName) {
+    StageInfo(String stageName, String systemName, StreamingDataflowWorker worker) {
       this.stageName = stageName;
       this.systemName = systemName;
       metricsContainerRegistry = StreamingStepMetricsContainer.createRegistry();
-      executionStateRegistry = new StreamingModeExecutionStateRegistry();
+      executionStateRegistry = new StreamingModeExecutionStateRegistry(worker);
       NameContext nameContext = NameContext.create(stageName, null, systemName, null);
       deltaCounters = new CounterSet();
       throttledMsecs =
@@ -526,7 +558,7 @@ public class StreamingDataflowWorker {
     this.workUnitClient = workUnitClient;
     this.options = options;
     this.sdkHarnessRegistry = sdkHarnessRegistry;
-    this.windmillServiceEnabled = StreamingDataflowWorkerOptions.streamingEngineEnabled(options);
+    this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.statusPages = WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor);
     if (windmillServiceEnabled) {
@@ -538,16 +570,22 @@ public class StreamingDataflowWorker {
             StreamingSystemCounterNames.WINDMILL_SHUFFLE_BYTES_READ.counterName());
     this.windmillStateBytesRead =
         pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.WINDMILl_STATE_BYTES_READ.counterName());
+            StreamingSystemCounterNames.WINDMILL_STATE_BYTES_READ.counterName());
     this.windmillStateBytesWritten =
         pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.WINDMILl_STATE_BYTES_WRITTEN.counterName());
+            StreamingSystemCounterNames.WINDMILL_STATE_BYTES_WRITTEN.counterName());
+    this.windmillQuotaThrottling =
+        pendingDeltaCounters.longSum(
+            StreamingSystemCounterNames.WINDMILL_QUOTA_THROTTLING.counterName());
     this.javaHarnessUsedMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_USED_MEMORY.counterName());
     this.javaHarnessMaxMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_MAX_MEMORY.counterName());
+    this.windmillMaxObservedWorkItemCommitBytes =
+        pendingCumulativeCounters.intMax(
+            StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
     this.isDoneFuture = new CompletableFuture<>();
 
     this.threadFactory =
@@ -579,7 +617,7 @@ public class StreamingDataflowWorker {
               @Override
               public void run() {
                 LOG.info("Dispatch starting");
-                if (useStreamingRpcs) {
+                if (windmillServiceEnabled) {
                   streamingDispatchLoop();
                 } else {
                   dispatchLoop();
@@ -595,7 +633,7 @@ public class StreamingDataflowWorker {
             new Runnable() {
               @Override
               public void run() {
-                if (useStreamingRpcs) {
+                if (windmillServiceEnabled) {
                   streamingCommitLoop();
                 } else {
                   commitLoop();
@@ -605,16 +643,16 @@ public class StreamingDataflowWorker {
     commitThread.setPriority(Thread.MAX_PRIORITY);
     commitThread.setName("CommitThread");
 
-    this.useStreamingRpcs = options.getWindmillServiceUseStreamingRpcs();
     this.publishCounters = publishCounters;
     this.windmillServer = options.getWindmillServerStub();
     this.metricTrackingWindmillServer =
-        new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, useStreamingRpcs);
+        new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
+    this.metricTrackingWindmillServer.start();
     this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
-    this.clientId = new Random().nextLong();
+    this.clientId = clientIdGenerator.nextLong();
 
     for (MapTask mapTask : mapTasks) {
-      addComputation(mapTask.getSystemName(), mapTask);
+      addComputation(mapTask.getSystemName(), mapTask, ImmutableMap.of());
     }
 
     // Register standard file systems.
@@ -624,11 +662,9 @@ public class StreamingDataflowWorker {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
-                  IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                  idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
-                  pipeline,
-                  IdGenerator::generate,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                  pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
@@ -637,9 +673,10 @@ public class StreamingDataflowWorker {
 
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
           new CreateRegisterFnOperationFunction(
-              IdGenerator::generate,
+              idGenerator,
               this::createPortNode,
-              lengthPrefixUnknownCoders.andThen(sdkFusedStage));
+              lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+              false);
 
       mapTaskToNetwork =
           mapTaskToBaseNetwork
@@ -655,10 +692,10 @@ public class StreamingDataflowWorker {
     }
 
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
-    LOG.debug("useStreamingRpcs: {}", useStreamingRpcs);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
     LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
+    LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes);
   }
 
   private Node createPortNode(String predecessorId, String successorId) {
@@ -666,8 +703,8 @@ public class StreamingDataflowWorker {
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
             .build(),
-        IdGenerator.generate(),
-        IdGenerator.generate(),
+        idGenerator.getId(),
+        idGenerator.getId(),
         predecessorId,
         successorId);
   }
@@ -686,6 +723,14 @@ public class StreamingDataflowWorker {
   @VisibleForTesting
   public void setRetryLocallyDelayMs(int retryLocallyDelayMs) {
     this.retryLocallyDelayMs = retryLocallyDelayMs;
+  }
+
+  @VisibleForTesting
+  public void setMaxWorkItemCommitBytes(int maxWorkItemCommitBytes) {
+    if (maxWorkItemCommitBytes != this.maxWorkItemCommitBytes) {
+      LOG.info("Setting maxWorkItemCommitBytes to {}", maxWorkItemCommitBytes);
+    }
+    this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
   }
 
   @VisibleForTesting
@@ -807,6 +852,7 @@ public class StreamingDataflowWorker {
         debugCaptureManager.stop();
       }
       running.set(false);
+      dispatchThread.interrupt();
       dispatchThread.join();
       // We need to interrupt the commitThread in case it is blocking on pulling
       // from the commitQueue.
@@ -827,6 +873,13 @@ public class StreamingDataflowWorker {
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
+    setIsDone();
+  }
+
+  // null is the only value of type Void, but findbugs thinks
+  // it violates the contract of CompletableFuture.complete
+  @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
+  private void setIsDone() {
     isDoneFuture.complete(null);
   }
 
@@ -838,14 +891,19 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private synchronized void addComputation(String computationId, MapTask originalMapTask) {
+  private synchronized void addComputation(
+      String computationId,
+      MapTask originalMapTask,
+      Map<String, String> transformUserNameToStateFamily) {
     // Map task instances are shared amongst multiple threads during computation hence
     // we fix the map task before we add a new computation state that would reference it.
     MapTask mapTask = fixMultiOutputInfos.apply(originalMapTask);
     if (!computationMap.containsKey(computationId)) {
       LOG.info("Adding config for {}: {}", computationId, mapTask);
       computationMap.put(
-          computationId, new ComputationState(computationId, mapTask, workUnitExecutor));
+          computationId,
+          new ComputationState(
+              computationId, mapTask, workUnitExecutor, transformUserNameToStateFamily));
     }
   }
 
@@ -934,9 +992,7 @@ public class StreamingDataflowWorker {
         // Reconnect every now and again to enable better load balancing.
         // If at any point the server closes the stream, we will reconnect immediately; otherwise
         // we half-close the stream after some time and create a new one.
-        if (!stream.awaitTermination(3, TimeUnit.MINUTES)) {
-          stream.close();
-        }
+        stream.closeAfterDefaultTimeout();
       } catch (InterruptedException e) {
         // Continue processing until !running.get()
       }
@@ -945,7 +1001,7 @@ public class StreamingDataflowWorker {
 
   private void scheduleWorkItem(
       final ComputationState computationState,
-      @Nullable final Instant inputDataWatermark,
+      final Instant inputDataWatermark,
       final Instant synchronizedProcessingTime,
       final Windmill.WorkItem workItem) {
     Preconditions.checkNotNull(inputDataWatermark);
@@ -1094,7 +1150,7 @@ public class StreamingDataflowWorker {
 
     StageInfo stageInfo =
         stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName()));
+            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName(), this));
 
     ExecutionState executionState = null;
 
@@ -1131,7 +1187,9 @@ public class StreamingDataflowWorker {
                 pendingDeltaCounters,
                 computationId,
                 readerCache,
-                stateNameMap,
+                !computationState.getTransformUserNameToStateFamily().isEmpty()
+                    ? computationState.getTransformUserNameToStateFamily()
+                    : stateNameMap,
                 stateCache.forComputation(computationId),
                 stageInfo.metricsContainerRegistry,
                 executionStateTracker,
@@ -1140,9 +1198,9 @@ public class StreamingDataflowWorker {
         DataflowMapTaskExecutor mapTaskExecutor =
             mapTaskExecutorFactory.create(
                 worker.getControlClientHandler(),
-                worker.getDataService(),
+                worker.getGrpcDataFnServer(),
                 sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
-                worker.getStateService(),
+                worker.getGrpcStateFnServer(),
                 mapTaskNetwork,
                 options,
                 mapTask.getStageName(),
@@ -1150,7 +1208,7 @@ public class StreamingDataflowWorker {
                 sinkRegistry,
                 context,
                 pendingDeltaCounters,
-                IdGenerator::generate);
+                idGenerator);
         ReadOperation readOperation = mapTaskExecutor.getReadOperation();
         // Disable progress updates since its results are unused  for streaming
         // and involves starting a thread.
@@ -1232,7 +1290,25 @@ public class StreamingDataflowWorker {
 
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
-      commitQueue.put(new Commit(outputBuilder.build(), computationState, work));
+
+      WorkItemCommitRequest commitRequest = outputBuilder.build();
+      int byteLimit = maxWorkItemCommitBytes;
+      int commitSize = commitRequest.getSerializedSize();
+      // Detect overflow of integer serialized size or if the byte limit was exceeded.
+      windmillMaxObservedWorkItemCommitBytes.addValue(
+          commitSize < 0 ? Integer.MAX_VALUE : commitSize);
+      if (commitSize < 0) {
+        throw KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
+      } else if (commitSize > byteLimit) {
+        // Once supported, we should communicate the desired truncation for the commit to the
+        // streaming engine. For now we report the error but attempt the commit so that it will be
+        // truncated by the streaming engine backend.
+        KeyCommitTooLargeException e =
+            KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
+        reportFailure(computationId, workItem, e);
+        LOG.error(e.toString());
+      }
+      commitQueue.put(new Commit(commitRequest, computationState, work));
 
       // Compute shuffle and state byte statistics these will be flushed asynchronously.
       long stateBytesWritten = outputBuilder.clearOutputMessages().build().getSerializedSize();
@@ -1263,25 +1339,23 @@ public class StreamingDataflowWorker {
 
       t = t instanceof UserCodeException ? t.getCause() : t;
 
+      boolean retryLocally = false;
       if (KeyTokenInvalidException.isKeyTokenInvalidException(t)) {
         LOG.debug(
             "Execution of work for {} for key {} failed due to token expiration. "
                 + "Will not retry locally.",
             computationId,
             key.toStringUtf8());
-        computationState.completeWork(key, workItem.getWorkToken());
       } else {
         LOG.error("Uncaught exception: ", t);
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
-        boolean retryLocally;
         if (!reportFailure(computationId, workItem, t)) {
           LOG.error(
               "Execution of work for {} for key {} failed, and Windmill "
                   + "indicated not to retry locally.",
               computationId,
               key.toStringUtf8());
-          retryLocally = false;
         } else if (isOutOfMemoryError(t)) {
           File heapDump = memoryMonitor.tryToDumpHeap();
           LOG.error(
@@ -1290,7 +1364,6 @@ public class StreamingDataflowWorker {
               computationId,
               key.toStringUtf8(),
               heapDump == null ? "not written" : ("written to '" + heapDump + "'"));
-          retryLocally = false;
         } else {
           LOG.error(
               "Execution of work for {} for key {} failed. Will retry locally.",
@@ -1298,15 +1371,15 @@ public class StreamingDataflowWorker {
               key.toStringUtf8());
           retryLocally = true;
         }
-
-        if (retryLocally) {
-          // Try again after some delay and at the end of the queue to avoid a tight loop.
-          sleep(retryLocallyDelayMs);
-          workUnitExecutor.forceExecute(work);
-        } else {
-          // Consider the item invalid. It will eventually be retried by Windmill.
-          computationState.completeWork(key, workItem.getWorkToken());
-        }
+      }
+      if (retryLocally) {
+        // Try again after some delay and at the end of the queue to avoid a tight loop.
+        sleep(retryLocallyDelayMs);
+        workUnitExecutor.forceExecute(work);
+      } else {
+        // Consider the item invalid. It will eventually be retried by Windmill if it still needs
+        // to be processed.
+        computationState.completeWork(key, workItem.getWorkToken());
       }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
@@ -1359,7 +1432,7 @@ public class StreamingDataflowWorker {
         // Send the request if we've exceeded the bytes or there is no more
         // pending work.  commitBytes is a long, so this cannot overflow.
         commitBytes += commit.getSize();
-        if (commitBytes >= MAX_COMMIT_BYTES) {
+        if (commitBytes >= TARGET_COMMIT_BUNDLE_BYTES) {
           break;
         }
         commit = commitQueue.poll();
@@ -1388,7 +1461,7 @@ public class StreamingDataflowWorker {
       // Batch commits as long as there are more and we can fit them in the current request.
       CommitWorkStream commitStream = streamPool.getStream();
       int commits = 0;
-      while (true) {
+      while (running.get()) {
         // There may be a commit left over from the previous iteration but if not, pull one.
         if (commit == null) {
           try {
@@ -1458,10 +1531,27 @@ public class StreamingDataflowWorker {
         Windmill.GetConfigRequest.newBuilder().addComputations(computation).build();
 
     Windmill.GetConfigResponse response = windmillServer.getConfig(request);
+    // The max work item commit bytes should be modified to be dynamic once it is available in
+    // the request.
     for (Windmill.GetConfigResponse.SystemNameToComputationIdMapEntry entry :
         response.getSystemNameToComputationIdMapList()) {
       systemNameToComputationIdMap.put(entry.getSystemName(), entry.getComputationId());
     }
+
+    // Outer keys are computation ids. Outer values are map from transform username to state family.
+    Map<String, Map<String, String>> transformUserNameToStateFamilyByComputationId =
+        new HashMap<>();
+    for (Windmill.GetConfigResponse.ComputationConfigMapEntry computationConfig :
+        response.getComputationConfigMapList()) {
+      Map<String, String> transformUserNameToStateFamily =
+          transformUserNameToStateFamilyByComputationId.computeIfAbsent(
+              computationConfig.getComputationId(), k -> new HashMap<>());
+      for (Windmill.ComputationConfig.TransformUserNameToStateFamilyEntry entry :
+          computationConfig.getComputationConfig().getTransformUserNameToStateFamilyList()) {
+        transformUserNameToStateFamily.put(entry.getTransformUserName(), entry.getStateFamily());
+      }
+    }
+
     for (String serializedMapTask : response.getCloudWorksList()) {
       try {
         MapTask mapTask = parseMapTask(serializedMapTask);
@@ -1469,7 +1559,10 @@ public class StreamingDataflowWorker {
             systemNameToComputationIdMap.containsKey(mapTask.getSystemName())
                 ? systemNameToComputationIdMap.get(mapTask.getSystemName())
                 : mapTask.getSystemName();
-        addComputation(computationId, mapTask);
+        addComputation(
+            computationId,
+            mapTask,
+            transformUserNameToStateFamilyByComputationId.get(computationId));
       } catch (IOException e) {
         LOG.warn("Parsing MapTask failed: {}", serializedMapTask);
         LOG.warn("Error: ", e);
@@ -1493,13 +1586,22 @@ public class StreamingDataflowWorker {
     } else {
       workItem = workUnitClient.getGlobalStreamingConfigWorkItem();
     }
-    if (!workItem.isPresent() || workItem.get() == null) {
+    if (workItem == null || !workItem.isPresent() || workItem.get() == null) {
       return;
     }
     StreamingConfigTask config = workItem.get().getStreamingConfigTask();
     Preconditions.checkState(config != null);
     if (config.getUserStepToStateFamilyNameMap() != null) {
       stateNameMap.putAll(config.getUserStepToStateFamilyNameMap());
+    }
+    if (computation == null) {
+      if (config.getMaxWorkItemCommitBytes() != null
+          && config.getMaxWorkItemCommitBytes() > 0
+          && config.getMaxWorkItemCommitBytes() <= Integer.MAX_VALUE) {
+        setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
+      } else {
+        setMaxWorkItemCommitBytes(180 << 20);
+      }
     }
     List<StreamingComputationConfig> configs = config.getStreamingComputationConfigs();
     if (configs != null) {
@@ -1508,7 +1610,10 @@ public class StreamingDataflowWorker {
         mapTask.setSystemName(computationConfig.getSystemName());
         mapTask.setStageName(computationConfig.getStageName());
         mapTask.setInstructions(computationConfig.getInstructions());
-        addComputation(computationConfig.getComputationId(), mapTask);
+        addComputation(
+            computationConfig.getComputationId(),
+            mapTask,
+            computationConfig.getTransformUserNameToStateFamily());
       }
     }
 
@@ -1518,7 +1623,7 @@ public class StreamingDataflowWorker {
       if (config.getWindmillServicePort() != null && config.getWindmillServicePort() != 0) {
         port = config.getWindmillServicePort().intValue();
       }
-      HashSet<HostAndPort> endpoints = new HashSet<HostAndPort>();
+      HashSet<HostAndPort> endpoints = new HashSet<>();
       for (String endpoint : Splitter.on(',').split(config.getWindmillServiceEndpoint())) {
         endpoints.add(HostAndPort.fromString(endpoint).withDefaultPort(port));
       }
@@ -1646,10 +1751,7 @@ public class StreamingDataflowWorker {
   // Returns true if reporting the exception is successful and the work should be retried.
   private boolean reportFailure(String computation, Windmill.WorkItem work, Throwable t) {
     // Enqueue the errors to be sent to DFE in periodic updates
-    synchronized (pendingFailuresToReport) {
-      pendingFailuresToReport.add(
-          buildExceptionStackTrace(t, options.getMaxStackTraceDepthToReport()));
-    }
+    addFailure(buildExceptionStackTrace(t, options.getMaxStackTraceDepthToReport()));
     if (windmillServiceEnabled) {
       return true;
     } else {
@@ -1662,6 +1764,16 @@ public class StreamingDataflowWorker {
                   .setWorkToken(work.getWorkToken())
                   .build());
       return !response.getFailed();
+    }
+  }
+
+  /**
+   * Adds the given failure message to the queue of messages to be reported to DFE in periodic
+   * updates.
+   */
+  public void addFailure(String failureMessage) {
+    synchronized (pendingFailuresToReport) {
+      pendingFailuresToReport.add(failureMessage);
     }
   }
 
@@ -1703,18 +1815,76 @@ public class StreamingDataflowWorker {
     }
   }
 
+  /**
+   * Returns key for a counter update. It is a String in case of legacy counter and
+   * CounterStructuredName in the case of a structured counter.
+   */
+  private Object getCounterUpdateKey(CounterUpdate counterUpdate) {
+    Object key = null;
+    if (counterUpdate.getNameAndKind() != null) {
+      key = counterUpdate.getNameAndKind().getName();
+    } else if (counterUpdate.getStructuredNameAndMetadata() != null) {
+      key = counterUpdate.getStructuredNameAndMetadata().getName();
+    }
+    checkArgument(key != null, "Could not find name for CounterUpdate: %s", counterUpdate);
+    return key;
+  }
+
   /** Sends counter updates to Dataflow backend. */
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
 
-    List<CounterUpdate> counterUpdates = new ArrayList<>();
+    // Throttle time is tracked by the windmillServer but is reported to DFE here.
+    windmillQuotaThrottling.addValue(windmillServer.getAndResetThrottleTime());
+
+    List<CounterUpdate> counterUpdates = new ArrayList<>(128);
+
     if (publishCounters) {
       stageInfoMap.values().forEach(s -> counterUpdates.addAll(s.extractCounterUpdates()));
-
       counterUpdates.addAll(
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
+    }
+
+    // Handle duplicate counters from different stages. Store all the counters in a multi-map and
+    // send the counters that appear multiple times in separate RPCs. Same logical counter could
+    // appear in multiple stages if a step runs in multiple stages (as with flatten-unzipped stages)
+    // especially if the counter definition does not set execution_step_name.
+    ListMultimap<Object, CounterUpdate> counterMultimap =
+        MultimapBuilder.hashKeys(counterUpdates.size()).linkedListValues().build();
+    boolean hasDuplicates = false;
+
+    for (CounterUpdate c : counterUpdates) {
+      Object key = getCounterUpdateKey(c);
+      if (counterMultimap.containsKey(key)) {
+        hasDuplicates = true;
+      }
+      counterMultimap.put(key, c);
+    }
+
+    // Clears counterUpdates and enqueues unique counters from counterMultimap. If a counter
+    // appears more than once, one of them is extracted leaving the remaining in the map.
+    Runnable extractUniqueCounters =
+        () -> {
+          counterUpdates.clear();
+          for (Iterator<Object> iter = counterMultimap.keySet().iterator(); iter.hasNext(); ) {
+            List<CounterUpdate> counters = counterMultimap.get(iter.next());
+            counterUpdates.add(counters.get(0));
+            if (counters.size() == 1) {
+              // There is single value. Remove the entry through the iterator.
+              iter.remove();
+            } else {
+              // Otherwise remove the first value.
+              counters.remove(0);
+            }
+          }
+        };
+
+    if (hasDuplicates) {
+      extractUniqueCounters.run();
+    } else { // Common case: no duplicates. We can just send counterUpdates, empty the multimap.
+      counterMultimap.clear();
     }
 
     List<Status> errors;
@@ -1734,10 +1904,16 @@ public class StreamingDataflowWorker {
             .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
             .setErrors(errors)
             .setCounterUpdates(counterUpdates);
-    // We can't populate per-workitem fields like TotalThrottlerWaitTimeSeconds in WorkItemStatus.
-    // This work item does not represent any specific stage on DFE.
-
     workUnitClient.reportWorkItemStatus(workItemStatus);
+
+    // Send any counters appearing more than once in subsequent RPCs:
+    while (!counterMultimap.isEmpty()) {
+      extractUniqueCounters.run();
+      workUnitClient.reportWorkItemStatus(
+          new WorkItemStatus()
+              .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
+              .setCounterUpdates(counterUpdates));
+    }
   }
 
   /**
@@ -1756,9 +1932,7 @@ public class StreamingDataflowWorker {
       active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));
     }
 
-    if (!active.isEmpty()) {
-      metricTrackingWindmillServer.refreshActiveWork(active);
-    }
+    metricTrackingWindmillServer.refreshActiveWork(active);
   }
 
   /**
@@ -1770,6 +1944,7 @@ public class StreamingDataflowWorker {
   static class ComputationState implements AutoCloseable {
     private final String computationId;
     private final MapTask mapTask;
+    private final ImmutableMap<String, String> transformUserNameToStateFamily;
     // Map from key to work for the key.  The first item in the queue is
     // actively processing.  Synchronized by itself.
     private final Map<ByteString, Queue<Work>> activeWork = new HashMap<>();
@@ -1777,10 +1952,18 @@ public class StreamingDataflowWorker {
     private final ConcurrentMap<SdkWorkerHarness, ConcurrentLinkedQueue<ExecutionState>>
         executionStateQueues = new ConcurrentHashMap<>();
 
-    public ComputationState(String computationId, MapTask mapTask, BoundedQueueExecutor executor) {
+    public ComputationState(
+        String computationId,
+        MapTask mapTask,
+        BoundedQueueExecutor executor,
+        Map<String, String> transformUserNameToStateFamily) {
       this.computationId = computationId;
       this.mapTask = mapTask;
       this.executor = executor;
+      this.transformUserNameToStateFamily =
+          transformUserNameToStateFamily != null
+              ? ImmutableMap.copyOf(transformUserNameToStateFamily)
+              : ImmutableMap.of();
       Preconditions.checkNotNull(mapTask.getStageName());
       Preconditions.checkNotNull(mapTask.getSystemName());
     }
@@ -1791,6 +1974,10 @@ public class StreamingDataflowWorker {
 
     public MapTask getMapTask() {
       return mapTask;
+    }
+
+    public ImmutableMap<String, String> getTransformUserNameToStateFamily() {
+      return transformUserNameToStateFamily;
     }
 
     public ConcurrentLinkedQueue<ExecutionState> getExecutionStateQueue(

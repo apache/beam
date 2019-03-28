@@ -17,13 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,6 +32,11 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
 
 /**
  * A {@link Coder Coder&lt;T&gt;} defines how to encode and decode values of type {@code T} into
@@ -210,15 +210,20 @@ public abstract class Coder<T> implements Serializable {
   /**
    * Returns {@code true} if this {@link Coder} is injective with respect to {@link Objects#equals}.
    *
+   * <p>By default, returns false, assuming that the encoding may differ from {@link Objects#equals}
+   * in arbitrary ways.
+   *
    * <p>Whenever the encoded bytes of two values are equal, then the original values are equal
    * according to {@code Objects.equals()}. Note that this is well-defined for {@code null}.
    *
-   * <p>This condition is most notably false for arrays. More generally, this condition is false
-   * whenever {@code equals()} compares object identity, rather than performing a
-   * semantic/structural comparison.
+   * <p>This condition is most notably false for arrays, where encoded equality does not correspond
+   * to Java equality. More generally, this condition is false whenever {@code equals()} compares
+   * object identity, rather than performing a semantic/structural comparison.
    *
-   * <p>By default, returns false.
+   * @deprecated For coders that are injective with respect to {@link Objects#equals}, override
+   *     {@link #structuralValue(Object)} to return the input element directly.
    */
+  @Deprecated
   public boolean consistentWithEquals() {
     return false;
   }

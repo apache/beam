@@ -20,11 +20,11 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
 
-import com.google.common.base.Preconditions;
-import com.google.common.primitives.Bytes;
-import com.google.common.primitives.UnsignedBytes;
 import java.util.Arrays;
 import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 
 /**
  * Represents a position of a {@code GroupingShuffleReader} as an opaque array of bytes, encoded in
@@ -38,11 +38,11 @@ public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, Sh
     this.position = position;
   }
 
-  public static ByteArrayShufflePosition fromBase64(@Nullable String position) {
+  public static ByteArrayShufflePosition fromBase64(String position) {
     return ByteArrayShufflePosition.of(decodeBase64(position));
   }
 
-  public static ByteArrayShufflePosition of(@Nullable byte[] position) {
+  public static ByteArrayShufflePosition of(byte[] position) {
     if (position == null) {
       return null;
     }

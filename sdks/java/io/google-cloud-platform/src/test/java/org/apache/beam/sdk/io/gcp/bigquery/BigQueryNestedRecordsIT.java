@@ -27,12 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -93,40 +88,6 @@ public class BigQueryNestedRecordsIT {
                 .fromQuery(options.getUnflattenableInput())
                 .withoutResultFlattening());
 
-    final PCollectionView<Iterable<TableRow>> flattenedView =
-        flattenedCollection.apply("PCViewFlattened", View.asIterable());
-    PCollection<TableRow> flattenedSideInput =
-        p.apply("Create1", Create.of(1))
-            .apply(
-                "ReadFlattenedSI",
-                ParDo.of(
-                        new DoFn<Integer, TableRow>() {
-                          @ProcessElement
-                          public void processElement(ProcessContext c) {
-                            for (TableRow r : c.sideInput(flattenedView)) {
-                              c.output(r);
-                            }
-                          }
-                        })
-                    .withSideInputs(flattenedView));
-
-    final PCollectionView<Iterable<TableRow>> nonFlattenedView =
-        nonFlattenedCollection.apply("PCViewNonFlattened", View.asIterable());
-    PCollection<TableRow> nonFlattenedSideInput =
-        p.apply("Create2", Create.of(1))
-            .apply(
-                "ReadNonFlattenedSI",
-                ParDo.of(
-                        new DoFn<Integer, TableRow>() {
-                          @ProcessElement
-                          public void processElement(ProcessContext c) {
-                            for (TableRow r : c.sideInput(nonFlattenedView)) {
-                              c.output(r);
-                            }
-                          }
-                        })
-                    .withSideInputs(nonFlattenedView));
-
     // Also query BigQuery directly.
     BigqueryClient bigQueryClient = new BigqueryClient(bigQueryOptions.getAppName());
 
@@ -148,12 +109,9 @@ public class BigQueryNestedRecordsIT {
 
     // Verify that the results are the same.
     PAssert.thatSingleton(flattenedCollection).isEqualTo(queryFlattenedTyped);
-    PAssert.thatSingleton(flattenedSideInput).isEqualTo(queryFlattenedTyped);
     PAssert.thatSingleton(nonFlattenedCollection).isEqualTo(queryUnflattened);
-    PAssert.thatSingleton(nonFlattenedSideInput).isEqualTo(queryUnflattened);
     PAssert.thatSingleton(unflattenableCollection).isEqualTo(queryUnflattenable);
 
-    // And that flattened results are different from non-flattened results.
     PAssert.thatSingleton(flattenedCollection).notEqualTo(queryUnflattened);
     p.run().waitUntilFinish();
   }

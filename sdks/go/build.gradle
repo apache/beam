@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go"
@@ -24,7 +24,7 @@ description = "Apache Beam :: SDKs :: Go"
 golang {
   packagePath = 'github.com/apache/beam/sdks/go'
 
-  build {
+  goBuild {
     // The symlinks makes it hard (impossible?) to do a wildcard build
     // of pkg. Go build refuses to follow symlinks. Drop for now. The files
     // are built when tested anyway.
@@ -37,7 +37,7 @@ golang {
   }
 
   // Ignore spurious vet errors during check for [BEAM-4831].
-  vet {
+  goVet {
     continueOnFailure = true
   }
 }

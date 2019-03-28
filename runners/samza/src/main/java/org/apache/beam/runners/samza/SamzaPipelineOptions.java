@@ -21,16 +21,24 @@ import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.samza.config.ConfigFactory;
+import org.apache.samza.config.factories.PropertiesConfigFactory;
 
-/** Options which can be used to configure a Samza PipelineRunner. */
+/** Options which can be used to configure a Samza PortablePipelineRunner. */
 public interface SamzaPipelineOptions extends PipelineOptions {
 
   @Description(
-      "The config for Samza using a properties file. It is *optional*. "
+      "The config file for Samza. It is *optional*. By default Samza supports properties config."
           + "Without a config file, Samza uses a default config for local execution.")
   String getConfigFilePath();
 
   void setConfigFilePath(String filePath);
+
+  @Description("The factory to read config file from config file path.")
+  @Default.Class(PropertiesConfigFactory.class)
+  Class<? extends ConfigFactory> getConfigFactory();
+
+  void setConfigFactory(Class<? extends ConfigFactory> configFactory);
 
   @Description(
       "The config override to set programmatically. It will be applied on "
@@ -38,6 +46,12 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   Map<String, String> getConfigOverride();
 
   void setConfigOverride(Map<String, String> configs);
+
+  @Description("The instance name of the job")
+  @Default.String("1")
+  String getJobInstance();
+
+  void setJobInstance(String instance);
 
   @Description("The interval to check for watermarks in milliseconds.")
   @Default.Long(1000)
@@ -62,4 +76,22 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   int getStoreBatchGetSize();
 
   void setStoreBatchGetSize(int storeBatchGetSize);
+
+  @Description("Enable/disable Beam metrics in Samza Runner")
+  @Default.Boolean(true)
+  Boolean getEnableMetrics();
+
+  void setEnableMetrics(Boolean enableMetrics);
+
+  @Description("The config for state to be durable")
+  @Default.Boolean(false)
+  Boolean getStateDurable();
+
+  void setStateDurable(Boolean stateDurable);
+
+  @Description("The maximum number of event-time timers buffered in memory for a transform.")
+  @Default.Integer(50000)
+  int getTimerBufferSize();
+
+  void setTimerBufferSize(int timerBufferSize);
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import com.google.common.net.HostAndPort;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -91,6 +91,9 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Returns a stream allowing individual WorkItemCommitRequests to be streamed to Windmill. */
   public abstract CommitWorkStream commitWorkStream();
 
+  /** Returns the amount of time the server has been throttled and resets the time to 0. */
+  public abstract long getAndResetThrottleTime();
+
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
 
@@ -100,15 +103,14 @@ public abstract class WindmillServerStub implements StatusDataProvider {
     /** Indicates that no more requests will be sent. */
     void close();
 
-    /**
-     * Waits for the server to close its end of the connection.
-     *
-     * <p>Should only be called after calling close.
-     */
-    void awaitTermination() throws InterruptedException;
-
     /** Waits for the server to close its end of the connection, with timeout. */
     boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;
+
+    /**
+     * Cleanly closes the stream after implementation-speficied timeout, unless the stream is
+     * aborted before the timeout is reached.
+     */
+    void closeAfterDefaultTimeout() throws InterruptedException;
 
     /** Returns when the stream was opened. */
     Instant startTime();
@@ -147,6 +149,7 @@ public abstract class WindmillServerStub implements StatusDataProvider {
     /** Flushes any pending work items to the wire. */
     void flush();
   }
+
   /**
    * Pool of homogeneous streams to Windmill.
    *

@@ -28,7 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -56,6 +55,7 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -68,6 +68,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -309,7 +310,8 @@ public class UserParDoFnFactoryTest {
             windowingStrategy,
             null /* side input views */,
             null /* input coder */,
-            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */);
+            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
+            DoFnSchemaInformation.create());
     object.set(
         PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(SerializableUtils.serializeToByteArray(info)));

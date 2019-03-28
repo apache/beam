@@ -24,7 +24,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Euphoria to Beam translation of {@link Union} operator. */
-class UnionTranslator<InputT> implements OperatorTranslator<InputT, InputT, Union<InputT>> {
+public class UnionTranslator<InputT> implements OperatorTranslator<InputT, InputT, Union<InputT>> {
 
   @Override
   public PCollection<InputT> translate(Union<InputT> operator, PCollectionList<InputT> inputs) {

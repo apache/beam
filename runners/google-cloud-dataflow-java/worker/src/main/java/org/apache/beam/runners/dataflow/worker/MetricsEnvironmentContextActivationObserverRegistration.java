@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.Closeable;
 import java.io.IOException;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Registration of a {@link ContextActivationObserver} for the {@link MetricsEnvironment} with the

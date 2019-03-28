@@ -19,12 +19,13 @@ package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 
@@ -32,9 +33,11 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 public class TestOperationContext extends DataflowOperationContext {
 
   /** ExecutionState for testing. */
-  public static class TestExecutionState extends DataflowExecutionState {
+  public static class TestDataflowExecutionState extends DataflowExecutionState {
 
-    public TestExecutionState(
+    private long totalMillis = 0;
+
+    public TestDataflowExecutionState(
         NameContext nameContext,
         String stateName,
         String requestingStepName,
@@ -50,8 +53,18 @@ public class TestOperationContext extends DataflowOperationContext {
           profileScope);
     }
 
+    public TestDataflowExecutionState(NameContext nameContext, String stateName) {
+      this(nameContext, stateName, null, null, null, NoopProfileScope.NOOP);
+    }
+
     @Override
-    public void takeSample(long millisSinceLastSample) {}
+    public void takeSample(long millisSinceLastSample) {
+      totalMillis += millisSinceLastSample;
+    }
+
+    public long getTotalMillis() {
+      return totalMillis;
+    }
 
     @Override
     public void reportLull(Thread trackedThread, long millis) {}
@@ -63,8 +76,8 @@ public class TestOperationContext extends DataflowOperationContext {
     }
   }
 
-  /** ExecutionStateRegistry for testing. */
-  public static class TestExecutionStateRegistry extends ExecutionStateRegistry {
+  /** DataflowExecutionStateRegistry for testing. */
+  public static class TestExecutionStateRegistry extends DataflowExecutionStateRegistry {
 
     @Override
     protected DataflowExecutionState createState(
@@ -74,7 +87,7 @@ public class TestOperationContext extends DataflowOperationContext {
         Integer sideInputIndex,
         MetricsContainer container,
         ProfileScope profileScope) {
-      return new TestExecutionState(
+      return new TestDataflowExecutionState(
           nameContext, stateName, requestingStepName, sideInputIndex, container, profileScope);
     }
   }

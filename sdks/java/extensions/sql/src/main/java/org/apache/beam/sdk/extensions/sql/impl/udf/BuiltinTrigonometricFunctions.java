@@ -31,11 +31,13 @@ public class BuiltinTrigonometricFunctions extends BeamBuiltinFunctionProvider {
    */
   // TODO: handle overflow
   @UDF(
-    funcName = "COSH",
-    parameterArray = {Schema.TypeName.DOUBLE},
-    returnType = Schema.TypeName.DOUBLE
-  )
+      funcName = "COSH",
+      parameterArray = {Schema.TypeName.DOUBLE},
+      returnType = Schema.TypeName.DOUBLE)
   public Double cosh(Double o) {
+    if (o == null) {
+      return null;
+    }
     return Math.cosh(o);
   }
 
@@ -46,11 +48,13 @@ public class BuiltinTrigonometricFunctions extends BeamBuiltinFunctionProvider {
    */
   // TODO: handle overflow
   @UDF(
-    funcName = "SINH",
-    parameterArray = {Schema.TypeName.DOUBLE},
-    returnType = Schema.TypeName.DOUBLE
-  )
+      funcName = "SINH",
+      parameterArray = {Schema.TypeName.DOUBLE},
+      returnType = Schema.TypeName.DOUBLE)
   public Double sinh(Double o) {
+    if (o == null) {
+      return null;
+    }
     return Math.sinh(o);
   }
 
@@ -60,11 +64,13 @@ public class BuiltinTrigonometricFunctions extends BeamBuiltinFunctionProvider {
    * <p>Computes hyperbolic tangent of X. Does not fail.
    */
   @UDF(
-    funcName = "TANH",
-    parameterArray = {Schema.TypeName.DOUBLE},
-    returnType = Schema.TypeName.DOUBLE
-  )
+      funcName = "TANH",
+      parameterArray = {Schema.TypeName.DOUBLE},
+      returnType = Schema.TypeName.DOUBLE)
   public Double tanh(Double o) {
+    if (o == null) {
+      return null;
+    }
     return Math.tanh(o);
   }
 }

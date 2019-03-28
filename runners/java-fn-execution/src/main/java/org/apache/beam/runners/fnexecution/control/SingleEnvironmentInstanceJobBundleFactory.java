@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,9 +34,9 @@ import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * A {@link JobBundleFactory} which can manage a single instance of an {@link Environment}.
@@ -52,8 +51,10 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   public static JobBundleFactory create(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> data,
-      GrpcFnServer<GrpcStateService> state) {
-    return new SingleEnvironmentInstanceJobBundleFactory(environmentFactory, data, state);
+      GrpcFnServer<GrpcStateService> state,
+      IdGenerator idGenerator) {
+    return new SingleEnvironmentInstanceJobBundleFactory(
+        environmentFactory, data, state, idGenerator);
   }
 
   private final EnvironmentFactory environmentFactory;
@@ -66,15 +67,17 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   private final ConcurrentMap<Environment, RemoteEnvironment> environments =
       new ConcurrentHashMap<>();
 
-  private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
+  private final IdGenerator idGenerator;
 
   private SingleEnvironmentInstanceJobBundleFactory(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> dataService,
-      GrpcFnServer<GrpcStateService> stateService) {
+      GrpcFnServer<GrpcStateService> stateService,
+      IdGenerator idGenerator) {
     this.environmentFactory = environmentFactory;
     this.dataService = dataService;
     this.stateService = stateService;
+    this.idGenerator = idGenerator;
   }
 
   @Override
@@ -101,7 +104,10 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     try {
       descriptor =
           ProcessBundleDescriptors.fromExecutableStage(
-              idGenerator.getId(), stage, dataService.getApiServiceDescriptor());
+              idGenerator.getId(),
+              stage,
+              dataService.getApiServiceDescriptor(),
+              stateService.getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

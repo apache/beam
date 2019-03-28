@@ -21,11 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowDesc;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
@@ -36,10 +36,10 @@ public class DistinctTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
-    final Dataset<String> uniq =
+    final PCollection<String> uniq =
         Distinct.named("Distinct1")
             .of(dataset)
             .windowBy(windowing)
@@ -47,8 +47,7 @@ public class DistinctTest {
             .discardingFiredPanes()
             .withAllowedLateness(Duration.millis(1000))
             .output();
-    assertTrue(uniq.getProducer().isPresent());
-    final Distinct distinct = (Distinct) uniq.getProducer().get();
+    final Distinct distinct = (Distinct) TestUtils.getProducer(uniq);
     assertTrue(distinct.getName().isPresent());
     assertEquals("Distinct1", distinct.getName().get());
 
@@ -63,24 +62,22 @@ public class DistinctTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<String> uniq = Distinct.of(dataset).output();
-    assertTrue(uniq.getProducer().isPresent());
-    final Distinct distinct = (Distinct) uniq.getProducer().get();
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> uniq = Distinct.of(dataset).output();
+    final Distinct distinct = (Distinct) TestUtils.getProducer(uniq);
     assertFalse(distinct.getName().isPresent());
   }
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<String> uniq =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> uniq =
         Distinct.of(dataset)
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
             .triggeredBy(DefaultTrigger.of())
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
-    assertTrue(uniq.getProducer().isPresent());
-    final Distinct distinct = (Distinct) uniq.getProducer().get();
+    final Distinct distinct = (Distinct) TestUtils.getProducer(uniq);
     assertTrue(distinct.getWindow().isPresent());
     @SuppressWarnings("unchecked")
     final WindowDesc<?> windowDesc = WindowDesc.of((Window) distinct.getWindow().get());
@@ -91,8 +88,8 @@ public class DistinctTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<String> uniq =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> uniq =
         Distinct.of(dataset)
             .applyIf(
                 true,
@@ -101,8 +98,7 @@ public class DistinctTest {
                         .triggeredBy(DefaultTrigger.of())
                         .discardingFiredPanes())
             .output();
-    assertTrue(uniq.getProducer().isPresent());
-    final Distinct distinct = (Distinct) uniq.getProducer().get();
+    final Distinct distinct = (Distinct) TestUtils.getProducer(uniq);
     assertTrue(distinct.getWindow().isPresent());
     @SuppressWarnings("unchecked")
     final WindowDesc<?> windowDesc = WindowDesc.of((Window) distinct.getWindow().get());

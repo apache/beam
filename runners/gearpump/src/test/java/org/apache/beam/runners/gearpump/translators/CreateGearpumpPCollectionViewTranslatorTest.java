@@ -22,9 +22,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.junit.Test;
 
 /** Tests for {@link CreateGearpumpPCollectionViewTranslator}. */

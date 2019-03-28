@@ -66,6 +66,11 @@ public class TestUnboundedTable extends TestTable {
     return this;
   }
 
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.UNBOUNDED;
+  }
+
   /**
    * Add rows to the builder.
    *

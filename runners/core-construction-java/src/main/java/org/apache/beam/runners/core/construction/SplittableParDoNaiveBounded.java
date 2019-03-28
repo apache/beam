@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
 
 /**
@@ -60,14 +60,16 @@ public class SplittableParDoNaiveBounded {
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessNaive}. */
   public static class OverrideFactory<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
-          PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple,
+          PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+          PCollectionTuple,
           ProcessKeyedElements<InputT, OutputT, RestrictionT>> {
     @Override
     public PTransformReplacement<
             PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple,
+                    PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+                    PCollectionTuple,
                     ProcessKeyedElements<InputT, OutputT, RestrictionT>>
                 transform) {
       checkArgument(
@@ -237,6 +239,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
       public Instant timestamp(DoFn<InputT, OutputT> doFn) {
         return outerContext.timestamp();
       }
@@ -348,11 +355,6 @@ public class SplittableParDoNaiveBounded {
       public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
           DoFn<InputT, OutputT> doFn) {
         throw new IllegalStateException();
-      }
-
-      @Override
-      public Row asRow(@Nullable String id) {
-        throw new UnsupportedOperationException();
       }
 
       @Override

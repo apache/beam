@@ -18,12 +18,12 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.SourceOperationRequest;
-import com.google.common.base.Preconditions;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 
 /** Creates a SourceOperationExecutor from a SourceOperation. */
 public class SourceOperationExecutorFactory {

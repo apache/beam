@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: RabbitMQ"
 ext.summary = "IO to read and write to a RabbitMQ broker."
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow "com.rabbitmq:amqp-client:4.6.0"

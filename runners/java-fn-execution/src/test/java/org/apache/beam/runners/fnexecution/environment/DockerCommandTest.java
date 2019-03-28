@@ -23,11 +23,11 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,12 +57,14 @@ public class DockerCommandTest {
         docker.runImage(
             "debian", ImmutableList.of(), ImmutableList.of("/bin/bash", "-c", "sleep 60"));
     Stopwatch stopwatch = Stopwatch.createStarted();
+    assertThat("Container should be running.", docker.isContainerRunning(container), is(true));
     docker.killContainer(container);
     long elapsedSec = stopwatch.elapsed(TimeUnit.SECONDS);
     assertThat(
         "Container termination should complete before image self-exits",
         elapsedSec,
         is(lessThan(60L)));
+    assertThat("Container should be terminated.", docker.isContainerRunning(container), is(false));
   }
 
   @Test

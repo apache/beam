@@ -21,7 +21,6 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.DAG.Locality;
 import com.datatorrent.api.DAG.OperatorMeta;
 import com.datatorrent.stram.engine.OperatorContext;
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Properties;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
@@ -82,7 +82,7 @@ public class ApexRunnerTest {
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     DAG dag = TestApexRunner.translate(p, options);
 
-    String[] expectedThreadLocal = {"/CreateActual/FilterActuals/Window.Assign"};
+    String[] expectedThreadLocal = {"/GroupGlobally/RewindowActuals/Window.Assign"};
     Set<String> actualThreadLocal = Sets.newHashSet();
     for (DAG.StreamMeta sm : dag.getAllStreamsMeta()) {
       DAG.OutputPortMeta opm = sm.getSource();

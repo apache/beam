@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
 import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
 import java.util.Map;
@@ -29,7 +27,10 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import org.joda.time.Instant;
+
 /**
  * Utilities for converting between {@link Schema} field types and {@link TypeDescriptor}s that
  * define Java objects which can represent these field types.
@@ -52,6 +53,9 @@ public class FieldTypeDescriptors {
   /** Get a {@link TypeDescriptor} from a {@link FieldType}. */
   public static TypeDescriptor javaTypeForFieldType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
+      case LOGICAL_TYPE:
+        // TODO: shouldn't we handle this differently?
+        return javaTypeForFieldType(fieldType.getLogicalType().getBaseType());
       case ARRAY:
         return TypeDescriptors.lists(javaTypeForFieldType(fieldType.getCollectionElementType()));
       case MAP:
@@ -66,6 +70,7 @@ public class FieldTypeDescriptors {
   }
   /** Get a {@link FieldType} from a {@link TypeDescriptor}. */
   public static FieldType fieldTypeForJavaType(TypeDescriptor typeDescriptor) {
+    // TODO: Convert for registered logical types.
     if (typeDescriptor.isArray()
         || typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
       return getArrayFieldType(typeDescriptor);
@@ -80,8 +85,7 @@ public class FieldTypeDescriptors {
       if (typeName == null) {
         throw new RuntimeException("Couldn't find field type for " + typeDescriptor);
       }
-      FieldType fieldType = FieldType.of(typeName);
-      return fieldType;
+      return FieldType.of(typeName);
     }
   }
 

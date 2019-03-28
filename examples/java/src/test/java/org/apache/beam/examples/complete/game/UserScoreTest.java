@@ -28,13 +28,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.junit.Assert;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -69,6 +68,19 @@ public class UserScoreTest implements Serializable {
   static final List<String> GAME_EVENTS = Arrays.asList(GAME_EVENTS_ARRAY);
   static final List<String> GAME_EVENTS2 = Arrays.asList(GAME_EVENTS_ARRAY2);
 
+  static final List<GameActionInfo> GAME_ACTION_INFO_LIST =
+      Lists.newArrayList(
+          new GameActionInfo("user0_MagentaKangaroo", "MagentaKangaroo", 3, 1447955630000L),
+          new GameActionInfo("user13_ApricotQuokka", "ApricotQuokka", 15, 1447955630000L),
+          new GameActionInfo("user6_AmberNumbat", "AmberNumbat", 11, 1447955630000L),
+          new GameActionInfo("user7_AlmondWallaby", "AlmondWallaby", 15, 1447955630000L),
+          new GameActionInfo(
+              "user7_AndroidGreenKookaburra", "AndroidGreenKookaburra", 12, 1447955630000L),
+          new GameActionInfo(
+              "user7_AndroidGreenKookaburra", "AndroidGreenKookaburra", 11, 1447955630000L),
+          new GameActionInfo("user19_BisqueBilby", "BisqueBilby", 6, 1447955630000L),
+          new GameActionInfo("user19_BisqueBilby", "BisqueBilby", 8, 1447955630000L));
+
   static final List<KV<String, Integer>> USER_SUMS =
       Arrays.asList(
           KV.of("user0_MagentaKangaroo", 3),
@@ -92,13 +104,12 @@ public class UserScoreTest implements Serializable {
   /** Test the {@link ParseEventFn} {@link org.apache.beam.sdk.transforms.DoFn}. */
   @Test
   public void testParseEventFn() throws Exception {
-    DoFnTester<String, GameActionInfo> parseEventFn = DoFnTester.of(new ParseEventFn());
+    PCollection<String> input = p.apply(Create.of(GAME_EVENTS));
+    PCollection<GameActionInfo> output = input.apply(ParDo.of(new ParseEventFn()));
 
-    List<GameActionInfo> results = parseEventFn.processBundle(GAME_EVENTS_ARRAY);
-    Assert.assertEquals(8, results.size());
-    Assert.assertEquals("user0_MagentaKangaroo", results.get(0).getUser());
-    Assert.assertEquals("MagentaKangaroo", results.get(0).getTeam());
-    Assert.assertEquals(Integer.valueOf(3), results.get(0).getScore());
+    PAssert.that(output).containsInAnyOrder(GAME_ACTION_INFO_LIST);
+
+    p.run().waitUntilFinish();
   }
 
   /** Tests ExtractAndSumScore("user"). */
@@ -106,7 +117,7 @@ public class UserScoreTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testUserScoreSums() throws Exception {
 
-    PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
+    PCollection<String> input = p.apply(Create.of(GAME_EVENTS));
 
     PCollection<KV<String, Integer>> output =
         input
@@ -125,7 +136,7 @@ public class UserScoreTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testTeamScoreSums() throws Exception {
 
-    PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
+    PCollection<String> input = p.apply(Create.of(GAME_EVENTS));
 
     PCollection<KV<String, Integer>> output =
         input

@@ -60,6 +60,11 @@ public class TextTable extends BaseBeamTable {
   }
 
   @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.BOUNDED;
+  }
+
+  @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
         .apply("ReadTextFiles", TextIO.read().from(filePattern))

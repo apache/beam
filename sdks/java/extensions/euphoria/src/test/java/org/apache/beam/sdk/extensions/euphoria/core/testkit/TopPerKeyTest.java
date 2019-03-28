@@ -22,12 +22,12 @@ import static java.util.Arrays.asList;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -41,8 +41,9 @@ public class TopPerKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<Item, Triple<String, String, Integer>>() {
 
           @Override
-          protected Dataset<Triple<String, String, Integer>> getOutput(Dataset<Item> input) {
-            final Dataset<Item> timestampedElements =
+          protected PCollection<Triple<String, String, Integer>> getOutput(
+              PCollection<Item> input) {
+            final PCollection<Item> timestampedElements =
                 AssignEventTime.of(input).using(Item::getTimestamp).output();
             return TopPerKey.of(timestampedElements)
                 .keyBy(Item::getKey)
@@ -90,8 +91,9 @@ public class TopPerKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<Item, Triple<String, String, Integer>>() {
 
           @Override
-          protected Dataset<Triple<String, String, Integer>> getOutput(Dataset<Item> input) {
-            final Dataset<Item> timestampedElements =
+          protected PCollection<Triple<String, String, Integer>> getOutput(
+              PCollection<Item> input) {
+            final PCollection<Item> timestampedElements =
                 AssignEventTime.of(input).using(Item::getTimestamp).output();
             return TopPerKey.of(timestampedElements)
                 .keyBy(Item::getKey)

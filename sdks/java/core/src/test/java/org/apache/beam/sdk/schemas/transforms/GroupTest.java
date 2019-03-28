@@ -23,19 +23,16 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import org.apache.beam.sdk.schemas.DefaultSchema;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -50,6 +47,8 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
@@ -207,9 +206,6 @@ public class GroupTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testGroupByNestedKey() {
-    FieldAccessDescriptor groupKeys =
-        FieldAccessDescriptor.create()
-            .withNestedField("inner", FieldAccessDescriptor.withFieldNames("field1", "field2"));
     PCollection<KV<Row, Iterable<OuterPOJO>>> grouped =
         pipeline
             .apply(
@@ -218,7 +214,7 @@ public class GroupTest implements Serializable {
                     new OuterPOJO(new POJO("key1", 1L, "value2")),
                     new OuterPOJO(new POJO("key2", 2L, "value3")),
                     new OuterPOJO(new POJO("key2", 2L, "value4"))))
-            .apply(Group.byFieldAccessDescriptor(groupKeys));
+            .apply(Group.byFieldNames("inner.field1", "inner.field2"));
 
     Schema selectedSchema =
         Schema.builder().addStringField("field1").addInt64Field("field2").build();
@@ -530,24 +526,14 @@ public class GroupTest implements Serializable {
             new OuterAggregate(new AggregatePojos(3, 2, 4)),
             new OuterAggregate(new AggregatePojos(4, 2, 5)));
 
-    FieldAccessDescriptor field1Selector =
-        FieldAccessDescriptor.create()
-            .withNestedField("inner", FieldAccessDescriptor.withFieldNames("field1"));
-    FieldAccessDescriptor field2Selector =
-        FieldAccessDescriptor.create()
-            .withNestedField("inner", FieldAccessDescriptor.withFieldNames("field2"));
-    FieldAccessDescriptor field3Selector =
-        FieldAccessDescriptor.create()
-            .withNestedField("inner", FieldAccessDescriptor.withFieldNames("field3"));
-
     PCollection<KV<Row, Row>> aggregations =
         pipeline
             .apply(Create.of(elements))
             .apply(
-                Group.<OuterAggregate>byFieldAccessDescriptor(field2Selector)
-                    .aggregateFields(field1Selector, Sum.ofLongs(), "field1_sum")
-                    .aggregateFields(field3Selector, Sum.ofIntegers(), "field3_sum")
-                    .aggregateFields(field1Selector, Top.largestLongsFn(1), "field1_top"));
+                Group.<OuterAggregate>byFieldNames("inner.field2")
+                    .aggregateField("inner.field1", Sum.ofLongs(), "field1_sum")
+                    .aggregateField("inner.field3", Sum.ofIntegers(), "field3_sum")
+                    .aggregateField("inner.field1", Top.largestLongsFn(1), "field1_top"));
 
     Schema innerKeySchema = Schema.builder().addInt64Field("field2").build();
     Schema keySchema = Schema.builder().addRowField("inner", innerKeySchema).build();
@@ -585,21 +571,14 @@ public class GroupTest implements Serializable {
             new OuterAggregate(new AggregatePojos(3, 2, 4)),
             new OuterAggregate(new AggregatePojos(4, 2, 5)));
 
-    FieldAccessDescriptor field1Selector =
-        FieldAccessDescriptor.create()
-            .withNestedField("inner", FieldAccessDescriptor.withFieldNames("field1"));
-    FieldAccessDescriptor field3Selector =
-        FieldAccessDescriptor.create()
-            .withNestedField("inner", FieldAccessDescriptor.withFieldNames("field3"));
-
     PCollection<Row> aggregate =
         pipeline
             .apply(Create.of(elements))
             .apply(
                 Group.<OuterAggregate>globally()
-                    .aggregateFields(field1Selector, Sum.ofLongs(), "field1_sum")
-                    .aggregateFields(field3Selector, Sum.ofIntegers(), "field3_sum")
-                    .aggregateFields(field1Selector, Top.largestLongsFn(1), "field1_top"));
+                    .aggregateField("inner.field1", Sum.ofLongs(), "field1_sum")
+                    .aggregateField("inner.field3", Sum.ofIntegers(), "field3_sum")
+                    .aggregateField("inner.field1", Top.largestLongsFn(1), "field1_top"));
     Schema aggregateSchema =
         Schema.builder()
             .addInt64Field("field1_sum")

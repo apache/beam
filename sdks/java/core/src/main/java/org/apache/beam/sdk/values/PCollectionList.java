@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +25,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * A {@link PCollectionList PCollectionList&lt;T&gt;} is an immutable list of homogeneously typed

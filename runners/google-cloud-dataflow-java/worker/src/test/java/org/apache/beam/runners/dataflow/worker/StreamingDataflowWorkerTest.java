@@ -50,12 +50,6 @@ import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WriteInstruction;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.primitives.UnsignedLong;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -113,6 +107,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -139,9 +134,15 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString.Output;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString.Output;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedLong;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -152,7 +153,7 @@ import org.junit.rules.ErrorCollector;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 import org.junit.runners.model.Statement;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -160,8 +161,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class StreamingDataflowWorkerTest {
+  private final boolean streamingEngine;
+
+  @Parameterized.Parameters(name = "{index}: [streamingEngine={0}]")
+  public static Iterable<Object[]> data() {
+    return Arrays.asList(new Object[][] {{false}, {true}});
+  }
+
+  public StreamingDataflowWorkerTest(Boolean streamingEngine) {
+    this.streamingEngine = streamingEngine;
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
 
   private static final IntervalWindow DEFAULT_WINDOW =
@@ -230,7 +242,8 @@ public class StreamingDataflowWorkerTest {
     CloudObject timerCloudObject =
         CloudObject.forClassName(
             "com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder");
-    List<CloudObject> component = Collections.singletonList(CloudObjects.asCloudObject(coder));
+    List<CloudObject> component =
+        Collections.singletonList(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
     Structs.addList(timerCloudObject, PropertyNames.COMPONENT_ENCODINGS, component);
 
     CloudObject encodedCoder = CloudObject.forClassName("kind:windowed_value");
@@ -238,7 +251,9 @@ public class StreamingDataflowWorkerTest {
     Structs.addList(
         encodedCoder,
         PropertyNames.COMPONENT_ENCODINGS,
-        ImmutableList.of(timerCloudObject, CloudObjects.asCloudObject(IntervalWindowCoder.of())));
+        ImmutableList.of(
+            timerCloudObject,
+            CloudObjects.asCloudObject(IntervalWindowCoder.of(), /*sdkComponents=*/ null)));
 
     return new ParallelInstruction()
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
@@ -269,7 +284,8 @@ public class StreamingDataflowWorkerTest {
                         .setSpec(CloudObject.forClass(UngroupedWindmillReader.class))
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                WindowedValue.getFullCoder(coder, IntervalWindow.getCoder())))))
+                                WindowedValue.getFullCoder(coder, IntervalWindow.getCoder()),
+                                /*sdkComponents=*/ null))))
         .setOutputs(
             Arrays.asList(
                 new InstructionOutput()
@@ -278,7 +294,8 @@ public class StreamingDataflowWorkerTest {
                     .setSystemName(DEFAULT_OUTPUT_SYSTEM_NAME)
                     .setCodec(
                         CloudObjects.asCloudObject(
-                            WindowedValue.getFullCoder(coder, IntervalWindow.getCoder())))));
+                            WindowedValue.getFullCoder(coder, IntervalWindow.getCoder()),
+                            /*sdkComponents=*/ null))));
   }
 
   private ParallelInstruction makeDoFnInstruction(
@@ -297,7 +314,8 @@ public class StreamingDataflowWorkerTest {
                     windowingStrategy /* windowing strategy */,
                     null /* side input views */,
                     null /* input coder */,
-                    new TupleTag<>(PropertyNames.OUTPUT) /* main output id */))));
+                    new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
+                    DoFnSchemaInformation.create()))));
     return new ParallelInstruction()
         .setSystemName(DEFAULT_PARDO_SYSTEM_NAME)
         .setName(DEFAULT_PARDO_USER_NAME)
@@ -321,7 +339,8 @@ public class StreamingDataflowWorkerTest {
                     .setCodec(
                         CloudObjects.asCloudObject(
                             WindowedValue.getFullCoder(
-                                outputCoder, windowingStrategy.getWindowFn().windowCoder())))));
+                                outputCoder, windowingStrategy.getWindowFn().windowCoder()),
+                            /*sdkComponents=*/ null))));
   }
 
   private ParallelInstruction makeDoFnInstruction(
@@ -356,7 +375,8 @@ public class StreamingDataflowWorkerTest {
                         .setSpec(spec)
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                WindowedValue.getFullCoder(coder, windowCoder)))));
+                                WindowedValue.getFullCoder(coder, windowCoder),
+                                /*sdkComponents=*/ null))));
   }
 
   private ParallelInstruction makeSinkInstruction(
@@ -586,8 +606,13 @@ public class StreamingDataflowWorkerTest {
 
   private StreamingDataflowWorkerOptions createTestingPipelineOptions(
       FakeWindmillServer server, String... args) {
+    List<String> argsList = Lists.newArrayList(args);
+    if (streamingEngine) {
+      argsList.add("--experiments=enable_streaming_engine");
+    }
     StreamingDataflowWorkerOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(StreamingDataflowWorkerOptions.class);
+        PipelineOptionsFactory.fromArgs(argsList.toArray(new String[0]))
+            .as(StreamingDataflowWorkerOptions.class);
     options.setAppName("StreamingWorkerHarnessTest");
     options.setJobId("test_job_id");
     options.setStreaming(true);
@@ -643,7 +668,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  public void testBasicWindmillServiceHarness() throws Exception {
+  public void testBasic() throws Exception {
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
@@ -660,46 +685,7 @@ public class StreamingDataflowWorkerTest {
     workItem.setStreamingConfigTask(streamingConfig);
     when(mockWorkUnitClient.getGlobalStreamingConfigWorkItem()).thenReturn(Optional.of(workItem));
 
-    StreamingDataflowWorkerOptions options =
-        createTestingPipelineOptions(server, "--experiments=enable_windmill_service");
-    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
-    worker.start();
-
-    final int numIters = 2000;
-    for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
-    }
-
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
-    worker.stop();
-
-    for (int i = 0; i < numIters; ++i) {
-      assertTrue(result.containsKey((long) i));
-      assertEquals(
-          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
-    }
-  }
-
-  @Test
-  public void testBasicWindmillServiceAsStreamingEngineHarness() throws Exception {
-    List<ParallelInstruction> instructions =
-        Arrays.asList(
-            makeSourceInstruction(StringUtf8Coder.of()),
-            makeSinkInstruction(StringUtf8Coder.of(), 0));
-
-    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
-    server.setIsReady(false);
-
-    StreamingConfigTask streamingConfig = new StreamingConfigTask();
-    streamingConfig.setStreamingComputationConfigs(
-        ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
-    streamingConfig.setWindmillServiceEndpoint("foo");
-    WorkItem workItem = new WorkItem();
-    workItem.setStreamingConfigTask(streamingConfig);
-    when(mockWorkUnitClient.getGlobalStreamingConfigWorkItem()).thenReturn(Optional.of(workItem));
-
-    StreamingDataflowWorkerOptions options =
-        createTestingPipelineOptions(server, "--experiments=enable_streaming_engine");
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
@@ -880,6 +866,10 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testKeyTokenInvalidException() throws Exception {
+    if (streamingEngine) {
+      // TODO: This test needs to be adapted to work with streamingEngine=true.
+      return;
+    }
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     List<ParallelInstruction> instructions =
@@ -903,6 +893,128 @@ public class StreamingDataflowWorkerTest {
 
     assertEquals(makeExpectedOutput(1, 0, "key", "key").build(), result.get(1L));
     assertEquals(1, result.size());
+  }
+
+  static class LargeCommitFn extends DoFn<KV<String, String>, KV<String, String>> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      if (c.element().getKey().equals("large_key")) {
+        StringBuilder s = new StringBuilder();
+        for (int i = 0; i < 100; ++i) s.append("large_commit");
+        c.output(KV.of(c.element().getKey(), s.toString()));
+      } else {
+        c.output(c.element());
+      }
+    }
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException() throws Exception {
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new LargeCommitFn(), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server.setExpectedExceptionCount(1);
+
+    StreamingDataflowWorker worker =
+        makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
+    worker.setMaxWorkItemCommitBytes(1000);
+    worker.start();
+
+    server.addWorkToOffer(makeInput(1, 0, "large_key"));
+    server.addWorkToOffer(makeInput(2, 0, "key"));
+    server.waitForEmptyWorkQueue();
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+    assertEquals(2, result.size());
+    assertEquals(makeExpectedOutput(2, 0, "key", "key").build(), result.get(2L));
+    assertTrue(result.containsKey(1L));
+    assertEquals("large_key", result.get(1L).getKey().toStringUtf8());
+    assertTrue(result.get(1L).getSerializedSize() > 1000);
+
+    // Spam worker updates a few times.
+    int maxTries = 10;
+    while (--maxTries > 0) {
+      worker.reportPeriodicWorkerUpdates();
+      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+    }
+
+    // We should see an exception reported for the large commit but not the small one.
+    ArgumentCaptor<WorkItemStatus> workItemStatusCaptor =
+        ArgumentCaptor.forClass(WorkItemStatus.class);
+    verify(mockWorkUnitClient, atLeast(2)).reportWorkItemStatus(workItemStatusCaptor.capture());
+    List<WorkItemStatus> capturedStatuses = workItemStatusCaptor.getAllValues();
+    boolean foundErrors = false;
+    for (WorkItemStatus status : capturedStatuses) {
+      if (!status.getErrors().isEmpty()) {
+        assertFalse(foundErrors);
+        foundErrors = true;
+        String errorMessage = status.getErrors().get(0).getMessage();
+        assertThat(errorMessage, Matchers.containsString("KeyCommitTooLargeException"));
+      }
+    }
+    assertTrue(foundErrors);
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException_StreamingEngine() throws Exception {
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new LargeCommitFn(), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server.setExpectedExceptionCount(1);
+
+    StreamingDataflowWorkerOptions options =
+        createTestingPipelineOptions(server, "--experiments=enable_streaming_engine");
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.setMaxWorkItemCommitBytes(1000);
+    worker.start();
+
+    server.addWorkToOffer(makeInput(1, 0, "large_key"));
+    server.addWorkToOffer(makeInput(2, 0, "key"));
+    server.waitForEmptyWorkQueue();
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+    assertEquals(2, result.size());
+    assertEquals(makeExpectedOutput(2, 0, "key", "key").build(), result.get(2L));
+    assertTrue(result.containsKey(1L));
+    assertEquals("large_key", result.get(1L).getKey().toStringUtf8());
+    assertTrue(result.get(1L).getSerializedSize() > 1000);
+
+    // Spam worker updates a few times.
+    int maxTries = 10;
+    while (--maxTries > 0) {
+      worker.reportPeriodicWorkerUpdates();
+      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+    }
+
+    // We should see an exception reported for the large commit but not the small one.
+    ArgumentCaptor<WorkItemStatus> workItemStatusCaptor =
+        ArgumentCaptor.forClass(WorkItemStatus.class);
+    verify(mockWorkUnitClient, atLeast(2)).reportWorkItemStatus(workItemStatusCaptor.capture());
+    List<WorkItemStatus> capturedStatuses = workItemStatusCaptor.getAllValues();
+    boolean foundErrors = false;
+    for (WorkItemStatus status : capturedStatuses) {
+      if (!status.getErrors().isEmpty()) {
+        assertFalse(foundErrors);
+        foundErrors = true;
+        String errorMessage = status.getErrors().get(0).getMessage();
+        assertThat(errorMessage, Matchers.containsString("KeyCommitTooLargeException"));
+      }
+    }
+    assertTrue(foundErrors);
   }
 
   static class ChangeKeysFn extends DoFn<KV<String, String>, KV<String, String>> {
@@ -963,6 +1075,10 @@ public class StreamingDataflowWorkerTest {
 
   @Test(timeout = 30000)
   public void testExceptions() throws Exception {
+    if (streamingEngine) {
+      // TODO: This test needs to be adapted to work with streamingEngine=true.
+      return;
+    }
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
@@ -1088,7 +1204,8 @@ public class StreamingDataflowWorkerTest {
                         .setCodec(
                             CloudObjects.asCloudObject(
                                 WindowedValue.getFullCoder(
-                                    StringUtf8Coder.of(), IntervalWindow.getCoder())))));
+                                    StringUtf8Coder.of(), IntervalWindow.getCoder()),
+                                /*sdkComponents=*/ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -1190,7 +1307,10 @@ public class StreamingDataflowWorkerTest {
                         .withTimestampCombiner(TimestampCombiner.EARLIEST),
                     sdkComponents)
                 .toByteArray()));
-    addObject(spec, WorkerPropertyNames.INPUT_CODER, CloudObjects.asCloudObject(windowedKvCoder));
+    addObject(
+        spec,
+        WorkerPropertyNames.INPUT_CODER,
+        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
@@ -1208,7 +1328,9 @@ public class StreamingDataflowWorkerTest {
                         .setOriginalName(DEFAULT_OUTPUT_ORIGINAL_NAME)
                         .setSystemName(DEFAULT_OUTPUT_SYSTEM_NAME)
                         .setName("output")
-                        .setCodec(CloudObjects.asCloudObject(windowedGroupedCoder))));
+                        .setCodec(
+                            CloudObjects.asCloudObject(
+                                windowedGroupedCoder, /*sdkComponents=*/ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -1492,7 +1614,10 @@ public class StreamingDataflowWorkerTest {
                         .withAllowedLateness(Duration.standardMinutes(60)),
                     sdkComponents)
                 .toByteArray()));
-    addObject(spec, WorkerPropertyNames.INPUT_CODER, CloudObjects.asCloudObject(windowedKvCoder));
+    addObject(
+        spec,
+        WorkerPropertyNames.INPUT_CODER,
+        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
@@ -1510,7 +1635,9 @@ public class StreamingDataflowWorkerTest {
                         .setOriginalName(DEFAULT_OUTPUT_ORIGINAL_NAME)
                         .setSystemName(DEFAULT_OUTPUT_SYSTEM_NAME)
                         .setName("output")
-                        .setCodec(CloudObjects.asCloudObject(windowedGroupedCoder))));
+                        .setCodec(
+                            CloudObjects.asCloudObject(
+                                windowedGroupedCoder, /*sdkComponents=*/ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -1650,7 +1777,8 @@ public class StreamingDataflowWorkerTest {
             WindowedValue.getFullCoder(
                 ValueWithRecordId.ValueWithRecordIdCoder.of(
                     KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
-                GlobalWindow.Coder.INSTANCE));
+                GlobalWindow.Coder.INSTANCE),
+            /*sdkComponents=*/ null);
 
     return Arrays.asList(
         new ParallelInstruction()
@@ -1958,7 +2086,8 @@ public class StreamingDataflowWorkerTest {
         new StreamingDataflowWorker.ComputationState(
             "computation",
             defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
-            mockExecutor);
+            mockExecutor,
+            ImmutableMap.of());
 
     ByteString key1 = ByteString.copyFromUtf8("key1");
     ByteString key2 = ByteString.copyFromUtf8("key2");
@@ -2074,7 +2203,8 @@ public class StreamingDataflowWorkerTest {
               WindowedValue.getFullCoder(
                   ValueWithRecordId.ValueWithRecordIdCoder.of(
                       KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
-                  GlobalWindow.Coder.INSTANCE));
+                  GlobalWindow.Coder.INSTANCE),
+              /*sdkComponents=*/ null);
 
       TestCountingSource counter = new TestCountingSource(3).withThrowOnFirstSnapshot(true);
       List<ParallelInstruction> instructions =
@@ -2279,6 +2409,10 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testActiveWorkRefresh() throws Exception {
+    if (streamingEngine) {
+      // TODO: This test needs to be adapted to work with streamingEngine=true.
+      return;
+    }
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),

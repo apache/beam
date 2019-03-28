@@ -27,7 +27,6 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.samza.metrics.Counter;
 import org.apache.samza.metrics.Gauge;
 import org.apache.samza.metrics.Metric;
@@ -61,7 +60,7 @@ public class SamzaMetricsContainer {
     assert metricsRegistry != null;
 
     final MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainers);
-    final MetricQueryResults results = metricResults.queryMetrics(MetricsFilter.builder().build());
+    final MetricQueryResults results = metricResults.allMetrics();
 
     final CounterUpdater updateCounter = new CounterUpdater();
     results.getCounters().forEach(updateCounter);
@@ -69,7 +68,7 @@ public class SamzaMetricsContainer {
     final GaugeUpdater updateGauge = new GaugeUpdater();
     results.getGauges().forEach(updateGauge);
 
-    //TODO: add distribution metrics to Samza
+    // TODO: add distribution metrics to Samza
   }
 
   private class CounterUpdater implements Consumer<MetricResult<Long>> {
@@ -103,10 +102,6 @@ public class SamzaMetricsContainer {
   }
 
   private static String getMetricName(MetricResult<?> metricResult) {
-    return metricResult.getStep()
-        + DELIMITER
-        + metricResult.getName().getNamespace()
-        + DELIMITER
-        + metricResult.getName().getName();
+    return metricResult.getKey().toString();
   }
 }

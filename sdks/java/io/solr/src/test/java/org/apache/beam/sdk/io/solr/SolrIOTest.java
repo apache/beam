@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
 
 import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.ImmutableSet;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;

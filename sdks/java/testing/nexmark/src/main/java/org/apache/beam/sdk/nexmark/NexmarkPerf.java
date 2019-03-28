@@ -19,12 +19,16 @@ package org.apache.beam.sdk.nexmark;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.testutils.TestResult;
 
 /** Summary of performance for a particular run of a configuration. */
-public class NexmarkPerf {
+public class NexmarkPerf implements TestResult {
+
   /**
    * A sample of the number of events and number of results (if known) generated at a particular
    * time.
@@ -151,5 +155,10 @@ public class NexmarkPerf {
       return true;
     }
     return false;
+  }
+
+  @Override
+  public Map<String, Object> toMap() {
+    return NexmarkUtils.MAPPER.convertValue(this, new TypeReference<Map<String, Object>>() {});
   }
 }

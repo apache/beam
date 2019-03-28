@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.Optional;
 import javax.annotation.Nullable;

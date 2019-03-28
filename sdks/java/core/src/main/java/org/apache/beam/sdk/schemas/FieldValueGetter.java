@@ -34,6 +34,4 @@ public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
   ValueT get(ObjectT object);
 
   String name();
-
-  Class type();
 }

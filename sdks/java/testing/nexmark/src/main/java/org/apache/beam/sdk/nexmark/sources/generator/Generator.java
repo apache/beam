@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.nexmark.sources.generator;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.nexmark.sources.generator.model.AuctionGenerator.nextAuction;
 import static org.apache.beam.sdk.nexmark.sources.generator.model.BidGenerator.nextBid;
 import static org.apache.beam.sdk.nexmark.sources.generator.model.PersonGenerator.nextPerson;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -144,8 +144,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
   /** Return a deep copy of this generator. */
   public Generator copy() {
     checkNotNull(config);
-    Generator result = new Generator(config, eventsCountSoFar, wallclockBaseTime);
-    return result;
+    return new Generator(config, eventsCountSoFar, wallclockBaseTime);
   }
 
   /**

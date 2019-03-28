@@ -20,13 +20,11 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
@@ -41,6 +39,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -51,7 +51,7 @@ import org.joda.time.Duration;
  *
  * <p>When joining two streams, the join has to specify windowing which groups elements from streams
  * into {@link Window}s. The join operation is performed within same windows produced on left and
- * right side of input {@link Dataset}s.
+ * right side of input {@link PCollection}s.
  *
  * <h3>Builders:</h3>
  *
@@ -71,18 +71,17 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
-  reason =
-      "Might be useful to override because of performance reasons in a "
-          + "specific join types (e.g. sort join), which might reduce the space "
-          + "complexity",
-  state = StateComplexity.LINEAR,
-  repartitions = 1
-)
+    reason =
+        "Might be useful to override because of performance reasons in a "
+            + "specific join types (e.g. sort join), which might reduce the space "
+            + "complexity",
+    state = StateComplexity.LINEAR,
+    repartitions = 1)
 public class Join<LeftT, RightT, KeyT, OutputT>
     extends ShuffleOperator<Object, KeyT, KV<KeyT, OutputT>> {
 
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
-      Dataset<LeftT> left, Dataset<RightT> right) {
+      PCollection<LeftT> left, PCollection<RightT> right) {
     return named(null).of(left, right);
   }
 
@@ -107,7 +106,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
   /** Builder for the 'of' step. */
   public interface OfBuilder {
 
-    <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right);
+    <LeftT, RightT> ByBuilder<LeftT, RightT> of(PCollection<LeftT> left, PCollection<RightT> right);
   }
 
   /** Builder for the 'by' step. */
@@ -186,8 +185,8 @@ public class Join<LeftT, RightT, KeyT, OutputT>
 
     @Nullable private final String name;
     private final Type type;
-    private Dataset<LeftT> left;
-    private Dataset<RightT> right;
+    private PCollection<LeftT> left;
+    private PCollection<RightT> right;
     private UnaryFunction<LeftT, KeyT> leftKeyExtractor;
     private UnaryFunction<RightT, KeyT> rightKeyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
@@ -200,13 +199,13 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     }
 
     @Override
-    public <LeftElT, RightElT> ByBuilder<LeftElT, RightElT> of(
-        Dataset<LeftElT> left, Dataset<RightElT> right) {
+    public <FirstT, SecondT> ByBuilder<FirstT, SecondT> of(
+        PCollection<FirstT> left, PCollection<SecondT> right) {
       @SuppressWarnings("unchecked")
-      final Builder<LeftElT, RightElT, ?, ?> casted = (Builder) this;
-      casted.left = requireNonNull(left);
-      casted.right = requireNonNull(right);
-      return casted;
+      final Builder<FirstT, SecondT, ?, ?> cast = (Builder) this;
+      cast.left = requireNonNull(left);
+      cast.right = requireNonNull(right);
+      return cast;
     }
 
     @Override
@@ -215,21 +214,21 @@ public class Join<LeftT, RightT, KeyT, OutputT>
         UnaryFunction<RightT, T> rightKeyExtractor,
         @Nullable TypeDescriptor<T> keyType) {
       @SuppressWarnings("unchecked")
-      final Builder<LeftT, RightT, T, ?> casted = (Builder) this;
-      casted.leftKeyExtractor = leftKeyExtractor;
-      casted.rightKeyExtractor = rightKeyExtractor;
-      casted.keyType = keyType;
-      return casted;
+      final Builder<LeftT, RightT, T, ?> cast = (Builder) this;
+      cast.leftKeyExtractor = leftKeyExtractor;
+      cast.rightKeyExtractor = rightKeyExtractor;
+      cast.keyType = keyType;
+      return cast;
     }
 
     @Override
     public <T> WindowByBuilder<KeyT, T> using(
         BinaryFunctor<LeftT, RightT, T> joinFunc, @Nullable TypeDescriptor<T> outputType) {
       @SuppressWarnings("unchecked")
-      final Builder<LeftT, RightT, KeyT, T> casted = (Builder) this;
-      casted.joinFunc = requireNonNull(joinFunc);
-      casted.outputType = outputType;
-      return casted;
+      final Builder<LeftT, RightT, KeyT, T> cast = (Builder) this;
+      cast.joinFunc = requireNonNull(joinFunc);
+      cast.outputType = outputType;
+      return cast;
     }
 
     @Override
@@ -279,30 +278,34 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     }
 
     @Override
-    public Dataset<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
-      final Join<LeftT, RightT, KeyT, OutputT> join =
-          new Join<>(
-              name,
-              type,
-              leftKeyExtractor,
-              rightKeyExtractor,
-              keyType,
-              joinFunc,
-              TypeDescriptors.kvs(
-                  TypeAwareness.orObjects(Optional.ofNullable(keyType)),
-                  TypeAwareness.orObjects(Optional.ofNullable(outputType))),
-              windowBuilder.getWindow().orElse(null));
+    public PCollection<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
       @SuppressWarnings("unchecked")
-      final List<Dataset<Object>> inputs = Arrays.asList((Dataset) left, (Dataset) right);
-      return OperatorTransform.apply(join, inputs);
+      final PCollectionList<Object> inputs =
+          PCollectionList.of(Arrays.asList((PCollection) left, (PCollection) right));
+      return OperatorTransform.apply(createOperator(), inputs);
     }
 
     @Override
-    public Dataset<OutputT> outputValues(OutputHint... outputHints) {
-      return MapElements.named(name != null ? name + "::extract-values" : null)
-          .of(output(outputHints))
-          .using(KV::getValue, outputType)
-          .output(outputHints);
+    public PCollection<OutputT> outputValues(OutputHint... outputHints) {
+      @SuppressWarnings("unchecked")
+      final PCollectionList<Object> inputs =
+          PCollectionList.of(Arrays.asList((PCollection) left, (PCollection) right));
+      return OperatorTransform.apply(
+          new OutputValues<>(name, outputType, createOperator()), inputs);
+    }
+
+    private Join<LeftT, RightT, KeyT, OutputT> createOperator() {
+      return new Join<>(
+          name,
+          type,
+          leftKeyExtractor,
+          rightKeyExtractor,
+          keyType,
+          joinFunc,
+          TypeDescriptors.kvs(
+              TypeAwareness.orObjects(Optional.ofNullable(keyType)),
+              TypeAwareness.orObjects(Optional.ofNullable(outputType))),
+          windowBuilder.getWindow().orElse(null));
     }
   }
 

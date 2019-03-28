@@ -19,8 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -96,26 +94,5 @@ public class TypeUtils {
     return new TypeDescriptor<Triple<K, V, ScoreT>>() {}.where(new TypeParameter<K>() {}, key)
         .where(new TypeParameter<V>() {}, value)
         .where(new TypeParameter<ScoreT>() {}, score);
-  }
-
-  /**
-   * Returns {@link TypeDescriptor} od elements in given {@code dataset} if available, {@code null}
-   * otherwise.
-   *
-   * <p>{@link TypeDescriptor} is acquired as outpyut type of the {@link Operator} which is a
-   * producer of given {@link Dataset}.
-   *
-   * @param <T> type of element of given {@link Dataset}
-   * @param dataset input dataset
-   * @return given dataset element's {@link TypeDescriptor} is available
-   */
-  @Nullable
-  public static <T> TypeDescriptor<T> getDatasetElementType(Dataset<T> dataset) {
-    if (dataset != null && dataset.getProducer().isPresent()) {
-      @SuppressWarnings("unchecked")
-      final Operator<T> operator = (Operator) dataset.getProducer().get();
-      return operator.getOutputType().orElse(null);
-    }
-    return null;
   }
 }

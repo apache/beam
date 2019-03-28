@@ -25,7 +25,6 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FullJoin;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
@@ -58,8 +58,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             return FullJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -110,8 +110,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, String, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<String> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<String> right) {
 
             return FullJoin.of(left, right)
                 .by(le -> le, String::length)
@@ -164,7 +164,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, String>() {
 
           @Override
-          protected Dataset<String> getOutput(Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<String> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             return FullJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -207,8 +208,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             return LeftJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -258,8 +259,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             return RightJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -309,8 +310,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             return Join.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -360,8 +361,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             @SuppressWarnings("unchecked")
             final WindowFn<Object, BoundedWindow> evenOddWindowFn =
                 (WindowFn) new EvenOddWindowFn();
@@ -426,8 +427,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             @SuppressWarnings("unchecked")
             final WindowFn<Object, BoundedWindow> evenOddWindowFn =
                 (WindowFn) new EvenOddWindowFn();
@@ -487,8 +488,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             @SuppressWarnings("unchecked")
             final WindowFn<Object, BoundedWindow> evenOddWindowFn =
                 (WindowFn) new EvenOddWindowFn();
@@ -570,8 +571,8 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<KV<String, String>> getOutput(
-              Dataset<KV<String, Long>> left, Dataset<KV<String, Long>> right) {
+          protected PCollection<KV<String, String>> getOutput(
+              PCollection<KV<String, Long>> left, PCollection<KV<String, Long>> right) {
 
             left =
                 AssignEventTime.named("assign-event-time-left")
@@ -584,7 +585,7 @@ public class JoinTest extends AbstractOperatorTest {
                     .using(KV::getValue)
                     .output();
 
-            final Dataset<KV<String, KV<String, String>>> joined =
+            final PCollection<KV<String, KV<String, String>>> joined =
                 Join.of(left, right)
                     .by(p -> "", p -> "")
                     .using(
@@ -627,13 +628,13 @@ public class JoinTest extends AbstractOperatorTest {
   //          }
   //
   //          @Override
-  //          protected Dataset<Triple<TimeInterval, String, String>> getOutput(
-  //              Dataset<KV<String, Long>> left, Dataset<KV<String, Long>> right) {
+  //          protected PCollection<Triple<TimeInterval, String, String>> getOutput(
+  //              PCollection<KV<String, Long>> left, PCollection<KV<String, Long>> right) {
   //
   //            left = AssignEventTime.of(left).using(KV::getValue).output();
   //            right = AssignEventTime.of(right).using(KV::getValue).output();
   //
-  //            Dataset<KV<String, Triple<TimeInterval, String, String>>> joined =
+  //            PCollection<KV<String, Triple<TimeInterval, String, String>>> joined =
   //                Join.of(left, right)
   //                    .by(p -> "", p -> "")
   //                    .using(
@@ -684,8 +685,8 @@ public class JoinTest extends AbstractOperatorTest {
         new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             return FullJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -738,21 +739,20 @@ public class JoinTest extends AbstractOperatorTest {
   public abstract static class JoinTestCase<LeftT, RightT, OutputT> implements TestCase<OutputT> {
 
     @Override
-    public Dataset<OutputT> getOutput(Pipeline pipeline) {
-      final Dataset<LeftT> left =
-          Dataset.of(
-              pipeline
-                  .apply("left-input", Create.of(getLeftInput()))
-                  .setTypeDescriptor(getLeftInputType()));
-      final Dataset<RightT> right =
-          Dataset.of(
-              pipeline
-                  .apply("right-input", Create.of(getRightInput()))
-                  .setTypeDescriptor(getRightInputType()));
+    public PCollection<OutputT> getOutput(Pipeline pipeline) {
+      final PCollection<LeftT> left =
+          pipeline
+              .apply("left-input", Create.of(getLeftInput()))
+              .setTypeDescriptor(getLeftInputType());
+      final PCollection<RightT> right =
+          pipeline
+              .apply("right-input", Create.of(getRightInput()))
+              .setTypeDescriptor(getRightInputType());
       return getOutput(left, right);
     }
 
-    protected abstract Dataset<OutputT> getOutput(Dataset<LeftT> left, Dataset<RightT> right);
+    protected abstract PCollection<OutputT> getOutput(
+        PCollection<LeftT> left, PCollection<RightT> right);
 
     protected abstract List<LeftT> getLeftInput();
 

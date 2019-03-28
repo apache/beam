@@ -25,4 +25,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public interface Distribution extends Metric {
   /** Add an observation to this distribution. */
   void update(long value);
+
+  void update(long sum, long count, long min, long max);
 }

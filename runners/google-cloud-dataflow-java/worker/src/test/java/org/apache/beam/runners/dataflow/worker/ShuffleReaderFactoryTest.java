@@ -75,8 +75,7 @@ public class ShuffleReaderFactoryTest {
         ReaderRegistry.defaultRegistry()
             .create(cloudSource, PipelineOptionsFactory.create(), context, null);
     Assert.assertThat(reader, new IsInstanceOf(shuffleReaderClass));
-    T shuffleSource = (T) reader;
-    return shuffleSource;
+    return (T) reader;
   }
 
   void runTestCreateUngroupedShuffleReader(
@@ -87,7 +86,7 @@ public class ShuffleReaderFactoryTest {
             shuffleReaderConfig,
             start,
             end,
-            CloudObjects.asCloudObject(coder),
+            CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null),
             BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage"),
             UngroupedShuffleReader.class,
             "UngroupedShuffleSource");
@@ -114,7 +113,8 @@ public class ShuffleReaderFactoryTest {
             end,
             CloudObjects.asCloudObject(
                 FullWindowedValueCoder.of(
-                    KvCoder.of(keyCoder, IterableCoder.of(valueCoder)), IntervalWindowCoder.of())),
+                    KvCoder.of(keyCoder, IterableCoder.of(valueCoder)), IntervalWindowCoder.of()),
+                /*sdkComponents=*/ null),
             context,
             GroupingShuffleReader.class,
             "GroupingShuffleSource");
@@ -142,7 +142,8 @@ public class ShuffleReaderFactoryTest {
             CloudObjects.asCloudObject(
                 FullWindowedValueCoder.of(
                     KvCoder.of(keyCoder, windowedValueCoder.getValueCoder()),
-                    IntervalWindowCoder.of())),
+                    IntervalWindowCoder.of()),
+                /*sdkComponents=*/ null),
             BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage"),
             PartitioningShuffleReader.class,
             "PartitioningShuffleSource");

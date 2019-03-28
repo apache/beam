@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** Static utility methods that provide {@link GroupingTable} implementations. */
 public class GroupingTables {
@@ -481,7 +481,7 @@ public class GroupingTables {
       sampledElements += 1;
       sampledSum += value;
       sampledSumSquares += value * value;
-      estimate = (long) Math.ceil(sampledSum / sampledElements);
+      estimate = (long) Math.ceil(sampledSum / (double) sampledElements);
       long target = desiredSampleSize();
       if (sampledElements < minSampled || sampledElements < target) {
         // Sample immediately.

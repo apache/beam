@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Google BigQuery IO"
+title: "Google BigQuery I/O connector"
 section_menu: section-menu/documentation.html
 permalink: /documentation/io/built-in/google-bigquery/
 ---
@@ -20,7 +20,7 @@ limitations under the License.
 
 [Built-in I/O Transforms]({{site.baseurl}}/documentation/io/built-in/)
 
-# Google BigQuery IO
+# Google BigQuery I/O connector
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
@@ -53,7 +53,7 @@ Additional resources:
 
 {:.language-java}
 * [BigQueryIO source code](https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery)
-* [BigQueryIO Javadoc]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html)
+* [BigQueryIO Javadoc](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html)
 * [Google BigQuery documentation](https://cloud.google.com/bigquery/docs)
 
 
@@ -68,7 +68,7 @@ Additional resources:
 
 {:.language-py}
 * [BigQueryIO source code](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py)
-* [BigQueryIO Pydoc]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.bigquery.html)
+* [BigQueryIO Pydoc](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.bigquery.html)
 * [Google BigQuery documentation](https://cloud.google.com/bigquery/docs)
 
 
@@ -95,7 +95,7 @@ a string, or use a
   [TableReference](https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/index.html?com/google/api/services/bigquery/model/TableReference.html)
 </span>
 <span class="language-py">
-  [TableReference](https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.table.TableReference.html#google.cloud.bigquery.table.TableReference)
+  [TableReference](https://github.com/googleapis/google-cloud-python/blob/master/bigquery/google/cloud/bigquery/table.py#L153)
 </span>
 object.
 
@@ -115,10 +115,10 @@ table name.
 You can also omit `project_id` and use the `[dataset_id].[table_id]` format. If
 you omit the project ID, Beam uses the default project ID from your
 <span class="language-java">
-  [pipeline options]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html).
+  [pipeline options](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html).
 </span>
 <span class="language-py">
-  [pipeline options]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions).
+  [pipeline options](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions).
 </span>
 
 ```java
@@ -143,7 +143,7 @@ the three parts of the BigQuery table name.
 <!-- Java specific -->
 
 {:.language-java}
-The Beam SDK for Java also provides the [`parseTableSpec`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html)
+The Beam SDK for Java also provides the [`parseTableSpec`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html)
 helper method, which constructs a `TableReference` object from a String that
 contains the fully-qualified BigQuery table name. However, the static factory
 methods for BigQueryIO transforms accept the table name as a String and
@@ -166,12 +166,18 @@ schema](#creating-a-table-schema) covers schemas in more detail.
 
 ## Reading from BigQuery
 
-BigQueryIO allows you to read from a BigQuery table, or read the results of
-an arbitrary SQL query string. When you apply a BigQueryIO read transform,
-Beam invokes a [BigQuery export request](https://cloud.google.com/bigquery/docs/exporting-data).
-Beam’s use of this API is subject to BigQuery's [Quota](https://cloud.google.com/bigquery/quota-policy#export)
-and [Pricing](https://cloud.google.com/bigquery/pricing) policies.
+BigQueryIO allows you to read from a BigQuery table, or read the results of an
+arbitrary SQL query string. By default, Beam invokes a [BigQuery export
+request](https://cloud.google.com/bigquery/docs/exporting-data) when you apply a
+BigQueryIO read transform. However, the Beam SDK for Java (version 2.11.0 and
+later) adds support for the beta release of the [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
+as an [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html).
+See [Using the BigQuery Storage API](#storage-api) for more information and a
+list of limitations.
 
+> Beam’s use of BigQuery APIs is subject to BigQuery's
+> [Quota](https://cloud.google.com/bigquery/quota-policy)
+> and [Pricing](https://cloud.google.com/bigquery/pricing) policies.
 
 <!-- Java specific -->
 
@@ -199,7 +205,6 @@ allow you to read from a table, or read fields using a query string.
 `read(SerializableFunction<SchemaAndRecord, T>)` to parse BigQuery rows from
 Avro `GenericRecord` into your custom type, or use `readTableRows()` to parse
 them into JSON `TableRow` objects.
-
 
 <!-- Python specific -->
 
@@ -262,13 +267,74 @@ in the following example:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_bigqueryio_read_query_std_sql
 %}```
 
+### Using the BigQuery Storage API {#storage-api}
+
+The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
+allows you to directly access tables in BigQuery storage. As a result, your
+pipeline can read from BigQuery storage faster than previously possible.
+
+The Beam SDK for Java (version 2.11.0 and later) adds support for the beta
+release of the BigQuery Storage API as an [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html).
+Beam's support for the BigQuery Storage API has the following limitations:
+
+* The SDK for Python does not support the BigQuery Storage API.
+* You must read from a table. Reading with a query string is not currently
+  supported.
+* Dynamic work re-balancing is not currently supported. As a result, reads might
+  be less efficient in the presence of stragglers.
+
+Because this is currently a Beam experimental feature, export based reads are
+recommended for production jobs.
+
+#### Enabling the API
+
+The BigQuery Storage API is distinct from the existing BigQuery API. You must
+[enable the BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api)
+for your Google Cloud Platform project.
+
+#### Updating your code
+
+Use the following methods when you read from a table:
+
+* Required: Specify [withMethod(Method.DIRECT_READ)](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method-) to use the BigQuery Storage API for
+  the read operation.
+* Optional: To use features such as [column projection and column filtering](https://cloud.google.com/bigquery/docs/reference/storage/),
+  you must also specify a [TableReadOptions](https://googleapis.github.io/google-cloud-java/google-api-grpc/apidocs/index.html?com/google/cloud/bigquery/storage/v1beta1/ReadOptions.TableReadOptions.html)
+  proto using the [withReadOptions](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withReadOptions-com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions-) method.
+
+The following code snippet is from the [BigQueryTornadoes
+example](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
+When the example's read method option is set to `DIRECT_READ`, the pipeline uses
+the BigQuery Storage API and column projection to read public samples of weather
+data from a BigQuery table. You can view the [full source code on
+GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
+
+```java
+   TableReadOptions tableReadOptions =
+       TableReadOptions.newBuilder()
+           .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
+           .build();
+
+   rowsFromBigQuery =
+       p.apply(
+            BigQueryIO.readTableRows()
+               .from(options.getInput())
+               .withMethod(Method.DIRECT_READ)
+               .withReadOptions(tableReadOptions));
+```
+```py
+# The SDK for Python does not support the BigQuery Storage API.
+```
+
 
 ## Writing to BigQuery
 
 BigQueryIO allows you to write to BigQuery tables. If you are using the Beam SDK
-for Java, you can also write different rows to different tables. BigQueryIO
-write transforms use APIs that are subject to BigQuery's [Quota](https://cloud.google.com/bigquery/quota-policy#export)
-and [Pricing](https://cloud.google.com/bigquery/pricing) policies.
+for Java, you can also write different rows to different tables.
+
+> BigQueryIO write transforms use APIs that are subject to BigQuery's
+> [Quota](https://cloud.google.com/bigquery/quota-policy) and
+> [Pricing](https://cloud.google.com/bigquery/pricing) policies.
 
 When you apply a write transform, you must provide the following information
 for the destination table(s):
@@ -522,7 +588,7 @@ BigQueryIO uses streaming inserts in the following situations:
 
 {:.language-java}
 You can use `withMethod` to specify the desired insertion method. See
-[Write.Method]({{site.baseurl}}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html)
+[Write.Method](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html)
 for the list of the available methods and their restrictions.
 
 {:.language-java}

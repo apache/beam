@@ -18,14 +18,15 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.ReadableDuration;
 import org.junit.Rule;
@@ -85,5 +86,12 @@ public class DurationCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(
         TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(ReadableDuration.class)));
+  }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    ReadableDuration expected = Duration.millis(3_000);
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
   }
 }

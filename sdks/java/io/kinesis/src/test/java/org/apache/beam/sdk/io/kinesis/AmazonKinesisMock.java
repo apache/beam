@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.transform;
 import static java.lang.Integer.parseInt;
 import static java.lang.Math.min;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists.transform;
 import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -37,8 +37,12 @@ import com.amazonaws.services.kinesis.model.DecreaseStreamRetentionPeriodRequest
 import com.amazonaws.services.kinesis.model.DecreaseStreamRetentionPeriodResult;
 import com.amazonaws.services.kinesis.model.DeleteStreamRequest;
 import com.amazonaws.services.kinesis.model.DeleteStreamResult;
+import com.amazonaws.services.kinesis.model.DeregisterStreamConsumerRequest;
+import com.amazonaws.services.kinesis.model.DeregisterStreamConsumerResult;
 import com.amazonaws.services.kinesis.model.DescribeLimitsRequest;
 import com.amazonaws.services.kinesis.model.DescribeLimitsResult;
+import com.amazonaws.services.kinesis.model.DescribeStreamConsumerRequest;
+import com.amazonaws.services.kinesis.model.DescribeStreamConsumerResult;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.DescribeStreamSummaryRequest;
@@ -53,6 +57,10 @@ import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
 import com.amazonaws.services.kinesis.model.IncreaseStreamRetentionPeriodRequest;
 import com.amazonaws.services.kinesis.model.IncreaseStreamRetentionPeriodResult;
+import com.amazonaws.services.kinesis.model.ListShardsRequest;
+import com.amazonaws.services.kinesis.model.ListShardsResult;
+import com.amazonaws.services.kinesis.model.ListStreamConsumersRequest;
+import com.amazonaws.services.kinesis.model.ListStreamConsumersResult;
 import com.amazonaws.services.kinesis.model.ListStreamsRequest;
 import com.amazonaws.services.kinesis.model.ListStreamsResult;
 import com.amazonaws.services.kinesis.model.ListTagsForStreamRequest;
@@ -64,6 +72,8 @@ import com.amazonaws.services.kinesis.model.PutRecordResult;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
+import com.amazonaws.services.kinesis.model.RegisterStreamConsumerRequest;
+import com.amazonaws.services.kinesis.model.RegisterStreamConsumerResult;
 import com.amazonaws.services.kinesis.model.RemoveTagsFromStreamRequest;
 import com.amazonaws.services.kinesis.model.RemoveTagsFromStreamResult;
 import com.amazonaws.services.kinesis.model.Shard;
@@ -80,13 +90,13 @@ import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
-import com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
@@ -159,8 +169,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     @Override
     public AmazonKinesis getKinesisClient() {
       return new AmazonKinesisMock(
-          shardedData
-              .stream()
+          shardedData.stream()
               .map(testDatas -> transform(testDatas, TestData::convertToRecord))
               .collect(Collectors.toList()),
           numberOfRecordsPerGet);
@@ -279,6 +288,12 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
+  public DeregisterStreamConsumerResult deregisterStreamConsumer(
+      DeregisterStreamConsumerRequest deregisterStreamConsumerRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
   public DescribeLimitsResult describeLimits(DescribeLimitsRequest describeLimitsRequest) {
     throw new RuntimeException("Not implemented");
   }
@@ -296,6 +311,12 @@ class AmazonKinesisMock implements AmazonKinesis {
   @Override
   public DescribeStreamResult describeStream(
       String streamName, Integer limit, String exclusiveStartShardId) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
+  public DescribeStreamConsumerResult describeStreamConsumer(
+      DescribeStreamConsumerRequest describeStreamConsumerRequest) {
     throw new RuntimeException("Not implemented");
   }
 
@@ -332,6 +353,17 @@ class AmazonKinesisMock implements AmazonKinesis {
   @Override
   public IncreaseStreamRetentionPeriodResult increaseStreamRetentionPeriod(
       IncreaseStreamRetentionPeriodRequest increaseStreamRetentionPeriodRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
+  public ListShardsResult listShards(ListShardsRequest listShardsRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
+  public ListStreamConsumersResult listStreamConsumers(
+      ListStreamConsumersRequest listStreamConsumersRequest) {
     throw new RuntimeException("Not implemented");
   }
 
@@ -390,6 +422,12 @@ class AmazonKinesisMock implements AmazonKinesis {
 
   @Override
   public PutRecordsResult putRecords(PutRecordsRequest putRecordsRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
+  public RegisterStreamConsumerResult registerStreamConsumer(
+      RegisterStreamConsumerRequest registerStreamConsumerRequest) {
     throw new RuntimeException("Not implemented");
   }
 

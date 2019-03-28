@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static com.alibaba.fastjson.JSON.parseObject;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 import com.alibaba.fastjson.JSONObject;
@@ -138,7 +138,7 @@ public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableSt
     writer.identifier(column.getName());
     writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name());
 
-    if (column.getNullable() != null && !column.getNullable()) {
+    if (column.getType().getNullable() != null && !column.getType().getNullable()) {
       writer.keyword("NOT NULL");
     }
 
@@ -151,7 +151,7 @@ public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableSt
   private Table toTable() {
     return Table.builder()
         .type(SqlDdlNodes.getString(type))
-        .name(name.getSimple())
+        .name(SqlDdlNodes.name(name))
         .schema(columnList.stream().collect(toSchema()))
         .comment(SqlDdlNodes.getString(comment))
         .location(SqlDdlNodes.getString(location))

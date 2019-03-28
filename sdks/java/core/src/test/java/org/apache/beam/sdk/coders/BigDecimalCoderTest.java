@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -112,5 +113,12 @@ public class BigDecimalCoderTest {
     thrown.expectMessage("cannot encode a null BigDecimal");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
+  }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    BigDecimal expected = new BigDecimal(123.23);
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
   }
 }

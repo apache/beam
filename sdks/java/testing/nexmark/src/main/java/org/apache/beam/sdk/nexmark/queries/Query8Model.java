@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -31,11 +29,13 @@ import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.IdNameReserve;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query8}. */
-public class Query8Model extends NexmarkQueryModel implements Serializable {
+public class Query8Model extends NexmarkQueryModel<IdNameReserve> implements Serializable {
   /** Simulator for query 8. */
   private class Simulator extends AbstractSimulator<Event, IdNameReserve> {
     /** New persons seen in the current window, indexed by id. */
@@ -131,12 +131,12 @@ public class Query8Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, IdNameReserve> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<IdNameReserve>> itr) {
     return toValue(itr);
   }
 }

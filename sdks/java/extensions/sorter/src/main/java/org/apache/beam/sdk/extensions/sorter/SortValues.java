@@ -96,7 +96,7 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
     }
     @SuppressWarnings("unchecked")
     KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>> kvCoder =
-        (KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>) (inputCoder);
+        (KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>) inputCoder;
 
     if (!(kvCoder.getValueCoder() instanceof IterableCoder)) {
       throw new IllegalStateException(

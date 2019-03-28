@@ -24,9 +24,6 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -44,6 +41,9 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;

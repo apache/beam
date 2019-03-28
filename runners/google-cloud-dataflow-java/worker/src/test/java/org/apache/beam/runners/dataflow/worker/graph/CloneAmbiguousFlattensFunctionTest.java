@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -26,10 +27,6 @@ import static org.junit.matchers.JUnitMatchers.hasItems;
 import com.google.api.services.dataflow.model.FlattenInstruction;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.Graphs;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.NetworkBuilder;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.DefaultEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -37,6 +34,10 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ExecutionLocation;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -131,8 +132,8 @@ public final class CloneAmbiguousFlattensFunctionTest {
         }
       }
     }
-    assertTrue("Ambiguous flatten was not cloned into sdk flatten.", sdkFlatten != null);
-    assertTrue("Ambiguous flatten was not cloned into runner flatten.", runnerFlatten != null);
+    assertNotNull("Ambiguous flatten was not cloned into sdk flatten.", sdkFlatten);
+    assertNotNull("Ambiguous flatten was not cloned into runner flatten.", runnerFlatten);
 
     Node sdkFlattenOutput = Iterables.getOnlyElement(network.successors(sdkFlatten));
     Node runnerFlattenOutput = Iterables.getOnlyElement(network.successors(runnerFlatten));
@@ -381,7 +382,7 @@ public final class CloneAmbiguousFlattensFunctionTest {
 
   /** Creates an {@link InstructionOutputNode} to act as a PCollection. */
   private static InstructionOutputNode createPCollection(String name) {
-    return InstructionOutputNode.create(new InstructionOutput().setName(name));
+    return InstructionOutputNode.create(new InstructionOutput().setName(name), "fakeId");
   }
 
   /** Creates a {@link NoLocationNode} to use for testing nodes that have no ExecutionLocation */

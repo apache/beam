@@ -113,12 +113,11 @@ def run(argv=None):
     # pylint: disable=expression-not-assigned
     record_ids = p | 'CreateIDs' >> beam.Create(['1', '2', '3', '4', '5'])
     records = record_ids | 'CreateRecords' >> beam.Map(create_random_record)
-    records | 'write' >> beam.io.Write(
-        beam.io.BigQuerySink(
-            known_args.output,
-            schema=table_schema,
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
+    records | 'write' >> beam.io.WriteToBigQuery(
+        known_args.output,
+        schema=table_schema,
+        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)
 
     # Run the pipeline (all operations are deferred until run() is called).
 

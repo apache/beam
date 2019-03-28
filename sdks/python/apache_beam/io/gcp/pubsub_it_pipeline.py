@@ -64,14 +64,14 @@ def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
         timestamp_attribute=timestamp_attribute)
 
   def add_attribute(msg, timestamp=beam.DoFn.TimestampParam):
-    msg.data += '-seen'
+    msg.data += b'-seen'
     msg.attributes['processed'] = 'IT'
     if timestamp_attribute in msg.attributes:
       msg.attributes[timestamp_attribute + '_out'] = timestamp.to_rfc3339()
     return msg
 
   def modify_data(data):
-    return data + '-seen'
+    return data + b'-seen'
 
   if with_attributes:
     output = messages | 'add_attribute' >> beam.Map(add_attribute)

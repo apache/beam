@@ -17,11 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableTable;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +25,11 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ExecutionLocation;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 
 /**
  * A function which sets the location for {@link FlattenInstruction}s by looking at the locations of
@@ -145,9 +145,9 @@ public class DeduceFlattenLocationsFunction
    */
   @Override
   public MutableNetwork<Node, Edge> apply(MutableNetwork<Node, Edge> network) {
-    Map<Node, AggregatedLocation> predecessorLocationsMap = new HashMap<Node, AggregatedLocation>();
-    Map<Node, AggregatedLocation> successorLocationsMap = new HashMap<Node, AggregatedLocation>();
-    Map<Node, ExecutionLocation> deducedLocationsMap = new HashMap<Node, ExecutionLocation>();
+    Map<Node, AggregatedLocation> predecessorLocationsMap = new HashMap<>();
+    Map<Node, AggregatedLocation> successorLocationsMap = new HashMap<>();
+    Map<Node, ExecutionLocation> deducedLocationsMap = new HashMap<>();
     ImmutableList<Node> flattens =
         ImmutableList.copyOf(Iterables.filter(network.nodes(), IsFlatten.INSTANCE));
 

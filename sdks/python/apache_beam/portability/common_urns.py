@@ -21,8 +21,8 @@ from __future__ import absolute_import
 
 from builtins import object
 
-from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.portability.api import standard_window_fns_pb2
 
 
@@ -30,6 +30,9 @@ class PropertiesFromEnumValue(object):
   def __init__(self, value_descriptor):
     self.urn = (
         value_descriptor.GetOptions().Extensions[beam_runner_api_pb2.beam_urn])
+    self.constant = (
+        value_descriptor.GetOptions().Extensions[
+            beam_runner_api_pb2.beam_constant])
 
 
 class PropertiesFromEnumType(object):
@@ -46,11 +49,16 @@ composites = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardPTransforms.Composites)
 combine_components = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardPTransforms.CombineComponents)
+sdf_components = PropertiesFromEnumType(
+    beam_runner_api_pb2.StandardPTransforms.SplittableParDoComponents)
 
 side_inputs = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardSideInputTypes.Enum)
 
 coders = PropertiesFromEnumType(beam_runner_api_pb2.StandardCoders.Enum)
+
+constants = PropertiesFromEnumType(
+    beam_runner_api_pb2.BeamConstants.Constants)
 
 environments = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardEnvironments.Environments)
@@ -70,6 +78,6 @@ session_windows = PropertiesFromPayloadType(
     standard_window_fns_pb2.SessionsPayload)
 
 monitoring_infos = PropertiesFromEnumType(
-    beam_fn_api_pb2.MonitoringInfoUrns.Enum)
+    metrics_pb2.MonitoringInfoUrns.Enum)
 monitoring_info_types = PropertiesFromEnumType(
-    beam_fn_api_pb2.MonitoringInfoTypeUrns.Enum)
+    metrics_pb2.MonitoringInfoTypeUrns.Enum)

@@ -72,6 +72,7 @@ from apache_beam.pvalue import PDone
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ptransform
+#from apache_beam.transforms import external
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
@@ -415,7 +416,7 @@ class Pipeline(object):
         pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
       finally:
         shutil.rmtree(tmpdir)
-    return self.runner.run_pipeline(self)
+    return self.runner.run_pipeline(self, self._options)
 
   def __enter__(self):
     return self
@@ -512,7 +513,7 @@ class Pipeline(object):
     if type_options.pipeline_type_check:
       transform.type_check_inputs(pvalueish)
 
-    pvalueish_result = self.runner.apply(transform, pvalueish)
+    pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
 
     if type_options is not None and type_options.pipeline_type_check:
       transform.type_check_outputs(pvalueish_result)
@@ -544,11 +545,12 @@ class Pipeline(object):
 
   def _infer_result_type(self, transform, inputs, result_pcollection):
     # TODO(robertwb): Multi-input, multi-output inference.
-    # TODO(robertwb): Ideally we'd do intersection here.
     type_options = self._options.view_as(TypeOptions)
     if (type_options is not None and type_options.pipeline_type_check
         and isinstance(result_pcollection, pvalue.PCollection)
-        and not result_pcollection.element_type):
+        and (not result_pcollection.element_type
+             # TODO(robertwb): Ideally we'd do intersection here.
+             or result_pcollection.element_type == typehints.Any)):
       input_element_type = (
           inputs[0].element_type
           if len(inputs) == 1
@@ -606,13 +608,18 @@ class Pipeline(object):
     return Visitor.ok
 
   def to_runner_api(
-      self, return_context=False, context=None, use_fake_coders=False):
+      self, return_context=False, context=None, use_fake_coders=False,
+      default_environment=None):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
     if context is None:
       context = pipeline_context.PipelineContext(
-          use_fake_coders=use_fake_coders)
+          use_fake_coders=use_fake_coders,
+          default_environment=default_environment)
+    elif default_environment is not None:
+      raise ValueError(
+          'Only one of context or default_environment may be specificed.')
 
     # The RunnerAPI spec requires certain transforms to have KV inputs
     # (and corresponding outputs).
@@ -784,23 +791,23 @@ class AppliedPTransform(object):
 
     for pval in self.inputs:
       if pval not in visited and not isinstance(pval, pvalue.PBegin):
-        assert pval.producer is not None
-        pval.producer.visit(visitor, pipeline, visited)
-        # The value should be visited now since we visit outputs too.
-        assert pval in visited, pval
+        if pval.producer is not None:
+          pval.producer.visit(visitor, pipeline, visited)
+          # The value should be visited now since we visit outputs too.
+          assert pval in visited, pval
 
     # Visit side inputs.
     for pval in self.side_inputs:
       if isinstance(pval, pvalue.AsSideInput) and pval.pvalue not in visited:
         pval = pval.pvalue  # Unpack marker-object-wrapped pvalue.
-        assert pval.producer is not None
-        pval.producer.visit(visitor, pipeline, visited)
-        # The value should be visited now since we visit outputs too.
-        assert pval in visited
-        # TODO(silviuc): Is there a way to signal that we are visiting a side
-        # value? The issue is that the same PValue can be reachable through
-        # multiple paths and therefore it is not guaranteed that the value
-        # will be visited as a side value.
+        if pval.producer is not None:
+          pval.producer.visit(visitor, pipeline, visited)
+          # The value should be visited now since we visit outputs too.
+          assert pval in visited
+          # TODO(silviuc): Is there a way to signal that we are visiting a side
+          # value? The issue is that the same PValue can be reachable through
+          # multiple paths and therefore it is not guaranteed that the value
+          # will be visited as a side value.
 
     # Visit a composite or primitive transform.
     if self.is_composite():
@@ -841,6 +848,11 @@ class AppliedPTransform(object):
             if isinstance(output, pvalue.PCollection)}
 
   def to_runner_api(self, context):
+    # External tranforms require more splicing than just setting the spec.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      return self.transform.to_runner_api_transform(context, self.full_label)
+
     from apache_beam.portability.api import beam_runner_api_pb2
 
     def transform_to_runner_api(transform, context):

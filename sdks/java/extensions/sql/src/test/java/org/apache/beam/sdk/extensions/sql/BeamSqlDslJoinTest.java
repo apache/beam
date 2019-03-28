@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.TestUtils.tuple;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS1;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS2;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.stringContainsInOrder;
 
 import java.util.Arrays;
@@ -288,7 +289,7 @@ public class BeamSqlDslJoinTest {
   }
 
   private PCollection<Row> ordersUnbounded() {
-    DateTime ts = new DateTime(2017, 1, 1, 1, 0, 0);
+    DateTime ts = parseTimestampWithoutTimeZone("2017-1-1 1:0:0");
 
     return TestUtils.rowsBuilderOf(
             Schema.builder()

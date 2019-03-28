@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -32,9 +32,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -87,6 +84,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.commons.compress.utils.Sets;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -332,12 +332,26 @@ public class WriteFilesTest {
     }
     runWrite(
         inputs,
-        Window.into(FixedWindows.of(Duration.millis(2))),
+        Window.into(FixedWindows.of(Duration.millis(1))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink()).withMaxNumWritersPerBundle(2).withWindowedWrites());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteNoSpilling() throws IOException {
+    List<String> inputs = Lists.newArrayList();
+    for (int i = 0; i < 100; ++i) {
+      inputs.add("mambo_number_" + i);
+    }
+    runWrite(
+        inputs,
+        Window.into(FixedWindows.of(Duration.millis(1))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink())
             .withMaxNumWritersPerBundle(2)
             .withWindowedWrites()
-            .withNumShards(1));
+            .withNoSpilling());
   }
 
   @Test

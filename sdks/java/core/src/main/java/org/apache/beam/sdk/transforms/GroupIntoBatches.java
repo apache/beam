@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -35,6 +33,8 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -48,25 +48,24 @@ import org.slf4j.LoggerFactory;
  * are output to the output {@link PCollection}.
  *
  * <p>Windows are preserved (batches contain elements from the same window). Batches may contain
- * elements from more than one bundle
+ * elements from more than one bundle.
  *
- * <p>Example (batch call a webservice and get return codes)
+ * <p>Example (batch call a webservice and get return codes):
  *
  * <pre>{@code
- *  Pipeline pipeline = Pipeline.create(...);
- *  ... // KV collection
- *  long batchSize = 100L;
- *  pipeline.apply(GroupIntoBatches.<String, String>ofSize(batchSize))
- * .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
- * .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
- * {@literal @}ProcessElement
- * public void processElement({@literal @}Element KV<String, Iterable<String>> element,
- *                            OutputReceiver<KV<String, String>> r) {
- * r.output(KV.of(element.getKey(), callWebService(element.getValue())));
- * }
- * }));
- *  pipeline.run();
- * }</pre>
+ * PCollection<KV<String, String>> input = ...;
+ * long batchSize = 100L;
+ * PCollection<KV<String, Iterable<String>>> batched = input
+ *     .apply(GroupIntoBatches.<String, String>ofSize(batchSize))
+ *     .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
+ *     .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() }{
+ *        {@code @ProcessElement
+ *         public void processElement(@Element KV<String, Iterable<String>> element,
+ *             OutputReceiver<KV<String, String>> r) {
+ *             r.output(KV.of(element.getKey(), callWebService(element.getValue())));
+ *         }
+ *     }}));
+ * </pre>
  */
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
@@ -173,7 +172,7 @@ public class GroupIntoBatches<K, InputT>
       numElementsInBatch.add(1L);
       Long num = numElementsInBatch.read();
       if (num % prefetchFrequency == 0) {
-        //prefetch data and modify batch state (readLater() modifies this)
+        // prefetch data and modify batch state (readLater() modifies this)
         batch.readLater();
       }
       if (num >= batchSize) {

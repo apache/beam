@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -27,7 +26,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunction;
@@ -47,6 +45,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -87,13 +87,12 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
-  reason =
-      "Is very recommended to override because of performance in "
-          + "a specific area of (mostly) batch calculations where combiners "
-          + "can be efficiently used in the executor-specific implementation",
-  state = StateComplexity.CONSTANT_IF_COMBINABLE,
-  repartitions = 1
-)
+    reason =
+        "Is very recommended to override because of performance in "
+            + "a specific area of (mostly) batch calculations where combiners "
+            + "can be efficiently used in the executor-specific implementation",
+    state = StateComplexity.CONSTANT_IF_COMBINABLE,
+    repartitions = 1)
 public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     extends ShuffleOperator<InputT, KeyT, KV<KeyT, OutputT>> implements TypeAware.Value<ValueT> {
 
@@ -104,9 +103,9 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -124,7 +123,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
+    <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input);
   }
 
   /** Builder for 'keyBy' step. */
@@ -319,7 +318,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
     @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
@@ -334,31 +333,31 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> KeyByBuilder<T> of(Dataset<T> input) {
+    public <T> KeyByBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T, ?, ?, ?> casted = (Builder) this;
-      casted.input = input;
-      return casted;
+      final Builder<T, ?, ?, ?> cast = (Builder) this;
+      cast.input = input;
+      return cast;
     }
 
     @Override
     public <T> ValueByReduceByBuilder<InputT, T, InputT> keyBy(
         UnaryFunction<InputT, T> keyExtractor, @Nullable TypeDescriptor<T> keyType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T, InputT, ?> casted = (Builder) this;
-      casted.keyExtractor = requireNonNull(keyExtractor);
-      casted.keyType = keyType;
-      return casted;
+      final Builder<InputT, T, InputT, ?> cast = (Builder) this;
+      cast.keyExtractor = requireNonNull(keyExtractor);
+      cast.keyType = keyType;
+      return cast;
     }
 
     @Override
     public <T> ReduceByBuilder<KeyT, T> valueBy(
         UnaryFunction<InputT, T> valueExtractor, @Nullable TypeDescriptor<T> valueType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, KeyT, T, ?> casted = (Builder) this;
-      casted.valueExtractor = requireNonNull(valueExtractor);
-      casted.valueType = valueType;
-      return casted;
+      final Builder<InputT, KeyT, T, ?> cast = (Builder) this;
+      cast.valueExtractor = requireNonNull(valueExtractor);
+      cast.valueType = valueType;
+      return cast;
     }
 
     @Override
@@ -370,10 +369,10 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
         valueExtractor = (UnaryFunction) UnaryFunction.identity();
       }
       @SuppressWarnings("unchecked")
-      final Builder<InputT, KeyT, ValueT, T> casted = (Builder) this;
-      casted.reducer = requireNonNull(reducer);
-      casted.outputType = outputType;
-      return casted;
+      final Builder<InputT, KeyT, ValueT, T> cast = (Builder) this;
+      cast.reducer = requireNonNull(reducer);
+      cast.outputType = outputType;
+      return cast;
     }
 
     @Override
@@ -436,29 +435,29 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     }
 
     @Override
-    public Dataset<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
-      final ReduceByKey<InputT, KeyT, ValueT, OutputT> rbk =
-          new ReduceByKey<>(
-              name,
-              keyExtractor,
-              keyType,
-              valueExtractor,
-              valueType,
-              reducer,
-              valueComparator,
-              windowBuilder.getWindow().orElse(null),
-              TypeDescriptors.kvs(
-                  TypeAwareness.orObjects(Optional.ofNullable(keyType)),
-                  TypeAwareness.orObjects(Optional.ofNullable(outputType))));
-      return OperatorTransform.apply(rbk, Collections.singletonList(input));
+    public PCollection<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
+      return OperatorTransform.apply(createOperator(), PCollectionList.of(input));
     }
 
     @Override
-    public Dataset<OutputT> outputValues(OutputHint... outputHints) {
-      return MapElements.named(name != null ? name + "::extract-values" : null)
-          .of(output(outputHints))
-          .using(KV::getValue, outputType)
-          .output(outputHints);
+    public PCollection<OutputT> outputValues(OutputHint... outputHints) {
+      return OperatorTransform.apply(
+          new OutputValues<>(name, outputType, createOperator()), PCollectionList.of(input));
+    }
+
+    private ReduceByKey<InputT, KeyT, ValueT, OutputT> createOperator() {
+      return new ReduceByKey<>(
+          name,
+          keyExtractor,
+          keyType,
+          valueExtractor,
+          valueType,
+          reducer,
+          valueComparator,
+          windowBuilder.getWindow().orElse(null),
+          TypeDescriptors.kvs(
+              TypeAwareness.orObjects(Optional.ofNullable(keyType)),
+              TypeAwareness.orObjects(Optional.ofNullable(outputType))));
     }
   }
 

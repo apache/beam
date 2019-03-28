@@ -23,7 +23,6 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -51,8 +51,7 @@ public class SnsIOTest implements Serializable {
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(SnsIO.class);
 
   private static PublishRequest createSampleMessage(String message) {
-    PublishRequest request = new PublishRequest().withTopicArn(topicName).withMessage(message);
-    return request;
+    return new PublishRequest().withTopicArn(topicName).withMessage(message);
   }
 
   private static class Provider implements AwsClientsProvider {

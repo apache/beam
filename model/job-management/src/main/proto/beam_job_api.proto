@@ -32,7 +32,7 @@ option java_outer_classname = "JobApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
-
+import "metrics.proto";
 
 // Job Service for running RunnerAPI pipelines
 service JobService {
@@ -54,6 +54,12 @@ service JobService {
 
   // Subscribe to a stream of state changes and messages from the job
   rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
+
+  // Fetch metrics for a given job
+  rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse);
+
+  // Get the supported pipeline options of the runner
+  rpc DescribePipelineOptions (DescribePipelineOptionsRequest) returns (DescribePipelineOptionsResponse);
 }
 
 
@@ -134,7 +140,6 @@ message GetJobStateResponse {
 // the job ended.
 message JobMessagesRequest {
   string job_id = 1; // (required)
-
 }
 
 message JobMessage {
@@ -175,4 +180,64 @@ message JobState {
     STARTING = 9;
     CANCELLING = 10;
   }
+}
+
+
+message GetJobMetricsRequest {
+  string job_id = 1; // (required)
+}
+
+message GetJobMetricsResponse {
+  MetricResults metrics = 1;
+}
+
+// All metrics for a given job.  Runners may support one or the other or both.
+message MetricResults {
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo attempted = 1;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo committed = 2;
+}
+
+
+// DescribePipelineOptions provides metadata about the options supported by a runner.
+// It will be used by the SDK client to validate the options specified by or
+// list available options to the user.
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+message DescribePipelineOptionsRequest {
+}
+
+// Type for pipeline options.
+// Types mirror those of JSON, since that's how pipeline options are serialized.
+message PipelineOptionType {
+  enum Enum {
+    STRING = 0;
+    BOOLEAN = 1;
+    // whole numbers, see https://json-schema.org/understanding-json-schema/reference/numeric.html
+    INTEGER = 2;
+    NUMBER = 3;
+    ARRAY = 4;
+    OBJECT = 5;
+  };
+}
+
+// Metadata for a pipeline option.
+message PipelineOptionDescriptor {
+  // (Required) The option name.
+  string name = 1;
+
+  // (Required) Type of option.
+  PipelineOptionType.Enum type = 2;
+
+  // (Optional) Description suitable for display / help text.
+  string description = 3;
+
+  // (Optional) Default value.
+  string default_value = 4;
+
+  // (Required) The group this option belongs to.
+  string group = 5;
+}
+
+message DescribePipelineOptionsResponse {
+  // List of pipeline option descriptors.
+  repeated PipelineOptionDescriptor options = 1;
 }

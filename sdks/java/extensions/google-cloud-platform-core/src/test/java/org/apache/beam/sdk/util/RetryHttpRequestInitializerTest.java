@@ -136,6 +136,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(), anyString());
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
+    verify(mockLowLevelRequest).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest).execute();
     verify(mockLowLevelResponse).getStatusCode();
     expectedLogs.verifyNotLogged("Request failed");
@@ -160,6 +161,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(), anyString());
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
+    verify(mockLowLevelRequest).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest).execute();
     verify(mockLowLevelResponse).getStatusCode();
     expectedLogs.verifyWarn("Request failed with code 403");
@@ -184,6 +186,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(), anyString());
     verify(mockLowLevelRequest, times(3)).setTimeout(anyInt(), anyInt());
+    verify(mockLowLevelRequest, times(3)).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest, times(3)).execute();
     verify(mockLowLevelResponse, times(3)).getStatusCode();
     expectedLogs.verifyDebug("Request failed with code 503");
@@ -204,6 +207,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(), anyString());
     verify(mockLowLevelRequest, times(2)).setTimeout(anyInt(), anyInt());
+    verify(mockLowLevelRequest, times(2)).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest, times(2)).execute();
     verify(mockLowLevelResponse).getStatusCode();
     expectedLogs.verifyDebug("Request failed with IOException");
@@ -235,6 +239,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(), anyString());
     verify(mockLowLevelRequest, times(retries + 1)).setTimeout(anyInt(), anyInt());
+    verify(mockLowLevelRequest, times(retries + 1)).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest, times(retries + 1)).execute();
     verify(mockLowLevelResponse, times(retries + 1)).getStatusCode();
     expectedLogs.verifyWarn("performed 10 retries due to unsuccessful status codes");

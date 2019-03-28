@@ -25,6 +25,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.gearpump.streaming.dsl.api.functions.MapFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
+import io.gearpump.streaming.source.DataSource;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,9 +38,6 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.source.DataSource;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 

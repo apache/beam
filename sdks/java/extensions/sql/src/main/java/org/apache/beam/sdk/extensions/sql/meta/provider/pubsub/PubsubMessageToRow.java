@@ -95,9 +95,7 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
    * payload, and attributes.
    */
   private List<Object> getFieldValues(ProcessContext context) {
-    return messageSchema()
-        .getFields()
-        .stream()
+    return messageSchema().getFields().stream()
         .map(field -> getValueForField(field, context.timestamp(), context.element()))
         .collect(toList());
   }

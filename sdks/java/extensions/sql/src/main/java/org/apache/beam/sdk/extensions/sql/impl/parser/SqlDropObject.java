@@ -19,9 +19,9 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.sql.SqlDrop;

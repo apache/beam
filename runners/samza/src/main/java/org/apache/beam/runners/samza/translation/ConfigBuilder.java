@@ -17,21 +17,23 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.util.Base64Serializer;
+import org.apache.beam.runners.samza.SamzaRunnerOverrideConfigs;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
+import org.apache.samza.config.ConfigFactory;
 import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.JobCoordinatorConfig;
 import org.apache.samza.config.MapConfig;
@@ -64,22 +66,17 @@ public class ConfigBuilder {
 
   public Config build() {
     try {
-      config.putAll(systemStoreConfig());
+      config.putAll(systemStoreConfig(options));
 
       // apply user configs
       config.putAll(createUserConfig(options));
 
       config.put(JobConfig.JOB_NAME(), options.getJobName());
+      config.put(JobConfig.JOB_ID(), options.getJobInstance());
+
       config.put(
           "beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
-      // TODO: remove after SAMZA-1531 is resolved
-      config.put(
-          ApplicationConfig.APP_RUN_ID,
-          String.valueOf(System.currentTimeMillis())
-              + "-"
-              // use the most significant bits in UUID (8 digits) to avoid collision
-              + UUID.randomUUID().toString().substring(0, 8));
 
       return new MapConfig(config);
     } catch (Exception e) {
@@ -87,16 +84,33 @@ public class ConfigBuilder {
     }
   }
 
-  private static Map<String, String> createUserConfig(SamzaPipelineOptions options) {
+  private static boolean isEmptyUserConfig(Map<String, String> config) {
+    if (config == null) {
+      return true;
+    }
+    return config.keySet().stream()
+        .allMatch(key -> key.startsWith(SamzaRunnerOverrideConfigs.BEAM_RUNNER_CONFIG_PREFIX));
+  }
+
+  private static Map<String, String> createUserConfig(SamzaPipelineOptions options)
+      throws Exception {
     final String configFilePath = options.getConfigFilePath();
     final Map<String, String> config = new HashMap<>();
 
     // If user provides a config file, use it as base configs.
     if (StringUtils.isNoneEmpty(configFilePath)) {
       final File configFile = new File(configFilePath);
-      checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
-      final PropertiesConfigFactory configFactory = new PropertiesConfigFactory();
       final URI configUri = configFile.toURI();
+      final ConfigFactory configFactory =
+          options.getConfigFactory().getDeclaredConstructor().newInstance();
+
+      // Config file must exist for default properties config
+      // TODO: add check to all non-empty files once we don't need to
+      // pass the command-line args through the containers
+      if (configFactory instanceof PropertiesConfigFactory) {
+        checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
+      }
+
       config.putAll(configFactory.getConfig(configUri));
     }
 
@@ -105,8 +119,10 @@ public class ConfigBuilder {
       config.putAll(options.getConfigOverride());
     }
 
-    // If the config is empty, use the default local running mode
-    if (config.isEmpty()) {
+    // If there is no user specified config, use the default local running mode
+    // we are keeping this work around until https://issues.apache.org/jira/browse/BEAM-5732 is
+    // addressed
+    if (isEmptyUserConfig(options.getConfigOverride())) {
       config.putAll(localRunConfig());
     }
 
@@ -127,17 +143,36 @@ public class ConfigBuilder {
         .put(TaskConfig.GROUPER_FACTORY(), SingleContainerGrouperFactory.class.getName())
         .put(TaskConfig.COMMIT_MS(), "-1")
         .put("processor.id", "1")
+        .put(
+            // TODO: remove after SAMZA-1531 is resolved
+            ApplicationConfig.APP_RUN_ID,
+            String.valueOf(System.currentTimeMillis())
+                + "-"
+                // use the most significant bits in UUID (8 digits) to avoid collision
+                + UUID.randomUUID().toString().substring(0, 8))
         .build();
   }
 
-  private static Map<String, String> systemStoreConfig() {
-    return ImmutableMap.<String, String>builder()
-        .put(
-            "stores.beamStore.factory",
-            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
-        .put("stores.beamStore.key.serde", "byteSerde")
-        .put("stores.beamStore.msg.serde", "byteSerde")
-        .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName())
-        .build();
+  private static Map<String, String> systemStoreConfig(SamzaPipelineOptions options) {
+    ImmutableMap.Builder<String, String> configBuilder =
+        ImmutableMap.<String, String>builder()
+            .put(
+                "stores.beamStore.factory",
+                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
+            .put("stores.beamStore.key.serde", "byteSerde")
+            .put("stores.beamStore.msg.serde", "byteSerde")
+            .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
+
+    if (options.getStateDurable()) {
+      configBuilder.put("stores.beamStore.changelog", getChangelogTopic(options, "beamStore"));
+      configBuilder.put("job.host-affinity.enabled", "true");
+    }
+
+    return configBuilder.build();
+  }
+
+  static String getChangelogTopic(SamzaPipelineOptions options, String storeName) {
+    return String.format(
+        "%s-%s-%s-changelog", options.getJobName(), options.getJobInstance(), storeName);
   }
 }

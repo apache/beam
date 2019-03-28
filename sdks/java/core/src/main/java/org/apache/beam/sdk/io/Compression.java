@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Ints;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
@@ -30,13 +27,19 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 
 /** Various compression types for reading/writing files. */
+@SuppressWarnings("ImmutableEnumChecker")
 public enum Compression {
   /**
    * When reading a file, automatically determine the compression type based on filename extension.
@@ -123,6 +126,29 @@ public enum Compression {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       throw new UnsupportedOperationException("Writing ZIP files is currently unsupported");
+    }
+  },
+
+  /**
+   * ZStandard compression.
+   *
+   * <p>The {@code .zst} extension is specified in <a href=https://tools.ietf.org/html/rfc8478>RFC
+   * 8478</a>.
+   *
+   * <p>The Beam Java SDK does not pull in the Zstd library by default, so it is the user's
+   * responsibility to declare an explicit dependency on {@code zstd-jni}. Attempts to read or write
+   * .zst files without {@code zstd-jni} loaded will result in {@code NoClassDefFoundError} at
+   * runtime.
+   */
+  ZSTD(".zst", ".zst", ".zstd") {
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(new ZstdCompressorInputStream(Channels.newInputStream(channel)));
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(new ZstdCompressorOutputStream(Channels.newOutputStream(channel)));
     }
   },
 

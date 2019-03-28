@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineFns;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
 @Experimental(Kind.SCHEMAS)
@@ -96,7 +97,7 @@ class SchemaAggregateFn {
           @Nullable Schema inputSchema) {
         if (inputSchema != null) {
           this.fieldsToAggregate = fieldsToAggregate.resolve(inputSchema);
-          this.inputSubSchema = Select.getOutputSchema(inputSchema, this.fieldsToAggregate);
+          this.inputSubSchema = SelectHelpers.getOutputSchema(inputSchema, this.fieldsToAggregate);
           this.unnestedInputSubSchema = Unnest.getUnnestedSchema(inputSubSchema);
           this.needsUnnesting = !inputSchema.equals(unnestedInputSubSchema);
         } else {
@@ -145,8 +146,7 @@ class SchemaAggregateFn {
     /** Once the schema is known, this function is called by the {@link Group} transform. */
     Inner<T> withSchema(Schema inputSchema, SerializableFunction<T, Row> toRowFunction) {
       List<FieldAggregation> fieldAggregations =
-          getFieldAggregations()
-              .stream()
+          getFieldAggregations().stream()
               .map(f -> f.resolve(inputSchema))
               .collect(Collectors.toList());
 
@@ -241,7 +241,7 @@ class SchemaAggregateFn {
       public OutputT apply(InputT input) {
         Row row = toRowFunction.apply(input);
         Row selected =
-            Select.selectRow(
+            SelectHelpers.selectRow(
                 row,
                 fieldAggregation.fieldsToAggregate,
                 row.getSchema(),
@@ -267,7 +267,7 @@ class SchemaAggregateFn {
       @Override
       public Row apply(T input) {
         Row row = toRowFunction.apply(input);
-        return Select.selectRow(
+        return SelectHelpers.selectRow(
             row,
             fieldAggregation.fieldsToAggregate,
             row.getSchema(),

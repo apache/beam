@@ -20,9 +20,9 @@ package org.apache.beam.runners.dataflow.worker;
 import static com.google.api.client.util.Base64.decodeBase64;
 import static org.apache.beam.runners.dataflow.util.Structs.getBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** Creates a GroupingShuffleReader from a CloudObject spec. */
 public class GroupingShuffleReaderFactory implements ReaderFactory {
@@ -50,15 +51,20 @@ public class GroupingShuffleReaderFactory implements ReaderFactory {
     }
   }
 
+  // Findbugs does not correctly understand inheritance + nullability.
+  //
+  // options may be null due to parent class signature, and must be checked, despite not
+  // being nullable here
   @Override
   public NativeReader<?> create(
       CloudObject spec,
       @Nullable Coder<?> coder,
-      @Nullable PipelineOptions options,
+      PipelineOptions options,
       @Nullable DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
 
+    checkArgument(options != null, "options must not be null");
     @SuppressWarnings({"rawtypes", "unchecked"})
     Coder<WindowedValue<KV<Object, Iterable<Object>>>> typedCoder = (Coder) coder;
     return createTyped(spec, typedCoder, options, executionContext, operationContext);
@@ -67,7 +73,7 @@ public class GroupingShuffleReaderFactory implements ReaderFactory {
   public <K, V> GroupingShuffleReader<K, V> createTyped(
       CloudObject spec,
       @Nullable Coder<WindowedValue<KV<K, Iterable<V>>>> coder,
-      @Nullable PipelineOptions options,
+      PipelineOptions options,
       @Nullable DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {

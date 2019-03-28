@@ -17,19 +17,19 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.io.ByteStreams;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleBatchReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 
 /** ChunkingShuffleBatchReader reads data from a shuffle dataset using a ShuffleReader. */
 final class ChunkingShuffleBatchReader implements ShuffleBatchReader {

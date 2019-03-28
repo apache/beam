@@ -24,6 +24,7 @@ from builtins import object
 from apache_beam.coders import coders
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
+from apache_beam.tools import utils
 from apache_beam.typehints import typehints
 
 
@@ -59,6 +60,12 @@ class CustomCoder(coders.Coder):
 
 
 class TypeCodersTest(unittest.TestCase):
+
+  def setUp(self):
+    try:
+      utils.check_compiled('apache_beam.coders')
+    except RuntimeError:
+      self.skipTest('Cython is not installed')
 
   def test_register_non_type_coder(self):
     coder = CustomCoder()

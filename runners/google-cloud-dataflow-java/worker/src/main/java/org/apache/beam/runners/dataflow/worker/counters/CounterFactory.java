@@ -18,11 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.counters;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.math.LongMath;
-import com.google.common.util.concurrent.AtomicDouble;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Objects;
@@ -32,6 +27,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.AtomicCounterValue;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.AtomicDouble;
 
 /** Factory interface for creating counters. */
 public class CounterFactory {
@@ -299,7 +299,7 @@ public class CounterFactory {
         // Value in existing bucket
         int curIndex = firstBucketOffset;
         for (Long curValue : curBuckets) {
-          Long newValue = (bucketIndex == curIndex) ? curValue + 1 : curValue;
+          long newValue = (bucketIndex == curIndex) ? curValue + 1 : curValue;
           newBuckets.add(newValue);
           curIndex++;
         }

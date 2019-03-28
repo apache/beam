@@ -39,6 +39,8 @@ There are lots of opportunities to contribute:
 }}/community/contact-us/)
  - improve the documentation
  - contribute [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
+ - contribute by testing releases
+ - contribute by reviewing [changes](https://github.com/apache/beam/pulls)
  - write new examples
  - improve your favorite language SDK (Java, Python, Go, etc)
  - improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
@@ -56,7 +58,7 @@ Most importantly, if you have an idea of how to contribute, then do it!
 
 ## Contributing code
 
-Below is a tutorial for contributing code to Beam, covering our tools and typical process in
+Below is a tutorial for contributing [code to Beam](https://github.com/apache/beam), covering our tools and typical process in
 detail.
 
 ### Prerequisites
@@ -98,10 +100,10 @@ To contribute code, you need
    [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/)
 1. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
-   [examples](https://s.apache.org/beam-design-docs)) and email it to the dev@ mailing list.
+   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
 
 ### Development Setup
-   
+
 1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
    [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
@@ -114,7 +116,7 @@ To contribute code, you need
 
    For a given module, use:
 
-       $ ./gradlew sdks/java/io/cassandra tasks
+       $ ./gradlew -p sdks/java/io/cassandra tasks
 
     For an exhaustive list of tasks, use:
 
@@ -131,7 +133,7 @@ To contribute code, you need
        $ ./gradlew -p sdks/go check
        $ ./gradlew -p sdks/java/io/cassandra check
        $ ./gradlew -p runners/flink check
-       
+
 1. Now you may want to set up your preferred IDE and other aspects of your development
    environment. See the Developers' wiki for tips, guides, and FAQs on:
    - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
@@ -142,18 +144,20 @@ To contribute code, you need
    - [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
    - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
    - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
-   
+
 ### Make your change
-   
+
 1. Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
    have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
 1. Add unit tests for your change
 1. When your change is ready to be reviewed and merged, create a pull request.
-   Format the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
+   Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
    where you replace BEAM-XXX with the appropriate JIRA issue.
    This will automatically link the pull request to the issue.
+   Use descriptive commit messages that make it easy to identify changes and provide a clear history.
+   To support efficient and quality review, avoid tiny or out-of-context changes and huge mega-changes.
 1. The pull request and any changes pushed to it will trigger [pre-commit
-   jobs](/contribute/testing/). If a test fails and appears unrelated to your
+   jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
    PR
 
@@ -163,15 +167,18 @@ To contribute code, you need
    .testinfra/jenkins, but use these sparingly because post-commit
    tests consume shared development resources.
 1. Pull requests can only be merged by a
-   [beam committer]({{ site.baseurl }}/contribute/team/).
+   [Beam committer]({{ site.baseurl }}/contribute/team/).
    To find a committer for your area, either:
     - look in the OWNERS file of the directory where you changed files, or
     - look for similar code merges, or
     - ask on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
 
    Use `R: @username` in the pull request to notify a reviewer.
-1. If you don't get any response in 3 business days, email the dev@ list to ask for someone to look at your pull
+1. If you don't get any response in 3 business days, email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us) to ask for someone to look at your pull
    request.
+1. Review feedback typically leads to follow-up changes. You can add these changes as additional "fixup" commits to the
+   existing PR/branch. This will allow reviewer(s) to track the incremental progress. After review is complete and the
+   PR accepted, multiple commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
 
 ## When will my change show up in an Apache Beam release?
 
@@ -190,28 +197,28 @@ unassigned from the author but will stay open.
 
 ## Accounts and Permissions
 
-- [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
-  anyone can access it and browse issues. Anyone can register an account and login
+- [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues):
+  Anyone can access it and browse issues. Anyone can register an account and login
   to create issues or add comments. Only contributors can be assigned issues. If
   you want to be assigned issues, a PMC member can add you to the project contributor
   group.  Email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
   to ask to be added as a contributor in the Beam issue tracker, and include your ASF Jira username.
 
-- [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
-  If you wish to contribute changes, please request edit access on the
-  [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
+- [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam):
+  Anyone has read access. If you wish to contribute changes, please create an account and request edit access on the
+  [dev@ mailing list]({{ site.baseurl }}/community/contact-us) (include your Wiki account user ID).
 
 - Pull requests can only be merged by a
-  [beam committer]({{ site.baseurl }}/contribute/team/).
+  [Beam committer]({{ site.baseurl }}/contribute/team/).
 
-- [Voting on a release](https://www.apache.org/foundation/voting.html). Everyone can vote. Only
+- [Voting on a release](https://www.apache.org/foundation/voting.html): Everyone can vote. Only
   [Beam PMC]({{ site.baseurl }}/contribute/team/) members should mark their votes as binding.
 
 ## Communication
 
 All communication is expected to align with the [Code of Conduct](https://www.apache.org/foundation/policies/conduct).
 
-Discussions about contributing code to beam  happens on the [dev@ mailing list]({{ site.baseurl
+Discussion about contributing code to Beam happens on the [dev@ mailing list]({{ site.baseurl
 }}/community/contact-us/). Introduce yourself!
 
 Questions can be asked on the [#beam channel of the ASF slack]({{ site.baseurl

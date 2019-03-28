@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.util;
 
 import org.apache.avro.Schema;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.AvroCoder;
 
 /** A {@link CloudObjectTranslator} for {@link AvroCoder}. */
@@ -26,7 +27,7 @@ class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder>
   private static final String SCHEMA_FIELD = "schema";
 
   @Override
-  public CloudObject toCloudObject(AvroCoder target) {
+  public CloudObject toCloudObject(AvroCoder target, SdkComponents sdkComponents) {
     CloudObject base = CloudObject.forClass(AvroCoder.class);
     Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
     Structs.addString(base, TYPE_FIELD, target.getType().getName());

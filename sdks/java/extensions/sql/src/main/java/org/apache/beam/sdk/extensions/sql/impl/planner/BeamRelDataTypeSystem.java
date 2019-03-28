@@ -35,4 +35,10 @@ public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
   public int getMaxNumericPrecision() {
     return 38;
   }
+
+  /* operators that change string length should return varchar. */
+  @Override
+  public boolean shouldConvertRaggedUnionTypesToVarying() {
+    return true;
+  }
 }

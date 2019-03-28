@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -42,13 +42,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -71,11 +64,9 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -96,6 +87,13 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -103,7 +101,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
@@ -361,7 +358,6 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testTriggeredFileLoads() throws Exception {
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
@@ -392,6 +388,48 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withTestServices(fakeBqServices)
                 .withTriggeringFrequency(Duration.standardSeconds(30))
                 .withNumFileShards(2)
+                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testTriggeredFileLoadsWithTempTables() throws Exception {
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+
+    TestStream<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of())
+            .addElements(
+                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
+            .advanceWatermarkToInfinity();
+
+    p.apply(testStream)
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .withTriggeringFrequency(Duration.standardSeconds(30))
+                .withNumFileShards(2)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
                 .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
                 .withoutValidation());
     p.run();
@@ -994,7 +1032,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWritePartitionSinglePartition() throws Exception {
-    long numFiles = BatchLoads.MAX_NUM_FILES;
+    long numFiles = BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION;
     long fileSize = 1;
 
     // One partition is needed.
@@ -1004,10 +1042,11 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWritePartitionManyFiles() throws Exception {
-    long numFiles = BatchLoads.MAX_NUM_FILES * 3;
+    long numFiles = BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION * 3;
     long fileSize = 1;
 
-    // One partition is needed for each group of BigQueryWrite.MAX_NUM_FILES files.
+    // One partition is needed for each group of BigQueryWrite.DEFAULT_MAX_FILES_PER_PARTITION
+    // files.
     long expectedNumPartitions = 3;
     testWritePartition(2, numFiles, fileSize, expectedNumPartitions);
   }
@@ -1015,7 +1054,7 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testWritePartitionLargeFileSize() throws Exception {
     long numFiles = 10;
-    long fileSize = BatchLoads.MAX_SIZE_BYTES / 3;
+    long fileSize = BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION / 3;
 
     // One partition is needed for each group of three files.
     long expectedNumPartitions = 4;
@@ -1075,6 +1114,8 @@ public class BigQueryIOWriteTest implements Serializable {
             isSingleton,
             dynamicDestinations,
             tempFilePrefixView,
+            BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION,
+            BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION,
             multiPartitionsTag,
             singlePartitionTag);
 
@@ -1185,7 +1226,7 @@ public class BigQueryIOWriteTest implements Serializable {
     fakeJobService.setNumFailuresExpected(3);
     WriteTables<String> writeTables =
         new WriteTables<>(
-            false,
+            true,
             fakeBqServices,
             jobIdTokenView,
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
@@ -1194,7 +1235,8 @@ public class BigQueryIOWriteTest implements Serializable {
             new IdentityDynamicTables(),
             null,
             4,
-            false);
+            false,
+            null);
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);
@@ -1276,7 +1318,8 @@ public class BigQueryIOWriteTest implements Serializable {
             jobIdTokenView,
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
-            3);
+            3,
+            "kms_key");
 
     DoFnTester<Iterable<KV<TableDestination, String>>, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
@@ -1288,6 +1331,7 @@ public class BigQueryIOWriteTest implements Serializable {
       TableReference tableReference = tableDestination.getTableReference();
       Table table = checkNotNull(fakeDatasetService.getTable(tableReference));
       assertEquals(tableReference.getTableId() + "_desc", tableDestination.getTableDescription());
+      assertEquals("kms_key", table.getEncryptionConfiguration().getKmsKeyName());
 
       Collection<TableRow> expectedRows = expectedRowsPerTable.get(tableDestination);
       assertThat(

@@ -20,8 +20,10 @@ package org.apache.beam.sdk.io.redis;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.io.redis.RedisIO.Write.Method;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -29,6 +31,8 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -86,7 +90,7 @@ public class RedisIOTest {
   @Test
   public void testWriteReadUsingDefaultAppendMethod() throws Exception {
     ArrayList<KV<String, String>> data = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 8000; i++) {
       KV<String, String> kv = KV.of("key " + i, "value " + i);
       data.add(kv);
     }
@@ -184,6 +188,58 @@ public class RedisIOTest {
 
     List<String> values = jedis.lrange(key, 0, -1);
     Assert.assertEquals(value + newValue, String.join("", values));
+  }
+
+  @Test
+  public void testWriteReadUsingSaddMethod() throws Exception {
+    String key = "key";
+
+    Jedis jedis =
+        RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
+
+    List<String> values = Arrays.asList("0", "1", "2", "3", "2", "4", "0", "5");
+    List<KV<String, String>> kvs = Lists.newArrayList();
+    for (String value : values) {
+      kvs.add(KV.of(key, value));
+    }
+
+    PCollection<KV<String, String>> write = writePipeline.apply(Create.of(kvs));
+    write.apply(
+        RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.SADD));
+
+    writePipeline.run();
+
+    Set<String> expected = Sets.newHashSet(values);
+    Set<String> members = jedis.smembers(key);
+    Assert.assertEquals(expected, members);
+  }
+
+  @Test
+  public void testWriteUsingHLLMethod() throws Exception {
+    String key = "key";
+
+    Jedis jedis =
+        RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
+
+    PCollection<KV<String, String>> write =
+        writePipeline.apply(
+            Create.of(
+                KV.of(key, "0"),
+                KV.of(key, "1"),
+                KV.of(key, "2"),
+                KV.of(key, "3"),
+                KV.of(key, "2"),
+                KV.of(key, "4"),
+                KV.of(key, "0"),
+                KV.of(key, "5")));
+
+    write.apply(
+        RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.PFADD));
+
+    writePipeline.run();
+
+    long count = jedis.pfcount(key);
+    Assert.assertEquals(6, count);
   }
 
   @Test

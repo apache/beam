@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,6 +28,8 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -48,7 +48,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>{@link Bid} events are used here at the moment, ås they are most numerous with default
  * configuration.
  */
-public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> {
+public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY =
       SqlTransform.query("SELECT * FROM PCOLLECTION");
@@ -61,7 +61,7 @@ public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> 
   public PCollection<Bid> expand(PCollection<Event> allEvents) {
     PCollection<Row> rows =
         allEvents
-            .apply(Filter.by(IS_BID))
+            .apply(Filter.by(NexmarkQueryUtil.IS_BID))
             .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
 
     return rows.apply(getName() + ".Serialize", logBytesMetric(rows.getCoder()))

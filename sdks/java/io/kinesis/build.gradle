@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   // Override the default shading configuration to exclude everything since
   // AWS-KPL library has hard dependency on guava.
@@ -37,17 +37,15 @@ test {
   forkEvery 1
 }
 
-def aws_version = "1.11.255"
-
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.guava
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.jackson_dataformat_cbor
-  shadow "com.amazonaws:aws-java-sdk-core:$aws_version"
-  shadow "com.amazonaws:aws-java-sdk-kinesis:$aws_version"
-  shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_version"
+  shadow library.java.aws_java_sdk_cloudwatch
+  shadow library.java.aws_java_sdk_core
+  shadow library.java.aws_java_sdk_kinesis
   shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
   shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
   shadow "commons-lang:commons-lang:2.6"

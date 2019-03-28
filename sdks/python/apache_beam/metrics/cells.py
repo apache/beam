@@ -37,6 +37,7 @@ from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import metrics_pb2
 
 __all__ = ['DistributionResult', 'GaugeResult']
 
@@ -167,12 +168,12 @@ class CounterCell(Counter, MetricCell):
 
   def to_runner_api_monitoring_info(self):
     """Returns a Metric with this counter value for use in a MonitoringInfo."""
-    # TODO(ajamato): Update this code to be consisten with Gauges
+    # TODO(ajamato): Update this code to be consistent with Gauges
     # and Distributions. Since there is no CounterData class this method
     # was added to CounterCell. Consider adding a CounterData class or
     # removing the GaugeData and DistributionData classes.
-    return beam_fn_api_pb2.Metric(
-        counter_data=beam_fn_api_pb2.CounterData(
+    return metrics_pb2.Metric(
+        counter_data=metrics_pb2.CounterData(
             int64_value=self.get_cumulative()
         )
     )
@@ -404,8 +405,8 @@ class GaugeData(object):
 
   def to_runner_api_monitoring_info(self):
     """Returns a Metric with this value for use in a MonitoringInfo."""
-    return beam_fn_api_pb2.Metric(
-        counter_data=beam_fn_api_pb2.CounterData(
+    return metrics_pb2.Metric(
+        counter_data=metrics_pb2.CounterData(
             int64_value=self.value
         )
     )
@@ -478,9 +479,9 @@ class DistributionData(object):
 
   def to_runner_api_monitoring_info(self):
     """Returns a Metric with this value for use in a MonitoringInfo."""
-    return beam_fn_api_pb2.Metric(
-        distribution_data=beam_fn_api_pb2.DistributionData(
-            int_distribution_data=beam_fn_api_pb2.IntDistributionData(
+    return metrics_pb2.Metric(
+        distribution_data=metrics_pb2.DistributionData(
+            int_distribution_data=metrics_pb2.IntDistributionData(
                 count=self.count, sum=self.sum, min=self.min, max=self.max)))
 
 

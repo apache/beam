@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableComparator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * An immutable key/value pair.

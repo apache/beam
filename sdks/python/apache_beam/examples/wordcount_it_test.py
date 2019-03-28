@@ -44,18 +44,18 @@ class WordCountIT(unittest.TestCase):
 
   @attr('IT')
   def test_wordcount_it(self):
-    self._run_wordcount_it()
+    self._run_wordcount_it(wordcount.run)
 
   @attr('IT', 'ValidatesContainer')
   def test_wordcount_fnapi_it(self):
-    self._run_wordcount_it(experiment='beam_fn_api')
+    self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
 
-  def _run_wordcount_it(self, **opts):
+  def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
 
     # Set extra options to the pipeline for test purpose
     output = '/'.join([test_pipeline.get_option('output'),
-                       str(int(time.time())),
+                       str(int(time.time() * 1000)),
                        'results'])
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')
     sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
@@ -72,7 +72,7 @@ class WordCountIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    wordcount.run(test_pipeline.get_full_options_as_args(**extra_opts))
+    run_wordcount(test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':

@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -71,6 +69,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements globally and per-key.
@@ -252,13 +252,13 @@ public class Combine {
    *
    * <p>For example:
    *
-   * <pre>{@code
-   * public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
+   * <pre><code>
+   * public class AverageFn extends{@literal CombineFn<Integer, AverageFn.Accum, Double>} {
    *   public static class Accum implements Serializable {
    *     int sum = 0;
    *     int count = 0;
    *
-   *    {@literal@}Override
+   *    {@literal @Override}
    *     public boolean equals(Object other) {
    *       if (other == null) return false;
    *       if (other == this) return true;
@@ -277,12 +277,14 @@ public class Combine {
    *   public Accum createAccumulator() {
    *     return new Accum();
    *   }
+   *
    *   public Accum addInput(Accum accum, Integer input) {
    *       accum.sum += input;
    *       accum.count++;
    *       return accum;
    *   }
-   *   public Accum mergeAccumulators(Iterable<Accum> accums) {
+   *
+   *   public Accum{@literal mergeAccumulators(Iterable<Accum> accums)} {
    *     Accum merged = createAccumulator();
    *     for (Accum accum : accums) {
    *       merged.sum += accum.sum;
@@ -290,13 +292,14 @@ public class Combine {
    *     }
    *     return merged;
    *   }
+   *
    *   public Double extractOutput(Accum accum) {
    *     return ((double) accum.sum) / accum.count;
    *   }
-   * }
+   * }{@literal
    * PCollection<Integer> pc = ...;
    * PCollection<Double> average = pc.apply(Combine.globally(new AverageFn()));
-   * }</pre>
+   * }</code></pre>
    *
    * <p>Combining functions used by {@link Combine.Globally}, {@link Combine.PerKey}, {@link
    * Combine.GroupedValues}, and {@code PTransforms} derived from them should be <i>associative</i>

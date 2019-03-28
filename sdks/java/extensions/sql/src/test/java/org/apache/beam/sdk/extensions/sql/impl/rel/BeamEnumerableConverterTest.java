@@ -23,11 +23,13 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -95,9 +97,51 @@ public class BeamEnumerableConverterTest {
     enumerator.close();
   }
 
+  @Test
+  public void testToListRow_collectMultiple() {
+    Schema schema = Schema.builder().addInt64Field("id").addInt64Field("otherid").build();
+    RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
+    ImmutableList<ImmutableList<RexLiteral>> tuples =
+        ImmutableList.of(
+            ImmutableList.of(
+                rexBuilder.makeBigintLiteral(BigDecimal.ZERO),
+                rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
+    BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
+
+    List<Row> rowList = BeamEnumerableConverter.toRowList(options, node);
+    assertTrue(rowList.size() == 1);
+    assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
+  }
+
+  @Test
+  public void testToEnumerable_collectNullValue() {
+    Schema schema = Schema.builder().addNullableField("id", FieldType.INT64).build();
+    RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
+    ImmutableList<ImmutableList<RexLiteral>> tuples =
+        ImmutableList.of(
+            ImmutableList.of(
+                rexBuilder.makeNullLiteral(
+                    CalciteUtils.toRelDataType(TYPE_FACTORY, FieldType.INT64))));
+    BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
+
+    Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
+    Enumerator<Object> enumerator = enumerable.enumerator();
+
+    assertTrue(enumerator.moveNext());
+    Object row = enumerator.current();
+    assertEquals(null, row);
+    assertFalse(enumerator.moveNext());
+    enumerator.close();
+  }
+
   private static class FakeTable extends BaseBeamTable {
     public FakeTable() {
       super(null);
+    }
+
+    @Override
+    public PCollection.IsBounded isBounded() {
+      return null;
     }
 
     @Override

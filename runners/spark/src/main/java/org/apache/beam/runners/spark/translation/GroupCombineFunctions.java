@@ -17,7 +17,14 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.base.Optional;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -29,11 +36,16 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import scala.Tuple2;
 
 /** A set of group/combine functions to apply to Spark {@link org.apache.spark.rdd.RDD}s. */
 public class GroupCombineFunctions {
@@ -51,7 +63,7 @@ public class GroupCombineFunctions {
     // can be transferred over the network for the shuffle.
     JavaPairRDD<ByteArray, byte[]> pairRDD =
         rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowingHelpers.unwindowFunction())
+            .map(WindowedValue::getValue)
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
 
@@ -68,68 +80,39 @@ public class GroupCombineFunctions {
             true)
         .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true)
         .mapPartitions(
-            TranslationUtils.functionToFlatMapFunction(WindowingHelpers.windowFunction()), true);
+            TranslationUtils.functionToFlatMapFunction(WindowedValue::valueInGlobalWindow), true);
   }
 
   /** Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation. */
   public static <InputT, AccumT> Optional<Iterable<WindowedValue<AccumT>>> combineGlobally(
       JavaRDD<WindowedValue<InputT>> rdd,
       final SparkGlobalCombineFn<InputT, AccumT, ?> sparkCombineFn,
-      final Coder<InputT> iCoder,
       final Coder<AccumT> aCoder,
       final WindowingStrategy<?, ?> windowingStrategy) {
-    // coders.
-    final WindowedValue.FullWindowedValueCoder<InputT> wviCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            iCoder, windowingStrategy.getWindowFn().windowCoder());
+
     final WindowedValue.FullWindowedValueCoder<AccumT> wvaCoder =
         WindowedValue.FullWindowedValueCoder.of(
             aCoder, windowingStrategy.getWindowFn().windowCoder());
     final IterableCoder<WindowedValue<AccumT>> iterAccumCoder = IterableCoder.of(wvaCoder);
 
-    // Use coders to convert objects in the PCollection to byte arrays, so they
-    // can be transferred over the network for the shuffle.
-    // for readability, we add comments with actual type next to byte[].
-    // to shorten line length, we use:
-    // ---- WV: WindowedValue
-    // ---- Iterable: Itr
-    // ---- AccumT: A
-    // ---- InputT: I
-    JavaRDD<byte[]> inputRDDBytes = rdd.map(CoderHelpers.toByteFunction(wviCoder));
-
-    if (inputRDDBytes.isEmpty()) {
-      return Optional.absent();
-    }
-
-    /*Itr<WV<A>>*/
-    /*Itr<WV<A>>>*/
-    /*Itr<WV<A>>>*/
-    /*Itr<WV<A>>>*/
-    /*Itr<WV<A>>>*/
-    /*Itr<WV<A>>>*/
-    /*Itr<WV<A>>>*/
-    /*A*/
-    /*I*/
-    /*A*/
-    /*Itr<WV<A>>*/
-    /*Itr<WV<A>>*/
-    /*WV<I>*/
-    byte[] accumulatedBytes =
-        inputRDDBytes.aggregate(
-            CoderHelpers.toByteArray(sparkCombineFn.zeroValue(), iterAccumCoder),
+    SerializableAccumulator<AccumT> accumulatedResult =
+        rdd.aggregate(
+            SerializableAccumulator.empty(iterAccumCoder),
             (ab, ib) -> {
-              Iterable<WindowedValue<AccumT>> a = CoderHelpers.fromByteArray(ab, iterAccumCoder);
-              WindowedValue<InputT> i = CoderHelpers.fromByteArray(ib, wviCoder);
-              return CoderHelpers.toByteArray(sparkCombineFn.seqOp(a, i), iterAccumCoder);
+              Iterable<WindowedValue<AccumT>> merged =
+                  sparkCombineFn.seqOp(ab.getOrDecode(iterAccumCoder), ib);
+              return SerializableAccumulator.of(merged, iterAccumCoder);
             },
             (a1b, a2b) -> {
-              Iterable<WindowedValue<AccumT>> a1 = CoderHelpers.fromByteArray(a1b, iterAccumCoder);
-              Iterable<WindowedValue<AccumT>> a2 = CoderHelpers.fromByteArray(a2b, iterAccumCoder);
-              Iterable<WindowedValue<AccumT>> merged = sparkCombineFn.combOp(a1, a2);
-              return CoderHelpers.toByteArray(merged, iterAccumCoder);
+              Iterable<WindowedValue<AccumT>> merged =
+                  sparkCombineFn.combOp(
+                      a1b.getOrDecode(iterAccumCoder), a2b.getOrDecode(iterAccumCoder));
+              return SerializableAccumulator.of(merged, iterAccumCoder);
             });
 
-    return Optional.of(CoderHelpers.fromByteArray(accumulatedBytes, iterAccumCoder));
+    final Iterable<WindowedValue<AccumT>> result = accumulatedResult.getOrDecode(iterAccumCoder);
+
+    return Iterables.isEmpty(result) ? Optional.absent() : Optional.of(result);
   }
 
   /**
@@ -145,13 +128,9 @@ public class GroupCombineFunctions {
           JavaRDD<WindowedValue<KV<K, InputT>>> rdd,
           final SparkKeyedCombineFn<K, InputT, AccumT, ?> sparkCombineFn,
           final Coder<K> keyCoder,
-          final Coder<InputT> iCoder,
           final Coder<AccumT> aCoder,
           final WindowingStrategy<?, ?> windowingStrategy) {
-    // coders.
-    final WindowedValue.FullWindowedValueCoder<KV<K, InputT>> wkviCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            KvCoder.of(keyCoder, iCoder), windowingStrategy.getWindowFn().windowCoder());
+
     final WindowedValue.FullWindowedValueCoder<KV<K, AccumT>> wkvaCoder =
         WindowedValue.FullWindowedValueCoder.of(
             KvCoder.of(keyCoder, aCoder), windowingStrategy.getWindowFn().windowCoder());
@@ -164,59 +143,28 @@ public class GroupCombineFunctions {
     // Once Spark provides a way to include keys in the arguments of combine/merge functions,
     // we won't need to duplicate the keys anymore.
     // Key has to bw windowed in order to group by window as well.
-    JavaPairRDD<K, WindowedValue<KV<K, InputT>>> inRddDuplicatedKeyPair =
-        rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue());
+    JavaPairRDD<ByteArray, WindowedValue<KV<K, InputT>>> inRddDuplicatedKeyPair =
+        rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue(keyCoder));
 
-    // Use coders to convert objects in the PCollection to byte arrays, so they
-    // can be transferred over the network for the shuffle.
-    // for readability, we add comments with actual type next to byte[].
-    // to shorten line length, we use:
-    // ---- WV: WindowedValue
-    // ---- Iterable: Itr
-    // ---- AccumT: A
-    // ---- InputT: I
-    JavaPairRDD<ByteArray, byte[]> inRddDuplicatedKeyPairBytes =
-        inRddDuplicatedKeyPair.mapToPair(CoderHelpers.toByteFunction(keyCoder, wkviCoder));
+    JavaPairRDD<ByteArray, SerializableAccumulator<KV<K, AccumT>>> accumulatedResult =
+        inRddDuplicatedKeyPair.combineByKey(
+            input ->
+                SerializableAccumulator.of(sparkCombineFn.createCombiner(input), iterAccumCoder),
+            (acc, input) ->
+                SerializableAccumulator.of(
+                    sparkCombineFn.mergeValue(input, acc.getOrDecode(iterAccumCoder)),
+                    iterAccumCoder),
+            (acc1, acc2) ->
+                SerializableAccumulator.of(
+                    sparkCombineFn.mergeCombiners(
+                        acc1.getOrDecode(iterAccumCoder), acc2.getOrDecode(iterAccumCoder)),
+                    iterAccumCoder));
 
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*WV<KV<K, I>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*WV<KV<K, I>>*/
-    /*WV<KV<K, I>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*/
-    /*WV<KV<K, I>>*/
-    JavaPairRDD</*K*/ ByteArray, /*Itr<WV<KV<K, A>>>*/ byte[]> accumulatedBytes =
-        inRddDuplicatedKeyPairBytes.combineByKey(
-            input -> {
-              WindowedValue<KV<K, InputT>> wkvi = CoderHelpers.fromByteArray(input, wkviCoder);
-              return CoderHelpers.toByteArray(sparkCombineFn.createCombiner(wkvi), iterAccumCoder);
-            },
-            (acc, input) -> {
-              Iterable<WindowedValue<KV<K, AccumT>>> wkvas =
-                  CoderHelpers.fromByteArray(acc, iterAccumCoder);
-              WindowedValue<KV<K, InputT>> wkvi = CoderHelpers.fromByteArray(input, wkviCoder);
-              return CoderHelpers.toByteArray(
-                  sparkCombineFn.mergeValue(wkvi, wkvas), iterAccumCoder);
-            },
-            (acc1, acc2) -> {
-              Iterable<WindowedValue<KV<K, AccumT>>> wkvas1 =
-                  CoderHelpers.fromByteArray(acc1, iterAccumCoder);
-              Iterable<WindowedValue<KV<K, AccumT>>> wkvas2 =
-                  CoderHelpers.fromByteArray(acc2, iterAccumCoder);
-              return CoderHelpers.toByteArray(
-                  sparkCombineFn.mergeCombiners(wkvas1, wkvas2), iterAccumCoder);
-            });
-
-    return accumulatedBytes.mapToPair(CoderHelpers.fromByteFunction(keyCoder, iterAccumCoder));
+    return accumulatedResult.mapToPair(
+        i ->
+            new Tuple2<>(
+                CoderHelpers.fromByteArray(i._1.getValue(), keyCoder),
+                i._2.getOrDecode(iterAccumCoder)));
   }
 
   /** An implementation of {@link Reshuffle} for the Spark runner. */
@@ -226,12 +174,127 @@ public class GroupCombineFunctions {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-        .map(WindowingHelpers.unwindowFunction())
+        .map(WindowedValue::getValue)
         .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .repartition(rdd.getNumPartitions())
         .mapToPair(CoderHelpers.fromByteFunction(keyCoder, wvCoder))
         .map(TranslationUtils.fromPairFunction())
         .map(TranslationUtils.toKVByWindowInValue());
+  }
+
+  /**
+   * Wrapper around accumulated (combined) value with custom lazy serialization. Serialization is
+   * done through given coder and it is performed within on-serialization callbacks {@link
+   * #writeObject(ObjectOutputStream)} and {@link KryoAccumulatorSerializer#write(Kryo, Output,
+   * SerializableAccumulator)}. Both Spark's serialization mechanisms (Java Serialization, Kryo) are
+   * supported. Materialization of accumulated value is done when value is requested to avoid
+   * serialization of the coder itself.
+   *
+   * @param <AccumT>
+   */
+  public static class SerializableAccumulator<AccumT> implements Serializable {
+    private transient Iterable<WindowedValue<AccumT>> accumulated;
+    private transient Coder<Iterable<WindowedValue<AccumT>>> coder;
+
+    private byte[] serializedAcc;
+
+    private SerializableAccumulator() {}
+
+    private SerializableAccumulator(
+        Iterable<WindowedValue<AccumT>> accumulated,
+        Coder<Iterable<WindowedValue<AccumT>>> coder,
+        byte[] serializedAcc) {
+      this.accumulated = accumulated;
+      this.coder = coder;
+      this.serializedAcc = serializedAcc;
+    }
+
+    static <AccumT> SerializableAccumulator<AccumT> of(
+        Iterable<WindowedValue<AccumT>> accumulated, Coder<Iterable<WindowedValue<AccumT>>> coder) {
+      return new SerializableAccumulator<>(accumulated, coder, null);
+    }
+
+    static <AccumT> SerializableAccumulator<AccumT> ofBytes(byte[] serializedAcc) {
+      Preconditions.checkNotNull(serializedAcc);
+      return new SerializableAccumulator<>(null, null, serializedAcc);
+    }
+
+    static <AccumT> SerializableAccumulator<AccumT> empty(
+        Coder<Iterable<WindowedValue<AccumT>>> coder) {
+      return new SerializableAccumulator<>(Lists.newArrayList(), coder, null);
+    }
+
+    /**
+     * Returns wrapped accumulated value when available as java object or deserialize them using
+     * given {@code coder}.
+     *
+     * @param coder
+     * @return
+     */
+    Iterable<WindowedValue<AccumT>> getOrDecode(Coder<Iterable<WindowedValue<AccumT>>> coder) {
+      if (accumulated == null) {
+        accumulated = CoderHelpers.fromByteArray(serializedAcc, coder);
+        serializedAcc = null;
+      }
+
+      if (this.coder == null) {
+        this.coder = coder;
+      }
+
+      return accumulated;
+    }
+
+    byte[] toBytes() {
+      byte[] coded;
+      if (coder != null) {
+        coded = CoderHelpers.toByteArray(this.accumulated, coder);
+      } else if (serializedAcc != null) {
+        coded = serializedAcc;
+      } else {
+        throw new IllegalStateException(
+            String.format(
+                "Given '%s' cannot be serialized since it do not contain coder or already serialized data.",
+                SerializableAccumulator.class.getSimpleName()));
+      }
+      return coded;
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+      byte[] coded = toBytes();
+      out.writeInt(coded.length);
+      out.write(coded);
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      int length = in.readInt();
+      byte[] coded = new byte[length];
+      in.readFully(coded);
+      this.serializedAcc = coded;
+    }
+  }
+
+  /**
+   * Kryo serializer for {@link SerializableAccumulator}.
+   *
+   * @param <AccumT>
+   */
+  public static class KryoAccumulatorSerializer<AccumT>
+      extends Serializer<SerializableAccumulator<AccumT>> {
+
+    @Override
+    public void write(Kryo kryo, Output output, SerializableAccumulator<AccumT> accumulator) {
+      byte[] coded = accumulator.toBytes();
+      output.writeInt(coded.length, true);
+      output.write(coded);
+    }
+
+    @Override
+    public SerializableAccumulator<AccumT> read(
+        Kryo kryo, Input input, Class<SerializableAccumulator<AccumT>> type) {
+      int length = input.readInt(true);
+      byte[] coded = input.readBytes(length);
+      return SerializableAccumulator.ofBytes(coded);
+    }
   }
 }

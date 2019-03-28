@@ -19,14 +19,14 @@ package org.apache.beam.runners.dataflow.worker.graph;
 
 import com.google.api.services.dataflow.model.FlattenInstruction;
 import com.google.api.services.dataflow.model.MapTask;
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 
 /**
  * A function which removes {@link FlattenInstruction}s from the network representation of a {@link

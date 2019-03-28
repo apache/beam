@@ -17,15 +17,18 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import org.apache.beam.sdk.schemas.DefaultSchema;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -38,10 +41,10 @@ public class SelectTest {
 
   /** flat POJO to selection from. */
   @DefaultSchema(JavaFieldSchema.class)
-  public static class POJO1 {
-    public String field1 = "field1";
-    public Integer field2 = 42;
-    public Double field3 = 3.14;
+  static class POJO1 {
+    String field1 = "field1";
+    Integer field2 = 42;
+    Double field3 = 3.14;
 
     @Override
     public boolean equals(Object o) {
@@ -78,9 +81,9 @@ public class SelectTest {
 
   /** A pojo matching the schema resulting from selection field1, field3. */
   @DefaultSchema(JavaFieldSchema.class)
-  public static class POJO1Selected {
-    public String field1 = "field1";
-    public Double field3 = 3.14;
+  static class POJO1Selected {
+    String field1 = "field1";
+    Double field3 = 3.14;
 
     @Override
     public boolean equals(Object o) {
@@ -102,15 +105,32 @@ public class SelectTest {
 
   /** A nested POJO. */
   @DefaultSchema(JavaFieldSchema.class)
-  public static class POJO2 {
-    public String field1 = "field1";
-    public POJO1 field2 = new POJO1();
+  static class POJO2 {
+    String field1 = "field1";
+    POJO1 field2 = new POJO1();
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof POJO2)) {
+        return false;
+      }
+      POJO2 pojo2 = (POJO2) o;
+      return Objects.equals(field1, pojo2.field1) && Objects.equals(field2, pojo2.field2);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1, field2);
+    }
   }
 
   /** A pojo matching the schema results from selection field2.*. */
   @DefaultSchema(JavaFieldSchema.class)
-  public static class POJO2NestedAll {
-    public POJO1 field2 = new POJO1();
+  static class POJO2NestedAll {
+    POJO1 field2 = new POJO1();
 
     @Override
     public boolean equals(Object o) {
@@ -132,8 +152,8 @@ public class SelectTest {
 
   /** A pojo matching the schema results from selection field2.field1, field2.field3. */
   @DefaultSchema(JavaFieldSchema.class)
-  public static class POJO2NestedPartial {
-    public POJO1Selected field2 = new POJO1Selected();
+  static class POJO2NestedPartial {
+    POJO1Selected field2 = new POJO1Selected();
 
     @Override
     public boolean equals(Object o) {
@@ -175,7 +195,7 @@ public class SelectTest {
     PCollection<POJO1> pojos =
         pipeline
             .apply(Create.of(new POJO1()))
-            .apply(Select.fieldAccess(FieldAccessDescriptor.withAllFields()))
+            .apply(Select.fieldNames("*"))
             .apply(Convert.to(POJO1.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO1());
     pipeline.run();
@@ -199,10 +219,7 @@ public class SelectTest {
     PCollection<POJO2NestedAll> pojos =
         pipeline
             .apply(Create.of(new POJO2()))
-            .apply(
-                Select.fieldAccess(
-                    FieldAccessDescriptor.create()
-                        .withNestedField("field2", FieldAccessDescriptor.withAllFields())))
+            .apply(Select.fieldNames("field2.*"))
             .apply(Convert.to(POJO2NestedAll.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO2NestedAll());
     pipeline.run();
@@ -214,13 +231,412 @@ public class SelectTest {
     PCollection<POJO2NestedPartial> pojos =
         pipeline
             .apply(Create.of(new POJO2()))
-            .apply(
-                Select.fieldAccess(
-                    FieldAccessDescriptor.create()
-                        .withNestedField(
-                            "field2", FieldAccessDescriptor.withFieldNames("field1", "field3"))))
+            .apply(Select.fieldNames("field2.field1", "field2.field3"))
             .apply(Convert.to(POJO2NestedPartial.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO2NestedPartial());
+    pipeline.run();
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class PrimitiveArray {
+    List<Double> field1 = ImmutableList.of(1.0, 2.1, 3.2);
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PrimitiveArray)) {
+        return false;
+      }
+      PrimitiveArray that = (PrimitiveArray) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectPrimitiveArray() {
+    PCollection<PrimitiveArray> selected =
+        pipeline
+            .apply(Create.of(new PrimitiveArray()))
+            .apply(Select.fieldNames("field1"))
+            .apply(Convert.to(PrimitiveArray.class));
+    PAssert.that(selected).containsInAnyOrder(new PrimitiveArray());
+    pipeline.run();
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class RowSingleArray {
+    List<POJO1> field1 = ImmutableList.of(new POJO1(), new POJO1(), new POJO1());
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof RowSingleArray)) {
+        return false;
+      }
+      RowSingleArray that = (RowSingleArray) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class PartialRowSingleArray {
+    List<POJO1Selected> field1 =
+        ImmutableList.of(new POJO1Selected(), new POJO1Selected(), new POJO1Selected());
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PartialRowSingleArray)) {
+        return false;
+      }
+      PartialRowSingleArray that = (PartialRowSingleArray) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectRowArray() {
+    PCollection<PartialRowSingleArray> selected =
+        pipeline
+            .apply(Create.of(new RowSingleArray()))
+            .apply(Select.fieldNames("field1.field1", "field1.field3"))
+            .apply(Convert.to(PartialRowSingleArray.class));
+    PAssert.that(selected).containsInAnyOrder(new PartialRowSingleArray());
+    pipeline.run();
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class RowSingleMap {
+    Map<String, POJO1> field1 =
+        ImmutableMap.of(
+            "key1", new POJO1(),
+            "key2", new POJO1(),
+            "key3", new POJO1());
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof RowSingleMap)) {
+        return false;
+      }
+      RowSingleMap that = (RowSingleMap) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class PartialRowSingleMap {
+    Map<String, POJO1Selected> field1 =
+        ImmutableMap.of(
+            "key1", new POJO1Selected(),
+            "key2", new POJO1Selected(),
+            "key3", new POJO1Selected());
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PartialRowSingleMap)) {
+        return false;
+      }
+      PartialRowSingleMap that = (PartialRowSingleMap) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectRowMap() {
+    PCollection<PartialRowSingleMap> selected =
+        pipeline
+            .apply(Create.of(new RowSingleMap()))
+            .apply(Select.fieldNames("field1.field1", "field1.field3"))
+            .apply(Convert.to(PartialRowSingleMap.class));
+    PAssert.that(selected).containsInAnyOrder(new PartialRowSingleMap());
+    pipeline.run();
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class RowMultipleArray {
+    private static final List<POJO1> POJO_LIST =
+        ImmutableList.of(new POJO1(), new POJO1(), new POJO1());
+    private static final List<List<POJO1>> POJO_LIST_LIST =
+        ImmutableList.of(POJO_LIST, POJO_LIST, POJO_LIST);
+
+    List<List<List<POJO1>>> field1 =
+        ImmutableList.of(POJO_LIST_LIST, POJO_LIST_LIST, POJO_LIST_LIST);
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof RowMultipleArray)) {
+        return false;
+      }
+      RowMultipleArray that = (RowMultipleArray) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class PartialRowMultipleArray {
+    private static final List<POJO1Selected> POJO_LIST =
+        ImmutableList.of(new POJO1Selected(), new POJO1Selected(), new POJO1Selected());
+    private static final List<List<POJO1Selected>> POJO_LIST_LIST =
+        ImmutableList.of(POJO_LIST, POJO_LIST, POJO_LIST);
+
+    List<List<List<POJO1Selected>>> field1 =
+        ImmutableList.of(POJO_LIST_LIST, POJO_LIST_LIST, POJO_LIST_LIST);
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PartialRowMultipleArray)) {
+        return false;
+      }
+      PartialRowMultipleArray that = (PartialRowMultipleArray) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectedNestedArrays() {
+    PCollection<RowMultipleArray> input = pipeline.apply(Create.of(new RowMultipleArray()));
+
+    PCollection<PartialRowMultipleArray> selected =
+        input
+            .apply("select1", Select.fieldNames("field1.field1", "field1.field3"))
+            .apply("convert1", Convert.to(PartialRowMultipleArray.class));
+    PAssert.that(selected).containsInAnyOrder(new PartialRowMultipleArray());
+
+    PCollection<PartialRowMultipleArray> selected2 =
+        input
+            .apply("select2", Select.fieldNames("field1[][][].field1", "field1[][][].field3"))
+            .apply("convert2", Convert.to(PartialRowMultipleArray.class));
+
+    PAssert.that(selected).containsInAnyOrder(new PartialRowMultipleArray());
+    PAssert.that(selected2).containsInAnyOrder(new PartialRowMultipleArray());
+    pipeline.run();
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class RowMultipleMaps {
+    static final Map<String, POJO1> POJO_MAP =
+        ImmutableMap.of(
+            "key1", new POJO1(),
+            "key2", new POJO1(),
+            "key3", new POJO1());
+    static final Map<String, Map<String, POJO1>> POJO_MAP_MAP =
+        ImmutableMap.of(
+            "key1", POJO_MAP,
+            "key2", POJO_MAP,
+            "key3", POJO_MAP);
+    Map<String, Map<String, Map<String, POJO1>>> field1 =
+        ImmutableMap.of(
+            "key1", POJO_MAP_MAP,
+            "key2", POJO_MAP_MAP,
+            "key3", POJO_MAP_MAP);
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof RowMultipleMaps)) {
+        return false;
+      }
+      RowMultipleMaps that = (RowMultipleMaps) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class PartialRowMultipleMaps {
+    static final Map<String, POJO1Selected> POJO_MAP =
+        ImmutableMap.of(
+            "key1", new POJO1Selected(),
+            "key2", new POJO1Selected(),
+            "key3", new POJO1Selected());
+    static final Map<String, Map<String, POJO1Selected>> POJO_MAP_MAP =
+        ImmutableMap.of(
+            "key1", POJO_MAP,
+            "key2", POJO_MAP,
+            "key3", POJO_MAP);
+    Map<String, Map<String, Map<String, POJO1Selected>>> field1 =
+        ImmutableMap.of(
+            "key1", POJO_MAP_MAP,
+            "key2", POJO_MAP_MAP,
+            "key3", POJO_MAP_MAP);
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PartialRowMultipleMaps)) {
+        return false;
+      }
+      PartialRowMultipleMaps that = (PartialRowMultipleMaps) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectRowNestedMaps() {
+    PCollection<RowMultipleMaps> input = pipeline.apply(Create.of(new RowMultipleMaps()));
+
+    PCollection<PartialRowMultipleMaps> selected =
+        input
+            .apply("select1", Select.fieldNames("field1.field1", "field1.field3"))
+            .apply("convert1", Convert.to(PartialRowMultipleMaps.class));
+
+    PCollection<PartialRowMultipleMaps> selected2 =
+        input
+            .apply("select2", Select.fieldNames("field1{}{}{}.field1", "field1{}{}{}.field3"))
+            .apply("convert2", Convert.to(PartialRowMultipleMaps.class));
+
+    PAssert.that(selected).containsInAnyOrder(new PartialRowMultipleMaps());
+    PAssert.that(selected2).containsInAnyOrder(new PartialRowMultipleMaps());
+    pipeline.run();
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class RowNestedArraysAndMaps {
+    static final List<POJO1> POJO_LIST = ImmutableList.of(new POJO1(), new POJO1(), new POJO1());
+    static final Map<String, List<POJO1>> POJO_MAP_LIST =
+        ImmutableMap.of(
+            "key1", POJO_LIST,
+            "key2", POJO_LIST,
+            "key3", POJO_LIST);
+    List<Map<String, List<POJO1>>> field1 =
+        ImmutableList.of(POJO_MAP_LIST, POJO_MAP_LIST, POJO_MAP_LIST);
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof RowNestedArraysAndMaps)) {
+        return false;
+      }
+      RowNestedArraysAndMaps that = (RowNestedArraysAndMaps) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class PartialRowNestedArraysAndMaps {
+    static final List<POJO1Selected> POJO_LIST =
+        ImmutableList.of(new POJO1Selected(), new POJO1Selected(), new POJO1Selected());
+    static final Map<String, List<POJO1Selected>> POJO_MAP_LIST =
+        ImmutableMap.of(
+            "key1", POJO_LIST,
+            "key2", POJO_LIST,
+            "key3", POJO_LIST);
+    List<Map<String, List<POJO1Selected>>> field1 =
+        ImmutableList.of(POJO_MAP_LIST, POJO_MAP_LIST, POJO_MAP_LIST);
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PartialRowNestedArraysAndMaps)) {
+        return false;
+      }
+      PartialRowNestedArraysAndMaps that = (PartialRowNestedArraysAndMaps) o;
+      return Objects.equals(field1, that.field1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field1);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectRowNestedListsAndMaps() {
+    PCollection<RowNestedArraysAndMaps> input =
+        pipeline.apply(Create.of(new RowNestedArraysAndMaps()));
+
+    PCollection<PartialRowNestedArraysAndMaps> selected =
+        input
+            .apply("select1", Select.fieldNames("field1.field1", "field1.field3"))
+            .apply("convert1", Convert.to(PartialRowNestedArraysAndMaps.class));
+
+    PCollection<PartialRowNestedArraysAndMaps> selected2 =
+        input
+            .apply("select2", Select.fieldNames("field1[]{}[].field1", "field1[]{}[].field3"))
+            .apply("convert2", Convert.to(PartialRowNestedArraysAndMaps.class));
+
+    PAssert.that(selected).containsInAnyOrder(new PartialRowNestedArraysAndMaps());
     pipeline.run();
   }
 }

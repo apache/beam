@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineLongFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
@@ -62,6 +62,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -116,7 +117,8 @@ public class ParDoTranslationTest {
     public void testToProto() throws Exception {
       SdkComponents components = SdkComponents.create();
       components.registerEnvironment(Environments.createDockerEnvironment("java"));
-      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(parDo, DoFnSchemaInformation.create(), p, components);
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));

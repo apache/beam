@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /** Operator working on some context. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class ShuffleOperator<InputT, KeyT, OutputT> extends Operator<OutputT>
-    implements TypeAware.Key<KeyT>, TypeAware.Output<OutputT>, WindowAware<InputT> {
+    implements TypeAware.Key<KeyT>, WindowAware<InputT> {
 
   private final UnaryFunction<InputT, KeyT> keyExtractor;
   @Nullable private final TypeDescriptor<KeyT> keyType;
@@ -40,6 +40,7 @@ public abstract class ShuffleOperator<InputT, KeyT, OutputT> extends Operator<Ou
       UnaryFunction<InputT, KeyT> keyExtractor,
       @Nullable TypeDescriptor<KeyT> keyType,
       @Nullable Window<InputT> windowing) {
+
     super(name, outputType);
     this.keyExtractor = keyExtractor;
     this.keyType = keyType;

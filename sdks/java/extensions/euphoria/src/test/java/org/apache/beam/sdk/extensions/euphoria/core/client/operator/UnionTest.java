@@ -21,8 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
@@ -31,54 +31,51 @@ public class UnionTest {
 
   @Test
   public void testBuild() {
-    final TestPipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final TestPipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
 
-    final Dataset<String> unioned = Union.named("Union1").of(left, right).output();
+    final PCollection<String> unioned = Union.named("Union1").of(left, right).output();
 
-    assertTrue(unioned.getProducer().isPresent());
-    final Union union = (Union) unioned.getProducer().get();
+    final Union union = (Union) TestUtils.getProducer(unioned);
     assertTrue(union.getName().isPresent());
     assertEquals("Union1", union.getName().get());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testBuild_OneDataSet() {
-    final Dataset<String> first = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> first = TestUtils.createMockDataset(TypeDescriptors.strings());
     Union.named("Union1").of(first).output();
   }
 
   @Test
   public void testBuild_ThreeDataSet() {
-    final TestPipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> first =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> second =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> third =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final TestPipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> first =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> second =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> third =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
 
-    final Dataset<String> unioned = Union.named("Union1").of(first, second, third).output();
+    final PCollection<String> unioned = Union.named("Union1").of(first, second, third).output();
 
-    assertTrue(unioned.getProducer().isPresent());
-    final Union union = (Union) unioned.getProducer().get();
+    final Union union = (Union) TestUtils.getProducer(unioned);
     assertTrue(union.getName().isPresent());
     assertEquals("Union1", union.getName().get());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    final TestPipeline pipeline = OperatorTestUtils.createTestPipeline();
-    final Dataset<String> left =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> right =
-        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
-    final Dataset<String> unioned = Union.of(left, right).output();
-    assertTrue(unioned.getProducer().isPresent());
-    final Union union = (Union) unioned.getProducer().get();
+    final TestPipeline pipeline = TestUtils.createTestPipeline();
+    final PCollection<String> left =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> right =
+        TestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
+    final PCollection<String> unioned = Union.of(left, right).output();
+    final Union union = (Union) TestUtils.getProducer(unioned);
     assertFalse(union.getName().isPresent());
   }
 }

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJvmAccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaOptions;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Base class for test description of a test case. */
@@ -50,7 +50,7 @@ public abstract class AbstractOperatorTest implements Serializable {
     euphoriaOptions.setAccumulatorProviderFactory(accumulatorProvider);
     final Pipeline pipeline = TestPipeline.create(pipelineOptions);
     pipeline.getCoderRegistry().registerCoderForClass(Object.class, KryoCoder.of(pipelineOptions));
-    final Dataset<T> output = tc.getOutput(pipeline);
+    final PCollection<T> output = tc.getOutput(pipeline);
     tc.validate(output);
     pipeline.run().waitUntilFinish();
     tc.validateAccumulators(accumulatorProvider);
@@ -65,7 +65,7 @@ public abstract class AbstractOperatorTest implements Serializable {
      * @param pipeline the flow to attach the test logic to
      * @return the output data set representing the result of the test logic
      */
-    Dataset<T> getOutput(Pipeline pipeline);
+    PCollection<T> getOutput(Pipeline pipeline);
 
     /**
      * Retrieve expected outputs.
@@ -85,8 +85,8 @@ public abstract class AbstractOperatorTest implements Serializable {
      * @param outputs the raw outputs produced by sink
      * @throws AssertionError when the output is not correct
      */
-    default void validate(Dataset<T> outputs) throws AssertionError {
-      PAssert.that(outputs.getPCollection()).containsInAnyOrder(getUnorderedOutput());
+    default void validate(PCollection<T> outputs) throws AssertionError {
+      PAssert.that(outputs).containsInAnyOrder(getUnorderedOutput());
     }
 
     /**
@@ -101,17 +101,16 @@ public abstract class AbstractOperatorTest implements Serializable {
   public abstract static class AbstractTestCase<InputT, OutputT> implements TestCase<OutputT> {
 
     @Override
-    public final Dataset<OutputT> getOutput(Pipeline pipeline) {
+    public final PCollection<OutputT> getOutput(Pipeline pipeline) {
       final List<InputT> inputData = getInput();
-      final Dataset<InputT> inputDataset =
-          Dataset.of(
-              pipeline.apply("input", Create.of(inputData)).setTypeDescriptor(getInputType()));
+      final PCollection<InputT> inputDataset =
+          pipeline.apply("input", Create.of(inputData)).setTypeDescriptor(getInputType());
       return getOutput(inputDataset);
     }
 
     protected abstract TypeDescriptor<InputT> getInputType();
 
-    protected abstract Dataset<OutputT> getOutput(Dataset<InputT> input);
+    protected abstract PCollection<OutputT> getOutput(PCollection<InputT> input);
 
     protected abstract List<InputT> getInput();
   }

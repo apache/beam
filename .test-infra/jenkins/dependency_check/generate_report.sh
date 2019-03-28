@@ -42,6 +42,8 @@ REPORT_DESCRIPTION="
 /usr/bin/virtualenv dependency/check
 . dependency/check/bin/activate
 pip install --upgrade google-cloud-bigquery
+pip install --upgrade google-cloud-bigtable
+pip install --upgrade google-cloud-core
 rm -f build/dependencyUpdates/beam-dependency-check-report.txt
 
 # Insall packages and run the unit tests of the report generator and the jira manager

@@ -13,31 +13,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beam_test
+package beam
 
 import (
+	"reflect"
 	"testing"
-
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 func TestJSONCoder(t *testing.T) {
-	tests := []int{43, 12431235, -2, 0, 1}
+	v := "teststring"
+	tests := []interface{}{
+		43,
+		12431235,
+		-2,
+		0,
+		1,
+		true,
+		"a string",
+		map[int64]string{1: "one", 11: "oneone", 21: "twoone", 1211: "onetwooneone"},
+		struct {
+			A int
+			B *string
+			C bool
+		}{4, &v, false},
+	}
 
 	for _, test := range tests {
-		data, err := beam.JSONEnc(test)
-		if err != nil {
-			t.Fatalf("Failed to encode %v: %v", tests, err)
+		var results []string
+		for i := 0; i < 10; i++ {
+			data, err := jsonEnc(test)
+			if err != nil {
+				t.Fatalf("Failed to encode %v: %v", tests, err)
+			}
+			results = append(results, string(data))
 		}
-		decoded, err := beam.JSONDec(reflectx.Int, data)
+		for i, data := range results {
+			if data != results[0] {
+				t.Errorf("coder not deterministic: data[%d]: %v != %v ", i, data, results[0])
+			}
+		}
+
+		decoded, err := jsonDec(reflect.TypeOf(test), []byte(results[0]))
 		if err != nil {
 			t.Fatalf("Failed to decode: %v", err)
 		}
-		actual := decoded.(int)
 
-		if test != actual {
-			t.Errorf("Corrupt coding: %v, want %v", actual, test)
+		if !reflect.DeepEqual(decoded, test) {
+			t.Errorf("Corrupt coding: %v, want %v", decoded, test)
 		}
 	}
 }

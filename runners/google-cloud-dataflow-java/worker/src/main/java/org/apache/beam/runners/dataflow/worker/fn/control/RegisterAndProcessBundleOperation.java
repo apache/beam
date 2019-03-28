@@ -17,22 +17,17 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Table;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -48,6 +43,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -55,6 +51,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.worker.ByteStringCoder;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -62,6 +59,7 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.Materializations;
@@ -69,8 +67,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +92,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
   private static final OutputReceiver[] EMPTY_RECEIVERS = new OutputReceiver[0];
 
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
   private final InstructionRequestHandler instructionRequestHandler;
   private final StateDelegator beamFnStateDelegator;
   private final RegisterRequest registerRequest;
@@ -98,6 +101,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private final Table<String, String, PCollectionView<?>>
       ptransformIdToSideInputIdToPCollectionView;
   private final ConcurrentHashMap<StateKey, BagState<ByteString>> userStateData;
+  private final Map<String, NameContext> pcollectionIdToNameContext;
 
   private @Nullable CompletionStage<InstructionResponse> registerFuture;
   private @Nullable CompletionStage<InstructionResponse> processBundleResponse;
@@ -108,7 +112,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private String grpcReadTransformOutputName = null;
 
   public RegisterAndProcessBundleOperation(
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       InstructionRequestHandler instructionRequestHandler,
       StateDelegator beamFnStateDelegator,
       RegisterRequest registerRequest,
@@ -116,6 +120,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       Map<String, DataflowStepContext> ptransformIdToSystemStepContext,
       Map<String, SideInputReader> ptransformIdToSideInputReader,
       Table<String, String, PCollectionView<?>> ptransformIdToSideInputIdToPCollectionView,
+      Map<String, NameContext> pcollectionIdToNameContext,
       OperationContext context) {
     super(EMPTY_RECEIVERS, context);
     this.idGenerator = idGenerator;
@@ -124,6 +129,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
     this.registerRequest = registerRequest;
     this.ptransformIdToSideInputReader = ptransformIdToSideInputReader;
     this.ptransformIdToSideInputIdToPCollectionView = ptransformIdToSideInputIdToPCollectionView;
+    this.pcollectionIdToNameContext = pcollectionIdToNameContext;
     ImmutableMap.Builder<String, DataflowStepContext> userStepContextsMap = ImmutableMap.builder();
     for (Map.Entry<String, DataflowStepContext> entry :
         ptransformIdToSystemStepContext.entrySet()) {
@@ -170,7 +176,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         processBundleDescriptor.getPcollectionsMap().entrySet()) {
       builder.append(
           String.format(
-              "  %s [fontname=\"Courier New\" label=\"%s\"];\n",
+              "  %s [fontname=\"Courier New\" label=\"%s\"];%n",
               nodeName.get("pc " + nodeEntry.getKey()),
               escapeDot(nodeEntry.getKey() + ": " + nodeEntry.getValue().getUniqueName())));
     }
@@ -178,7 +184,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         processBundleDescriptor.getTransformsMap().entrySet()) {
       builder.append(
           String.format(
-              "  %s [fontname=\"Courier New\" label=\"%s\"];\n",
+              "  %s [fontname=\"Courier New\" label=\"%s\"];%n",
               nodeName.get("pt " + nodeEntry.getKey()),
               escapeDot(
                   nodeEntry.getKey()
@@ -189,7 +195,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       for (Entry<String, String> inputEntry : nodeEntry.getValue().getInputsMap().entrySet()) {
         builder.append(
             String.format(
-                "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];\n",
+                "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];%n",
                 nodeName.get("pc " + inputEntry.getValue()),
                 nodeName.get("pt " + nodeEntry.getKey()),
                 escapeDot(inputEntry.getKey())));
@@ -197,7 +203,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       for (Entry<String, String> outputEntry : nodeEntry.getValue().getOutputsMap().entrySet()) {
         builder.append(
             String.format(
-                "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];\n",
+                "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];%n",
                 nodeName.get("pt " + nodeEntry.getKey()),
                 nodeName.get("pc " + outputEntry.getValue()),
                 escapeDot(outputEntry.getKey())));
@@ -219,6 +225,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
   /**
    * Returns an id for the current bundle being processed.
    *
+   * <p>Generates new id with idGenerator if no id is cached.
+   *
    * <p><b>Note</b>: This operation could be used across multiple bundles, so a unique id is
    * generated for every bundle. {@link Operation Operations} accessing the bundle id should only
    * call this once per bundle and cache the id in the {@link Operation#start()} method and clear it
@@ -226,7 +234,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
    */
   public synchronized String getProcessBundleInstructionId() {
     if (processBundleId == null) {
-      processBundleId = idGenerator.get();
+      processBundleId = idGenerator.getId();
     }
     return processBundleId;
   }
@@ -240,7 +248,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       if (registerFuture == null) {
         InstructionRequest request =
             InstructionRequest.newBuilder()
-                .setInstructionId(idGenerator.get())
+                .setInstructionId(idGenerator.getId())
                 .setRegister(registerRequest)
                 .build();
         registerFuture = instructionRequestHandler.handle(request);
@@ -273,7 +281,13 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
     try (Closeable scope = context.enterFinish()) {
       // Await completion or failure
-      MoreFutures.get(getProcessBundleResponse(processBundleResponse));
+      BeamFnApi.ProcessBundleResponse completedResponse =
+          MoreFutures.get(getProcessBundleResponse(processBundleResponse));
+      if (completedResponse.getResidualRootsCount() > 0) {
+        throw new IllegalStateException(
+            "TODO: [BEAM-2939] residual roots in process bundle response not yet supported.");
+      }
+
       deregisterStateHandler.deregister();
       userStateData.clear();
       processBundleId = null;
@@ -291,6 +305,14 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
   }
 
+  public Map<String, NameContext> getPCollectionIdToNameContext() {
+    return this.pcollectionIdToNameContext;
+  }
+
+  public Map<String, DataflowStepContext> getPtransformIdToUserStepContext() {
+    return ptransformIdToUserStepContext;
+  }
+
   /**
    * Returns the compound metrics recorded, by issuing a request to the SDK harness.
    *
@@ -305,16 +327,19 @@ public class RegisterAndProcessBundleOperation extends Operation {
    * @throws InterruptedException
    * @throws ExecutionException
    */
-  public CompletionStage<BeamFnApi.Metrics> getMetrics()
+  public CompletionStage<BeamFnApi.ProcessBundleProgressResponse> getProcessBundleProgress()
       throws InterruptedException, ExecutionException {
     // processBundleId may be reset if this bundle finishes asynchronously.
     String processBundleId = this.processBundleId;
+
     if (processBundleId == null) {
-      return CompletableFuture.completedFuture(BeamFnApi.Metrics.getDefaultInstance());
+      return CompletableFuture.completedFuture(
+          BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
     }
+
     InstructionRequest processBundleRequest =
         InstructionRequest.newBuilder()
-            .setInstructionId(idGenerator.get())
+            .setInstructionId(idGenerator.getId())
             .setProcessBundleProgress(
                 ProcessBundleProgressRequest.newBuilder().setInstructionReference(processBundleId))
             .build();
@@ -326,7 +351,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
               if (!response.getError().isEmpty()) {
                 throw new IllegalStateException(response.getError());
               }
-              return response.getProcessBundleProgress().getMetrics();
+              return response.getProcessBundleProgress();
             });
   }
 
@@ -334,6 +359,20 @@ public class RegisterAndProcessBundleOperation extends Operation {
   public CompletionStage<BeamFnApi.Metrics> getFinalMetrics() {
     return getProcessBundleResponse(processBundleResponse)
         .thenApply(response -> response.getMetrics());
+  }
+
+  public CompletionStage<List<MonitoringInfo>> getFinalMonitoringInfos() {
+    return getProcessBundleResponse(processBundleResponse)
+        .thenApply(response -> response.getMonitoringInfosList());
+  }
+
+  public boolean hasFailed() throws ExecutionException, InterruptedException {
+    if (processBundleResponse != null && processBundleResponse.toCompletableFuture().isDone()) {
+      return !processBundleResponse.toCompletableFuture().get().getError().isEmpty();
+    } else {
+      // At the very least, we don't know that this has failed yet.
+      return false;
+    }
   }
 
   /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */

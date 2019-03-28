@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.rabbitmq.client.Channel;
@@ -332,7 +332,7 @@ public class RabbitMqIO {
   private static class RabbitMQCheckpointMark
       implements UnboundedSource.CheckpointMark, Serializable {
     transient Channel channel;
-    Instant oldestTimestamp;
+    Instant oldestTimestamp = Instant.now();
     final List<Long> sessionIds = new ArrayList<>();
 
     @Override

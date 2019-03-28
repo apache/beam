@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.construction.graph;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
@@ -27,6 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -105,8 +105,7 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
     return item.getInputPCollection().getId().equals(inputPCollectionId)
         && containsInAnyOrder(sideInputIds.toArray())
             .matches(
-                item.getSideInputs()
-                    .stream()
+                item.getSideInputs().stream()
                     .map(
                         ref ->
                             SideInputId.newBuilder()
@@ -115,14 +114,12 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
                                 .build())
                     .collect(Collectors.toSet()))
         && materializedPCollection.matches(
-            item.getOutputPCollections()
-                .stream()
+            item.getOutputPCollections().stream()
                 .map(PCollectionNode::getId)
                 .collect(Collectors.toSet()))
         && containsInAnyOrder(fusedTransforms.toArray(new String[0]))
             .matches(
-                item.getTransforms()
-                    .stream()
+                item.getTransforms().stream()
                     .map(PTransformNode::getId)
                     .collect(Collectors.toSet()));
   }

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
@@ -27,6 +27,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.SingleValueCollector;
 import org.apache.beam.sdk.transforms.Combine;
@@ -60,8 +61,8 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
     final PCollection<InputT> input =
         operator
             .getWindow()
-            .map(window -> OperatorTranslators.getSingleInput(inputs).apply(window))
-            .orElseGet(() -> OperatorTranslators.getSingleInput(inputs));
+            .map(window -> PCollectionLists.getOnlyElement(inputs).apply(window))
+            .orElseGet(() -> PCollectionLists.getOnlyElement(inputs));
 
     // ~ create key & value extractor
     final MapElements<InputT, KV<KeyT, ValueT>> extractor =
@@ -85,8 +86,8 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
               "combine",
               Combine.perKey(asCombiner(reducer, accumulators, operator.getName().orElse(null))));
       @SuppressWarnings("unchecked")
-      final PCollection<KV<KeyT, OutputT>> casted = (PCollection) combined;
-      return casted.setTypeDescriptor(
+      final PCollection<KV<KeyT, OutputT>> cast = (PCollection) combined;
+      return cast.setTypeDescriptor(
           operator
               .getOutputType()
               .orElseThrow(

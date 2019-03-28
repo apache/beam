@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.runners.direct.Clock;
 import org.joda.time.Duration;

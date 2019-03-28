@@ -29,6 +29,7 @@ import posixpath
 import sys
 import tempfile
 import unittest
+import zlib
 from builtins import range
 from io import BytesIO
 
@@ -228,7 +229,10 @@ class TestFileSystem(unittest.TestCase):
         expected_num_items)
 
   @parameterized.expand([
-      param(os_path=posixpath, sep_re='\\/'),
+      param(os_path=posixpath,
+            # re.escape does not escape forward slashes since Python 3.7
+            # https://docs.python.org/3/whatsnew/3.7.html ("bpo-29995")
+            sep_re='\\/' if sys.version_info < (3, 7, 0) else '/'),
       param(os_path=ntpath, sep_re='\\\\'),
   ])
   def test_translate_pattern(self, os_path, sep_re):
@@ -262,7 +266,7 @@ class TestCompressedFile(unittest.TestCase):
   which will be deleted at the end of the tests (when tearDown() is called).
   """
 
-  content = """- the BEAM -
+  content = b"""- the BEAM -
 How things really are we would like to know.
 Does
      Time
@@ -288,22 +292,21 @@ atomized in instants hammered around the
     self._tempfiles.append(path)
     return path
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def _create_compressed_file(self, compression_type, content):
     file_name = self._create_temp_file()
 
-    if compression_type == CompressionTypes.BZIP2:
-      compress_factory = bz2.BZ2File
-    elif compression_type == CompressionTypes.GZIP:
-      compress_factory = gzip.open
+    if compression_type == CompressionTypes.DEFLATE:
+      with open(file_name, 'wb') as f:
+        f.write(zlib.compress(content))
+    elif compression_type == CompressionTypes.BZIP2 or \
+            compression_type == CompressionTypes.GZIP:
+      compress_open = bz2.BZ2File \
+          if compression_type == CompressionTypes.BZIP2 \
+          else gzip.open
+      with compress_open(file_name, 'wb') as f:
+        f.write(content)
     else:
       assert False, "Invalid compression type: %s" % compression_type
-
-    with compress_factory(file_name, 'wb') as f:
-      f.write(content)
 
     return file_name
 
@@ -323,7 +326,8 @@ atomized in instants hammered around the
       self.assertFalse(writeable.seekable)
 
   def test_seek_set(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -353,7 +357,8 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, reference_position)
 
   def test_seek_cur(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -383,7 +388,8 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, reference_position)
 
   def test_read_from_end_returns_no_data(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -392,13 +398,14 @@ atomized in instants hammered around the
         seek_position = 0
         compressed_fd.seek(seek_position, os.SEEK_END)
 
-        expected_data = ''
+        expected_data = b''
         uncompressed_data = compressed_fd.read(10)
 
         self.assertEqual(uncompressed_data, expected_data)
 
   def test_seek_outside(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -420,7 +427,8 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, expected_position)
 
   def test_read_and_seek_back_to_beginning(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -432,14 +440,10 @@ atomized in instants hammered around the
 
         self.assertEqual(first_pass, second_pass)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_tell(self):
-    lines = ['line%d\n' % i for i in range(10)]
+    lines = [b'line%d\n' % i for i in range(10)]
     tmpfile = self._create_temp_file()
-    with open(tmpfile, 'w') as f:
+    with open(tmpfile, 'wb') as f:
       writeable = CompressedFile(f)
       current_offset = 0
       for line in lines:
@@ -447,7 +451,7 @@ atomized in instants hammered around the
         current_offset += len(line)
         self.assertEqual(current_offset, writeable.tell())
 
-    with open(tmpfile) as f:
+    with open(tmpfile, 'rb') as f:
       readable = CompressedFile(f)
       current_offset = 0
       while True:

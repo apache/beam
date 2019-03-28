@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
@@ -41,7 +40,8 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
   private WindmillStreamWriter writer;
@@ -127,7 +127,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
     private WindmillStreamWriter(String destinationName) {
       this.destinationName = destinationName;
-      productionMap = new HashMap<ByteString, Windmill.KeyedMessageBundle.Builder>();
+      productionMap = new HashMap<>();
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {

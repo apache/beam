@@ -29,6 +29,7 @@ from apache_beam.coders import VarIntCoder
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms.combiners import ToListCombineFn
 from apache_beam.transforms.combiners import TopCombineFn
@@ -337,13 +338,13 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
                   timer1=DoFn.TimerParam(EXPIRY_TIMER)):
         unused_key, value = element
-        buffer.add('A' + str(value))
+        buffer.add(b'A' + str(value).encode('latin1'))
         timer1.set(20)
 
       @on_timer(EXPIRY_TIMER)
       def expiry_callback(self, buffer=DoFn.StateParam(BUFFER_STATE),
                           timer=DoFn.TimerParam(EXPIRY_TIMER)):
-        yield ''.join(sorted(buffer.read()))
+        yield b''.join(sorted(buffer.read()))
 
     with TestPipeline() as p:
       test_stream = (TestStream()
@@ -362,7 +363,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     # fire after the watermark passes time 20, and another time after element
     # 4, since the timer issued at that point should fire immediately.
     self.assertEqual(
-        ['A1A2A3', 'A1A2A3A4'],
+        [b'A1A2A3', b'A1A2A3A4'],
         StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_stateful_dofn_nonkeyed_input(self):
@@ -495,7 +496,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           state.add(value)
           timer.set(100)
         else:
-          yield 'Record<%s,%s,%s>' % (key, existing_values[0], value)
+          yield b'Record<%s,%s,%s>' % (key, existing_values[0], value)
           state.clear()
           timer.clear()
 
@@ -504,29 +505,28 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         buffered = list(state.read())
         assert len(buffered) == 1, buffered
         state.clear()
-        yield 'Unmatched<%s>' % (buffered[0],)
+        yield b'Unmatched<%s>' % (buffered[0],)
 
     with TestPipeline() as p:
       test_stream = (TestStream()
                      .advance_watermark_to(10)
-                     .add_elements([('A', 'a'), ('B', 'b')])
-                     .add_elements([('A', 'aa'), ('C', 'c')])
+                     .add_elements([(b'A', b'a'), (b'B', b'b')])
+                     .add_elements([(b'A', b'aa'), (b'C', b'c')])
                      .advance_watermark_to(25)
-                     .add_elements([('A', 'aaa'), ('B', 'bb')])
-                     .add_elements([('D', 'd'), ('D', 'dd'), ('D', 'ddd'),
-                                    ('D', 'dddd')])
+                     .add_elements([(b'A', b'aaa'), (b'B', b'bb')])
+                     .add_elements([(b'D', b'd'), (b'D', b'dd'), (b'D', b'ddd'),
+                                    (b'D', b'dddd')])
                      .advance_watermark_to(125)
-                     .add_elements([('C', 'cc')]))
+                     .add_elements([(b'C', b'cc')]))
       (p
        | test_stream
        | beam.ParDo(HashJoinStatefulDoFn())
        | beam.ParDo(self.record_dofn()))
 
-    self.assertEqual(
-        ['Record<A,a,aa>', 'Record<B,b,bb>', 'Record<D,d,dd>',
-         'Record<D,ddd,dddd>', 'Unmatched<aaa>', 'Unmatched<c>',
-         'Unmatched<cc>'],
-        sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+    equal_to(StatefulDoFnOnDirectRunnerTest.all_records)(
+        [b'Record<A,a,aa>', b'Record<B,b,bb>', b'Record<D,d,dd>',
+         b'Record<D,ddd,dddd>', b'Unmatched<aaa>', b'Unmatched<c>',
+         b'Unmatched<cc>'])
 
 
 if __name__ == '__main__':

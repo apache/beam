@@ -142,9 +142,7 @@ public class PubsubHelper {
   /** Does topic corresponding to short name exist? */
   public boolean topicExists(String shortTopic) throws IOException {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
-    return pubsubClient
-        .listTopics(PubsubClient.projectPathFromId(project))
-        .stream()
+    return pubsubClient.listTopics(PubsubClient.projectPathFromId(project)).stream()
         .anyMatch(topic::equals);
   }
 
@@ -199,9 +197,7 @@ public class PubsubHelper {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
     SubscriptionPath subscription =
         PubsubClient.subscriptionPathFromName(project, shortSubscription);
-    return pubsubClient
-        .listSubscriptions(PubsubClient.projectPathFromId(project), topic)
-        .stream()
+    return pubsubClient.listSubscriptions(PubsubClient.projectPathFromId(project), topic).stream()
         .anyMatch(subscription::equals);
   }
 

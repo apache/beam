@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.PeekingIterator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -37,6 +33,10 @@ import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.PeekingIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,6 +167,11 @@ public class CoGbkResult {
     return unions;
   }
 
+  /** Like {@link #getAll(TupleTag)} but using a String instead of a {@link TupleTag}. */
+  public <V> Iterable<V> getAll(String tag) {
+    return getAll(new TupleTag<>(tag));
+  }
+
   /**
    * If there is a singleton value for the given tag, returns it. Otherwise, throws an
    * IllegalArgumentException.
@@ -176,6 +181,12 @@ public class CoGbkResult {
    */
   public <V> V getOnly(TupleTag<V> tag) {
     return innerGetOnly(tag, null, false);
+  }
+
+  /** Like {@link #getOnly(TupleTag)} but using a String instead of a TupleTag. */
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  public <V> V getOnly(String tag) {
+    return getOnly(new TupleTag<>(tag));
   }
 
   /**
@@ -188,6 +199,12 @@ public class CoGbkResult {
   @Nullable
   public <V> V getOnly(TupleTag<V> tag, @Nullable V defaultValue) {
     return innerGetOnly(tag, defaultValue, true);
+  }
+
+  /** Like {@link #getOnly(TupleTag, Object)} but using a String instead of a TupleTag. */
+  @Nullable
+  public <V> V getOnly(String tag, @Nullable V defaultValue) {
+    return getOnly(new TupleTag<>(tag), defaultValue);
   }
 
   /** A {@link Coder} for {@link CoGbkResult}s. */

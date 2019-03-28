@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import java.util.List;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 
 /**
  * An operator that can be constructed using basic operators.
@@ -34,5 +34,5 @@ public interface CompositeOperator<InputT, OutputT> {
    * @param inputs list of input data sets
    * @return output data set
    */
-  Dataset<OutputT> expand(List<Dataset<InputT>> inputs);
+  PCollection<OutputT> expand(PCollectionList<InputT> inputs);
 }

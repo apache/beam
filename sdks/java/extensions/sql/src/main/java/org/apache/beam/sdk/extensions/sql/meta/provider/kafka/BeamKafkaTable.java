@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
 import java.util.Map;
@@ -65,6 +65,11 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
   public BeamKafkaTable updateConsumerProperties(Map<String, Object> configUpdates) {
     this.configUpdates = configUpdates;
     return this;
+  }
+
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.UNBOUNDED;
   }
 
   public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>

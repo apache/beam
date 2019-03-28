@@ -81,7 +81,7 @@ spec:
             mountPath: /secrets/cloudsql
             readOnly: true
       - name: beammetricssyncjenkins
-        image: gcr.io/apache-beam-testing/beammetricssyncjenkins:v20181016
+        image: gcr.io/apache-beam-testing/beammetricssyncjenkins:v20181227
         env:
           - name: JENSYNC_HOST
             value: 127.0.0.1

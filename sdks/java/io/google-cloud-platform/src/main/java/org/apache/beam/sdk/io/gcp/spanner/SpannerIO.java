@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 import static org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped.decode;
 import static org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped.encode;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
@@ -36,10 +36,6 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.primitives.UnsignedBytes;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -74,6 +70,10 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,7 +169,10 @@ import org.slf4j.LoggerFactory;
  *
  * The {@link SpannerWriteResult SpannerWriteResult} object contains the results of the transform,
  * including a {@link PCollection} of MutationGroups that failed to write, and a {@link PCollection}
- * that can be used as a completion signal.
+ * that can be used in batch pipelines as a completion signal to {@link
+ * org.apache.beam.sdk.transforms.Wait Wait.OnSignal} to indicate when all input has been written.
+ * Note that in streaming pipelines, this signal will never be triggered as the input is unbounded
+ * and this {@link PCollection} is using the {@link GlobalWindow}.
  *
  * <h3>Batching</h3>
  *

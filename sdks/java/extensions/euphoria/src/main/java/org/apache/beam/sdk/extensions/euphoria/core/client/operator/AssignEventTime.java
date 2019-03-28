@@ -17,21 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Iterables;
-import java.util.Collections;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.joda.time.Duration;
 
 /**
  * A convenient alias for assignment of event time.
@@ -39,8 +40,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>Can be rewritten as:
  *
  * <pre>{@code
- * Dataset<T> input = ...;
- * Dataset<T> withStamps = FlatMap.of(input)
+ * PCollection<T> input = ...;
+ * PCollection<T> withStamps = FlatMap.of(input)
  *    .using(t -> t)
  *    .eventTimeBy(evt-time-fn)
  *    .output();
@@ -69,9 +70,9 @@ public class AssignEventTime<InputT> extends Operator<InputT>
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new {@link AssignEventTime} operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> UsingBuilder<InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -79,7 +80,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> UsingBuilder<InputT> of(Dataset<InputT> input);
+    <InputT> UsingBuilder<InputT> of(PCollection<InputT> input);
   }
 
   /** Builder for the 'using' step from the builder chain. */
@@ -90,57 +91,75 @@ public class AssignEventTime<InputT> extends Operator<InputT>
      * @return the next builder to complete the setup
      * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
      */
-    OutputBuilder<InputT> using(ExtractEventTime<InputT> fn);
-  }
+    Builders.Output<InputT> using(ExtractEventTime<InputT> fn);
 
-  /** Builder for the 'output' step from the builder chain. */
-  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
+    /**
+     * @param fn the event time extraction function
+     * @param allowedTimestampSkew allowed timestamp skew when assigning timestamps back in time
+     *     {@link DoFn#getAllowedTimestampSkew}.
+     * @return the next builder to complete the setup
+     * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
+     */
+    Builders.Output<InputT> using(ExtractEventTime<InputT> fn, Duration allowedTimestampSkew);
+  }
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
   public static class Builder<InputT>
-      implements OfBuilder, UsingBuilder<InputT>, OutputBuilder<InputT> {
+      implements OfBuilder, UsingBuilder<InputT>, Builders.Output<InputT> {
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     private ExtractEventTime<InputT> eventTimeExtractor;
+    @Nullable private Duration allowedTimestampSkew = null;
 
     private Builder(@Nullable String name) {
       this.name = name;
     }
 
     @Override
-    public <T> UsingBuilder<T> of(Dataset<T> input) {
+    public <T> UsingBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T> casted = (Builder<T>) this;
-      casted.input = input;
-      return casted;
+      final Builder<T> cast = (Builder<T>) this;
+      cast.input = input;
+      return cast;
     }
 
     @Override
-    public OutputBuilder<InputT> using(ExtractEventTime<InputT> eventTimeExtractor) {
+    public Builders.Output<InputT> using(ExtractEventTime<InputT> eventTimeExtractor) {
       this.eventTimeExtractor = eventTimeExtractor;
       return this;
     }
 
     @Override
-    public Dataset<InputT> output(OutputHint... outputHints) {
+    public Builders.Output<InputT> using(
+        ExtractEventTime<InputT> eventTimeExtractor, Duration allowedTimestampSkew) {
+      this.allowedTimestampSkew = allowedTimestampSkew;
+      return using(eventTimeExtractor);
+    }
+
+    @Override
+    public PCollection<InputT> output(OutputHint... outputHints) {
       return OperatorTransform.apply(
-          new AssignEventTime<>(name, eventTimeExtractor, input.getTypeDescriptor()),
-          Collections.singletonList(input));
+          new AssignEventTime<>(
+              name, eventTimeExtractor, allowedTimestampSkew, input.getTypeDescriptor()),
+          PCollectionList.of(input));
     }
   }
 
   private final ExtractEventTime<InputT> eventTimeExtractor;
+  private final @Nullable Duration allowedTimestampSkew;
 
   private AssignEventTime(
       @Nullable String name,
       ExtractEventTime<InputT> eventTimeExtractor,
+      @Nullable Duration allowedTimestampSkew,
       @Nullable TypeDescriptor<InputT> outputType) {
     super(name, outputType);
     this.eventTimeExtractor = eventTimeExtractor;
+    this.allowedTimestampSkew = allowedTimestampSkew;
   }
 
   /**
@@ -152,14 +171,14 @@ public class AssignEventTime<InputT> extends Operator<InputT>
   }
 
   @Override
-  public Dataset<InputT> expand(List<Dataset<InputT>> inputs) {
-    final Dataset<InputT> input = Iterables.getOnlyElement(inputs);
+  public PCollection<InputT> expand(PCollectionList<InputT> inputs) {
+    final PCollection<InputT> input = PCollectionLists.getOnlyElement(inputs);
     return FlatMap.named(getName().orElse(null))
-        .of(Iterables.getOnlyElement(inputs))
+        .of(input)
         .using(
             (InputT element, Collector<InputT> coll) -> coll.collect(element),
             input.getTypeDescriptor())
-        .eventTimeBy(getEventTimeExtractor())
+        .eventTimeBy(getEventTimeExtractor(), allowedTimestampSkew)
         .output();
   }
 }

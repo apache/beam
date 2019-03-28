@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +43,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -64,6 +63,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 
 /**
@@ -365,7 +366,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               new ParDoLike() {
                 @Override
                 public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-                  return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(), newComponents);
+                  // Schemas not yet supported on splittable DoFn.
+                  return ParDoTranslation.translateDoFn(
+                      fn, pke.getMainOutputTag(), DoFnSchemaInformation.create(), newComponents);
                 }
 
                 @Override

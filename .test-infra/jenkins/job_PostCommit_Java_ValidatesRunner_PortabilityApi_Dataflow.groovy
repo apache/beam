@@ -22,10 +22,11 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_PortabilityApi_Dataflow_Gradle',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_PortabilityApi_Dataflow',
   'Run Dataflow PortabilityApi ValidatesRunner', 'Google Cloud Dataflow Runner PortabilityApi ValidatesRunner Tests', this) {
 
   description('Runs the ValidatesRunner suite on the Dataflow PortabilityApi runner.')
+  previousNames(/beam_PostCommit_Java_ValidatesRunner_PortabilityApi_Dataflow_Gradle/)
 
   // Set common parameters. Sets a 3 hour timeout.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 400)
@@ -39,7 +40,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Portabi
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-google-cloud-dataflow-java:validatesRunnerPortabilityApi')
+      tasks(':beam-runners-google-cloud-dataflow-java:validatesRunnerFnApiWorkerTest')
       // Increase parallel worker threads above processor limit since most time is
       // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
       // because each one launches a Dataflow job with about 3 mins of overhead.

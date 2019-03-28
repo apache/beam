@@ -25,7 +25,7 @@ import com.google.auto.service.AutoService;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

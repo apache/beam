@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,6 +27,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -46,6 +44,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
@@ -149,17 +150,17 @@ public final class TranslationUtils {
 
   /** A pair to {@link KV} flatmap function . */
   static <K, V> FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>> fromPairFlatMapFunction() {
-    return itr -> {
-      final Iterator<KV<K, V>> outputItr = Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
-      return outputItr;
-    };
+    return itr -> Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
   }
 
   /** Extract key from a {@link WindowedValue} {@link KV} into a pair. */
   public static <K, V>
-      PairFunction<WindowedValue<KV<K, V>>, K, WindowedValue<KV<K, V>>>
-          toPairByKeyInWindowedValue() {
-    return windowedKv -> new Tuple2<>(windowedKv.getValue().getKey(), windowedKv);
+      PairFunction<WindowedValue<KV<K, V>>, ByteArray, WindowedValue<KV<K, V>>>
+          toPairByKeyInWindowedValue(final Coder<K> keyCoder) {
+    return windowedKv ->
+        new Tuple2<>(
+            new ByteArray(CoderHelpers.toByteArray(windowedKv.getValue().getKey(), keyCoder)),
+            windowedKv);
   }
 
   /** Extract window from a {@link KV} with {@link WindowedValue} value. */

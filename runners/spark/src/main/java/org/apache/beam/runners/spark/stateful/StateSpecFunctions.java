@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -41,6 +38,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.spark.streaming.State;
 import org.apache.spark.streaming.StateSpec;
 import org.joda.time.Instant;
@@ -82,7 +83,7 @@ public class StateSpecFunctions {
    * StateSpec#function(scala.Function3)} signature which employs scala's native {@link
    * scala.Option}, instead of the {@link
    * StateSpec#function(org.apache.spark.api.java.function.Function3)} signature, which employs
-   * Guava's {@link com.google.common.base.Optional}.
+   * Guava's {@link Optional}.
    *
    * <p>See also <a href="https://issues.apache.org/jira/browse/SPARK-4819">SPARK-4819</a>.
    *
@@ -93,12 +94,16 @@ public class StateSpecFunctions {
    */
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       scala.Function3<
-              Source<T>, Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
+              Source<T>,
+              Option<CheckpointMarkT>,
+              State<Tuple2<byte[], Instant>>,
               Tuple2<Iterable<byte[]>, Metadata>>
           mapSourceFunction(final SerializablePipelineOptions options, final String stepName) {
 
     return new SerializableFunction3<
-        Source<T>, Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
+        Source<T>,
+        Option<CheckpointMarkT>,
+        State<Tuple2<byte[], Instant>>,
         Tuple2<Iterable<byte[]>, Metadata>>() {
 
       @Override

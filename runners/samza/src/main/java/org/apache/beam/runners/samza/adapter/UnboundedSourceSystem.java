@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.samza.adapter;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,17 +35,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.FnWithMetricsWrapper;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.runners.samza.runtime.OpMessage;
-import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.Partition;
 import org.apache.samza.SamzaException;
@@ -118,8 +118,7 @@ public class UnboundedSourceSystem {
 
     @Override
     public Map<String, SystemStreamMetadata> getSystemStreamMetadata(Set<String> streamNames) {
-      return streamNames
-          .stream()
+      return streamNames.stream()
           .collect(
               Collectors.toMap(
                   Function.<String>identity(),
@@ -193,13 +192,17 @@ public class UnboundedSourceSystem {
             "Attempted to call start without assigned system stream partitions");
       }
 
+      final FnWithMetricsWrapper metricsWrapper =
+          pipelineOptions.getEnableMetrics()
+              ? new FnWithMetricsWrapper(metricsContainer, stepName)
+              : null;
       readerTask =
           new ReaderTask<>(
               readerToSsp,
               checkpointMarkCoder,
               pipelineOptions.getSystemBufferSize(),
               pipelineOptions.getWatermarkInterval(),
-              new FnWithMetricsWrapper(metricsContainer, stepName));
+              metricsWrapper);
       final Thread thread =
           new Thread(readerTask, "unbounded-source-system-consumer-" + NEXT_ID.getAndIncrement());
       thread.start();
@@ -287,7 +290,7 @@ public class UnboundedSourceSystem {
 
         try {
           for (UnboundedReader reader : readers) {
-            final boolean hasData = metricsWrapper.wrap(reader::start);
+            final boolean hasData = invoke(reader::start);
             if (hasData) {
               available.acquire();
               enqueueMessage(reader);
@@ -297,7 +300,7 @@ public class UnboundedSourceSystem {
           while (running) {
             boolean elementAvailable = false;
             for (UnboundedReader reader : readers) {
-              final boolean hasData = metricsWrapper.wrap(reader::advance);
+              final boolean hasData = invoke(reader::advance);
               if (hasData) {
                 while (!available.tryAcquire(
                     1,
@@ -313,7 +316,7 @@ public class UnboundedSourceSystem {
             updateWatermark();
 
             if (!elementAvailable) {
-              //TODO: make poll interval configurable
+              // TODO: make poll interval configurable
               Thread.sleep(50);
             }
           }
@@ -340,6 +343,14 @@ public class UnboundedSourceSystem {
                     queue.clear();
                     queue.add(CHECK_LAST_EXCEPTION_ENVELOPE);
                   });
+        }
+      }
+
+      private <X> X invoke(FnWithMetricsWrapper.SupplierWithException<X> fn) throws Exception {
+        if (metricsWrapper != null) {
+          return metricsWrapper.wrap(fn);
+        } else {
+          return fn.get();
         }
       }
 
@@ -421,7 +432,7 @@ public class UnboundedSourceSystem {
           final ByteArrayOutputStream baos = new ByteArrayOutputStream();
           @SuppressWarnings("unchecked")
           final CheckpointMarkT checkpointMark =
-              (CheckpointMarkT) metricsWrapper.wrap(reader::getCheckpointMark);
+              (CheckpointMarkT) invoke(reader::getCheckpointMark);
           checkpointMarkCoder.encode(checkpointMark, baos);
           return Base64.getEncoder().encodeToString(baos.toByteArray());
         } catch (Exception e) {

@@ -34,7 +34,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query5}. */
-public class Query5Model extends NexmarkQueryModel implements Serializable {
+public class Query5Model extends NexmarkQueryModel<AuctionCount> implements Serializable {
   /** Simulator for query 5. */
   private class Simulator extends AbstractSimulator<Event, AuctionCount> {
     /** Time of bids still contributing to open windows, indexed by their auction id. */
@@ -156,12 +156,12 @@ public class Query5Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, AuctionCount> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<AuctionCount>> itr) {
     return toValue(itr);
   }
 }

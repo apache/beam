@@ -43,8 +43,7 @@ public class BeamSqlRelUtils {
       return PCollectionList.empty(pipeline);
     } else {
       return PCollectionList.of(
-          inputRels
-              .stream()
+          inputRels.stream()
               .map(input -> BeamSqlRelUtils.toPCollection(pipeline, (BeamRelNode) input, cache))
               .collect(Collectors.toList()));
     }

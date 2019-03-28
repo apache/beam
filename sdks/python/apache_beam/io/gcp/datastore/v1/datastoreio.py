@@ -20,7 +20,9 @@ from __future__ import absolute_import
 from __future__ import division
 
 import logging
+import sys
 import time
+import warnings
 from builtins import object
 from builtins import round
 
@@ -44,7 +46,10 @@ try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from googledatastore import helper as datastore_helper
 except ImportError:
-  pass
+  if sys.version_info[0] == 3:
+    warnings.warn('Datastore IO will support Python 3 after replacing '
+                  'googledatastore by google-cloud-datastore, '
+                  'see: BEAM-4543.')
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -115,11 +120,11 @@ class ReadFromDatastore(PTransform):
     super(ReadFromDatastore, self).__init__()
 
     if not project:
-      ValueError("Project cannot be empty")
+      raise ValueError("Project cannot be empty")
     if not query:
-      ValueError("Query cannot be empty")
+      raise ValueError("Query cannot be empty")
     if num_splits < 0:
-      ValueError("num_splits must be greater than or equal 0")
+      raise ValueError("num_splits must be greater than or equal 0")
 
     self._project = project
     # using _namespace conflicts with DisplayData._namespace

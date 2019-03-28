@@ -24,20 +24,14 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.net.HostAndPort;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
@@ -48,6 +42,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.joda.time.Instant;
 import org.junit.rules.ErrorCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +55,7 @@ class FakeWindmillServer extends WindmillServerStub {
 
   private final Queue<Windmill.GetWorkResponse> workToOffer;
   private final Queue<Function<GetDataRequest, GetDataResponse>> dataToOffer;
+  // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
   private final ArrayList<Windmill.ReportStatsRequest> statsReceived;
   private final LinkedBlockingQueue<Windmill.Exception> exceptions;
@@ -179,18 +177,156 @@ class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
+  public long getAndResetThrottleTime() {
+    return (long) 0;
+  }
+
+  @Override
   public GetWorkStream getWorkStream(Windmill.GetWorkRequest request, WorkItemReceiver receiver) {
-    throw new UnsupportedOperationException();
+    LOG.debug("getWorkStream: {}", request.toString());
+    Instant startTime = Instant.now();
+    final CountDownLatch done = new CountDownLatch(1);
+    return new GetWorkStream() {
+      @Override
+      public void closeAfterDefaultTimeout() {
+        while (done.getCount() > 0) {
+          Windmill.GetWorkResponse response = workToOffer.poll();
+          if (response == null) {
+            try {
+              sleepMillis(500);
+            } catch (InterruptedException e) {
+              close();
+              Thread.currentThread().interrupt();
+            }
+            continue;
+          }
+          for (Windmill.ComputationWorkItems computationWork : response.getWorkList()) {
+            Instant inputDataWatermark =
+                WindmillTimeUtils.windmillToHarnessWatermark(
+                    computationWork.getInputDataWatermark());
+            for (Windmill.WorkItem workItem : computationWork.getWorkList()) {
+              receiver.receiveWork(
+                  computationWork.getComputationId(), inputDataWatermark, Instant.now(), workItem);
+            }
+          }
+        }
+      }
+
+      @Override
+      public void close() {
+        done.countDown();
+      }
+
+      @Override
+      public boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
+        return done.await(time, unit);
+      }
+
+      @Override
+      public Instant startTime() {
+        return startTime;
+      }
+    };
   }
 
   @Override
   public GetDataStream getDataStream() {
-    throw new UnsupportedOperationException();
+    Instant startTime = Instant.now();
+    return new GetDataStream() {
+      @Override
+      public Windmill.KeyedGetDataResponse requestKeyedData(
+          String computation, KeyedGetDataRequest request) {
+        Windmill.GetDataRequest getDataRequest =
+            GetDataRequest.newBuilder()
+                .addRequests(
+                    ComputationGetDataRequest.newBuilder()
+                        .setComputationId(computation)
+                        .addRequests(request)
+                        .build())
+                .build();
+        GetDataResponse getDataResponse = getData(getDataRequest);
+        if (getDataResponse.getDataList().isEmpty()) {
+          return null;
+        }
+        assertEquals(1, getDataResponse.getDataCount());
+        if (getDataResponse.getData(0).getDataList().isEmpty()) {
+          return null;
+        }
+        assertEquals(1, getDataResponse.getData(0).getDataCount());
+        return getDataResponse.getData(0).getData(0);
+      }
+
+      @Override
+      public Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request) {
+        Windmill.GetDataRequest getDataRequest =
+            GetDataRequest.newBuilder().addGlobalDataFetchRequests(request).build();
+        GetDataResponse getDataResponse = getData(getDataRequest);
+        if (getDataResponse.getGlobalDataList().isEmpty()) {
+          return null;
+        }
+        assertEquals(1, getDataResponse.getGlobalDataCount());
+        return getDataResponse.getGlobalData(0);
+      }
+
+      @Override
+      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {}
+
+      @Override
+      public void close() {}
+
+      @Override
+      public boolean awaitTermination(int time, TimeUnit unit) {
+        return true;
+      }
+
+      @Override
+      public void closeAfterDefaultTimeout() {}
+
+      @Override
+      public Instant startTime() {
+        return startTime;
+      }
+    };
   }
 
   @Override
   public CommitWorkStream commitWorkStream() {
-    throw new UnsupportedOperationException();
+    Instant startTime = Instant.now();
+    return new CommitWorkStream() {
+      @Override
+      public boolean commitWorkItem(
+          String computation,
+          WorkItemCommitRequest request,
+          Consumer<Windmill.CommitStatus> onDone) {
+        LOG.debug("commitWorkStream::commitWorkItem: {}", request);
+        errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
+        errorCollector.checkThat(
+            request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
+        errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
+        commitsReceived.put(request.getWorkToken(), request);
+        onDone.accept(Windmill.CommitStatus.OK);
+        return true; // The request was accepted.
+      }
+
+      @Override
+      public void flush() {}
+
+      @Override
+      public void close() {}
+
+      @Override
+      public boolean awaitTermination(int time, TimeUnit unit) {
+        return true;
+      }
+
+      @Override
+      public void closeAfterDefaultTimeout() {}
+
+      @Override
+      public Instant startTime() {
+        return startTime;
+      }
+    };
   }
 
   public void waitForEmptyWorkQueue() {

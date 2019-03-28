@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -39,21 +37,19 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>For example, consider the following POJO type:
  *
- * <pre>{@code
- * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * public class UserEvent {
  *   public String userId;
  *   public String eventId;
  *   public int eventType;
  *   public Location location;
- * }
+ * }}</pre>
  *
- * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * public class Location {
  *   public double latitude;
  *   public double longtitude;
- * }
- * }</pre>
+ * }}</pre>
  *
  * Say you want to select just the set of userId, eventId pairs from each element, you would write
  * the following:
@@ -68,9 +64,7 @@ import org.apache.beam.sdk.values.Row;
  *
  * <pre>{@code
  * PCollection<UserEvent> events = readUserEvents();
- * PCollection<Row> rows = event.apply(Select.fieldAccess(FieldAccessDescriptor.create()
- *      .withNestedField("location",
- *          FieldAccessDescriptor.withAllFields())));
+ * PCollection<Row> rows = event.apply(Select.fieldNames("location.*"));
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
@@ -83,12 +77,12 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
 
   /** Select a set of top-level field ids from the row. */
   public static <T> Select<T> fieldIds(Integer... ids) {
-    return new Select(FieldAccessDescriptor.withFieldIds(ids));
+    return new Select<>(FieldAccessDescriptor.withFieldIds(ids));
   }
 
   /** Select a set of top-level field names from the row. */
   public static <T> Select<T> fieldNames(String... names) {
-    return new Select(FieldAccessDescriptor.withFieldNames(names));
+    return new Select<>(FieldAccessDescriptor.withFieldNames(names));
   }
 
   /**
@@ -97,92 +91,32 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
    * <p>This allows for nested fields to be selected as well.
    */
   public static <T> Select<T> fieldAccess(FieldAccessDescriptor fieldAccessDescriptor) {
-    return new Select(fieldAccessDescriptor);
+    return new Select<>(fieldAccessDescriptor);
   }
-
-  // TODO: Support Xpath or JsonPath as a way of describing fields.
 
   @Override
   public PCollection<Row> expand(PCollection<T> input) {
     Schema inputSchema = input.getSchema();
     FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(inputSchema);
-    Schema outputSchema = getOutputSchema(inputSchema, resolved);
+    Schema outputSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
 
-    PCollection<Row> selected =
-        input
-            .apply(
-                ParDo.of(
-                    new DoFn<T, Row>() {
-                      // TODO: This should be the same as resolved so that Beam knows which fields
-                      // are being accessed. Currently Beam only supports wildcard descriptors.
-                      // Once BEAM-4457 is fixed, fix this.
-                      @FieldAccess("filterFields")
-                      final FieldAccessDescriptor fieldAccessDescriptor =
-                          FieldAccessDescriptor.withAllFields();
+    return input
+        .apply(
+            ParDo.of(
+                new DoFn<T, Row>() {
+                  // TODO: This should be the same as resolved so that Beam knows which fields
+                  // are being accessed. Currently Beam only supports wildcard descriptors.
+                  // Once BEAM-4457 is fixed, fix this.
+                  @FieldAccess("selectFields")
+                  final FieldAccessDescriptor fieldAccessDescriptor =
+                      FieldAccessDescriptor.withAllFields();
 
-                      @ProcessElement
-                      public void process(
-                          @FieldAccess("filterFields") Row row, OutputReceiver<Row> r) {
-                        r.output(selectRow(row, resolved, inputSchema, outputSchema));
-                      }
-                    }))
-            .setRowSchema(outputSchema);
-
-    return selected;
-  }
-
-  // Currently we don't flatten selected nested fields. We should consider whether to flatten them
-  // or leave them as is.
-  static Schema getOutputSchema(Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
-    if (fieldAccessDescriptor.allFields()) {
-      return inputSchema;
-    }
-    Schema.Builder builder = new Schema.Builder();
-    for (int fieldId : fieldAccessDescriptor.fieldIdsAccessed()) {
-      builder.addField(inputSchema.getField(fieldId));
-    }
-
-    for (Map.Entry<Integer, FieldAccessDescriptor> nested :
-        fieldAccessDescriptor.nestedFields().entrySet()) {
-      Field field = inputSchema.getField(nested.getKey());
-      FieldAccessDescriptor nestedDescriptor = nested.getValue();
-      FieldType nestedType =
-          FieldType.row(getOutputSchema(field.getType().getRowSchema(), nestedDescriptor));
-
-      if (field.getNullable()) {
-        builder.addNullableField(field.getName(), nestedType);
-      } else {
-        builder.addField(field.getName(), nestedType);
-      }
-    }
-    return builder.build();
-  }
-
-  static Row selectRow(
-      Row input,
-      FieldAccessDescriptor fieldAccessDescriptor,
-      Schema inputSchema,
-      Schema outputSchema) {
-    if (fieldAccessDescriptor.allFields()) {
-      return input;
-    } else {
-      Row.Builder output = Row.withSchema(outputSchema);
-      for (int fieldId : fieldAccessDescriptor.fieldIdsAccessed()) {
-        output.addValue(input.getValue(fieldId));
-      }
-      for (Map.Entry<Integer, FieldAccessDescriptor> nested :
-          fieldAccessDescriptor.nestedFields().entrySet()) {
-        String fieldName = inputSchema.nameOf(nested.getKey());
-        Schema nestedInputSchema = inputSchema.getField(nested.getKey()).getType().getRowSchema();
-        Schema nestedOutputSchema = outputSchema.getField(fieldName).getType().getRowSchema();
-        output.addValue(
-            selectRow(
-                input.getValue(fieldName),
-                nested.getValue(),
-                nestedInputSchema,
-                nestedOutputSchema));
-      }
-      return output.build();
-    }
+                  @ProcessElement
+                  public void process(
+                      @FieldAccess("selectFields") @Element Row row, OutputReceiver<Row> r) {
+                    r.output(SelectHelpers.selectRow(row, resolved, inputSchema, outputSchema));
+                  }
+                }))
+        .setRowSchema(outputSchema);
   }
 }

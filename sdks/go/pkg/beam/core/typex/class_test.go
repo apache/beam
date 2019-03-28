@@ -40,6 +40,10 @@ func TestClassOf(t *testing.T) {
 		{reflectx.Uint32, Concrete},
 		{reflectx.Uint64, Concrete},
 		{reflectx.String, Concrete},
+		{reflectx.Float32, Concrete},
+		{reflectx.Float64, Concrete},
+		{reflect.TypeOf(complex64(0)), Concrete},
+		{reflect.TypeOf(complex128(0)), Concrete},
 		{reflect.TypeOf(struct{ A int }{}), Concrete},
 		{reflect.TypeOf(struct {
 			A int
@@ -47,6 +51,31 @@ func TestClassOf(t *testing.T) {
 		}{}), Concrete},
 		{reflect.TypeOf(struct{ A []int }{}), Concrete},
 		{reflect.TypeOf(reflect.Value{}), Concrete}, // ok: private fields
+		{reflect.TypeOf(map[string]int{}), Concrete},
+		{reflect.TypeOf(map[string]func(){}), Invalid},
+		{reflect.TypeOf(map[error]int{}), Invalid},
+		{reflect.TypeOf([4]int{}), Concrete},
+		{reflect.TypeOf([1]string{}), Concrete},
+		{reflect.TypeOf([0]string{}), Concrete},
+		{reflect.TypeOf([3]struct{ Q []string }{}), Concrete},
+		{reflect.TypeOf([0]interface{}{}), Concrete},
+		{reflect.TypeOf([1]string{}), Concrete},
+		{reflect.TypeOf([0]string{}), Concrete},
+		{reflect.TypeOf([0]interface{}{}), Concrete},
+		{reflect.PtrTo(reflectx.String), Concrete},
+		{reflect.PtrTo(reflectx.Uint32), Concrete},
+		{reflect.PtrTo(reflectx.Bool), Concrete},
+		{reflect.TypeOf([4]int{}), Concrete},
+		{reflect.TypeOf(&struct{ A int }{}), Concrete},
+		{reflect.TypeOf(&struct{ A *int }{}), Concrete},
+		{reflect.TypeOf([4]int{}), Concrete},
+
+		// Recursive types.
+		{reflect.TypeOf(RecursivePtrTest{}), Concrete},
+		{reflect.TypeOf(RecursiveSliceTest{}), Concrete},
+		{reflect.TypeOf(RecursivePtrArrayTest{}), Concrete},
+		{reflect.TypeOf(RecursiveMapTest{}), Concrete},
+		{reflect.TypeOf(RecursiveBadTest{}), Invalid},
 
 		{reflect.TypeOf([]X{}), Container},
 		{reflect.TypeOf([][][]X{}), Container},
@@ -63,18 +92,20 @@ func TestClassOf(t *testing.T) {
 
 		{EventTimeType, Invalid},                                     // special
 		{WindowType, Invalid},                                        // special
-		{reflect.TypeOf((*ConcreteTestWindow)(nil)).Elem(), Invalid}, // also special
+		{reflectx.Context, Invalid},                                  // special
+		{reflectx.Error, Invalid},                                    // special
+		{reflect.TypeOf((*ConcreteTestWindow)(nil)).Elem(), Invalid}, // special
 
 		{KVType, Composite},
 		{CoGBKType, Composite},
 		{WindowedValueType, Composite},
 
-		{reflect.TypeOf((*interface{})(nil)).Elem(), Invalid}, // empty interface
-		{reflectx.Context, Invalid},                           // interface
-		{reflectx.Error, Invalid},                             // interface
-		{reflect.TypeOf(func() {}), Invalid},                  // function
-		{reflect.TypeOf(make(chan int)), Invalid},             // chan
-		{reflect.TypeOf(struct{ A error }{}), Invalid},        // public interface field
+		{reflect.TypeOf((*interface{})(nil)).Elem(), Concrete}, // special
+
+		{reflect.TypeOf(uintptr(0)), Invalid},          // uintptr
+		{reflect.TypeOf(func() {}), Invalid},           // function
+		{reflect.TypeOf(make(chan int)), Invalid},      // chan
+		{reflect.TypeOf(struct{ A error }{}), Invalid}, // public interface field
 	}
 
 	for _, test := range tests {
@@ -83,6 +114,29 @@ func TestClassOf(t *testing.T) {
 			t.Errorf("ClassOf(%v) = %v, want %v", test.t, actual, test.exp)
 		}
 	}
+}
+
+type RecursivePtrTest struct {
+	Ptr *RecursivePtrTest
+}
+
+type RecursiveSliceTest struct {
+	Slice []RecursiveSliceTest
+}
+
+type RecursiveMapTest struct {
+	Map map[int]RecursiveMapTest
+}
+
+// The compiler catches recursive types without indirection.
+// Indirection makes recursion allowable.
+type RecursivePtrArrayTest struct {
+	Array [12]*RecursivePtrArrayTest
+}
+
+type RecursiveBadTest struct {
+	Map map[RecursivePtrTest]*RecursiveMapTest
+	Bad func()
 }
 
 type ConcreteTestWindow int
