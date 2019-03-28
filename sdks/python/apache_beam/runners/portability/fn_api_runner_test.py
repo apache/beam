@@ -845,7 +845,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     results = event_recorder.events()
     event_recorder.cleanup()
-    self.assertEquals(results, sorted(elements_list))
+    self.assertEqual(results, sorted(elements_list))
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
