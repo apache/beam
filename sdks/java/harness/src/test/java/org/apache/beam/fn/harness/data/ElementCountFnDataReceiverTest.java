@@ -26,6 +26,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -63,7 +64,7 @@ public class ElementCountFnDataReceiverTest {
     verify(consumer, times(numElements)).accept(element);
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setPCollectionLabel(pCollectionA);
     builder.setInt64Value(numElements);
     MonitoringInfo expected = builder.build();
