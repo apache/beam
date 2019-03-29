@@ -41,7 +41,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
   private final SpecMonitoringInfoValidator specValidator;
   private final Map<String, NameContext> pcollectionIdToNameContext;
 
-  // TODO(migryz): utilize value from metrics.proto once it gets in.
+  // TODO(BEAM-6945): utilize value from metrics.proto once it gets in.
   private static final String SUPPORTED_URN = "beam:metric:sampled_byte_size:v1";
 
   /**
@@ -73,7 +73,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    // TODO(migryz): extract and utilize pcollection label from beam_fn_api.proto
+    // TODO(BEAM-6945): extract and utilize pcollection label from beam_fn_api.proto
     if (!pcollectionIdToNameContext.containsKey(monitoringInfo.getLabelsMap().get("PCOLLECTION"))) {
       return Optional.of(
           "Encountered ElementCount MonitoringInfo with unknown PCollectionId: "
