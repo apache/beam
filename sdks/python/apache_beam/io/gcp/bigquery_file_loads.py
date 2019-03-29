@@ -176,14 +176,6 @@ class WriteRecordsToFile(beam.DoFn):
         'coder': self.coder.__class__.__name__
     }
 
-  @staticmethod
-  def get_hashable_destination(destination):
-    if isinstance(destination, bigquery_api.TableReference):
-      return '%s:%s.%s' % (
-          destination.projectId, destination.datasetId, destination.tableId)
-    else:
-      return destination
-
   def start_bundle(self):
     self._destination_to_file_writer = {}
 
@@ -192,7 +184,7 @@ class WriteRecordsToFile(beam.DoFn):
 
     Destination may be a ``TableReference`` or a string, and row is a
     Python dictionary for a row to be inserted to BigQuery."""
-    destination = WriteRecordsToFile.get_hashable_destination(element[0])
+    destination = bigquery_tools.get_hashable_destination(element[0])
     row = element[1]
 
     if destination in self._destination_to_file_writer:
