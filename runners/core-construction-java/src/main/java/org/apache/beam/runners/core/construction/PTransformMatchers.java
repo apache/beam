@@ -21,6 +21,7 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.WR
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -74,6 +75,23 @@ public class PTransformMatchers {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("urn", urn).toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      EqualUrnPTransformMatcher that = (EqualUrnPTransformMatcher) o;
+      return urn.equals(that.urn);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(urn);
     }
   }
 
