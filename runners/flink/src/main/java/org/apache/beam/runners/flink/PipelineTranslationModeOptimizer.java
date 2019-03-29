@@ -24,7 +24,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,18 +35,19 @@ class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationModeOptimizer.class);
 
-  private final FlinkPipelineOptions options;
-  private boolean hasRun;
-  private boolean hasUnboundedSources;
+  private boolean hasUnboundedCollections;
 
-  public PipelineTranslationModeOptimizer(FlinkPipelineOptions options) {
-    this.options = options;
+  static boolean hasUnboundedOutput(Pipeline p) {
+    PipelineTranslationModeOptimizer optimizer = new PipelineTranslationModeOptimizer();
+    optimizer.translate(p);
+    return optimizer.hasUnboundedCollections;
   }
+
+  private PipelineTranslationModeOptimizer() {}
 
   @Override
   public void translate(Pipeline pipeline) {
     super.translate(pipeline);
-    hasRun = true;
   }
 
   @Override
@@ -63,9 +63,8 @@ class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
     AppliedPTransform<?, ?, ?> appliedPTransform = node.toAppliedPTransform(getPipeline());
     if (hasUnboundedOutput(appliedPTransform)) {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
-      LOG.info("Found {}. Switching to streaming execution.", transformClass);
-      options.setStreaming(true);
-      hasUnboundedSources = true;
+      LOG.debug("Found unbounded PCollection for transform %s", transformClass);
+      hasUnboundedCollections = true;
     }
   }
 
@@ -78,9 +77,4 @@ class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {}
-
-  boolean hasUnboundedSources() {
-    Preconditions.checkState(hasRun, "%s has not run yet.", getClass().getSimpleName());
-    return hasUnboundedSources;
-  }
 }
