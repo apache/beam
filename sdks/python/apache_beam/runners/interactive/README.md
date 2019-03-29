@@ -251,7 +251,7 @@ You can choose to run Interactive Beam on Flink with the following settings.
 **Note**: Python Flink Runner (combination of PortableRunner and FlinkService)
 is being actively developed now, so these setups and commands are subject to
 changes. This guide and
-[Interactive Beam Running on Flink.ipynb](exampls/Interactive Beam Running on Flink.ipynb)
+[Interactive Beam Running on Flink.ipynb](examples/Interactive%20Beam%20Running%20on%20Flink.ipynb)
 capture the status of the world when it's last updated.
 
 ## TL;DR;
