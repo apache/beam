@@ -56,6 +56,7 @@ public class UnboundedSourceSystemTest {
   // A reasonable time to wait to get all messages from the source assuming no blocking.
   private static final long DEFAULT_TIMEOUT_MILLIS = 1000;
   private static final long DEFAULT_WATERMARK_TIMEOUT_MILLIS = 1000;
+  private static final String NULL_STRING = null;
 
   private static final SystemStreamPartition DEFAULT_SSP =
       new SystemStreamPartition("default-system", "default-system", new Partition(0));
@@ -86,7 +87,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Arrays.asList(
@@ -110,7 +111,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Arrays.asList(
@@ -133,7 +134,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Arrays.asList(
@@ -161,7 +162,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Arrays.asList(
@@ -193,7 +194,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     // consume to the first watermark
     assertEquals(
@@ -223,7 +224,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     expectWrappedException(
         exception,
@@ -271,7 +272,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Collections.singletonList(createElementMessage(DEFAULT_SSP, offset(0), "before", now)),
