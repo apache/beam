@@ -26,12 +26,13 @@
 #
 set -euxo pipefail
 
-readonly BEAM_IMAGES_TO_PULL_METADATA_KEY="beam-images-to-pull"
+readonly BEAM_HARNESS_IMAGES_TO_PULL_METADATA_KEY="beam-harness-images-to-pull"
+readonly JOB_SERVER_IMAGE_METADATA_KEY="job-server-image"
 
 function pull_images() {
 
   local beam_images_to_pull="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_IMAGES_TO_PULL_METADATA_KEY}")"
+    "attributes/${BEAM_HARNESS_IMAGES_TO_PULL_METADATA_KEY}")"
 
   for image in $beam_images_to_pull
   do
@@ -43,8 +44,24 @@ function pull_images() {
   done
 }
 
+function pull_job_server() {
+  local job_server_location="$(/usr/share/google/get_metadata_value \
+    "attributes/${JOB_SERVER_IMAGE_METADATA_KEY}")"
+
+  if [[ -n "$job_server_location" ]] ; then
+    sudo -u yarn -i docker pull ${job_server_location}
+  fi
+
+}
+
 function main() {
+  local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
   pull_images
+
+  if [[ "${role}" == 'Master' ]] ; then
+    pull_job_server || err "Unable to start master"
+  fi
 }
 
 main "$@"
