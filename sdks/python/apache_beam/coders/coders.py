@@ -452,6 +452,9 @@ class FloatCoder(FastCoder):
     return hash(type(self))
 
 
+Coder.register_structured_urn(common_urns.coders.DOUBLE.urn, FloatCoder)
+
+
 class TimestampCoder(FastCoder):
   """A coder used for timeutil.Timestamp values."""
 
