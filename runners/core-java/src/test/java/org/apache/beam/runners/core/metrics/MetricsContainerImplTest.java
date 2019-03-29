@@ -182,14 +182,14 @@ public class MetricsContainerImplTest {
   public void testMonitoringInfosArePopulatedForABeamCounter() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
     HashMap<String, String> labels = new HashMap<String, String>();
-    labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, "pcollection");
+    labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "pcollection");
     MetricName name =
-        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
     CounterCell c1 = testObject.getCounter(name);
     c1.inc(2L);
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder1.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder1.setPCollectionLabel("pcollection");
     builder1.setInt64Value(2);
     builder1.build();
