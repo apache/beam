@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.translation;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCod
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
@@ -63,9 +62,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Tests for {@link FlinkBatchSideInputHandlerFactory}. */
+/** Tests for {@link BatchSideInputHandlerFactory}. */
 @RunWith(JUnit4.class)
-public class FlinkBatchSideInputHandlerFactoryTest {
+public class BatchSideInputHandlerFactoryTest {
 
   private static final String TRANSFORM_ID = "transform-id";
   private static final String SIDE_INPUT_NAME = "side-input";
@@ -87,7 +86,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Mock private RuntimeContext context;
+  @Mock private BatchSideInputHandlerFactory.SideInputGetter context;
 
   @Before
   public void setUpMocks() {
@@ -97,8 +96,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
   @Test
   public void invalidSideInputThrowsException() {
     ExecutableStage stage = createExecutableStage(Collections.emptyList());
-    FlinkBatchSideInputHandlerFactory factory =
-        FlinkBatchSideInputHandlerFactory.forStage(stage, context);
+    BatchSideInputHandlerFactory factory = BatchSideInputHandlerFactory.forStage(stage, context);
     thrown.expect(instanceOf(IllegalArgumentException.class));
     factory.forSideInput(
         "transform-id",
@@ -110,8 +108,8 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
   @Test
   public void emptyResultForEmptyCollection() {
-    FlinkBatchSideInputHandlerFactory factory =
-        FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
+    BatchSideInputHandlerFactory factory =
+        BatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
     SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
@@ -127,12 +125,12 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
   @Test
   public void singleElementForCollection() {
-    when(context.getBroadcastVariable(COLLECTION_ID))
+    when(context.getSideInput(COLLECTION_ID))
         .thenReturn(
             Arrays.asList(WindowedValue.valueInGlobalWindow(KV.<Void, Integer>of(null, 3))));
 
-    FlinkBatchSideInputHandlerFactory factory =
-        FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
+    BatchSideInputHandlerFactory factory =
+        BatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
     SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
@@ -146,15 +144,15 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
   @Test
   public void groupsValuesByKey() {
-    when(context.getBroadcastVariable(COLLECTION_ID))
+    when(context.getSideInput(COLLECTION_ID))
         .thenReturn(
             Arrays.asList(
                 WindowedValue.valueInGlobalWindow(KV.of("foo", 2)),
                 WindowedValue.valueInGlobalWindow(KV.of("bar", 3)),
                 WindowedValue.valueInGlobalWindow(KV.of("foo", 5))));
 
-    FlinkBatchSideInputHandlerFactory factory =
-        FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
+    BatchSideInputHandlerFactory factory =
+        BatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
     SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
@@ -173,7 +171,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
     Instant instantC = new DateTime(2018, 1, 1, 1, 3, DateTimeZone.UTC).toInstant();
     IntervalWindow windowA = new IntervalWindow(instantA, instantB);
     IntervalWindow windowB = new IntervalWindow(instantB, instantC);
-    when(context.getBroadcastVariable(COLLECTION_ID))
+    when(context.getSideInput(COLLECTION_ID))
         .thenReturn(
             Arrays.asList(
                 WindowedValue.of(KV.of("foo", 1), instantA, windowA, PaneInfo.NO_FIRING),
@@ -183,8 +181,8 @@ public class FlinkBatchSideInputHandlerFactoryTest {
                 WindowedValue.of(KV.of("bar", 5), instantB, windowB, PaneInfo.NO_FIRING),
                 WindowedValue.of(KV.of("foo", 6), instantB, windowB, PaneInfo.NO_FIRING)));
 
-    FlinkBatchSideInputHandlerFactory factory =
-        FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
+    BatchSideInputHandlerFactory factory =
+        BatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
     SideInputHandler<Integer, IntervalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
@@ -205,7 +203,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
     Instant instantC = new DateTime(2018, 1, 1, 1, 3, DateTimeZone.UTC).toInstant();
     IntervalWindow windowA = new IntervalWindow(instantA, instantB);
     IntervalWindow windowB = new IntervalWindow(instantB, instantC);
-    when(context.getBroadcastVariable(COLLECTION_ID))
+    when(context.getSideInput(COLLECTION_ID))
         .thenReturn(
             Arrays.asList(
                 WindowedValue.of(1, instantA, windowA, PaneInfo.NO_FIRING),
@@ -213,8 +211,8 @@ public class FlinkBatchSideInputHandlerFactoryTest {
                 WindowedValue.of(3, instantB, windowB, PaneInfo.NO_FIRING),
                 WindowedValue.of(4, instantB, windowB, PaneInfo.NO_FIRING)));
 
-    FlinkBatchSideInputHandlerFactory factory =
-        FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
+    BatchSideInputHandlerFactory factory =
+        BatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
     SideInputHandler<Integer, IntervalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,

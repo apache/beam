@@ -34,9 +34,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AfterClass;
@@ -80,6 +82,20 @@ public class SparkPortableExecutionTest implements Serializable {
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
 
     Pipeline p = Pipeline.create(options);
+
+    final PCollectionView<Integer> view =
+        p.apply("impulse23", Impulse.create())
+            .apply(
+                "create23",
+                ParDo.of(
+                    new DoFn<byte[], Integer>() {
+                      @ProcessElement
+                      public void process(ProcessContext context) {
+                        context.output(23);
+                      }
+                    }))
+            .apply(View.asSingleton());
+
     PCollection<KV<String, Iterable<Long>>> result =
         p.apply("impulse", Impulse.create())
             .apply(
@@ -108,15 +124,17 @@ public class SparkPortableExecutionTest implements Serializable {
             .apply(
                 "print",
                 ParDo.of(
-                    new DoFn<KV<String, Iterable<Long>>, KV<String, Long>>() {
-                      @ProcessElement
-                      public void process(ProcessContext context) {
-                        LOG.info("Output element: {}", context.element());
-                        for (Long i : context.element().getValue()) {
-                          context.output(KV.of(context.element().getKey(), i));
-                        }
-                      }
-                    }))
+                        new DoFn<KV<String, Iterable<Long>>, KV<String, Long>>() {
+                          @ProcessElement
+                          public void process(ProcessContext context) {
+                            LOG.info("Side input: {}", context.sideInput(view));
+                            LOG.info("Output element: {}", context.element());
+                            for (Long i : context.element().getValue()) {
+                              context.output(KV.of(context.element().getKey(), i));
+                            }
+                          }
+                        })
+                    .withSideInputs(view))
             // Second GBK forces the output to be materialized
             .apply("gbk", GroupByKey.create());
 
