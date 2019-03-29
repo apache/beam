@@ -59,6 +59,13 @@ class GroupByKeyTranslator<K, InputT, OutputT>
       PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
+    doTranslate(transform, node, ctx);
+  }
+
+  private static <K, InputT, OutputT> void doTranslate(
+      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
+      TransformHierarchy.Node node,
+      TranslationContext ctx) {
     final PCollection<KV<K, InputT>> input = ctx.getInput(transform);
 
     final PCollection<KV<K, OutputT>> output = ctx.getOutput(transform);
@@ -93,6 +100,13 @@ class GroupByKeyTranslator<K, InputT, OutputT>
 
   @Override
   public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    doTranslatePortable(transform, pipeline, ctx);
+  }
+
+  private static <K, InputT, OutputT> void doTranslatePortable(
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
@@ -134,7 +148,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
   }
 
-  private MessageStream<OpMessage<KV<K, OutputT>>> doTranslateGBK(
+  private static <K, InputT, OutputT> MessageStream<OpMessage<KV<K, OutputT>>> doTranslateGBK(
       MessageStream<OpMessage<KV<K, InputT>>> inputStream,
       boolean needRepartition,
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn,
@@ -185,10 +199,11 @@ class GroupByKeyTranslator<K, InputT, OutputT>
   }
 
   @SuppressWarnings("unchecked")
-  private SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> getSystemReduceFn(
-      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-      Pipeline pipeline,
-      KvCoder<K, InputT> kvInputCoder) {
+  private static <K, InputT, OutputT>
+      SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> getSystemReduceFn(
+          PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
+          Pipeline pipeline,
+          KvCoder<K, InputT> kvInputCoder) {
     if (transform instanceof GroupByKey) {
       return (SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow>)
           SystemReduceFn.buffering(kvInputCoder.getValueCoder());
@@ -203,7 +218,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     }
   }
 
-  private boolean needRepartition(TransformHierarchy.Node node, TranslationContext ctx) {
+  private static boolean needRepartition(TransformHierarchy.Node node, TranslationContext ctx) {
     if (ctx.getPipelineOptions().getMaxSourceParallelism() == 1) {
       // Only one task will be created, no need for repartition
       return false;

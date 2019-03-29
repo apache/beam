@@ -53,7 +53,7 @@ public class SamzaPipelineResult implements PipelineResult {
 
   @Override
   public State cancel() {
-    runner.kill(app);
+    runner.kill();
     return waitUntilFinish();
   }
 
@@ -88,7 +88,7 @@ public class SamzaPipelineResult implements PipelineResult {
   }
 
   private StateInfo getStateInfo() {
-    final ApplicationStatus status = runner.status(app);
+    final ApplicationStatus status = runner.status();
     switch (status.getStatusCode()) {
       case New:
         return new StateInfo(State.STOPPED);
