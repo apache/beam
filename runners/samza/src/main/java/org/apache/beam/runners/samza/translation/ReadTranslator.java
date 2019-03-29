@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;
 import org.apache.beam.runners.samza.adapter.UnboundedSourceSystem;
+import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -32,14 +32,19 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.samza.operators.KV;
+import org.apache.samza.serializers.KVSerde;
+import org.apache.samza.serializers.NoOpSerde;
+import org.apache.samza.serializers.Serde;
+import org.apache.samza.system.descriptors.GenericInputDescriptor;
+import org.apache.samza.system.descriptors.GenericSystemDescriptor;
 
 /**
  * Translates {@link org.apache.beam.sdk.io.Read} to Samza input {@link
  * org.apache.samza.operators.MessageStream}.
  */
-public class ReadTranslator<T>
-    implements TransformTranslator<PTransform<PBegin, PCollection<T>>>,
-        TransformConfigGenerator<PTransform<PBegin, PCollection<T>>> {
+public class ReadTranslator<T> implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
   @Override
   public void translate(
@@ -47,39 +52,40 @@ public class ReadTranslator<T>
       TransformHierarchy.Node node,
       TranslationContext ctx) {
     final PCollection<T> output = ctx.getOutput(transform);
-    ctx.registerInputMessageStream(output);
-  }
-
-  @Override
-  public Map<String, String> createConfig(
-      PTransform<PBegin, PCollection<T>> transform,
-      TransformHierarchy.Node node,
-      ConfigContext ctx) {
-    final String id = ctx.getOutputId(node);
-    final PCollection<T> output = ctx.getOutput(transform);
     final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
     final Source<?> source =
         transform instanceof Read.Unbounded
             ? ((Read.Unbounded) transform).getSource()
             : ((Read.Bounded) transform).getSource();
+    final String id = ctx.getIdForPValue(output);
 
-    final Map<String, String> config = new HashMap<>();
-    final String systemPrefix = "systems." + id;
-    final String streamPrefix = "streams." + id;
-
-    config.put(systemPrefix + ".source", Base64Serializer.serializeUnchecked(source));
-    config.put(systemPrefix + ".coder", Base64Serializer.serializeUnchecked(coder));
-    config.put(systemPrefix + ".stepName", node.getFullName());
-
-    config.put(streamPrefix + ".samza.system", id);
-
+    // Create system descriptor
+    final GenericSystemDescriptor systemDescriptor;
     if (source instanceof BoundedSource) {
-      config.put(streamPrefix + ".samza.bounded", "true");
-      config.put(systemPrefix + ".samza.factory", BoundedSourceSystem.Factory.class.getName());
+      systemDescriptor =
+          new GenericSystemDescriptor(id, BoundedSourceSystem.Factory.class.getName());
     } else {
-      config.put(systemPrefix + ".samza.factory", UnboundedSourceSystem.Factory.class.getName());
+      systemDescriptor =
+          new GenericSystemDescriptor(id, UnboundedSourceSystem.Factory.class.getName());
     }
 
-    return config;
+    final Map<String, String> systemConfig =
+        ImmutableMap.of(
+            "source", Base64Serializer.serializeUnchecked(source),
+            "coder", Base64Serializer.serializeUnchecked(coder),
+            "stepName", node.getFullName());
+    systemDescriptor.withSystemConfigs(systemConfig);
+
+    // Create stream descriptor
+    @SuppressWarnings("unchecked")
+    final Serde<KV<?, OpMessage<T>>> kvSerde =
+        (Serde) KVSerde.of(new NoOpSerde<>(), new NoOpSerde<>());
+    final GenericInputDescriptor<KV<?, OpMessage<T>>> inputDescriptor =
+        systemDescriptor.getInputDescriptor(id, kvSerde);
+    if (source instanceof BoundedSource) {
+      inputDescriptor.isBounded();
+    }
+
+    ctx.registerInputMessageStream(output, inputDescriptor);
   }
 }

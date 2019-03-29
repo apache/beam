@@ -54,8 +54,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.TimerRegistry;
-import org.apache.samza.task.TaskContext;
+import org.apache.samza.context.Context;
+import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,8 +138,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void open(
       Config config,
-      TaskContext context,
-      TimerRegistry<KeyedTimerData<Void>> timerRegistry,
+      Context context,
+      Scheduler<KeyedTimerData<Void>> timerRegistry,
       OpEmitter<OutT> emitter) {
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -154,12 +154,12 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            null, context, pipelineOptions, signature, mainOutputTag);
+            null, context.getTaskContext(), pipelineOptions, signature, mainOutputTag);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
             keyCoder,
-            (TimerRegistry) timerRegistry,
+            (Scheduler) timerRegistry,
             getTimerStateId(signature),
             nonKeyedStateInternalsFactory,
             windowingStrategy,
@@ -170,7 +170,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     if (isPortable) {
       SamzaExecutionContext samzaExecutionContext =
-          (SamzaExecutionContext) context.getUserContext();
+          (SamzaExecutionContext) context.getApplicationContainerContext();
       ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       stageBundleFactory = samzaExecutionContext.getJobBundleFactory().forStage(executableStage);
       this.fnRunner =
