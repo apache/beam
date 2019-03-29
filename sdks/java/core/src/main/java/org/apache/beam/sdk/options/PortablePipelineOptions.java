@@ -75,7 +75,8 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   @Description(
       "Sets the number of sdk worker processes that will run on each worker node. Default is 1. If"
-          + " 0, it will be automatically set according to the number of CPU cores on the worker.")
+          + " 0, it will be automatically set by the runner by looking at different parameters "
+          + "(e.g. number of CPU cores on the worker machine).")
   @Nullable
   Long getSdkWorkerParallelism();
 

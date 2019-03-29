@@ -737,6 +737,16 @@ class PortableOptions(PipelineOptions):
               '"<process to execute>", "env":{"<Environment variables 1>": '
               '"<ENV_VAL>"} }. All fields in the json are optional except '
               'command.'))
+    parser.add_argument(
+        '--sdk-worker-parallelism', default=None,
+        help=('Sets the number of sdk worker processes that will run on each '
+              'worker node. Default is 1. If 0, it will be automatically set '
+              'by the runner by looking at different parameters (e.g. number '
+              'of CPU cores on the worker machine).'))
+    parser.add_argument(
+        '--environment-cache-millis', default=0,
+        help=('Duration in milliseconds for environment cache within a job. '
+              '0 means no caching.'))
 
 
 class RunnerOptions(PipelineOptions):
