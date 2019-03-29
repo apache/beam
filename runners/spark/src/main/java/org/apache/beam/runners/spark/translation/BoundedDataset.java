@@ -46,6 +46,7 @@ public class BoundedDataset<T> implements Dataset {
   private Iterable<WindowedValue<T>> windowedValues;
   private Coder<T> coder;
   private JavaRDD<WindowedValue<T>> rdd;
+  private List<byte[]> clientBytes;
 
   BoundedDataset(JavaRDD<WindowedValue<T>> rdd) {
     this.rdd = rdd;
@@ -67,6 +68,14 @@ public class BoundedDataset<T> implements Dataset {
               .map(CoderHelpers.fromByteFunction(windowCoder));
     }
     return rdd;
+  }
+
+  List<byte[]> getBytes(WindowedValue.WindowedValueCoder<T> wvCoder) {
+    if (clientBytes == null) {
+      JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(wvCoder));
+      clientBytes = bytesRDD.collect();
+    }
+    return clientBytes;
   }
 
   Iterable<WindowedValue<T>> getValues(PCollection<T> pcollection) {
