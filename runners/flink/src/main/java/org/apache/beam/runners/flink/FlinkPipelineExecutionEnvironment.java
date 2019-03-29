@@ -82,10 +82,15 @@ class FlinkPipelineExecutionEnvironment {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
-    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
+    final boolean hasUnboundedOutput =
+        PipelineTranslationModeOptimizer.hasUnboundedOutput(pipeline);
+    if (hasUnboundedOutput) {
+      LOG.info("Found unbounded PCollection. Switching to streaming execution.");
+      options.setStreaming(true);
+    }
 
-    PipelineTranslationModeOptimizer optimizer = new PipelineTranslationModeOptimizer(options);
-    optimizer.translate(pipeline);
+    // Replace transforms only after determining the execution mode (batch/streaming)
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
 
     // Needs to be done before creating the Flink ExecutionEnvironments
     prepareFilesToStageForRemoteClusterExecution(options);
@@ -95,8 +100,7 @@ class FlinkPipelineExecutionEnvironment {
       this.flinkStreamEnv =
           FlinkExecutionEnvironments.createStreamExecutionEnvironment(
               options, options.getFilesToStage());
-      if (optimizer.hasUnboundedSources()
-          && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
+      if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
         LOG.warn(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
