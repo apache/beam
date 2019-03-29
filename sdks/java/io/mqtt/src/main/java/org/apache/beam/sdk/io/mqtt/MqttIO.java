@@ -153,40 +153,26 @@ public class MqttIO {
       abstract ConnectionConfiguration build();
     }
 
-    /**
-     * Describe a connection configuration to the MQTT broker. This method creates an unique random
-     * MQTT client ID.
-     *
-     * @param serverUri The MQTT broker URI.
-     * @param topic The MQTT getTopic pattern.
-     * @return A connection configuration to the MQTT broker.
-     */
-    public static ConnectionConfiguration create(String serverUri, String topic) {
-      checkArgument(serverUri != null, "serverUri can not be null");
-      checkArgument(topic != null, "topic can not be null");
-      return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
-          .setServerUri(serverUri)
-          .setTopic(topic)
-          .build();
+    public static ConnectionConfiguration create() {
+      return new AutoValue_MqttIO_ConnectionConfiguration.Builder().build();
     }
 
-    /**
-     * Describe a connection configuration to the MQTT broker.
-     *
-     * @param serverUri The MQTT broker URI.
-     * @param topic The MQTT getTopic pattern.
-     * @param clientId A client ID prefix, used to construct an unique client ID.
-     * @return A connection configuration to the MQTT broker.
-     */
-    public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
+    /** Set up the MQTT broker URI. */
+    public ConnectionConfiguration withUri(String serverUri) {
       checkArgument(serverUri != null, "serverUri can not be null");
+      return builder().setServerUri(serverUri).build();
+    }
+
+    /** Set up the MQTT getTopic pattern. */
+    public ConnectionConfiguration withTopic(String topic) {
       checkArgument(topic != null, "topic can not be null");
+      return builder().setTopic(topic).build();
+    }
+
+    /** Set up the client ID prefix, which is used to construct an unique client ID. */
+    public ConnectionConfiguration withClientId(String clientId) {
       checkArgument(clientId != null, "clientId can not be null");
-      return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
-          .setServerUri(serverUri)
-          .setTopic(topic)
-          .setClientId(clientId)
-          .build();
+      return builder().setClientId(clientId).build();
     }
 
     public ConnectionConfiguration withUsername(String username) {

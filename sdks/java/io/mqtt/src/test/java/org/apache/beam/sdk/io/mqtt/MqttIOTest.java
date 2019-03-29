@@ -87,7 +87,9 @@ public class MqttIOTest {
     Read mqttReader =
         MqttIO.read()
             .withConnectionConfiguration(
-                MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, topicName))
+                MqttIO.ConnectionConfiguration.create()
+                    .withUri("tcp://localhost:" + port)
+                    .withTopic(topicName))
             .withMaxNumRecords(10);
     PCollection<byte[]> output = pipeline.apply(mqttReader);
     PAssert.that(output)
@@ -150,8 +152,10 @@ public class MqttIOTest {
         pipeline.apply(
             MqttIO.read()
                 .withConnectionConfiguration(
-                    MqttIO.ConnectionConfiguration.create(
-                        "tcp://localhost:" + port, "READ_TOPIC", "READ_PIPELINE"))
+                    MqttIO.ConnectionConfiguration.create()
+                        .withUri("tcp://localhost:" + port)
+                        .withTopic("READ_TOPIC")
+                        .withClientId("READ_PIPELINE"))
                 .withMaxReadTime(Duration.standardSeconds(3)));
     PAssert.that(output)
         .containsInAnyOrder(
@@ -212,8 +216,10 @@ public class MqttIOTest {
     pipeline.apply(
         MqttIO.read()
             .withConnectionConfiguration(
-                MqttIO.ConnectionConfiguration.create(
-                    "tcp://localhost:" + port, "READ_TOPIC", "READ_PIPELINE"))
+                MqttIO.ConnectionConfiguration.create()
+                    .withUri("tcp://localhost:" + port)
+                    .withTopic("READ_TOPIC")
+                    .withClientId("READ_PIPELINE"))
             .withMaxReadTime(Duration.standardSeconds(2)));
 
     // should stop before the test timeout
@@ -255,8 +261,9 @@ public class MqttIOTest {
         .apply(
             MqttIO.write()
                 .withConnectionConfiguration(
-                    MqttIO.ConnectionConfiguration.create(
-                        "tcp://localhost:" + port, "WRITE_TOPIC")));
+                    MqttIO.ConnectionConfiguration.create()
+                        .withUri("tcp://localhost:" + port)
+                        .withTopic("WRITE_TOPIC")));
     pipeline.run();
     subscriber.join();
 
