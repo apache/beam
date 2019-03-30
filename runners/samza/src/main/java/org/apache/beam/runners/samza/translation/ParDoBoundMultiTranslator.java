@@ -148,6 +148,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             idToPValueMap,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             node.getFullName(),
+            // TODO: infer a fixed id from the name
+            String.valueOf(ctx.getCurrentTopologicalId()),
             input.isBounded(),
             false,
             null,
@@ -254,6 +256,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             nodeFullname,
+            // TODO: infer a fixed id from the name
+            String.valueOf(ctx.getCurrentTopologicalId()),
             isBounded,
             true,
             stagePayload,

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import static org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils.escape;
-
 import java.util.List;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.SamzaCoders;
@@ -56,11 +54,11 @@ class SamzaPublishViewTranslator<ElemT, ViewT>
             .map(OpMessage::getElement);
 
     // TODO: once SAMZA-1580 is resolved, this optimization will go directly inside Samza
-    final String broadcastId = "view-" + escape(node.getFullName());
     final MessageStream<WindowedValue<Iterable<ElemT>>> broadcastStream =
         ctx.getPipelineOptions().getMaxSourceParallelism() == 1
             ? elementStream
-            : elementStream.broadcast(SamzaCoders.toSerde(elementCoder), broadcastId);
+            : elementStream.broadcast(
+                SamzaCoders.toSerde(elementCoder), "view-" + ctx.getCurrentTopologicalId());
 
     final String viewId = ctx.getViewId(transform.getView());
     final MessageStream<OpMessage<Iterable<ElemT>>> outputStream =

@@ -75,6 +75,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // NOTE: we use HashMap here to guarantee Serializability
   private final HashMap<String, PCollectionView<?>> idToViewMap;
   private final String stepName;
+  private final String stepId;
   private final Coder<InT> inputCoder;
   private final HashMap<TupleTag<?>, Coder<?>> outputCoders;
   private final PCollection.IsBounded isBounded;
@@ -116,6 +117,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       Map<String, PCollectionView<?>> idToViewMap,
       OutputManagerFactory<OutT> outputManagerFactory,
       String stepName,
+      String stepId,
       PCollection.IsBounded isBounded,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
@@ -131,6 +133,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.idToViewMap = new HashMap<>(idToViewMap);
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
+    this.stepId = stepId;
     this.keyCoder = keyCoder;
     this.isBounded = isBounded;
     this.isPortable = isPortable;
@@ -156,9 +159,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             .get()
             .as(SamzaPipelineOptions.class);
 
+    final String stateId = "pardo-" + stepId;
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stepName, null, context.getTaskContext(), pipelineOptions, signature);
+            stateId, null, context.getTaskContext(), pipelineOptions, signature);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
@@ -193,6 +197,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               doFn,
               windowingStrategy,
               stepName,
+              stateId,
               context,
               mainOutputTag,
               sideInputHandler,
