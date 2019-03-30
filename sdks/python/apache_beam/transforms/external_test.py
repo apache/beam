@@ -28,6 +28,7 @@ import grpc
 from past.builtins import unicode
 
 import apache_beam as beam
+from apache_beam import Pipeline
 from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import expansion_service
@@ -40,6 +41,44 @@ class ExternalTransformTest(unittest.TestCase):
 
   # This will be overwritten if set via a flag.
   expansion_service_jar = None
+
+  def test_pipeline_generation(self):
+
+    @ptransform.PTransform.register_urn('simple', None)
+    class SimpleTransform(ptransform.PTransform):
+      def expand(self, pcoll):
+        return pcoll | 'TestLabel' >> beam.Map(lambda x: 'Simple(%s)' % x)
+
+      def to_runner_api_parameter(self, unused_context):
+        return 'simple', None
+
+      @staticmethod
+      def from_runner_api_parameter(unused_parameter, unused_context):
+        return SimpleTransform()
+
+    pipeline = beam.Pipeline()
+    res = (pipeline
+           | beam.Create(['a', 'b'])
+           | beam.ExternalTransform(
+               'simple',
+               None,
+               expansion_service.ExpansionServiceServicer()))
+    assert_that(res, equal_to(['Simple(a)', 'Simple(b)']))
+
+    proto, _ = pipeline.to_runner_api(
+        return_context=True)
+    pipeline_from_proto = Pipeline.from_runner_api(
+        proto, pipeline.runner, pipeline._options)
+
+    # Original pipeline has the un-expanded external transform
+    self.assertEqual([], pipeline.transforms_stack[0].parts[1].parts)
+
+    # new pipeline has the expanded external transform
+    self.assertNotEqual(
+        [], pipeline_from_proto.transforms_stack[0].parts[1].parts)
+    self.assertEqual(
+        u'ExternalTransform(simple)/TestLabel',
+        pipeline_from_proto.transforms_stack[0].parts[1].parts[0].full_label)
 
   def test_simple(self):
 
