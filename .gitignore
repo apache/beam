@@ -10,6 +10,7 @@
 **/.gogradle/**/*
 **/gogradle.lock
 **/build/**/*
+.test-infra/**/vendor/**/*
 sdks/**/vendor/**/*
 runners/**/vendor/**/*
 **/.gradletasknamecache
