@@ -63,6 +63,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private final Coder<K> keyCoder;
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
   private final String stepName;
+  private final String stepId;
   private final PCollection.IsBounded isBounded;
 
   private transient StateInternalsFactory<K> stateInternalsFactory;
@@ -77,11 +78,13 @@ public class GroupByKeyOp<K, InputT, OutputT>
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
       String stepName,
+      String stepId,
       PCollection.IsBounded isBounded) {
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
+    this.stepId = stepId;
     this.isBounded = isBounded;
 
     if (!(inputCoder instanceof KeyedWorkItemCoder)) {
@@ -108,13 +111,13 @@ public class GroupByKeyOp<K, InputT, OutputT>
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stepName, null, context.getTaskContext(), pipelineOptions, null);
+            stepId, null, context.getTaskContext(), pipelineOptions, null);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
-            stepName,
+            stepId,
             Collections.singletonMap(
                 SamzaStoreStateInternals.BEAM_STORE,
                 SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
