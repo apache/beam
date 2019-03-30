@@ -660,7 +660,7 @@ class BigQueryWrapper(object):
     page_token = None
     while True:
       response = self._get_query_results(project_id, job_id,
-                                         page_token, location)
+                                         page_token, location=location)
       if not response.jobComplete:
         # The jobComplete field can be False if the query request times out
         # (default is 10 seconds). Note that this is a timeout for the query
