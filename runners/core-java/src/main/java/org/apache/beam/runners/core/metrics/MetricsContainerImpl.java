@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.MetricUrns.parseUrn;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
@@ -25,15 +26,23 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.DistributionData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.ExtremaData;
+import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holds the metrics for a single step and uses metric cells that allow extracting the cumulative
@@ -50,6 +59,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  */
 @Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
 
   @Nullable private final String stepName;
 
@@ -229,6 +239,43 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     updateCounters(counters, other.counters);
     updateDistributions(distributions, other.distributions);
     updateGauges(gauges, other.gauges);
+  }
+
+  /** Update values of this {@link MetricsContainerImpl} by reading from {@code monitoringInfos}. */
+  public void update(Iterable<MonitoringInfo> monitoringInfos) {
+    monitoringInfos.forEach(
+        monitoringInfo -> {
+          if (monitoringInfo.hasMetric()) {
+            String urn = monitoringInfo.getUrn();
+            MetricName metricName = parseUrn(urn);
+            org.apache.beam.model.pipeline.v1.MetricsApi.Metric metric = monitoringInfo.getMetric();
+            if (metric.hasCounterData()) {
+              CounterData counterData = metric.getCounterData();
+              if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
+                Counter counter = getCounter(metricName);
+                counter.inc(counterData.getInt64Value());
+              } else {
+                LOG.warn("Unsupported CounterData type: {}", counterData);
+              }
+            } else if (metric.hasDistributionData()) {
+              DistributionData distributionData = metric.getDistributionData();
+              if (distributionData.hasIntDistributionData()) {
+                Distribution distribution = getDistribution(metricName);
+                IntDistributionData intDistributionData = distributionData.getIntDistributionData();
+                distribution.update(
+                    intDistributionData.getSum(),
+                    intDistributionData.getCount(),
+                    intDistributionData.getMin(),
+                    intDistributionData.getMax());
+              } else {
+                LOG.warn("Unsupported DistributionData type: {}", distributionData);
+              }
+            } else if (metric.hasExtremaData()) {
+              ExtremaData extremaData = metric.getExtremaData();
+              LOG.warn("Extrema metric unsupported: {}", extremaData);
+            }
+          }
+        });
   }
 
   private void updateCounters(
