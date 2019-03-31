@@ -43,6 +43,12 @@ def call(*args, **kwargs):
     out = subprocess.call(*args, **kwargs)
   except OSError:
     raise RuntimeError("Executable {} not found".format(args[0]))
+  except subprocess.CalledProcessError:
+    if isinstance(args, tuple) and (args[0][2] == "pip"):
+      raise RuntimeError("Full traceback: {},Pip install failed for package {}"\
+        .format(traceback.format_exc(), args[0][6]))
+    else:
+      RuntimeError(traceback.format_exc())
   return out
 
 
@@ -54,7 +60,11 @@ def check_call(*args, **kwargs):
   except OSError:
     raise RuntimeError("Executable {} not found".format(args[0]))
   except subprocess.CalledProcessError:
-    raise RuntimeError(traceback.format_exc())
+    if isinstance(args, tuple) and (args[0][2] == "pip"):
+      raise RuntimeError("Full traceback: {},Pip install failed for package {}"\
+        .format(traceback.format_exc(), args[0][6]))
+    else:
+      RuntimeError(traceback.format_exc())
   return out
 
 
@@ -66,7 +76,11 @@ def check_output(*args, **kwargs):
   except OSError:
     raise RuntimeError("Executable {} not found".format(args[0]))
   except subprocess.CalledProcessError:
-    raise RuntimeError(traceback.format_exc())
+    if isinstance(args, tuple) and (args[0][2] == "pip"):
+      raise RuntimeError("Full traceback: {},Pip install failed for package {}"\
+        .format(traceback.format_exc(), args[0][6]))
+    else:
+      RuntimeError(traceback.format_exc())
   return out
 
 
