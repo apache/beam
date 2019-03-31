@@ -201,14 +201,12 @@ import org.slf4j.LoggerFactory;
  * BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  *
  * <pre>{@code
- * @DefaultSchema(JavaFieldSchema.class)
  * class Quote {
  *   final Instant timestamp;
  *   final String exchange;
  *   final String symbol;
  *   final double price;
  *
- *   @SchemaCreate
  *   Quote(Instant timestamp, String exchange, String symbol, double price) {
  *     // initialize all member variables.
  *   }
@@ -240,6 +238,18 @@ import org.slf4j.LoggerFactory;
  * Beam infers from the Quote POJO. So the write could be done more simply as follows:
  *
  * <pre>{@code
+ * @DefaultSchema(JavaFieldSchema.class)
+ * class Quote {
+ *   final Instant timestamp;
+ *   final String exchange;
+ *   final String symbol;
+ *   final double price;
+ *
+ *   @SchemaCreate
+ *   Quote(Instant timestamp, String exchange, String symbol, double price) {
+ *     // initialize all member variables.
+ *   }
+ * }
  * quotes.apply(BigQueryIO
  *     .<Quote>write()
  *     .to("my-project:my_dataset.my_table")
