@@ -201,7 +201,16 @@ import org.slf4j.LoggerFactory;
  * BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  *
  * <pre>{@code
- * class Quote { Instant timestamp; String exchange; String symbol; double price; }
+ * class Quote {
+ *   final Instant timestamp;
+ *   final String exchange;
+ *   final String symbol;
+ *   final double price;
+ *
+ *   Quote(Instant timestamp, String exchange, String symbol, double price) {
+ *     // initialize all member variables.
+ *   }
+ * }
  *
  * PCollection<Quote> quotes = ...
  *
@@ -222,6 +231,34 @@ import org.slf4j.LoggerFactory;
  * existing table, replace the table, or verify that the table is empty. Note that the dataset being
  * written to must already exist. Unbounded PCollections can only be written using {@link
  * Write.WriteDisposition#WRITE_EMPTY} or {@link Write.WriteDisposition#WRITE_APPEND}.
+ *
+ * <p>BigQueryIO supports automatically inferring the BigQuery table schema from the Beam schema on
+ * the input PCollection. Beam can also automatically format the input into a TableRow in this case,
+ * if no format function is provide. In the above example, the quotes PCollection has a schema that
+ * Beam infers from the Quote POJO. So the write could be done more simply as follows:
+ *
+ * <pre>{@code
+ * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * class Quote {
+ *   final Instant timestamp;
+ *   final String exchange;
+ *   final String symbol;
+ *   final double price;
+ *
+ *   {@literal @}SchemaCreate
+ *   Quote(Instant timestamp, String exchange, String symbol, double price) {
+ *     // initialize all member variables.
+ *   }
+ * }
+ *
+ * PCollection<Quote> quotes = ...
+ *
+ * quotes.apply(BigQueryIO
+ *     .<Quote>write()
+ *     .to("my-project:my_dataset.my_table")
+ *     .useBeamSchema()
+ *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+ * }</pre>
  *
  * <h3>Loading historical data into time-partitioned BigQuery tables</h3>
  *
@@ -1331,6 +1368,7 @@ public class BigQueryIO {
         .setMaxFilesPerPartition(BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION)
         .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
         .setOptimizeWrites(false)
+        .setUseBeamSchema(false)
         .build();
   }
 
@@ -1452,6 +1490,8 @@ public class BigQueryIO {
 
     abstract Boolean getOptimizeWrites();
 
+    abstract Boolean getUseBeamSchema();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1510,6 +1550,8 @@ public class BigQueryIO {
       abstract Builder<T> setKmsKey(String kmsKey);
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
+
+      abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
 
       abstract Write<T> build();
     }
@@ -1618,7 +1660,6 @@ public class BigQueryIO {
 
     /** Formats the user's type into a {@link TableRow} to be written to BigQuery. */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
-      checkArgument(formatFunction != null, "formatFunction can not be null");
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
@@ -1826,8 +1867,18 @@ public class BigQueryIO {
      * BigQuery. Not enabled by default in order to maintain backwards compatibility.
      */
     @Experimental
-    public Write<T> withOptimizedWrites() {
+    public Write<T> optimizedWrites() {
       return toBuilder().setOptimizeWrites(true).build();
+    }
+
+    /**
+     * If true, then the BigQuery schema will be inferred from the input schema. If no
+     * formatFunction is set, then BigQueryIO will automatically turn the input records into
+     * TableRows that match the schema.
+     */
+    @Experimental
+    public Write<T> useBeamSchema() {
+      return toBuilder().setUseBeamSchema(true).build();
     }
 
     @VisibleForTesting
@@ -1910,19 +1961,6 @@ public class BigQueryIO {
               || getDynamicDestinations() != null,
           "must set the table reference of a BigQueryIO.Write transform");
 
-      checkArgument(
-          getFormatFunction() != null,
-          "A function must be provided to convert type into a TableRow. "
-              + "use BigQueryIO.Write.withFormatFunction to provide a formatting function.");
-
-      // Require a schema if creating one or more tables.
-      checkArgument(
-          getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
-              || getJsonSchema() != null
-              || getDynamicDestinations() != null
-              || getSchemaFromView() != null,
-          "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
-
       List<?> allToArgs =
           Lists.newArrayList(getJsonTableRef(), getTableFunction(), getDynamicDestinations());
       checkArgument(
@@ -1995,8 +2033,9 @@ public class BigQueryIO {
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
         if (getJsonTimePartitioning() != null) {
           dynamicDestinations =
-              new ConstantTimePartitioningDestinations(
-                  dynamicDestinations, getJsonTimePartitioning());
+              new ConstantTimePartitioningDestinations<>(
+                  (DynamicDestinations<T, TableDestination>) dynamicDestinations,
+                  getJsonTimePartitioning());
         }
       }
       return expandTyped(input, dynamicDestinations);
@@ -2004,6 +2043,38 @@ public class BigQueryIO {
 
     private <DestinationT> WriteResult expandTyped(
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
+      boolean optimizeWrites = getOptimizeWrites();
+      SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
+      if (getUseBeamSchema()) {
+        checkArgument(input.hasSchema());
+        optimizeWrites = true;
+        if (formatFunction == null) {
+          // If no format function set, then we will automatically convert the input type to a
+          // TableRow.
+          formatFunction = BigQueryUtils.toTableRow(input.getToRowFunction());
+        }
+        // Infer the TableSchema from the input Beam schema.
+        TableSchema tableSchema = BigQueryUtils.toTableSchema(input.getSchema());
+        dynamicDestinations =
+            new ConstantSchemaDestinations<>(
+                dynamicDestinations,
+                StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
+      } else {
+        // Require a schema if creating one or more tables.
+        checkArgument(
+            getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
+                || getJsonSchema() != null
+                || getDynamicDestinations() != null
+                || getSchemaFromView() != null,
+            "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
+      }
+
+      checkArgument(
+          formatFunction != null,
+          "A function must be provided to convert type into a TableRow. "
+              + "use BigQueryIO.Write.withFormatFunction to provide a formatting function."
+              + "A format function is not required if Beam schemas are used.");
+
       Coder<DestinationT> destinationCoder = null;
       try {
         destinationCoder =
@@ -2014,7 +2085,7 @@ public class BigQueryIO {
       }
 
       Method method = resolveMethod(input);
-      if (getOptimizeWrites()) {
+      if (optimizeWrites) {
         PCollection<KV<DestinationT, T>> rowsWithDestination =
             input
                 .apply(
@@ -2026,12 +2097,12 @@ public class BigQueryIO {
             input.getCoder(),
             destinationCoder,
             dynamicDestinations,
-            getFormatFunction(),
+            formatFunction,
             method);
       } else {
         PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
             input
-                .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, getFormatFunction()))
+                .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, formatFunction))
                 .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
         return continueExpandTyped(
             rowsWithDestination,

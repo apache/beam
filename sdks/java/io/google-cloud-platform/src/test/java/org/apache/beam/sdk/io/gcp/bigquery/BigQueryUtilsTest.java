@@ -136,17 +136,17 @@ public class BigQueryUtilsTest {
     TableRow row = toTableRow().apply(FLAT_ROW);
 
     assertThat(row.size(), equalTo(5));
-    assertThat(row, hasEntry("id", 123L));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("id", "123"));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
   }
 
   @Test
   public void testToTableRow_array() {
     TableRow row = toTableRow().apply(ARRAY_ROW);
 
-    assertThat(row, hasEntry("ids", Arrays.asList(123L, 124L)));
+    assertThat(row, hasEntry("ids", Arrays.asList("123", "124")));
     assertThat(row.size(), equalTo(1));
   }
 
@@ -157,10 +157,10 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
     assertThat(row.size(), equalTo(5));
-    assertThat(row, hasEntry("id", 123L));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("id", "123"));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
   }
 
   @Test
@@ -170,10 +170,10 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
     assertThat(row.size(), equalTo(5));
-    assertThat(row, hasEntry("id", 123L));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("id", "123"));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
   }
 
   @Test
