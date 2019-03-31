@@ -238,23 +238,26 @@ import org.slf4j.LoggerFactory;
  * Beam infers from the Quote POJO. So the write could be done more simply as follows:
  *
  * <pre>{@code
- * @DefaultSchema(JavaFieldSchema.class)
+ * {@literal @}DefaultSchema(JavaFieldSchema.class)
  * class Quote {
  *   final Instant timestamp;
  *   final String exchange;
  *   final String symbol;
  *   final double price;
  *
- *   @SchemaCreate
+ *   {@literal @}SchemaCreate
  *   Quote(Instant timestamp, String exchange, String symbol, double price) {
  *     // initialize all member variables.
  *   }
  * }
+ *
+ * PCollection<Quote> quotes = ...
+ *
  * quotes.apply(BigQueryIO
  *     .<Quote>write()
  *     .to("my-project:my_dataset.my_table")
- *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
- *     .useBeamSchema());
+ *     .useBeamSchema()
+ *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
  * }</pre>
  *
  * <h3>Loading historical data into time-partitioned BigQuery tables</h3>
