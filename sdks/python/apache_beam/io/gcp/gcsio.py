@@ -22,7 +22,6 @@ https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 
 from __future__ import absolute_import
 
-import errno
 import io
 import logging
 import multiprocessing
@@ -32,6 +31,9 @@ import threading
 import time
 import traceback
 from builtins import object
+
+import pytz
+import tzlocal
 
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystemio import Downloader
@@ -458,7 +460,11 @@ class GcsIO(object):
     request = storage.StorageObjectsGetRequest(
         bucket=bucket, object=object_path)
     datetime = self.client.objects.Get(request).updated
-    return (time.mktime(datetime.timetuple()) - time.timezone
+
+    utc_datetime = pytz.utc.localize(datetime)
+    utc_offset = utc_datetime.astimezone(tzlocal.get_localzone()).utcoffset().total_seconds()
+
+    return (time.mktime(datetime.timetuple()) + utc_offset
             + datetime.microsecond / 1000000.0)
 
   @retry.with_exponential_backoff(
