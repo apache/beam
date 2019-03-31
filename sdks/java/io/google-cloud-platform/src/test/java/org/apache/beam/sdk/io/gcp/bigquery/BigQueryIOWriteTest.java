@@ -61,10 +61,14 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -605,6 +609,72 @@ public class BigQueryIOWriteTest implements Serializable {
             new TableRow().set("name", "b").set("number", 2),
             new TableRow().set("name", "c").set("number", 3),
             new TableRow().set("name", "d").set("number", 4)));
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class SchemaPojo {
+    final String name;
+    final int number;
+
+    @SchemaCreate
+    SchemaPojo(String name, int number) {
+      this.name = name;
+      this.number = number;
+    }
+  }
+
+  @Test
+  public void testSchemaWriteLoads() throws Exception {
+    p.apply(
+            Create.of(
+                new SchemaPojo("a", 1),
+                new SchemaPojo("b", 2),
+                new SchemaPojo("c", 3),
+                new SchemaPojo("d", 4)))
+        .apply(
+            BigQueryIO.<SchemaPojo>write()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withMethod(Method.FILE_LOADS)
+                .useBeamSchema()
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4")));
+  }
+
+  @Test
+  public void testSchemaWriteStreams() throws Exception {
+    p.apply(
+            Create.of(
+                new SchemaPojo("a", 1),
+                new SchemaPojo("b", 2),
+                new SchemaPojo("c", 3),
+                new SchemaPojo("d", 4)))
+        .apply(
+            BigQueryIO.<SchemaPojo>write()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withMethod(Method.STREAMING_INSERTS)
+                .useBeamSchema()
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4")));
   }
 
   /**

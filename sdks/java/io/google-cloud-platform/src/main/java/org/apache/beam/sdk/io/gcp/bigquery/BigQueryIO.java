@@ -1948,14 +1948,6 @@ public class BigQueryIO {
               || getDynamicDestinations() != null,
           "must set the table reference of a BigQueryIO.Write transform");
 
-      // Require a schema if creating one or more tables.
-      checkArgument(
-          getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
-              || getJsonSchema() != null
-              || getDynamicDestinations() != null
-              || getSchemaFromView() != null,
-          "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
-
       List<?> allToArgs =
           Lists.newArrayList(getJsonTableRef(), getTableFunction(), getDynamicDestinations());
       checkArgument(
@@ -2054,6 +2046,14 @@ public class BigQueryIO {
             new ConstantSchemaDestinations<>(
                 dynamicDestinations,
                 StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
+      } else {
+        // Require a schema if creating one or more tables.
+        checkArgument(
+            getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
+                || getJsonSchema() != null
+                || getDynamicDestinations() != null
+                || getSchemaFromView() != null,
+            "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
       }
 
       checkArgument(
