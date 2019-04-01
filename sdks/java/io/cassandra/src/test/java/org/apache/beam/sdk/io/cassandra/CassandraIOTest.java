@@ -25,8 +25,8 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMur
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
@@ -68,7 +68,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
@@ -286,9 +285,9 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testWrite() {
-    ArrayList<Scientist> data = new ArrayList<>();
+    ArrayList<ScientistWrite> data = new ArrayList<>();
     for (int i = 0; i < NUM_ROWS; i++) {
-      Scientist scientist = new Scientist();
+      ScientistWrite scientist = new ScientistWrite();
       scientist.id = i;
       scientist.name = "Name " + i;
       data.add(scientist);
@@ -296,11 +295,8 @@ public class CassandraIOTest implements Serializable {
 
     pipeline
         .apply(Create.of(data))
-        .apply(
-            CassandraIO.<ScientistWrite>write()
+        .apply(CassandraIO.<ScientistWrite>write()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
-            CassandraIO.<ScientistWrite>write()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
                 .withPort(CASSANDRA_PORT)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(ScientistWrite.class));
@@ -354,7 +350,6 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testReadWithMapper() throws Exception {
-    insertRecords();
     counter.set(0);
 
     SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
@@ -375,7 +370,6 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testCustomMapperImplWrite() throws Exception {
-    insertRecords();
     counter.set(0);
 
     SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
@@ -395,8 +389,7 @@ public class CassandraIOTest implements Serializable {
   }
 
   @Test
-  public void testCustomMapperImplDelete() throws Exception {
-    insertRecords();
+  public void testCustomMapperImplDelete() {
     counter.set(0);
 
     SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
@@ -450,11 +443,11 @@ public class CassandraIOTest implements Serializable {
         lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
   }
 
-  private List<Row> getRows() {
+  private List<Row> getRows(String table) {
     ResultSet result =
         session.execute(
             String.format(
-                "select person_id,person_name from %s.%s", CASSANDRA_KEYSPACE, CASSANDRA_TABLE));
+                "select person_id,person_name from %s.%s", CASSANDRA_KEYSPACE, table));
     return result.all();
   }
 
