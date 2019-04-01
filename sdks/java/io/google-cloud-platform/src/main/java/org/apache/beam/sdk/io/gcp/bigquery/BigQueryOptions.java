@@ -59,6 +59,10 @@ public interface BigQueryOptions
   Integer getNumStreamingBuckets();
 
   @Description("The maximum number of rows to batch in a single streaming insert to BigQuery.")
-  @Default.Integer(500)
-  Integer getMaxStreamingRowsToBatch();
+  @Default.Long(500)
+  Long getMaxStreamingRowsToBatch();
+
+  @Description("The maximum byte size of a single streaming insert to BigQuery.")
+  @Default.Long(64L * 1024L)
+  Long getMaxStreamingBatchSize();
 }
