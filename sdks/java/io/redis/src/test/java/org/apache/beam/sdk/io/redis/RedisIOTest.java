@@ -249,6 +249,7 @@ public class RedisIOTest {
     Assert.assertEquals(111, read.connectionConfiguration().port());
     Assert.assertEquals("pass", read.connectionConfiguration().auth());
     Assert.assertEquals(5, read.connectionConfiguration().timeout());
+    Assert.assertEquals(false, read.connectionConfiguration().ssl());
   }
 
   @Test
@@ -258,6 +259,7 @@ public class RedisIOTest {
     Assert.assertEquals(111, write.connectionConfiguration().port());
     Assert.assertEquals("pass", write.connectionConfiguration().auth());
     Assert.assertEquals(5, write.connectionConfiguration().timeout());
+    Assert.assertEquals(false, write.connectionConfiguration().ssl());
     Assert.assertEquals(Method.APPEND, write.method());
   }
 
