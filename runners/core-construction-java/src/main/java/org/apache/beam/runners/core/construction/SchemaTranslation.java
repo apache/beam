@@ -33,7 +33,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** Utility methods for translating schemas. */
 public class SchemaTranslation {
-  private static BiMap<TypeName, RunnerApi.Schema.TypeName> TYPE_NAME_MAPPING =
+  private static final BiMap<TypeName, RunnerApi.Schema.TypeName> TYPE_NAME_MAPPING =
       ImmutableBiMap.<TypeName, RunnerApi.Schema.TypeName>builder()
           .put(TypeName.BYTE, RunnerApi.Schema.TypeName.BYTE)
           .put(TypeName.INT16, RunnerApi.Schema.TypeName.INT16)

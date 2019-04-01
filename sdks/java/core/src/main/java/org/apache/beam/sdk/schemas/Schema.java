@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -42,6 +41,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)

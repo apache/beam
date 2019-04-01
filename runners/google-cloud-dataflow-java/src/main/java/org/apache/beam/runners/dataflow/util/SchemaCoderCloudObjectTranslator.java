@@ -29,9 +29,9 @@ import org.apache.beam.sdk.util.StringUtils;
 
 /** Translator for Schema coders. */
 public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<SchemaCoder> {
-  private static String SCHEMA = "schema";
-  private static String TO_ROW_FUNCTION = "toRowFunction";
-  private static String FROM_ROW_FUNCTION = "fromRowFunction";
+  private static final String SCHEMA = "schema";
+  private static final String TO_ROW_FUNCTION = "toRowFunction";
+  private static final String FROM_ROW_FUNCTION = "fromRowFunction";
 
   /** Convert to a cloud object. */
   @Override
