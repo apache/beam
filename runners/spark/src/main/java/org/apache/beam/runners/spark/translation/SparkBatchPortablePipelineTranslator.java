@@ -39,6 +39,7 @@ import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -202,7 +203,11 @@ public class SparkBatchPortablePipelineTranslator {
 
     SparkExecutableStageFunction<InputT, SideInputT> function =
         new SparkExecutableStageFunction<>(
-            stagePayload, context.jobInfo, outputMap, broadcastVariablesBuilder.build());
+            stagePayload,
+            context.jobInfo,
+            outputMap,
+            broadcastVariablesBuilder.build(),
+            MetricsAccumulator.getInstance());
     JavaRDD<RawUnionValue> staged = inputRdd.mapPartitions(function);
 
     for (String outputId : outputs.values()) {

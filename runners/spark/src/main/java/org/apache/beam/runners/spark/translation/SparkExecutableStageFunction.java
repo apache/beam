@@ -32,6 +32,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.slf4j.Logger;
@@ -74,24 +77,33 @@ public class SparkExecutableStageFunction<InputT, SideInputT>
   // map from pCollection id to tuple of serialized bytes and coder to decode the bytes
   private final Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
       sideInputs;
+  private final Accumulator<MetricsContainerStepMap> metricsAccumulator;
 
   SparkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs) {
-    this(stagePayload, outputMap, () -> DefaultJobBundleFactory.create(jobInfo), sideInputs);
+      Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
+      Accumulator<MetricsContainerStepMap> metricsAccumulator) {
+    this(
+        stagePayload,
+        outputMap,
+        () -> DefaultJobBundleFactory.create(jobInfo),
+        sideInputs,
+        metricsAccumulator);
   }
 
   SparkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
       Map<String, Integer> outputMap,
       JobBundleFactoryCreator jobBundleFactoryCreator,
-      Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs) {
+      Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
+      Accumulator<MetricsContainerStepMap> metricsAccumulator) {
     this.stagePayload = stagePayload;
     this.outputMap = outputMap;
     this.jobBundleFactoryCreator = jobBundleFactoryCreator;
     this.sideInputs = sideInputs;
+    this.metricsAccumulator = metricsAccumulator;
   }
 
   @Override
@@ -103,7 +115,20 @@ public class SparkExecutableStageFunction<InputT, SideInputT>
       ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
       StateRequestHandler stateRequestHandler =
           getStateRequestHandler(executableStage, stageBundleFactory.getProcessBundleDescriptor());
-      SparkBundleProgressHandler bundleProgressHandler = new SparkBundleProgressHandler();
+      String stageName = stagePayload.getInput();
+      MetricsContainerImpl container = metricsAccumulator.localValue().getContainer(stageName);
+      BundleProgressHandler bundleProgressHandler =
+          new BundleProgressHandler() {
+            @Override
+            public void onProgress(ProcessBundleProgressResponse progress) {
+              container.update(progress.getMonitoringInfosList());
+            }
+
+            @Override
+            public void onCompleted(ProcessBundleResponse response) {
+              container.update(response.getMonitoringInfosList());
+            }
+          };
       try (RemoteBundle bundle =
           stageBundleFactory.getBundle(
               receiverFactory, stateRequestHandler, bundleProgressHandler)) {
@@ -182,19 +207,6 @@ public class SparkExecutableStageFunction<InputT, SideInputT>
       }
       int tagInt = unionTag;
       return receivedElement -> collector.add(new RawUnionValue(tagInt, receivedElement));
-    }
-  }
-
-  private static class SparkBundleProgressHandler implements BundleProgressHandler {
-
-    @Override
-    public void onProgress(ProcessBundleProgressResponse progress) {
-      // TODO
-    }
-
-    @Override
-    public void onCompleted(ProcessBundleResponse response) {
-      // TODO
     }
   }
 }
