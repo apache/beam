@@ -554,6 +554,11 @@ message StandardCoders {
     // Components: None
     VARINT = 2 [(beam_urn) = "beam:coder:varint:v1"];
 
+    // Encodes the floating point value as a big-endian 64-bit integer
+    // according to the IEEE 754 double format bit layout.
+    // Components: None
+    DOUBLE = 11 [(beam_urn) = "beam:coder:double:v1"];
+
     // Encodes an iterable of elements.
     //
     // The encoding for an iterable [e1...eN] of known length N is
