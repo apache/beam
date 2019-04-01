@@ -203,13 +203,12 @@ public class BigQueryUtils {
   }
 
   public static Row toBeamRow(GenericRecord record, Schema schema) {
-    List<Object> values = new ArrayList();
-    for (int i = 0; i < record.getSchema().getFields().size(); i++) {
-      org.apache.avro.Schema.Field avroField = record.getSchema().getFields().get(i);
-      values.add(AvroUtils.convertAvroFormat(schema.getField(i), record.get(avroField.name())));
-    }
+    List<Object> valuesInOrder =
+        schema.getFields().stream()
+            .map(field -> AvroUtils.convertAvroFormat(field, record.get(field.getName())))
+            .collect(toList());
 
-    return Row.withSchema(schema).addValues(values).build();
+    return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
   /** Convert a BigQuery TableRow to a Beam Row. */

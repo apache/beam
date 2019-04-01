@@ -22,7 +22,6 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * BigQuery table provider.
@@ -49,9 +48,6 @@ public class BigQueryTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    Schema schema = table.getSchema();
-    String filePattern = table.getLocation();
-
-    return new BeamBigQueryTable(schema, filePattern);
+    return new BigQueryTable(table);
   }
 }
