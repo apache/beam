@@ -61,8 +61,7 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
     this.counterTransformers.put(
         MeanByteCountMonitoringInfoToCounterUpdateTransformer.getSupportedUrn(),
         new MeanByteCountMonitoringInfoToCounterUpdateTransformer(
-            specValidator, sdkPCollectionIdToNameContext)
-    );
+            specValidator, sdkPCollectionIdToNameContext));
   }
 
   /** Allows for injection of user and generic counter transformers for more convenient testing. */

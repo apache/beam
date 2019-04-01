@@ -98,7 +98,8 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
       return null;
     }
 
-    IntDistributionData value = monitoringInfo.getMetric().getDistributionData().getIntDistributionData();
+    IntDistributionData value =
+        monitoringInfo.getMetric().getDistributionData().getIntDistributionData();
 
     final String pcollectionId = monitoringInfo.getLabelsMap().get("PCOLLECTION");
     final String pcollectionName = pcollectionIdToNameContext.get(pcollectionId).userName();
