@@ -40,6 +40,7 @@ class CommonTestProperties {
                 PYTHON: [
                         DATAFLOW: "TestDataflowRunner",
                         DIRECT: "DirectRunner",
+                        FLINK: "PortableRunner",
                 ]
         ]
 

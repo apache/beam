@@ -20,19 +20,26 @@
 import CommonJobProperties as common
 import CommonTestProperties.SDK
 
+
+
+
 class TestingInfra {
 
-  static String prepareSDKHarness(def context, SDK sdk, String repositoryRoot, String dockerTag) {
+  private static String GCS_BUCKET = 'gs://beam-load-tests'
+  private static String ARTIFACTS_DIR="${GCS_BUCKET}/artifact-staging"
+
+
+  static void prepareSDKHarness(def context, SDK sdk, String repositoryRoot, String dockerTag) {
     context.steps {
       String sdkName = sdk.name().toLowerCase()
       String image = "${repositoryRoot}/${sdkName}"
-      String imageTag = "${repositoryRoot}/${sdkName}:${dockerTag}"
+      String imageTag = "${image}:${dockerTag}"
 
       shell("echo \"Building SDK harness for ${sdkName} SDK.\"")
       gradle {
-        rootBuildScriptDir(commonJobProperties.checkoutDir)
-        commonJobProperties.setGradleSwitches(delegate)
-        tasks(":beam-sdks-${sdkName}-container")
+        rootBuildScriptDir(common.checkoutDir)
+        common.setGradleSwitches(delegate)
+        tasks(":beam-sdks-${sdkName}-container:docker")
         switches("-Pdocker-repository-root=${repositoryRoot}")
         switches("-Pdocker-tag=${dockerTag}")
       }
@@ -40,22 +47,50 @@ class TestingInfra {
       shell("docker tag ${image} ${imageTag}")
       shell("echo \" Pushing harness' image\"...")
       shell("docker push ${imageTag}")
-
-      return imageTag
     }
   }
 
-  static void setupFlinkCluster(def context, String jobName, Integer workerCount, String imagesToPull) {
+
+  static void prepareFlinkJobServer(def context, String repositoryRoot, String dockerTag) {
+    context.steps {
+      String image = "${repositoryRoot}/flink-job-server"
+      String imageTag = "${image}:${dockerTag}"
+
+      shell('echo "Building Flink job Server"')
+
+      gradle {
+        rootBuildScriptDir(common.checkoutDir)
+        common.setGradleSwitches(delegate)
+        tasks(":beam-runners-flink_2.11-job-server-container:docker")
+        switches("-Pdocker-repository-root=${repositoryRoot}")
+        switches("-Pdocker-tag=${dockerTag}")
+      }
+
+      shell("echo \" Tagging Flink job server's image\"...")
+      shell("docker tag ${image} ${imageTag}")
+      shell("echo \" Pushing Flink job server's image\"...")
+      shell("docker push ${imageTag}")
+    }
+  }
+
+
+  // TODO: Buckets should store files in unique directories (should they?)
+  static void setupFlinkCluster(def context, String jobName, Integer workerCount, String imagesToPull, String jobServerImage) {
     context.steps {
       environmentVariables {
         env("CLUSTER_NAME", getClusterName(jobName))
-        env("GCS_BUCKET", 'gs://temp-storage-for-perf-tests/flink-dataproc-cluster')
+        env("GCS_BUCKET", GCS_BUCKET)
         env("FLINK_DOWNLOAD_URL", 'http://archive.apache.org/dist/flink/flink-1.5.6/flink-1.5.6-bin-hadoop28-scala_2.11.tgz')
         env("FLINK_NUM_WORKERS", workerCount)
         env("DETACHED_MODE", 'true')
 
-        if(imagesToPull != null) {
+        if(imagesToPull) {
           env("HARNESS_IMAGES_TO_PULL", imagesToPull)
+        }
+
+        if(jobServerImage) {
+          env("JOB_SERVER_IMAGE", jobServerImage)
+          env("ARTIFACTS_DIR", ARTIFACTS_DIR)
         }
       }
 

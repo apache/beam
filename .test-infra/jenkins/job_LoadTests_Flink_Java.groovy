@@ -22,59 +22,51 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import TestingInfra as infrastructure
 
-def loadTestConfigurations = [
-        [
-                title        : 'Load test: 2GB of 10B records',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.FLINK,
-                jobProperties: [
-                        project             : 'apache-beam-testing',
-                        appName             : 'load_tests_Java_Dataflow_Batch_Flink_GBK_1',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test',
-                        bigQueryTable       : 'java_dataflow_batch_flink_GBK_1',
-                        sourceOptions       : """
-                                            {
-                                              "numRecords": 1000,
-                                              "keySizeBytes": 1,
-                                              "valueSizeBytes": 9
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
-                        fanout              : 1,
-                        iterations          : 1,
-                        parallelism         : 1,
-                        flinkMaster         : 'localhost:8081'
-                ]
+def testConfiguration = [
+        title        : 'GroupByKey Python load test Direct',
+        itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+        runner       : CommonTestProperties.Runner.FLINK,
+        sdk          : CommonTestProperties.SDK.PYTHON,
+        jobProperties: [
+                publish_to_big_query: true,
+                project             : 'apache-beam-testing',
+                metrics_dataset     : 'load_test_SMOKE',
+                metrics_table       : 'python_flink_direct_gbk',
+                input_options       : '\'{"num_records": 100000,' +
+                        '"key_size": 1,' +
+                        '"value_size":1,' +
+                        '"bundle_size_distribution_type": "const",' +
+                        '"bundle_size_distribution_param": 1,' +
+                        '"force_initial_num_bundles": 10}\''
         ]
 ]
 
-def loadTestJob = { scope, jobName, triggeringContext ->
-  scope.description('Runs Java GBK load tests on Flink runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
-  String repositoryRoot = 'gcr.io/apache-beam-io-testing/beam_fnapi'
-  String javaImage = infrastructure.prepareSDKHarness(scope, CommonTestProperties.SDK.JAVA, repositoryRoot, 'latest')
-
-  infrastructure.setupFlinkCluster(scope, jobName, 5, javaImage)
-
-  for (testConfiguration in loadTestConfigurations) {
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
-  }
-
-  infrastructure.teardownDataproc(scope, jobName)
-}
-
-
-def jobName = 'beam_LoadTests_Java_GBK_Flink_Batch'
+def jobName = 'beam_LoadTests_Python_GBK_Flink_Batch'
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
         jobName,
-        'Run Load Tests Java GBK Flink Batch',
-        'Load Tests Java GBK Flink Batch suite',
+        'Run Load Tests Python GBK Flink Batch',
+        'Load Tests Python GBK Flink Batch suite',
         this
 ) {
-  loadTestJob(delegate, jobName, CommonTestProperties.TriggeringContext.PR)
+  description('Runs Java GBK load tests on Flink runner in batch mode')
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  String repositoryRoot = 'gcr.io/apache-beam-testing/beam_portability'
+  String tag = 'latest'
+
+  String jobServerImageTag = "${repositoryRoot}/flink-job-server:${tag}"
+  String pythonHarnessImageTag = "${repositoryRoot}/python:${tag}"
+
+  infrastructure.prepareSDKHarness(delegate, testConfiguration.sdk, repositoryRoot, 'latest')
+  infrastructure.prepareFlinkJobServer(delegate, repositoryRoot, 'latest')
+
+  testConfiguration.jobProperties.environmentType = 'DOCKER'
+  testConfiguration.jobProperties.environmentConfig = pythonHarnessImageTag
+  testConfiguration.jobProperties.jobEndpoint = 'localhost:8099'
+  infrastructure.setupFlinkCluster(delegate, jobName, 2, pythonHarnessImageTag, jobServerImageTag)
+
+  loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
+
+  infrastructure.teardownDataproc(delegate, jobName)
 }
-
-
