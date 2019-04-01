@@ -564,12 +564,10 @@ class BeamModulePlugin implements Plugin<Project> {
         // </settings>
         def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
         if (settingsXml.exists()) {
-          print "lalalalalalala"
           def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
                   ? 'apache.releases.https' : 'apache.snapshots.https')
           def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
           if (m2SettingCreds) {
-            print "hohohohohohoho"
             credentials(PasswordCredentials) {
               username m2SettingCreds.username.text()
               password m2SettingCreds.password.text()
