@@ -409,7 +409,7 @@ The verify_release_build.sh script may include failing or flaky tests. For each 
 
 The build with `-PisRelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
 
-The file `sdks/java/javadoc/ant.xml` file contains a list of modules to include
+The file `sdks/java/javadoc/build.gradle` contains a list of modules to include
 in and exclude, plus a list of offline URLs that populate links from Beam's
 Javadoc to the Javadoc for other modules that Beam depends on.
 
