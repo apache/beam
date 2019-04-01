@@ -101,6 +101,13 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
+  def test_filter_type_hint(self):
+    @typehints.with_input_types(int)
+    def filter_fn(data):
+      return data % 2
+
+    self.assertEquals([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
+
 
 class NativeTypesTest(unittest.TestCase):
 
