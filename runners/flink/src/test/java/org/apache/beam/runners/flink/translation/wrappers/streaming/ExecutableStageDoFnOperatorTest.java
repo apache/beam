@@ -36,7 +36,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
-import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
@@ -66,7 +65,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -395,7 +393,6 @@ public class ExecutableStageDoFnOperatorTest {
   @Test
   public void testEnsureStateCleanupWithKeyedInputCleanupTimer() throws Exception {
     InMemoryTimerInternals inMemoryTimerInternals = new InMemoryTimerInternals();
-    Consumer<ByteBuffer> keyConsumer = Mockito.mock(Consumer.class);
     KeyedStateBackend keyedStateBackend = Mockito.mock(KeyedStateBackend.class);
     Lock stateBackendLock = Mockito.mock(Lock.class);
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
@@ -410,13 +407,11 @@ public class ExecutableStageDoFnOperatorTest {
             WindowingStrategy.globalDefault(),
             keyCoder,
             windowCoder,
-            keyConsumer,
             keyedStateBackend);
     cleanupTimer.setForWindow(KV.of("key", "string"), window);
 
     Mockito.verify(stateBackendLock).lock();
-    ByteBuffer key = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, "key"));
-    Mockito.verify(keyConsumer).accept(key);
+    ByteBuffer key = FlinkKeyUtils.encodeKey("key", keyCoder);
     Mockito.verify(keyedStateBackend).setCurrentKey(key);
     assertThat(
         inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME),
