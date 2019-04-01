@@ -119,16 +119,17 @@ public class CassandraIOTest implements Serializable {
     String cdcRaw = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "cdc-raw").getPath();
     String hints = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "hints").getPath();
     String savedCache = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "saved-cache").getPath();
-    cluster = CassandraEmbeddedServerBuilder.builder()
-        .withKeyspaceName(CASSANDRA_KEYSPACE)
-        .withDataFolder(data)
-        .withCommitLogFolder(commitLog)
-        .withCdcRawFolder(cdcRaw)
-        .withHintsFolder(hints)
-        .withSavedCachesFolder(savedCache)
-        .withShutdownHook(shutdownHook)
-        .withJMXPort(JMX_PORT)
-        .buildNativeCluster();
+    cluster =
+        CassandraEmbeddedServerBuilder.builder()
+            .withKeyspaceName(CASSANDRA_KEYSPACE)
+            .withDataFolder(data)
+            .withCommitLogFolder(commitLog)
+            .withCdcRawFolder(cdcRaw)
+            .withHintsFolder(hints)
+            .withSavedCachesFolder(savedCache)
+            .withShutdownHook(shutdownHook)
+            .withJMXPort(JMX_PORT)
+            .buildNativeCluster();
 
     session = CassandraIOTest.cluster.newSession();
 
@@ -148,7 +149,7 @@ public class CassandraIOTest implements Serializable {
 
   @AfterClass
   public static void stopCassandra() throws InterruptedException {
-      shutdownHook.shutDownNow();
+    shutdownHook.shutDownNow();
   }
 
   private static void insertRecords() throws Exception {
@@ -194,7 +195,9 @@ public class CassandraIOTest implements Serializable {
   private static void flushMemTables() throws Exception {
     JMXServiceURL url =
         new JMXServiceURL(
-            String.format("service:jmx:rmi://%s/jndi/rmi://%s:%s/jmxrmi", CASSANDRA_HOST, CASSANDRA_HOST, JMX_PORT));
+            String.format(
+                "service:jmx:rmi://%s/jndi/rmi://%s:%s/jmxrmi",
+                CASSANDRA_HOST, CASSANDRA_HOST, JMX_PORT));
     JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
     MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
     ObjectName objectName = new ObjectName(STORAGE_SERVICE_MBEAN);
@@ -295,7 +298,8 @@ public class CassandraIOTest implements Serializable {
 
     pipeline
         .apply(Create.of(data))
-        .apply(CassandraIO.<ScientistWrite>write()
+        .apply(
+            CassandraIO.<ScientistWrite>write()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
                 .withPort(CASSANDRA_PORT)
                 .withKeyspace(CASSANDRA_KEYSPACE)
@@ -397,7 +401,7 @@ public class CassandraIOTest implements Serializable {
     pipeline
         .apply(Create.of(""))
         .apply(
-            CassandraIO.<String>write()
+            CassandraIO.<String>delete()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
                 .withPort(CASSANDRA_PORT)
                 .withKeyspace(CASSANDRA_KEYSPACE)
@@ -428,7 +432,8 @@ public class CassandraIOTest implements Serializable {
     int desiredBundleSizeBytes = 2048;
     List<BoundedSource<Scientist>> splits = initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
-    float expectedNumSplitsloat = (float) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
+    float expectedNumSplitsloat =
+        (float) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
     int expectedNumSplits = (int) Math.ceil(expectedNumSplitsloat);
     assertEquals("Wrong number of splits", expectedNumSplits, splits.size());
     int emptySplits = 0;
@@ -446,8 +451,7 @@ public class CassandraIOTest implements Serializable {
   private List<Row> getRows(String table) {
     ResultSet result =
         session.execute(
-            String.format(
-                "select person_id,person_name from %s.%s", CASSANDRA_KEYSPACE, table));
+            String.format("select person_id,person_name from %s.%s", CASSANDRA_KEYSPACE, table));
     return result.all();
   }
 
@@ -471,7 +475,7 @@ public class CassandraIOTest implements Serializable {
     pipeline.run();
     results = getRows(CASSANDRA_TABLE);
     assertEquals(NUM_ROWS - 1, results.size());
-    //re-insert suppressed doc to make the test autonomous
+    // re-insert suppressed doc to make the test autonomous
     session.execute(
         String.format(
             "INSERT INTO %s.%s(person_id, person_name) values("
@@ -576,5 +580,4 @@ public class CassandraIOTest implements Serializable {
   /** Simple Cassandra entity used in write tests. */
   @Table(name = CASSANDRA_TABLE_WRITE, keyspace = CASSANDRA_KEYSPACE)
   static class ScientistWrite extends Scientist {}
-
-  }
+}
