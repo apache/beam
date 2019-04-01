@@ -474,12 +474,13 @@ atomized in instants hammered around the
     # interface does not allow you to modify the read_size.
     import random
     import signal
+    from six.moves import range
     num_test_lines = 10
     timeout = 30
     read_size = (64<<10) # set much smaller than the line size
     def generate_random_line():
       char_list = list(chr(x) 
-        for i in xrange(4096)
+        for i in range(4096)
         for x in random.sample(range(32, 96), 64) 
       )
       char_list.append('\n')
