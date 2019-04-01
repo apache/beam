@@ -47,8 +47,6 @@ class ConsumerSpEL {
   private SpelParserConfiguration config = new SpelParserConfiguration(true, true);
   private ExpressionParser parser = new SpelExpressionParser(config);
 
-  private Expression seek2endExpression = parser.parseExpression("#consumer.seekToEnd(#tp)");
-
   private Expression assignExpression = parser.parseExpression("#consumer.assign(#tp)");
 
   private boolean hasRecordTimestamp = false;
@@ -70,7 +68,7 @@ class ConsumerSpEL {
     }
   }
 
-  public ConsumerSpEL() {
+  ConsumerSpEL() {
     try {
       // It is supported by Kafka Client 0.10.0.0 onwards.
       hasRecordTimestamp =
@@ -91,28 +89,21 @@ class ConsumerSpEL {
     }
   }
 
-  public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartition) {
-    StandardEvaluationContext mapContext = new StandardEvaluationContext();
-    mapContext.setVariable("consumer", consumer);
-    mapContext.setVariable("tp", topicPartition);
-    seek2endExpression.getValue(mapContext);
-  }
-
-  public void evaluateAssign(Consumer consumer, Collection<TopicPartition> topicPartitions) {
+  void evaluateAssign(Consumer consumer, Collection<TopicPartition> topicPartitions) {
     StandardEvaluationContext mapContext = new StandardEvaluationContext();
     mapContext.setVariable("consumer", consumer);
     mapContext.setVariable("tp", topicPartitions);
     assignExpression.getValue(mapContext);
   }
 
-  public long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
+  long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
     if (hasRecordTimestamp) {
       return rawRecord.timestamp();
     }
     return -1L; // This is the timestamp used in Kafka for older messages without timestamps.
   }
 
-  public KafkaTimestampType getRecordTimestampType(ConsumerRecord<byte[], byte[]> rawRecord) {
+  KafkaTimestampType getRecordTimestampType(ConsumerRecord<byte[], byte[]> rawRecord) {
     if (hasRecordTimestamp) {
       return KafkaTimestampType.forOrdinal(rawRecord.timestampType().ordinal());
     } else {
@@ -120,7 +111,7 @@ class ConsumerSpEL {
     }
   }
 
-  public boolean hasOffsetsForTimes() {
+  boolean hasOffsetsForTimes() {
     return hasOffsetsForTimes;
   }
 
@@ -128,8 +119,7 @@ class ConsumerSpEL {
    * Look up the offset for the given partition by timestamp. Throws RuntimeException if there are
    * no messages later than timestamp or if this partition does not support timestamp based offset.
    */
-  @SuppressWarnings("unchecked")
-  public long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
+  long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
 
     checkArgument(hasOffsetsForTimes, "This Kafka Client must support Consumer.OffsetsForTimes().");
 

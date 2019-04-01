@@ -810,7 +810,7 @@ public class KafkaIO {
             ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
             false);
 
-    // default Kafka 0.9 Consumer supplier.
+    /** Default {@link KafkaConsumer kafka consumer} supplier. */
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         KAFKA_CONSUMER_FACTORY_FN = KafkaConsumer::new;
 
