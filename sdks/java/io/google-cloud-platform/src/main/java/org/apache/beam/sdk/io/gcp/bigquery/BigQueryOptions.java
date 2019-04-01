@@ -61,4 +61,4 @@ public interface BigQueryOptions
   @Description("The maximum number of rows to batch in a single streaming insert to BigQuery.")
   @Default.Integer(500)
   Integer getMaxStreamingRowsToBatch();
-  }
+}

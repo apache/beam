@@ -378,7 +378,7 @@ class BigQueryServicesImpl implements BigQueryServices {
   static class DatasetServiceImpl implements DatasetService {
     // Approximate amount of table data to upload per InsertAll request.
     private static final long UPLOAD_BATCH_SIZE_BYTES = 64L * 1024L;
-    
+
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
