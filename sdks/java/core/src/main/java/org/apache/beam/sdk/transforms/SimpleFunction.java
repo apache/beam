@@ -37,8 +37,8 @@ public abstract class SimpleFunction<InputT, OutputT> extends InferableFunction<
     // reflection.
     try {
       Method methodThatMustBeOverridden =
-          SimpleFunction.class.getDeclaredMethod("apply", new Class[] {Object.class});
-      Method methodOnSubclass = getClass().getMethod("apply", new Class[] {Object.class});
+          SimpleFunction.class.getDeclaredMethod("apply", Object.class);
+      Method methodOnSubclass = getClass().getMethod("apply", Object.class);
 
       if (methodOnSubclass.equals(methodThatMustBeOverridden)) {
         throw new IllegalStateException(
