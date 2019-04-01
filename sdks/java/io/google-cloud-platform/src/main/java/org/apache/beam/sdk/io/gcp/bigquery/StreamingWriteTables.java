@@ -191,7 +191,7 @@ public class StreamingWriteTables<ElementT>
       AtomicCoder<T> coder,
       ErrorContainer<T> errorContainer) {
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
-    int numShards = options.getNumStreamingBuckets();
+    int numShards = options.getNumStreamingKeys();
 
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when

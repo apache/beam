@@ -54,11 +54,11 @@ public interface BigQueryOptions
 
   void setInsertBundleParallelism(Integer parallelism);
 
-  @Description("The number of buckets used per table when doing streaming inserts to BigQuery.")
+  @Description("The number of keys used per table when doing streaming inserts to BigQuery.")
   @Default.Integer(50)
-  Integer getNumStreamingBuckets();
+  Integer getNumStreamingKeys();
 
-  void setNumStreamingBuckets(Integer value);
+  void setNumStreamingKeys(Integer value);
 
   @Description("The maximum number of rows to batch in a single streaming insert to BigQuery.")
   @Default.Long(500)
