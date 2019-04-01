@@ -376,12 +376,6 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @VisibleForTesting
   static class DatasetServiceImpl implements DatasetService {
-    // Approximate amount of table data to upload per InsertAll request.
-    private static final long UPLOAD_BATCH_SIZE_BYTES = 64L * 1024L;
-
-    // The maximum number of rows to upload per InsertAll request.
-    private static final long MAX_ROWS_PER_BATCH = 500;
-
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
@@ -395,24 +389,29 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final Bigquery client;
     private final PipelineOptions options;
     private final long maxRowsPerBatch;
+    private final long maxRowBatchSize;
 
     private ExecutorService executor;
 
     @VisibleForTesting
     DatasetServiceImpl(Bigquery client, PipelineOptions options) {
+      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
       this.options = options;
-      this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
+      this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
+      this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
       this.executor = null;
     }
 
     @VisibleForTesting
     DatasetServiceImpl(Bigquery client, PipelineOptions options, long maxRowsPerBatch) {
+      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
+      this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
       this.executor = null;
     }
 
@@ -420,7 +419,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = newBigQueryClient(bqOptions).build();
       this.options = bqOptions;
-      this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
+      this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
+      this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
       this.executor = null;
     }
 
@@ -752,7 +752,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           rows.add(out);
 
           dataSize += row.toString().length();
-          if (dataSize >= UPLOAD_BATCH_SIZE_BYTES
+          if (dataSize >= maxRowBatchSize
               || rows.size() >= maxRowsPerBatch
               || i == rowsToPublish.size() - 1) {
             TableDataInsertAllRequest content = new TableDataInsertAllRequest();
