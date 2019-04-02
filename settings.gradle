@@ -213,6 +213,8 @@ include "beam-sdks-python-test-suites-tox-py35"
 project(":beam-sdks-python-test-suites-tox-py35").dir = file("sdks/python/test-suites/tox/py35")
 include "beam-sdks-python-test-suites-tox-py36"
 project(":beam-sdks-python-test-suites-tox-py36").dir = file("sdks/python/test-suites/tox/py36")
+include "beam-sdks-python-test-suites-tox-py37"
+project(":beam-sdks-python-test-suites-tox-py37").dir = file("sdks/python/test-suites/tox/py37")
 include "beam-sdks-python-load-tests"
 project(":beam-sdks-python-load-tests").dir = file("sdks/python/apache_beam/testing/load_tests")
 include "beam-vendor-grpc-1_13_1"
