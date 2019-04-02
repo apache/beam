@@ -1594,19 +1594,20 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.name.hashCode()}"
       def pythonRootDir = "${project.rootDir}/sdks/python"
 
-      // This is current supported Python3 version. It should match the one in
-      // sdks/python/container/py3/Dockerfile
-      final PYTHON3_VERSION = '3.5'
+      // Python interpreter version for virtualenv setup and test run. This value can be
+      // set from commandline with -PpythonVersion, or in build script of certain project.
+      // If none of them applied, version set here will be used as default value.
+      if(!project.hasProperty('pythonVersion')) {
+        project.ext.pythonVersion = '2.7'
+      }
 
       project.task('setupVirtualenv')  {
         doLast {
           def virtualenvCmd = [
             'virtualenv',
             "${project.ext.envdir}",
+            "--python=python${project.ext.pythonVersion}",
           ]
-          if (project.hasProperty('python3')) {
-            virtualenvCmd += '--python=python' + PYTHON3_VERSION
-          }
           project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
