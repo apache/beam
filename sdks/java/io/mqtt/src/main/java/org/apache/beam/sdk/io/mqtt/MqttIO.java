@@ -121,10 +121,8 @@ public class MqttIO {
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
-    @Nullable
     abstract String getServerUri();
 
-    @Nullable
     abstract String getTopic();
 
     @Nullable
@@ -179,21 +177,35 @@ public class MqttIO {
      * @return A connection configuration to the MQTT broker.
      */
     public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
-      checkArgument(serverUri != null, "serverUri can not be null");
-      checkArgument(topic != null, "topic can not be null");
       checkArgument(clientId != null, "clientId can not be null");
-      return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
-          .setServerUri(serverUri)
-          .setTopic(topic)
-          .setClientId(clientId)
-          .build();
+      return create(serverUri, topic).withClientId(clientId);
+    }
+
+    /** Set up the MQTT broker URI. */
+    public ConnectionConfiguration withServerUri(String serverUri) {
+      checkArgument(serverUri != null, "serverUri can not be null");
+      return builder().setServerUri(serverUri).build();
+    }
+
+    /** Set up the MQTT getTopic pattern. */
+    public ConnectionConfiguration withTopic(String topic) {
+      checkArgument(topic != null, "topic can not be null");
+      return builder().setTopic(topic).build();
+    }
+
+    /** Set up the client ID prefix, which is used to construct an unique client ID. */
+    public ConnectionConfiguration withClientId(String clientId) {
+      checkArgument(clientId != null, "clientId can not be null");
+      return builder().setClientId(clientId).build();
     }
 
     public ConnectionConfiguration withUsername(String username) {
+      checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
 
     public ConnectionConfiguration withPassword(String password) {
+      checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
