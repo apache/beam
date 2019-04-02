@@ -756,7 +756,10 @@ class BeamModulePlugin implements Plugin<Project> {
       project.checkstyle { toolVersion = "8.7" }
 
       // Configures javadoc plugin and ensure check runs javadoc.
-      project.tasks.withType(Javadoc) { options.encoding = 'UTF-8' }
+      project.tasks.withType(Javadoc) {
+        options.encoding = 'UTF-8'
+        options.addBooleanOption('Xdoclint:-missing', true)
+      }
       project.check.dependsOn project.javadoc
 
       // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
