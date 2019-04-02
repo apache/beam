@@ -215,6 +215,15 @@ public class SparkBatchPortablePipelineTranslator {
           staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
       context.pushDataset(outputId, new BoundedDataset<>(outputRdd));
     }
+    if (outputs.isEmpty()) {
+      // After pipeline translation, we traverse the set of unconsumed PCollections and add a
+      // no-op sink to each to make sure they are materialized by Spark. However, some SDK-executed
+      // stages have no runner-visible output after fusion. We handle this case by adding a sink
+      // here.
+      JavaRDD<WindowedValue<OutputT>> outputRdd =
+          staged.flatMap((rawUnionValue) -> Collections.emptyIterator());
+      context.pushDataset("EmptyOutputSink", new BoundedDataset<>(outputRdd));
+    }
   }
 
   /**
