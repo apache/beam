@@ -187,7 +187,6 @@ task testWebsite(type: Exec) {
 }
 
 testWebsite.dependsOn 'buildLocalWebsite'
-check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite
