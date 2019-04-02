@@ -20,7 +20,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
 // Required to setup a Python 3 virtualenv.
-project.ext.python3 = true
+pythonVersion = '3.5'
 
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
