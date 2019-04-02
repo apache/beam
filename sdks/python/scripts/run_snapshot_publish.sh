@@ -26,7 +26,7 @@ SNAPSHOT="apache-beam-$VERSION-$time.zip"
 DEP_SNAPSHOT_ROOT="$BUCKET/dependency_requirements_snapshot"
 DEP_SNAPSHOT_FILE_NAME="beam-py-requirements-$time.txt"
 
-# Snapshots are built by Gradle task :beam-sdks-python:depSnapshot
+# Snapshots are built by Gradle task :sdks:python:depSnapshot
 # and located under Gradle build directory.
 cd $WORKSPACE/src/sdks/python/build
 

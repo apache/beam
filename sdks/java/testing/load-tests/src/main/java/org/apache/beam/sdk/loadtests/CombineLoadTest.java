@@ -54,7 +54,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --perKeyCombinerType=TOP_LARGEST
  *      --topCount=10

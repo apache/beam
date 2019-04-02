@@ -24,14 +24,14 @@ ext.summary = "IO to read and write XML files."
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.stax2_api
   shadow library.java.woodstox_core_asl
   shadowTest library.java.jaxb_api
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java")
 }
