@@ -17,6 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+
 // Do not relocate guava to avoid issues with Cassandra's version.
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
@@ -29,11 +30,8 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
 ext.summary = "IO to read and write with Apache Cassandra database"
 
-def cassandra_embedded_version = "3.5.0.1"
-
-configurations.testRuntimeClasspath {
-  exclude group: "org.slf4j", module: "slf4j-jdk14"
-}
+// compatible with all Cassandra versions up to 3.11.3
+def achilles_version = "6.0.2"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
@@ -48,5 +46,8 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core
-  testCompile group: 'org.cassandraunit', name: 'cassandra-unit', version: "$cassandra_embedded_version"
+
+  // for embedded cassandra
+  testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
+  testCompile library.java.jackson_jaxb_annotations
 }
