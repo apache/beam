@@ -475,16 +475,18 @@ atomized in instants hammered around the
     import random
     import signal
     from six.moves import range
+    from six import int2byte
     num_test_lines = 10
     timeout = 30
     read_size = (64<<10) # set much smaller than the line size
+    byte_table = tuple(int2byte(i) for i in range(32, 96))
     def generate_random_line():
-      char_list = list(chr(x) 
+      byte_list = list(b 
         for i in range(4096)
-        for x in random.sample(range(32, 96), 64) 
+        for b in random.sample(byte_table, 64) 
       )
-      char_list.append('\n')
-      return ''.join(char_list)
+      byte_list.append(b'\n')
+      return b''.join(byte_list)
     def create_test_file(compression_type, lines):
       filenames = list()
       file_name = self._create_temp_file()
@@ -519,7 +521,7 @@ atomized in instants hammered around the
       for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
         file_name = create_test_file(compression_type, test_lines)
         signal.alarm(timeout)
-        with open(file_name) as f:
+        with open(file_name, 'rb') as f:
           data = CompressedFile(f, compression_type, read_size=read_size)
           for written_line in test_lines:
               read_line = data.readline()
