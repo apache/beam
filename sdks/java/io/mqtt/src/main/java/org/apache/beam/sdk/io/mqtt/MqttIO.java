@@ -175,7 +175,10 @@ public class MqttIO {
      * @param topic The MQTT getTopic pattern.
      * @param clientId A client ID prefix, used to construct an unique client ID.
      * @return A connection configuration to the MQTT broker.
+     * @deprecated This constructor will be removed in a future version of Beam, please use
+     *     #create(String, String)} and {@link #withClientId(String)} instead.
      */
+    @Deprecated
     public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
       checkArgument(clientId != null, "clientId can not be null");
       return create(serverUri, topic).withClientId(clientId);
