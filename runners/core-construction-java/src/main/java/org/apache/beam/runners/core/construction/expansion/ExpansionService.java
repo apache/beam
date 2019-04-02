@@ -85,8 +85,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    * Exposes Java transforms via {@link org.apache.beam.sdk.expansion.ExternalTransformRegistrar}.
    */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
-  public static class ExternalTransformRegistrarLoader<ConfigT>
-      implements ExpansionService.ExpansionServiceRegistrar {
+  public static class ExternalTransformRegistrarLoader implements ExpansionService.ExpansionServiceRegistrar {
 
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
@@ -94,10 +93,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           ImmutableMap.builder();
       for (ExternalTransformRegistrar registrar :
           ServiceLoader.load(ExternalTransformRegistrar.class)) {
-        for (Map.Entry<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> entry :
+        for (Map.Entry<String, Class<? extends ExternalTransformBuilder>> entry :
             registrar.knownBuilders().entrySet()) {
           String urn = entry.getKey();
-          Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass = entry.getValue();
+          Class<? extends ExternalTransformBuilder> builderClass = entry.getValue();
           builder.put(
               urn,
               spec -> {
@@ -117,7 +116,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     private static PTransform translate(
         ExternalTransforms.ExternalConfigurationPayload payload,
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass)
+        Class<? extends ExternalTransformBuilder> builderClass)
         throws Exception {
       Preconditions.checkState(
           ExternalTransformBuilder.class.isAssignableFrom(builderClass),
@@ -130,7 +129,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     }
 
     private static Object initConfiguration(
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass) throws Exception {
+        Class<? extends ExternalTransformBuilder> builderClass) throws Exception {
       for (Method method : builderClass.getMethods()) {
         if (method.getName().equals("buildExternal")) {
           Preconditions.checkState(
@@ -184,9 +183,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     }
 
     private static PTransform buildTransform(
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass, Object configObject)
+        Class<? extends ExternalTransformBuilder> builderClass, Object configObject)
         throws Exception {
-      Constructor<? extends ExternalTransformBuilder<?, ?, ?>> constructor =
+      Constructor<? extends ExternalTransformBuilder> constructor =
           builderClass.getDeclaredConstructor();
       constructor.setAccessible(true);
       ExternalTransformBuilder<?, ?, ?> externalTransformBuilder = constructor.newInstance();
