@@ -150,8 +150,8 @@ public class MqttIOTest {
         pipeline.apply(
             MqttIO.read()
                 .withConnectionConfiguration(
-                    MqttIO.ConnectionConfiguration.create(
-                        "tcp://localhost:" + port, "READ_TOPIC", "READ_PIPELINE"))
+                    MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, "READ_TOPIC")
+                        .withClientId("READ_PIPELINE"))
                 .withMaxReadTime(Duration.standardSeconds(3)));
     PAssert.that(output)
         .containsInAnyOrder(
@@ -212,8 +212,8 @@ public class MqttIOTest {
     pipeline.apply(
         MqttIO.read()
             .withConnectionConfiguration(
-                MqttIO.ConnectionConfiguration.create(
-                    "tcp://localhost:" + port, "READ_TOPIC", "READ_PIPELINE"))
+                MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, "READ_TOPIC")
+                    .withClientId("READ_PIPELINE"))
             .withMaxReadTime(Duration.standardSeconds(2)));
 
     // should stop before the test timeout
