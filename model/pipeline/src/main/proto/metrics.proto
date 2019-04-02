@@ -187,37 +187,6 @@ message MonitoringInfo {
   google.protobuf.Timestamp timestamp = 6;
 }
 
-message MonitoringInfoUrns {
-  enum Enum {
-    // User counter have this format: 'beam:metric:user:<namespace>:<name>'.
-    USER_COUNTER_URN_PREFIX = 0
-        [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:metric:user:"];
-
-    ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-                           "beam:metric:element_count:v1"];
-
-    START_BUNDLE_MSECS = 2
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-             "beam:metric:pardo_execution_time:start_bundle_msecs:v1"];
-
-    PROCESS_BUNDLE_MSECS = 3
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-             "beam:metric:pardo_execution_time:process_bundle_msecs:v1"];
-
-    FINISH_BUNDLE_MSECS = 4
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-             "beam:metric:pardo_execution_time:finish_bundle_msecs:v1"];
-
-    TOTAL_MSECS = 5
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-             "beam:metric:ptransform_execution_time:total_msecs:v1"];
-
-    USER_DISTRIBUTION_COUNTER_URN_PREFIX = 6
-        [(org.apache.beam.model.pipeline.v1.beam_urn) =
-            "beam:metric:user_distribution:"];
-  }
-}
-
 message MonitoringInfoTypeUrns {
   enum Enum {
     SUM_INT64_TYPE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
