@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+import subprocess
 import unittest
 
 import mock
@@ -101,6 +102,113 @@ class Exec(unittest.TestCase):
         ['subprocess', 'Popen'],
         shell=True,
         other_arg=True)
+
+
+class TestErrorHandlingCheckCall(unittest.TestCase):
+  @classmethod
+  def setup_class(cls):
+    cls.mock_get_patcher = mock.patch(\
+      'apache_beam.utils.processes.subprocess.check_call')
+    cls.mock_get = cls.mock_get_patcher.start()
+
+  @classmethod
+  def teardown_class(cls):
+    cls.mock_get_patcher.stop()
+
+  def test_oserror_check_call(self):
+    # Configure the mock to return a response with an OK status code.
+    self.mock_get.side_effect = OSError("Test OSError")
+    with self.assertRaises(RuntimeError):
+      processes.check_call(["lls"])
+
+  def test_oserror_check_call_message(self):
+    # Configure the mock to return a response with an OK status code.
+    self.mock_get.side_effect = OSError()
+    cmd = ["lls"]
+    with self.assertRaises(RuntimeError) as error:
+      processes.check_call(cmd)
+    self.assertEqual(error.exception.message,\
+      'Executable {} not found'.format(str(cmd)))
+
+  def test_check_call_pip_install_non_existing_package(self):
+    returncode = 1
+    package = "non-exsisting-package"
+    cmd = ['python', '-m', 'pip', 'download', '--dest', '/var',\
+        '{}'.format(package),\
+        '--no-deps', '--no-binary', ':all:']
+    output = "Collecting {}".format(package)
+    self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
+      cmd, output=output)
+    with self.assertRaises(RuntimeError) as error:
+      output = processes.check_call(cmd)
+    self.assertEqual(error.exception.message.split("\n")[-2].strip(),\
+      "Pip install failed for package: {}".format(package))
+    self.assertEqual(error.exception.message.split("\n")[-1].strip(),\
+      "Output from execution of subprocess: " + output)
+
+
+class TestErrorHandlingCheckOutput(unittest.TestCase):
+  @classmethod
+  def setup_class(cls):
+    cls.mock_get_patcher = mock.patch(\
+        'apache_beam.utils.processes.subprocess.check_output')
+    cls.mock_get = cls.mock_get_patcher.start()
+
+  def test_oserror_check_output_message(self):
+    self.mock_get.side_effect = OSError()
+    cmd = ["lls"]
+    with self.assertRaises(RuntimeError) as error:
+      processes.check_output(cmd)
+    self.assertEqual(error.exception.message,\
+      'Executable {} not found'.format(str(cmd)))
+
+  def test_check_output_pip_install_non_existing_package(self):
+    returncode = 1
+    package = "non-exsisting-package"
+    cmd = ['python', '-m', 'pip', 'download', '--dest', '/var',\
+      '{}'.format(package),\
+      '--no-deps', '--no-binary', ':all:']
+    output = "Collecting {}".format(package)
+    self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
+         cmd, output=output)
+    with self.assertRaises(RuntimeError) as error:
+      output = processes.check_output(cmd)
+    self.assertEqual(error.exception.message.split("\n")[-2].strip(),\
+      "Pip install failed for package: {}".format(package))
+    self.assertEqual(error.exception.message.split("\n")[-1].strip(),\
+      "Output from execution of subprocess: " + output)
+
+
+class TestErrorHandlingCall(unittest.TestCase):
+  @classmethod
+  def setup_class(cls):
+    cls.mock_get_patcher = mock.patch(\
+      'apache_beam.utils.processes.subprocess.call')
+    cls.mock_get = cls.mock_get_patcher.start()
+
+  def test_oserror_check_output_message(self):
+    self.mock_get.side_effect = OSError()
+    cmd = ["lls"]
+    with self.assertRaises(RuntimeError) as error:
+      processes.call(cmd)
+    self.assertEqual(error.exception.message,\
+      'Executable {} not found'.format(str(cmd)))
+
+  def test_check_output_pip_install_non_existing_package(self):
+    returncode = 1
+    package = "non-exsisting-package"
+    cmd = ['python', '-m', 'pip', 'download', '--dest', '/var',\
+      '{}'.format(package),\
+      '--no-deps', '--no-binary', ':all:']
+    output = "Collecting {}".format(package)
+    self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
+         cmd, output=output)
+    with self.assertRaises(RuntimeError) as error:
+      output = processes.call(cmd)
+    self.assertEqual(error.exception.message.split("\n")[-2].strip(),\
+      "Pip install failed for package: {}".format(package))
+    self.assertEqual(error.exception.message.split("\n")[-1].strip(),\
+      "Output from execution of subprocess: " + output)
 
 
 if __name__ == '__main__':
