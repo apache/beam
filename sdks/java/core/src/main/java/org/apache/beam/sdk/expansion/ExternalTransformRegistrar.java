@@ -27,5 +27,5 @@ import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 public interface ExternalTransformRegistrar {
 
   /** A mapping from URN to an {@link ExternalTransformBuilder} class. */
-  Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders();
+  Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders();
 }
