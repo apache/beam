@@ -44,18 +44,18 @@ configurations.testRuntimeClasspath {
 }
 
 dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
   shadow library.java.slf4j_api
-  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common
   provided library.java.hadoop_hdfs
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
-  testCompile project(path: ":beam-examples-java", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:testing:test-utils", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:jdbc", configuration: "shadow")
+  testCompile project(path: ":examples:java", configuration: "shadowTest")
 
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile "org.elasticsearch.client:transport:$elastic_search_version"
@@ -82,15 +82,15 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java")
   shadow library.java.commons_io_2x
 
-  delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadow"))
-  delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadowTest"))
+  delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "shadow"))
+  delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "shadowTest"))
 
-  sparkRunner project(path: ":beam-examples-java", configuration: "shadowTest")
-  sparkRunner project(path: ":beam-runners-spark", configuration: "shadow")
-  sparkRunner project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  sparkRunner project(path: ":examples:java", configuration: "shadowTest")
+  sparkRunner project(path: ":runners:spark", configuration: "shadow")
+  sparkRunner project(path: ":sdks:java:io:hadoop-file-system", configuration: "shadow")
   sparkRunner library.java.spark_streaming
   sparkRunner library.java.spark_core
 }

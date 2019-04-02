@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --numberOfCounterOperations=1
  *      --sourceOptions={"numRecords":1000,...}
  *      --stepOptions={"outputRecordsPerInputRecord":2...}'

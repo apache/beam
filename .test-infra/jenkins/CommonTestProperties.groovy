@@ -32,10 +32,10 @@ class CommonTestProperties {
 
         def RUNNER_DEPENDENCY_MAP = [
                 JAVA: [
-                        DATAFLOW: ":beam-runners-google-cloud-dataflow-java",
-                        SPARK: ":beam-runners-spark",
-                        FLINK: ":beam-runners-flink_2.11",
-                        DIRECT: ":beam-runners-direct-java"
+                        DATAFLOW: ":runners:google-cloud-dataflow-java",
+                        SPARK: ":runners:spark",
+                        FLINK: ":runners:flink:1.5",
+                        DIRECT: ":runners:direct-java"
                 ],
                 PYTHON: [
                         DATAFLOW: "TestDataflowRunner",

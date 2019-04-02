@@ -157,7 +157,7 @@ are added in a PR then the lock file needs to be updated.
 From the `$GOPATH/src/github.com/apache/beam` directory run
 
 ```
-$ ./gradlew :beam-sdks-go:goLock
+$ ./gradlew :sdks:go:goLock
 `./gradlew :goPostcommit`
 ```
 

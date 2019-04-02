@@ -79,7 +79,7 @@ class NexmarkBuilder {
       shell("echo *** RUN ${title} ***")
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(':beam-sdks-java-nexmark:run')
+        tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
         switches("-Pnexmark.runner=${runner.getDepenedencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")

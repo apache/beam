@@ -63,7 +63,7 @@ fi
 TAG=$(date +%Y%m%d-%H%M%S)
 CONTAINER=us.gcr.io/$PROJECT/$USER/go
 echo "Using container $CONTAINER"
-./gradlew :beam-sdks-go-container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
+./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
 
 # Verify it exists
 docker images | grep $TAG
