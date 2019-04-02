@@ -41,6 +41,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -77,6 +78,8 @@ public class Schema implements Serializable {
   }
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
+  private Map<String, Integer> encodingPositions = Maps.newHashMap();
+
   private final List<Field> fields;
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
   // is correct.
@@ -210,6 +213,7 @@ public class Schema implements Serializable {
         throw new IllegalArgumentException(
             "Duplicate field " + field.getName() + " added to schema");
       }
+      encodingPositions.put(field.getName(), index);
       fieldIndices.put(field.getName(), index++);
     }
     this.hashCode = Objects.hash(fieldIndices, fields);
@@ -222,6 +226,16 @@ public class Schema implements Serializable {
   /** Set this schema's UUID. All schemas with the same UUID must be guaranteed to be identical. */
   public void setUUID(UUID uuid) {
     this.uuid = uuid;
+  }
+
+  /** Gets the encoding positions for this schema. */
+  public Map<String, Integer> getEncodingPositions() {
+    return encodingPositions;
+  }
+
+  /** Sets the encoding positions for this schema. */
+  public void setEncodingPositions(Map<String, Integer> encodingPositions) {
+    this.encodingPositions = encodingPositions;
   }
 
   /** Get this schema's UUID. */
