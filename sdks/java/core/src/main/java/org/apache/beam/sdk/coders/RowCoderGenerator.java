@@ -97,6 +97,7 @@ public abstract class RowCoderGenerator {
   private static final ForLoadedType LIST_CODER_TYPE = new ForLoadedType(ListCoder.class);
   private static final ForLoadedType MAP_CODER_TYPE = new ForLoadedType(MapCoder.class);
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
+  private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
   private static final ForLoadedType NULLABLE_CODER = new ForLoadedType(NullableCoder.class);
 
   private static final String CODERS_FIELD_NAME = "FIELD_CODERS";
@@ -219,6 +220,9 @@ public abstract class RowCoderGenerator {
     static void encodeDelegate(
         Coder[] coders, Row value, OutputStream outputStream, boolean hasNullableFields)
         throws IOException {
+      // Encode the field count. This allows us to handle compatible schema changes.
+      VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
+      // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
       NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
       for (int idx = 0; idx < value.getFieldCount(); ++idx) {
         Object fieldValue = value.getValue(idx);
@@ -289,14 +293,23 @@ public abstract class RowCoderGenerator {
     // per-field Coders.
     static Row decodeDelegate(Schema schema, Coder[] coders, InputStream inputStream)
         throws IOException {
+      int fieldCount = VAR_INT_CODER.decode(inputStream);
       BitSet nullFields = NULL_LIST_CODER.decode(inputStream);
       List<Object> fieldValues = Lists.newArrayListWithCapacity(coders.length);
-      for (int i = 0; i < coders.length; ++i) {
-        if (nullFields.get(i)) {
-          fieldValues.add(null);
-        } else {
-          fieldValues.add(coders[i].decode(inputStream));
+      for (int i = 0; i < fieldCount; ++i) {
+        // In the case of a schema change going backwards, fieldCount might be > coders.length,
+        // in which case we drop the extra fields.
+        if (i < coders.length) {
+          if (nullFields.get(i)) {
+            fieldValues.add(null);
+          } else {
+            fieldValues.add(coders[i].decode(inputStream));
+          }
         }
+      }
+      // If the schema was evolved to contain more fields, we fill them in with nulls.
+      for (int i = fieldCount; i < coders.length; i++) {
+        fieldValues.add(null);
       }
       // We call attachValues instead of setValues. setValues validates every element in the list
       // is of the proper type, potentially converts to the internal type Row stores, and copies
