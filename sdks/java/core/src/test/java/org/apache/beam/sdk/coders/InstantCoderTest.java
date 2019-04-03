@@ -121,4 +121,21 @@ public class InstantCoderTest {
     Object actual = TEST_CODER.structuralValue(expected);
     assertEquals(expected, actual);
   }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (Instant value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (Instant value1 : TEST_VALUES) {
+      for (Instant value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(
+            TEST_CODER, new Instant(value1.getMillis()), new Instant(value2.getMillis()));
+      }
+    }
+  }
 }

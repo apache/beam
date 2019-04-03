@@ -107,4 +107,21 @@ public class DoubleCoderTest {
     Object actual = TEST_CODER.structuralValue(expected);
     assertEquals(expected, actual);
   }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (Double value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (Double value1 : TEST_VALUES) {
+      for (Double value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(
+            TEST_CODER, Double.valueOf(value1), Double.valueOf(value2));
+      }
+    }
+  }
 }

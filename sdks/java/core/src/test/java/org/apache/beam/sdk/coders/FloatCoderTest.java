@@ -19,6 +19,9 @@ package org.apache.beam.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
+import java.util.List;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -29,10 +32,30 @@ public class FloatCoderTest {
 
   private static final Coder<Float> TEST_CODER = FloatCoder.of();
 
+  private static final List<Float> TEST_VALUES =
+      Arrays.asList(0.0f - 0.5f, 0.5f, 0.3f, -0.3f, 1.0f, Float.MAX_VALUE, Float.MIN_VALUE);
+
   @Test
   public void testStructuralValueReturnTheSameValue() {
     Float expected = 23.45F;
     Object actual = TEST_CODER.structuralValue(expected);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (Float value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (Float value1 : TEST_VALUES) {
+      for (Float value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(
+            TEST_CODER, Float.valueOf(value1), Float.valueOf(value2));
+      }
+    }
   }
 }

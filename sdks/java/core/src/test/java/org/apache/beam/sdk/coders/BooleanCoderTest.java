@@ -19,6 +19,8 @@ package org.apache.beam.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
 
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -28,10 +30,29 @@ import org.junit.runners.JUnit4;
 public class BooleanCoderTest {
   private static final Coder<Boolean> TEST_CODER = BooleanCoder.of();
 
+  private static final ImmutableList<Boolean> TEST_VALUES =
+      ImmutableList.of(Boolean.TRUE, Boolean.FALSE);
+
   @Test
   public void testStructuralValueReturnTheSameValue() {
     Boolean expected = Boolean.TRUE;
     Object actual = TEST_CODER.structuralValue(expected);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (Boolean value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    for (Boolean value1 : TEST_VALUES) {
+      for (Boolean value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(TEST_CODER, value1, value2);
+      }
+    }
   }
 }

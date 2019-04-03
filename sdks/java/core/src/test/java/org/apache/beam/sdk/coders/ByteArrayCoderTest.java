@@ -130,4 +130,11 @@ public class ByteArrayCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(byte[].class)));
   }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    for (byte[] value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
 }
