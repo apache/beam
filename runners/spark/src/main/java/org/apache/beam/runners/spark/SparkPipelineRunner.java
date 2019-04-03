@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark;
 
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStageForRemoteClusterExecution;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -56,6 +59,18 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     // Don't let the fuser fuse any subcomponents of native transforms.
     Pipeline trimmedPipeline = PipelineTrimmer.trim(pipeline, translator.knownUrns());
     Pipeline fusedPipeline = GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
+
+    if (pipelineOptions.getFilesToStage() == null) {
+      pipelineOptions.setFilesToStage(
+          detectClassPathResourcesToStage(SparkPipelineRunner.class.getClassLoader()));
+      LOG.info(
+          "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
+    }
+    prepareFilesToStageForRemoteClusterExecution(pipelineOptions);
+    LOG.info(
+        "Will stage {} files. (Enable logging at DEBUG level to see which files will be staged.)",
+        pipelineOptions.getFilesToStage().size());
+    LOG.debug("Staging files: {}", pipelineOptions.getFilesToStage());
 
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
