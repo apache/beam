@@ -1437,11 +1437,14 @@ public class PipelineOptionsFactoryTest {
   private interface NonPublicPipelineOptions extends PipelineOptions {}
 
   @Test
-  public void testNonPublicInterfaceLogsWarning() throws Exception {
+  public void testNonPublicInterfaceThrowsException() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Please mark non-public interface "
+            + NonPublicPipelineOptions.class.getName()
+            + " as public.");
+
     PipelineOptionsFactory.as(NonPublicPipelineOptions.class);
-    // Make sure we print the name of the class.
-    expectedLogs.verifyWarn(NonPublicPipelineOptions.class.getName());
-    expectedLogs.verifyWarn("all non-public interfaces to be in the same package");
   }
 
   /** A test interface containing all supported List return types. */
