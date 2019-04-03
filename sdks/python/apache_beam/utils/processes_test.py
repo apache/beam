@@ -139,12 +139,25 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
     output = "Collecting {}".format(package)
     self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
       cmd, output=output)
-    with self.assertRaises(RuntimeError) as error:
+    # Since error.exception.message is removed from
+    # python3 and the self.assertRaises
+    # dont return error.args a try, except is used.
+    # Example of how it could be used with python 2.7
+    # with self.assertRaises(RuntimeError) as error:
+    #   output = processes.check_call(cmd)
+    # self.assertEqual(error.exception.message.split("\n")[-2].strip(),\
+    #   "Pip install failed for package: {}".format(package))
+    # self.assertEqual(error.exception.message.split("\n")[-1].strip(),\
+    #   "Output from execution of subprocess: " + output)
+    try:
       output = processes.check_call(cmd)
-    self.assertEqual(error.exception.message.split("\n")[-2].strip(),\
-      "Pip install failed for package: {}".format(package))
-    self.assertEqual(error.exception.message.split("\n")[-1].strip(),\
-      "Output from execution of subprocess: " + output)
+      self.fail("The test failed due to that\
+        no error was raised when calling process.check_call")
+    except RuntimeError as error:
+      self.assertIn("Output from execution of subprocess: {}".format(output),\
+        error.args[0])
+      self.assertIn("Pip install failed for package: {}".format(package),\
+        error.args[0])
 
 
 class TestErrorHandlingCheckOutput(unittest.TestCase):
@@ -171,12 +184,15 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
     output = "Collecting {}".format(package)
     self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
          cmd, output=output)
-    with self.assertRaises(RuntimeError) as error:
+    try:
       output = processes.check_output(cmd)
-    self.assertEqual(error.exception.message.split("\n")[-2].strip(),\
-      "Pip install failed for package: {}".format(package))
-    self.assertEqual(error.exception.message.split("\n")[-1].strip(),\
-      "Output from execution of subprocess: " + output)
+      self.fail("The test failed due to that\
+      no error was raised when calling process.check_call")
+    except RuntimeError as error:
+      self.assertIn("Output from execution of subprocess: {}".format(output),\
+        error.args[0])
+      self.assertIn("Pip install failed for package: {}".format(package),\
+        error.args[0])
 
 
 class TestErrorHandlingCall(unittest.TestCase):
@@ -203,12 +219,15 @@ class TestErrorHandlingCall(unittest.TestCase):
     output = "Collecting {}".format(package)
     self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
          cmd, output=output)
-    with self.assertRaises(RuntimeError) as error:
+    try:
       output = processes.call(cmd)
-    self.assertEqual(error.exception.message.split("\n")[-2].strip(),\
-      "Pip install failed for package: {}".format(package))
-    self.assertEqual(error.exception.message.split("\n")[-1].strip(),\
-      "Output from execution of subprocess: " + output)
+      self.fail("The test failed due to that\
+        no error was raised when calling process.check_call")
+    except RuntimeError as error:
+      self.assertIn("Output from execution of subprocess: {}".format(output),\
+        error.args[0])
+      self.assertIn("Pip install failed for package: {}".format(package),\
+        error.args[0])
 
 
 if __name__ == '__main__':

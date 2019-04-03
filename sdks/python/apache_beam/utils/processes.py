@@ -50,7 +50,8 @@ def call(*args, **kwargs):
         \n Output from execution of subprocess: {}" \
         .format(traceback.format_exc(), args[0][6], error. output))
     else:
-      RuntimeError("Full trace: {} \n Output of the failed child process: {} "\
+      raise RuntimeError("Full trace: {}\
+         \n Output of the failed child process: {} " \
         .format(traceback.format_exc(), error.output))
   return out
 
@@ -69,7 +70,8 @@ def check_call(*args, **kwargs):
         \n Output from execution of subprocess: {}" \
         .format(traceback.format_exc(), args[0][6], error.output))
     else:
-      RuntimeError("Full trace: {}\n Output of the failed child process: {}" \
+      raise RuntimeError("Full trace: {} \
+        \n Output of the failed child process: {}" \
         .format(traceback.format_exc(), error.output))
   return out
 
@@ -88,7 +90,8 @@ def check_output(*args, **kwargs):
         \n Output from execution of subprocess: {}" \
         .format(traceback.format_exc(), args[0][6], error.output))
     else:
-      RuntimeError("Full trace: {}, output of the failed child process {} "\
+      raise RuntimeError("Full trace: {}, \
+         output of the failed child process {} "\
         .format(traceback.format_exc(), error.output))
   return out
 
