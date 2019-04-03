@@ -303,6 +303,21 @@ message StandardPTransforms {
     // and restrictions.
     // Input: KV(element, restriction); output: DoFn's output.
     PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
+
+    // Splits the restriction of each element/restriction pair and returns the
+    // resulting splits, with a corresponding floating point size estimations
+    // for each.
+    // A reasonable value for size is the number of bytes expected to be
+    // produced by this (element, restriction) pair.
+    // Input: KV(element, restriction)
+    // Output: KV(KV(element, restriction), size))
+    SPLIT_AND_SIZE_RESTRICTIONS = 4 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
+
+    // Like PROCESS_ELEMENTS, but accepts the sized output produced by
+    // SPLIT_RESTRICTION_WITH_SIZING.
+    // Input: KV(KV(element, restriction), size); output: DoFn's output.
+    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 5 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
+
   }
 }
 
