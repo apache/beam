@@ -22,15 +22,18 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -147,7 +150,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       throw new RuntimeException("Couldn't find build method on ExternalTransformBuilder.");
     }
 
-    private static void populateConfiguration(
+    @VisibleForTesting
+    static void populateConfiguration(
         Object config, ExternalTransforms.ExternalConfigurationPayload payload) throws Exception {
       Converter<String, String> camelCaseConverter =
           CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
@@ -157,7 +161,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         ExternalTransforms.ConfigValue value = entry.getValue();
 
         String fieldName = camelCaseConverter.convert(key);
-        Coder coder = resolveCoder(value.getCoderUrn());
+        List<String> coderUrns = value.getCoderUrnList();
+        Preconditions.checkArgument(coderUrns.size() > 0, "No Coder URN provided.");
+        Coder coder = resolveCoder(coderUrns);
         Class type = coder.getEncodedTypeDescriptor().getRawType();
 
         String setterName =
@@ -177,19 +183,46 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       }
     }
 
-    private static Coder resolveCoder(String coderUrn) throws Exception {
-      RunnerApi.Coder coder =
+    private static Coder resolveCoder(List<String> coderUrns) throws Exception {
+      Preconditions.checkArgument(coderUrns.size() > 0, "No Coder URN provided.");
+      RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
+      RunnerApi.Coder coder = buildProto(0, coderUrns, componentsBuilder);
+
+      RehydratedComponents rehydratedComponents =
+          RehydratedComponents.forComponents(componentsBuilder.build());
+      return CoderTranslation.fromProto(coder, rehydratedComponents);
+    }
+
+    private static RunnerApi.Coder buildProto(
+        int coderPos, List<String> coderUrns, RunnerApi.Components.Builder componentsBuilder) {
+      Preconditions.checkArgument(
+          coderPos < coderUrns.size(), "Pointer into coderURNs is not correct.");
+
+      final String coderUrn = coderUrns.get(coderPos);
+      RunnerApi.Coder.Builder coderBuilder =
           RunnerApi.Coder.newBuilder()
               .setSpec(
                   RunnerApi.SdkFunctionSpec.newBuilder()
-                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build()))
-              .build();
+                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build())
+                      .build());
 
-      // TODO This uses simple structured coders, need to support compound coders
-      RunnerApi.Components components = RunnerApi.Components.newBuilder().build();
-      RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
+      if (coderUrn.equals(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))) {
+        RunnerApi.Coder elementCoder = buildProto(coderPos + 1, coderUrns, componentsBuilder);
+        String coderId = UUID.randomUUID().toString();
+        componentsBuilder.putCoders(coderId, elementCoder);
+        coderBuilder.addComponentCoderIds(coderId);
+      } else if (coderUrn.equals(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.KV))) {
+        RunnerApi.Coder element1Coder = buildProto(coderPos + 1, coderUrns, componentsBuilder);
+        RunnerApi.Coder element2Coder = buildProto(coderPos + 2, coderUrns, componentsBuilder);
+        String coderId1 = UUID.randomUUID().toString();
+        String coderId2 = UUID.randomUUID().toString();
+        componentsBuilder.putCoders(coderId1, element1Coder);
+        componentsBuilder.putCoders(coderId2, element2Coder);
+        coderBuilder.addComponentCoderIds(coderId1);
+        coderBuilder.addComponentCoderIds(coderId2);
+      }
 
-      return CoderTranslation.fromProto(coder, rehydratedComponents);
+      return coderBuilder.build();
     }
 
     private static PTransform buildTransform(
