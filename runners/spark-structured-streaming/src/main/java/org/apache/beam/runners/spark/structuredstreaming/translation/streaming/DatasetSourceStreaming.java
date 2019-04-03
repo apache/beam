@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -50,20 +51,22 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
   static final String DEFAULT_PARALLELISM = "default-parallelism";
   static final String PIPELINE_OPTIONS = "pipeline-options";
 
-  @Override public MicroBatchReader createMicroBatchReader(Optional<StructType> schema,
+  @Override
+  public MicroBatchReader createMicroBatchReader(Optional<StructType> schema,
       String checkpointLocation, DataSourceOptions options) {
     return new DatasetMicroBatchReader(checkpointLocation, options);
   }
 
-  /** This class can be mapped to Beam {@link UnboundedSource}. */
+  /** This class is mapped to Beam {@link UnboundedSource}. */
   private static class DatasetMicroBatchReader<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
-      implements MicroBatchReader {
+      implements MicroBatchReader, Serializable {
 
     private int numPartitions;
     private UnboundedSource<T, CheckpointMarkT> source;
     private SerializablePipelineOptions serializablePipelineOptions;
 
-    @SuppressWarnings({ "unused", "unchecked" }) private DatasetMicroBatchReader(
+    @SuppressWarnings("unchecked")
+    private DatasetMicroBatchReader(
         String checkpointLocation, DataSourceOptions options) {
       if (!options.get(BEAM_SOURCE_OPTION).isPresent()) {
         throw new RuntimeException("Beam source was not set in DataSource options");
@@ -80,8 +83,8 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
       if (!options.get(PIPELINE_OPTIONS).isPresent()) {
         throw new RuntimeException("Beam pipelineOptions were not set in DataSource options");
       }
-      this.serializablePipelineOptions = new SerializablePipelineOptions(
-          options.get(PIPELINE_OPTIONS).get());
+      this.serializablePipelineOptions =
+          new SerializablePipelineOptions(options.get(PIPELINE_OPTIONS).get());
     }
 
     @Override public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
@@ -115,7 +118,6 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
       SparkPipelineOptions sparkPipelineOptions = serializablePipelineOptions.get()
           .as(SparkPipelineOptions.class);
       List<InputPartition<InternalRow>> result = new ArrayList<>();
-      long desiredSizeBytes;
       try {
         List<? extends UnboundedSource<T, CheckpointMarkT>> splits = source
             .split(numPartitions, sparkPipelineOptions);
