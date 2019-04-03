@@ -1253,7 +1253,7 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if (output_hint is None
       and get_type_hints(wrapper).input_types
       and get_type_hints(wrapper).input_types[0]):
-    output_hint = get_type_hints(wrapper).input_types[0]
+    output_hint = get_type_hints(wrapper).input_types[0][0]
   if output_hint:
     get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
   # pylint: disable=protected-access
