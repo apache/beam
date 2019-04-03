@@ -379,6 +379,9 @@ class FnApiRunnerTest(unittest.TestCase):
         middle = (end - start) // 2
         return [(start, middle), (middle, end)]
 
+      def restriction_size(self, element, restriction):
+        return restriction[1] - restriction[0]
+
     class ExpandStringsDoFn(beam.DoFn):
       def process(self, element, restriction_tracker=ExpandStringsProvider()):
         assert isinstance(
@@ -1034,6 +1037,9 @@ class FnApiRunnerSplitTest(unittest.TestCase):
       def split(self, element, restriction):
         # Don't do any initial splitting to simplify test.
         return [restriction]
+
+      def restriction_size(self, element, restriction):
+        return restriction[1] - restriction[0]
 
     class EnumerateSdf(beam.DoFn):
       def process(self, element, restriction_tracker=EnumerateProvider()):

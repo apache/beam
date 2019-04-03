@@ -51,6 +51,8 @@ PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+    common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
+    common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_ELEMENTS.urn])
 
 IMPULSE_BUFFER = b'impulse'
@@ -740,6 +742,7 @@ def expand_sdf(stages, context):
         main_input_id = transform.inputs[main_input_tag]
         element_coder_id = context.components.pcollections[
             main_input_id].coder_id
+        # KV[element, restriction]
         paired_coder_id = context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
                 spec=beam_runner_api_pb2.SdkFunctionSpec(
@@ -747,6 +750,18 @@ def expand_sdf(stages, context):
                         urn=common_urns.coders.KV.urn)),
                 component_coder_ids=[element_coder_id,
                                      pardo_payload.restriction_coder_id]))
+        # KV[KV[element, restriction], double]
+        sized_coder_id = context.add_or_get_coder_id(
+            beam_runner_api_pb2.Coder(
+                spec=beam_runner_api_pb2.SdkFunctionSpec(
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=common_urns.coders.KV.urn)),
+                component_coder_ids=[
+                    paired_coder_id,
+                    context.add_or_get_coder_id(
+                        coders.FloatCoder().to_runner_api(None),
+                        'doubles_coder')
+                ]))
 
         paired_pcoll_id = copy_like(
             context.components.pcollections,
@@ -764,12 +779,12 @@ def expand_sdf(stages, context):
             context.components.pcollections,
             main_input_id,
             '_split',
-            coder_id=paired_coder_id)
+            coder_id=sized_coder_id)
         split_transform_id = copy_like(
             context.components.transforms,
             transform,
-            unique_name=transform.unique_name + '/SplitRestriction',
-            urn=common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+            unique_name=transform.unique_name + '/SplitAndSizeRestriction',
+            urn=common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
             inputs=dict(transform.inputs, **{main_input_tag: paired_pcoll_id}),
             outputs={'out': split_pcoll_id})
 
@@ -777,7 +792,9 @@ def expand_sdf(stages, context):
             context.components.transforms,
             transform,
             unique_name=transform.unique_name + '/Process',
-            urn=common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+            urn=
+            common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS
+            .urn,
             inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}))
 
         yield make_stage(stage, pair_transform_id)

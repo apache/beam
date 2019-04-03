@@ -933,7 +933,7 @@ def create(factory, transform_id, transform_proto, serialized_fn, consumers):
     beam_runner_api_pb2.ParDoPayload)
 def create(*args):
 
-  class CreateRestriction(beam.DoFn):
+  class PairWithRestriction(beam.DoFn):
     def __init__(self, fn, restriction_provider):
       self.restriction_provider = restriction_provider
 
@@ -946,28 +946,29 @@ def create(*args):
       # that can be distributed.)
       yield element, self.restriction_provider.initial_restriction(element)
 
-  return _create_sdf_operation(CreateRestriction, *args)
+  return _create_sdf_operation(PairWithRestriction, *args)
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+    common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create(*args):
 
-  class SplitRestriction(beam.DoFn):
+  class SplitAndSizeRestrictions(beam.DoFn):
     def __init__(self, fn, restriction_provider):
       self.restriction_provider = restriction_provider
 
     def process(self, element_restriction, *args, **kwargs):
       element, restriction = element_restriction
       for part in self.restriction_provider.split(element, restriction):
-        yield element, part
+        yield ((element, part),
+               self.restriction_provider.restriction_size(element, part))
 
-  return _create_sdf_operation(SplitRestriction, *args)
+  return _create_sdf_operation(SplitAndSizeRestrictions, *args)
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+    common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
@@ -975,7 +976,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       serialized_fn, parameter,
-      operation_cls=operations.SdfProcessElements)
+      operation_cls=operations.SdfProcessSizedElements)
 
 
 def _create_sdf_operation(
