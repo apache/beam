@@ -94,9 +94,6 @@ public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 20L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
   private static final String CASSANDRA_HOST = "127.0.0.1";
-  private static final String CASSANDRA_USERNAME = "cassandra";
-  private static final String CASSANDRA_ENCRYPTED_PASSWORD =
-      "Y2Fzc2FuZHJh"; // Base64 encoded version of "cassandra"
   private static final String CASSANDRA_TABLE = "scientist";
   private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
