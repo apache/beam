@@ -1029,15 +1029,14 @@ message SideInput {
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 message Environment {
-  // Deprecated. Tracked in BEAM-5433
-  string url = 1;
-
   // (Required) The URN of the payload
   string urn = 2;
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
+
+  reserved 1;
 }
 
 message StandardEnvironments {
