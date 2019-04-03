@@ -47,21 +47,9 @@ public interface SparkPipelineOptions
   @Description(
       "A checkpoint directory for streaming resilience, ignored in batch. "
           + "For durability, a reliable filesystem such as HDFS/S3/GS is necessary.")
-  @Default.InstanceFactory(TmpCheckpointDirFactory.class)
   String getCheckpointDir();
 
   void setCheckpointDir(String checkpointDir);
-
-  /**
-   * Returns the default checkpoint directory of /tmp/${job.name}. For testing purposes only.
-   * Production applications should use a reliable filesystem such as HDFS/S3/GS.
-   */
-  class TmpCheckpointDirFactory implements DefaultValueFactory<String> {
-    @Override
-    public String create(PipelineOptions options) {
-      return "/tmp/" + options.as(SparkPipelineOptions.class).getJobName();
-    }
-  }
 
   @Description(
       "The period to checkpoint (in Millis). If not set, Spark will default "
