@@ -15,26 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.util;
 
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.http.HttpRequest;
+import java.io.IOException;
+import org.apache.beam.sdk.util.BackOff;
 
 /**
- * These wrapper classes are necessary allow mocking out the HttpRequest and HttpResponse, since
- * they are final classes and mockito cannot mock them. Note: There is an experimental mockito
- * feature, but it causes many issues and several tests fail when it is enabled.
- * https://stackoverflow.com/questions/14292863/how-to-mock-a-final-class-with-mockito
+ * An adapter for converting between Apache Beam and Google API client representations of backoffs.
  */
-class HttpRequestWrapper {
+public class BackOffAdapter {
+  /**
+   * Returns an adapter to convert from {@link BackOff} to {@link
+   * com.google.api.client.util.BackOff}.
+   */
+  public static com.google.api.client.util.BackOff toGcpBackOff(final BackOff backOff) {
+    return new com.google.api.client.util.BackOff() {
+      @Override
+      public void reset() throws IOException {
+        backOff.reset();
+      }
 
-  private HttpRequest request;
-
-  public HttpRequestWrapper(HttpRequest request) {
-    this.request = request;
-  }
-
-  public GenericUrl getUrl() {
-    return request.getUrl();
+      @Override
+      public long nextBackOffMillis() throws IOException {
+        return backOff.nextBackOffMillis();
+      }
+    };
   }
 }

@@ -15,6 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.gcp.util;
 
-/** Defines Google Cloud Platform component utilities that can be used by Beam runners. */
-package org.apache.beam.sdk.util;
+/**
+ * Lambda interface for inspecting an http request and response to match the failure and possibly
+ * generate a custom error message with more context.
+ */
+interface HttpCallMatcher {
+
+  /** @return true iff the request and response represent a matching http c\all. */
+  boolean matchResponse(HttpRequestWrapper req, HttpResponseWrapper response);
+}
