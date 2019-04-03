@@ -41,6 +41,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.ForeachWriter;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.streaming.DataStreamWriter;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 
 /**
@@ -183,12 +184,19 @@ public class TranslationContext {
 
   public void startPipeline(boolean testMode) {
     try {
+      SparkPipelineOptions options = serializablePipelineOptions.get().as(SparkPipelineOptions.class);
       for (Dataset<?> dataset : leaves) {
-        if (serializablePipelineOptions.get().as(SparkPipelineOptions.class).isStreaming()) {
+        if (options.isStreaming()) {
           //TODO: deal with Beam Discarding, Accumulating and Accumulating & Retracting	outputmodes
           // with DatastreamWriter.outputMode
-          dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
-        } else {
+          DataStreamWriter<?> dataStreamWriter = dataset.writeStream();
+          // spark sets a default checkpoint dir if not set.
+          if (options.getCheckpointDir() != null) {
+            dataStreamWriter = dataStreamWriter
+                .option("checkpointLocation", options.getCheckpointDir());
+          }
+          dataStreamWriter.foreach(new NoOpForeachWriter<>()).start().awaitTermination();
+      } else {
           if (testMode) {
             // cannot use dataset.show because dataset schema is binary so it will print binary code.
             List<WindowedValue> windowedValues = ((Dataset<WindowedValue>) dataset).collectAsList();
