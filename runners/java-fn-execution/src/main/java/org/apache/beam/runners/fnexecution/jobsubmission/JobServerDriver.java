@@ -27,6 +27,7 @@ import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.kohsuke.args4j.Option;
+import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,8 +89,10 @@ public abstract class JobServerDriver implements Runnable {
 
     @Option(
         name = "--clean-artifacts-per-job",
-        usage = "When true, remove each job's staged artifacts when it completes")
-    private boolean cleanArtifactsPerJob = false;
+        usage = "When true, remove each job's staged artifacts when it completes",
+        // Allows setting boolean parameters to false which default to true
+        handler = ExplicitBooleanOptionHandler.class)
+    private boolean cleanArtifactsPerJob = true;
 
     @Option(
         name = "--sdk-worker-parallelism",
