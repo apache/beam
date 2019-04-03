@@ -230,7 +230,6 @@ class PortableRunnerInternalTest(unittest.TestCase):
     self.assertEqual(
         PortableRunner._create_environment(PipelineOptions.from_dictionary({})),
         beam_runner_api_pb2.Environment(
-            url=docker_image,
             urn=common_urns.environments.DOCKER.urn,
             payload=beam_runner_api_pb2.DockerPayload(
                 container_image=docker_image
@@ -243,7 +242,6 @@ class PortableRunnerInternalTest(unittest.TestCase):
             'environment_type': 'DOCKER',
             'environment_config': docker_image,
         })), beam_runner_api_pb2.Environment(
-            url=docker_image,
             urn=common_urns.environments.DOCKER.urn,
             payload=beam_runner_api_pb2.DockerPayload(
                 container_image=docker_image

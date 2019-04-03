@@ -81,7 +81,6 @@ func createEnvironment(ctx context.Context) pb.Environment {
 				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
 		}
 		environment = pb.Environment{
-			Url:     config,
 			Urn:     urn,
 			Payload: serializedPayload,
 		}

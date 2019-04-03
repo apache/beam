@@ -85,7 +85,7 @@ func TestParDo(t *testing.T) {
 		t.Fatal(err)
 	}
 	p, err := graphx.Marshal(edges,
-		&graphx.Options{Environment: pb.Environment{Url: "foo", Urn: "beam:env:docker:v1", Payload: payload}})
+		&graphx.Options{Environment: pb.Environment{Urn: "beam:env:docker:v1", Payload: payload}})
 	if err != nil {
 		t.Fatal(err)
 	}
