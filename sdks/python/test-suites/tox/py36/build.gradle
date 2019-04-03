@@ -23,6 +23,9 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
+// Required to setup a Python 3 virtualenv.
+pythonVersion = '3.6'
+
 toxTask "testPython36", "py36"
 test.dependsOn testPython36
 
