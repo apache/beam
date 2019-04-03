@@ -38,5 +38,6 @@ message ConfigValue {
 // A configuration payload for an external transform.
 // Used as the payload of ExternalTransform as part of an ExpansionRequest.
 message ExternalConfigurationPayload {
+  // Configuration key => value
   map<string, ConfigValue> configuration = 1;
 }
