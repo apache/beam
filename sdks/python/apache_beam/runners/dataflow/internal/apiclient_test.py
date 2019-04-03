@@ -286,26 +286,23 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    if sys.version_info[0:2] == (3, 5):
-      self.assertEqual(
-          env.proto.workerPools[0].workerHarnessContainerImage,
-          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-           '/python3-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
-    elif sys.version_info[0:2] == (3, 6):
-      self.assertEqual(
-          env.proto.workerPools[0].workerHarnessContainerImage,
-          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-           '/python36-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
-    elif sys.version_info[0:2] == (3, 7):
-      self.assertEqual(
-          env.proto.workerPools[0].workerHarnessContainerImage,
-          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-           '/python37-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
-    else:
+    if sys.version_info[0] == 2:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
            '/python-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 5):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python%d%d-fnapi:%s' % (sys.version_info[0],
+                                     sys.version_info[1],
+                                     names.BEAM_FNAPI_CONTAINER_VERSION)))
 
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
@@ -314,26 +311,23 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    if sys.version_info[0:2] == (3, 5):
-      self.assertEqual(
-          env.proto.workerPools[0].workerHarnessContainerImage,
-          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-           '/python3:' + names.BEAM_CONTAINER_VERSION))
-    elif sys.version_info[0:2] == (3, 6):
-      self.assertEqual(
-          env.proto.workerPools[0].workerHarnessContainerImage,
-          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-           '/python36:' + names.BEAM_CONTAINER_VERSION))
-    elif sys.version_info[0:2] == (3, 7):
-      self.assertEqual(
-          env.proto.workerPools[0].workerHarnessContainerImage,
-          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-           '/python37:' + names.BEAM_CONTAINER_VERSION))
-    else:
+    if sys.version_info[0] == 2:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
            '/python:' + names.BEAM_CONTAINER_VERSION))
+    elif sys.version_info[0:2] == (3, 5):
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3:' + names.BEAM_CONTAINER_VERSION))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python%d%d:%s' % (sys.version_info[0],
+                               sys.version_info[1],
+                               names.BEAM_CONTAINER_VERSION)))
 
   @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0')
@@ -345,7 +339,12 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    if sys.version_info[0] == 3:
+    if sys.version_info[0] == 2:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python-fnapi:2.2.0'))
+    elif sys.version_info[0:2] == (3, 5):
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
@@ -354,7 +353,8 @@ class UtilTest(unittest.TestCase):
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-           '/python-fnapi:2.2.0'))
+           '/python%d%d-fnapi:2.2.0' % (sys.version_info[0],
+                                        sys.version_info[1])))
 
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
@@ -363,7 +363,12 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    if sys.version_info[0] == 3:
+    if sys.version_info[0] == 2:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python:2.2.0'))
+    elif sys.version_info[0:2] == (3, 5):
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
@@ -372,7 +377,8 @@ class UtilTest(unittest.TestCase):
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
           (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-           '/python:2.2.0'))
+           '/python%d%d:2.2.0' % (sys.version_info[0],
+                                  sys.version_info[1])))
 
   def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):
     # streaming, fnapi pipeline.
@@ -456,7 +462,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (2, 333))
+      (3, 5))
   def test_get_python_sdk_name(self):
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',
@@ -465,7 +471,7 @@ class UtilTest(unittest.TestCase):
          '--experiments', 'use_multiple_sdk_containers'])
     environment = apiclient.Environment(
         [], pipeline_options, 1, FAKE_PIPELINE_URL)
-    self.assertEqual('Apache Beam Python 2.333 SDK',
+    self.assertEqual('Apache Beam Python 3.5 SDK',
                      environment._get_python_sdk_name())
 
   @mock.patch(
