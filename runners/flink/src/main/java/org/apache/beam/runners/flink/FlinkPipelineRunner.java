@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 
-import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -88,15 +87,5 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     final JobExecutionResult result = executor.execute(pipelineOptions.getJobName());
 
     return FlinkRunner.createPipelineResult(result, pipelineOptions);
-  }
-
-  /** Indicates whether the given pipeline has any unbounded PCollections. */
-  private static boolean hasUnboundedPCollections(RunnerApi.Pipeline pipeline) {
-    checkNotNull(pipeline);
-    Collection<RunnerApi.PCollection> pCollecctions =
-        pipeline.getComponents().getPcollectionsMap().values();
-    // Assume that all PCollections are consumed at some point in the pipeline.
-    return pCollecctions.stream()
-        .anyMatch(pc -> pc.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED);
   }
 }
