@@ -32,6 +32,7 @@ import (
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=top --identifiers=combineFn
+//go:generate go fmt
 
 var (
 	sig = funcx.MakePredicate(beam.TType, beam.TType) // (T, T) -> bool

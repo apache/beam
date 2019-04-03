@@ -19,3 +19,4 @@ package debug
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=debug --identifiers=headFn,headKVFn,discardFn,printFn,printKVFn,printGBKFn
+//go:generate go fmt
