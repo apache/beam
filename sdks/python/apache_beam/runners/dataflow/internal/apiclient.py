@@ -31,7 +31,6 @@ import re
 import sys
 import tempfile
 import time
-import warnings
 from datetime import datetime
 
 from builtins import object
@@ -954,15 +953,7 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if sys.version_info[0] == 2:
-    return
-
-  if sys.version_info[0:2] in [(3, 5), (3, 6)]:
-    if sys.version_info[0:3] < (3, 5, 3):
-      warnings.warn(
-          'You are using an early release for Python 3.5. It is recommended '
-          'to use Python 3.5.3 or higher with Dataflow '
-          'runner.')
+  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7)]:
     return
 
   debug_options = pipeline_options.view_as(DebugOptions)
@@ -972,8 +963,8 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
   raise Exception(
       'Dataflow runner currently supports Python versions '
-      '2.7, 3.5 and 3.6. To ignore this requirement and start a job using a '
-      'different version of Python 3 interpreter, pass '
+      '2.7, 3.5, 3.6, and 3.7. To ignore this requirement and start a job '
+      'using a different version of Python 3 interpreter, pass '
       '--experiment ignore_py3_minor_version pipeline option.')
 
 
