@@ -15,31 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.function.Consumer;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.core.InMemoryStateInternals;
+import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
@@ -48,22 +58,31 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
 import org.junit.Before;
@@ -341,6 +360,101 @@ public class ExecutableStageDoFnOperatorTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  public void testEnsureStateCleanupWithKeyedInput() throws Exception {
+    TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
+    DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VarIntCoder.of());
+    VarIntCoder keyCoder = VarIntCoder.of();
+    ExecutableStageDoFnOperator<Integer, Integer> operator =
+        getOperator(mainOutput, Collections.emptyList(), outputManagerFactory, keyCoder);
+
+    KeyedOneInputStreamOperatorTestHarness<Integer, WindowedValue<Integer>, WindowedValue<Integer>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness(
+                operator, val -> val, new CoderTypeInformation<>(keyCoder));
+
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(bundle.getInputReceivers())
+        .thenReturn(
+            ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
+                .put("input", Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+
+    testHarness.open();
+
+    Object doFnRunner = Whitebox.getInternalState(operator, "doFnRunner");
+    assertThat(doFnRunner, instanceOf(DoFnRunnerWithMetricsUpdate.class));
+
+    // There should be a StatefulDoFnRunner installed which takes care of clearing state
+    Object statefulDoFnRunner = Whitebox.getInternalState(doFnRunner, "delegate");
+    assertThat(statefulDoFnRunner, instanceOf(StatefulDoFnRunner.class));
+  }
+
+  @Test
+  public void testEnsureStateCleanupWithKeyedInputCleanupTimer() throws Exception {
+    InMemoryTimerInternals inMemoryTimerInternals = new InMemoryTimerInternals();
+    Consumer<ByteBuffer> keyConsumer = Mockito.mock(Consumer.class);
+    KeyedStateBackend keyedStateBackend = Mockito.mock(KeyedStateBackend.class);
+    Lock stateBackendLock = Mockito.mock(Lock.class);
+    StringUtf8Coder keyCoder = StringUtf8Coder.of();
+    GlobalWindow window = GlobalWindow.INSTANCE;
+    GlobalWindow.Coder windowCoder = GlobalWindow.Coder.INSTANCE;
+
+    // Test that cleanup timer is set correctly
+    ExecutableStageDoFnOperator.CleanupTimer cleanupTimer =
+        new ExecutableStageDoFnOperator.CleanupTimer<>(
+            inMemoryTimerInternals,
+            stateBackendLock,
+            WindowingStrategy.globalDefault(),
+            keyCoder,
+            windowCoder,
+            keyConsumer,
+            keyedStateBackend);
+    cleanupTimer.setForWindow(KV.of("key", "string"), window);
+
+    Mockito.verify(stateBackendLock).lock();
+    ByteBuffer key = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, "key"));
+    Mockito.verify(keyConsumer).accept(key);
+    Mockito.verify(keyedStateBackend).setCurrentKey(key);
+    assertThat(
+        inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME),
+        is(window.maxTimestamp().plus(1)));
+    Mockito.verify(stateBackendLock).unlock();
+  }
+
+  @Test
+  public void testEnsureStateCleanupWithKeyedInputStateCleaner() throws Exception {
+    GlobalWindow.Coder windowCoder = GlobalWindow.Coder.INSTANCE;
+    InMemoryStateInternals<String> stateInternals = InMemoryStateInternals.forKey("key");
+    List<String> userStateNames = ImmutableList.of("state1", "state2");
+    ImmutableList.Builder<BagState<String>> bagStateBuilder = ImmutableList.builder();
+    for (String userStateName : userStateNames) {
+      BagState<String> state =
+          stateInternals.state(
+              StateNamespaces.window(windowCoder, GlobalWindow.INSTANCE),
+              StateTags.bag(userStateName, StringUtf8Coder.of()));
+      bagStateBuilder.add(state);
+      state.add("this should be cleaned");
+    }
+    ImmutableList<BagState<String>> bagStates = bagStateBuilder.build();
+
+    // Test that state is cleaned up correctly
+    ExecutableStageDoFnOperator.StateCleaner stateCleaner =
+        new ExecutableStageDoFnOperator.StateCleaner(userStateNames, windowCoder, stateInternals);
+    for (BagState<String> bagState : bagStates) {
+      assertThat(Iterables.size(bagState.read()), is(1));
+    }
+
+    stateCleaner.clearForWindow(GlobalWindow.INSTANCE);
+
+    for (BagState<String> bagState : bagStates) {
+      assertThat(Iterables.size(bagState.read()), is(0));
+    }
+  }
+
+  @Test
   public void testSerialization() {
     WindowedValue.ValueOnlyWindowedValueCoder<Integer> coder =
         WindowedValue.getValueOnlyCoder(VarIntCoder.of());
@@ -405,6 +519,14 @@ public class ExecutableStageDoFnOperatorTest {
       TupleTag<Integer> mainOutput,
       List<TupleTag<?>> additionalOutputs,
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory) {
+    return getOperator(mainOutput, additionalOutputs, outputManagerFactory, null);
+  }
+
+  private ExecutableStageDoFnOperator<Integer, Integer> getOperator(
+      TupleTag<Integer> mainOutput,
+      List<TupleTag<?>> additionalOutputs,
+      DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory,
+      @Nullable Coder keyCoder) {
 
     FlinkExecutableStageContext.Factory contextFactory =
         Mockito.mock(FlinkExecutableStageContext.Factory.class);
@@ -428,7 +550,7 @@ public class ExecutableStageDoFnOperatorTest {
             contextFactory,
             createOutputMap(mainOutput, additionalOutputs),
             WindowingStrategy.globalDefault(),
-            null,
+            keyCoder,
             null);
 
     Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
