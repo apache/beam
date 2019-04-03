@@ -185,6 +185,8 @@ public class TranslationContext {
     try {
       for (Dataset<?> dataset : leaves) {
         if (serializablePipelineOptions.get().as(SparkPipelineOptions.class).isStreaming()) {
+          //TODO: deal with Beam Discarding, Accumulating and Accumulating & Retracting	outputmodes
+          // with DatastreamWriter.outputMode
           dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
           if (testMode) {
