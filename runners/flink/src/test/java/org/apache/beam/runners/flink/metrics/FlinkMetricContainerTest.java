@@ -18,8 +18,6 @@
 package org.apache.beam.runners.flink.metrics;
 
 import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlinkMetricNameString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNotNull;
@@ -42,6 +40,8 @@ import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.DistributionCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer.FlinkDistributionGauge;
 import org.apache.beam.sdk.metrics.Counter;
@@ -146,7 +146,7 @@ public class FlinkMetricContainerTest {
     assertNotNull(userCountMonitoringInfo);
 
     SimpleMonitoringInfoBuilder elemCountBuilder = new SimpleMonitoringInfoBuilder();
-    elemCountBuilder.setUrn(ELEMENT_COUNT_URN);
+    elemCountBuilder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     elemCountBuilder.setInt64Value(222);
     elemCountBuilder.setPTransformLabel("step");
     elemCountBuilder.setPCollectionLabel("pcoll");
@@ -168,7 +168,7 @@ public class FlinkMetricContainerTest {
 
     MonitoringInfo intCounter =
         MonitoringInfo.newBuilder()
-            .setUrn(USER_COUNTER_URN_PREFIX + "ns1:int_counter")
+            .setUrn(Urns.USER_COUNTER_PREFIX + "ns1:int_counter")
             .putLabels(PTRANSFORM_LABEL, "step")
             .setMetric(
                 Metric.newBuilder().setCounterData(CounterData.newBuilder().setInt64Value(111)))
@@ -176,7 +176,7 @@ public class FlinkMetricContainerTest {
 
     MonitoringInfo doubleCounter =
         MonitoringInfo.newBuilder()
-            .setUrn(USER_COUNTER_URN_PREFIX + "ns2:double_counter")
+            .setUrn(Urns.USER_COUNTER_PREFIX + "ns2:double_counter")
             .putLabels(PTRANSFORM_LABEL, "step")
             .setMetric(
                 Metric.newBuilder().setCounterData(CounterData.newBuilder().setDoubleValue(222)))
@@ -184,7 +184,7 @@ public class FlinkMetricContainerTest {
 
     MonitoringInfo intDistribution =
         MonitoringInfo.newBuilder()
-            .setUrn(USER_COUNTER_URN_PREFIX + "ns3:int_distribution")
+            .setUrn(Urns.USER_COUNTER_PREFIX + "ns3:int_distribution")
             .putLabels(PTRANSFORM_LABEL, "step")
             .setMetric(
                 Metric.newBuilder()
@@ -200,7 +200,7 @@ public class FlinkMetricContainerTest {
 
     MonitoringInfo doubleDistribution =
         MonitoringInfo.newBuilder()
-            .setUrn(USER_COUNTER_URN_PREFIX + "ns4:double_distribution")
+            .setUrn(Urns.USER_COUNTER_PREFIX + "ns4:double_distribution")
             .putLabels(PTRANSFORM_LABEL, "step")
             .setMetric(
                 Metric.newBuilder()

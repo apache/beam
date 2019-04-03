@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -80,7 +81,7 @@ public class UserDistributionMonitoringInfoToCounterUpdateTransformerTest {
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
             .setUrn("beam:metric:user_distribution:anyNamespace:anyName")
-            .putLabels("PTRANSFORM", "anyValue")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
     UserDistributionMonitoringInfoToCounterUpdateTransformer testObject =
         new UserDistributionMonitoringInfoToCounterUpdateTransformer(
@@ -101,7 +102,7 @@ public class UserDistributionMonitoringInfoToCounterUpdateTransformerTest {
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
             .setUrn("beam:metric:user_distribution:anyNamespace:anyName")
-            .putLabels("PTRANSFORM", "anyValue")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
     UserDistributionMonitoringInfoToCounterUpdateTransformer testObject =
         new UserDistributionMonitoringInfoToCounterUpdateTransformer(

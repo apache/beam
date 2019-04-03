@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -63,7 +64,7 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
             .setUrn("user:prefix:anyNamespace:anyName")
-            .putLabels("PTRANSFORM", "anyValue")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
 
     CounterUpdate result = testObject.transform(monitoringInfo);
@@ -91,7 +92,10 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
     when(mockGenericTransformer1.transform(any())).thenReturn(expectedResult);
 
     MonitoringInfo monitoringInfo =
-        MonitoringInfo.newBuilder().setUrn(validUrn).putLabels("PTRANSFORM", "anyValue").build();
+        MonitoringInfo.newBuilder()
+            .setUrn(validUrn)
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
+            .build();
 
     CounterUpdate result = testObject.transform(monitoringInfo);
 

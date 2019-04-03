@@ -45,6 +45,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
@@ -463,7 +464,7 @@ public class BeamFnMapTaskExecutorTest {
         MonitoringInfo.newBuilder()
             .setUrn("beam:metric:user:ExpectedCounter")
             .setType("beam:metrics:sum_int_64")
-            .putLabels("PTRANSFORM", "ExpectedPTransform")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "ExpectedPTransform")
             .setMetric(
                 Metric.newBuilder()
                     .setCounterData(

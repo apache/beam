@@ -33,7 +33,7 @@ public class SimpleMonitoringInfoBuilderTest {
   @Test
   public void testReturnsNullIfSpecRequirementsNotMet() {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     assertNull(builder.build());
 
     builder.setInt64Value(1);
@@ -45,9 +45,9 @@ public class SimpleMonitoringInfoBuilderTest {
     assertTrue(monitoringInfo != null);
     assertEquals(
         "myPcollection",
-        monitoringInfo.getLabelsOrDefault(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, null));
-    assertEquals(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
+        monitoringInfo.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null));
+    assertEquals(MonitoringInfoConstants.Urns.ELEMENT_COUNT, monitoringInfo.getUrn());
+    assertEquals(MonitoringInfoConstants.TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 
@@ -62,9 +62,9 @@ public class SimpleMonitoringInfoBuilderTest {
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
     assertEquals(
-        SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace:myName",
+        MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX + "myNamespace:myName",
         monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
+    assertEquals(MonitoringInfoConstants.TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 
@@ -77,9 +77,9 @@ public class SimpleMonitoringInfoBuilderTest {
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
     assertEquals(
-        SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace_withInvalidChar:myName",
+        MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX + "myNamespace_withInvalidChar:myName",
         monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
+    assertEquals(MonitoringInfoConstants.TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 }
