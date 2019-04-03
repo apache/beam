@@ -31,14 +31,13 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -85,7 +84,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    * Exposes Java transforms via {@link org.apache.beam.sdk.expansion.ExternalTransformRegistrar}.
    */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
-  public static class ExternalTransformRegistrarLoader implements ExpansionService.ExpansionServiceRegistrar {
+  public static class ExternalTransformRegistrarLoader
+      implements ExpansionService.ExpansionServiceRegistrar {
 
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
@@ -128,8 +128,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       return buildTransform(builderClass, configObject);
     }
 
-    private static Object initConfiguration(
-        Class<? extends ExternalTransformBuilder> builderClass) throws Exception {
+    private static Object initConfiguration(Class<? extends ExternalTransformBuilder> builderClass)
+        throws Exception {
       for (Method method : builderClass.getMethods()) {
         if (method.getName().equals("buildExternal")) {
           Preconditions.checkState(
@@ -153,18 +153,13 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
       for (Map.Entry<String, ExternalTransforms.ConfigValue> entry :
           payload.getConfigurationMap().entrySet()) {
-        String fieldName = camelCaseConverter.convert(entry.getKey());
-        String coderUrn = entry.getValue().getCoderUrn();
+        String key = entry.getKey();
+        ExternalTransforms.ConfigValue value = entry.getValue();
 
-        final Coder coder;
-        final Class type;
-        if (BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT).equals(coderUrn)) {
-          coder = VarLongCoder.of();
-          type = Long.class;
-        } else {
-          // TODO Use RehydratedComponents with coder ids instead
-          throw new RuntimeException("Unsupported coder urn " + coderUrn);
-        }
+        String fieldName = camelCaseConverter.convert(key);
+        Coder coder = resolveCoder(value.getCoderUrn());
+        Class type = coder.getEncodedTypeDescriptor().getRawType();
+
         String setterName =
             "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
         Method method;
@@ -180,6 +175,21 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         }
         method.invoke(config, coder.decode(entry.getValue().getPayload().newInput()));
       }
+    }
+
+    private static Coder resolveCoder(String coderUrn) throws Exception {
+      RunnerApi.Coder coder =
+          RunnerApi.Coder.newBuilder()
+              .setSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build()))
+              .build();
+
+      // TODO This uses simple structured coders, need to support compound coders
+      RunnerApi.Components components = RunnerApi.Components.newBuilder().build();
+      RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
+
+      return CoderTranslation.fromProto(coder, rehydratedComponents);
     }
 
     private static PTransform buildTransform(
