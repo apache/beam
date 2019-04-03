@@ -32,7 +32,7 @@ class GenerateSequence(ExternalTransform):
                elements_per_period=None, max_read_time=None,
                expansion_service=None):
     coder = VarIntCoder()
-    coder_urn = 'beam:coder:varint:v1'
+    coder_urn = ['beam:coder:varint:v1']
     args = {
         'start':
             ConfigValue(

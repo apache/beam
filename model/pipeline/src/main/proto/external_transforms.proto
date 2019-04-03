@@ -31,7 +31,9 @@ option java_outer_classname = "ExternalTransforms";
 import "beam_runner_api.proto";
 
 message ConfigValue {
-  string coder_urn = 1;
+  // Coder and its components (in case of a compound Coder)
+  repeated string coder_urn = 1;
+  // The Payload which is decoded using the coder_urn
   bytes payload = 2;
 }
 
