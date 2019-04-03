@@ -29,6 +29,7 @@ import (
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=passert --identifiers=diffFn,failFn,failKVFn,failGBKFn,hashFn,sumFn
+//go:generate go fmt
 
 // Equals verifies the given collection has the same values as the given
 // values, under coder equality. The values can be provided as single
