@@ -29,6 +29,7 @@
 //
 //   //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //   //go:generate starcgen --package=<mypackagename>
+//   //go:generate go fmt
 //
 // This will generate registrations and shim types for all types and functions
 // in the package, in a file `<mypackagename>.shims.go`.
@@ -38,6 +39,7 @@
 //
 //   //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //   //go:generate starcgen --package=<mypackagename> --inputs=foo.go --identifiers=myFn,myStructFn --output=custom.shims.go
+//   //go:generate go fmt
 //
 package main
 
