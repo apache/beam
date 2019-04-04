@@ -49,6 +49,11 @@ type ParDo struct {
 	err    errorx.GuardedError
 }
 
+// GetPID returns the PTransformID for this ParDo.
+func (n *ParDo) GetPID() string {
+	return n.PID
+}
+
 // cacheElm holds per-window cached information about side input.
 type cacheElm struct {
 	key       typex.Window
@@ -56,10 +61,12 @@ type cacheElm struct {
 	extra     []interface{}
 }
 
+// ID returns the UnitID for this ParDo.
 func (n *ParDo) ID() UnitID {
 	return n.UID
 }
 
+// Up initializes this
 func (n *ParDo) Up(ctx context.Context) error {
 	if n.status != Initializing {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Initializing", n.UID, n.status)
@@ -79,6 +86,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	return nil
 }
 
+// StartBundle starts processing for this bundle and does before bundle processing operations.
 func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if n.status != Up {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Up", n.UID, n.status)
@@ -102,6 +110,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	return nil
 }
 
+// ProcessElement processes each parallel element with the DoFn.
 func (n *ParDo) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	if n.status != Active {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
@@ -148,6 +157,7 @@ func mustExplodeWindows(fn *funcx.Fn, elm *FullValue, usesSideInput bool) bool {
 	return explode || usesSideInput
 }
 
+// FinishBundle finishes processing for this bundle and does post bundle processing operations.
 func (n *ParDo) FinishBundle(ctx context.Context) error {
 	if n.status != Active {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
@@ -167,6 +177,7 @@ func (n *ParDo) FinishBundle(ctx context.Context) error {
 	return nil
 }
 
+// Down tearsdown DoFn resources.
 func (n *ParDo) Down(ctx context.Context) error {
 	if n.status == Down {
 		return n.err.Error()
