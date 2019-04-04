@@ -28,13 +28,12 @@ from apache_beam.portability.api import standard_window_fns_pb2
 
 class PropertiesFromEnumValue(object):
   def __init__(self, value_descriptor):
-    self.urn = (
-        value_descriptor.GetOptions().Extensions[beam_runner_api_pb2.beam_urn])
-    self.constant = (
-        value_descriptor.GetOptions().Extensions[
-            beam_runner_api_pb2.beam_constant])
+    self.urn = (value_descriptor.GetOptions().Extensions[
+        beam_runner_api_pb2.beam_urn])
+    self.constant = (value_descriptor.GetOptions().Extensions[
+        beam_runner_api_pb2.beam_constant])
     self.spec = (value_descriptor.GetOptions().Extensions[
-            metrics_pb2.monitoring_info_spec])
+        metrics_pb2.monitoring_info_spec])
 
 
 class PropertiesFromEnumType(object):
