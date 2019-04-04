@@ -17,4 +17,4 @@
  */
 
 /** Defines utilities used to interact with Google Cloud Storage. */
-package org.apache.beam.sdk.util.gcsfs;
+package org.apache.beam.sdk.extensions.gcp.util.gcsfs;

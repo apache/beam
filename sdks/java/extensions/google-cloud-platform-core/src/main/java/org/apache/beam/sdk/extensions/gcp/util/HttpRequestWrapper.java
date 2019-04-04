@@ -15,11 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.util;
 
-/** Lambda interface for defining a custom error to log based on an http request and response. */
-interface HttpCallCustomError {
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
 
-  /** @return A string which represents a custom error to be logged for the request and response. */
-  String customError(HttpRequestWrapper request, HttpResponseWrapper response);
+/**
+ * These wrapper classes are necessary allow mocking out the HttpRequest and HttpResponse, since
+ * they are final classes and mockito cannot mock them. Note: There is an experimental mockito
+ * feature, but it causes many issues and several tests fail when it is enabled.
+ * https://stackoverflow.com/questions/14292863/how-to-mock-a-final-class-with-mockito
+ */
+class HttpRequestWrapper {
+
+  private HttpRequest request;
+
+  public HttpRequestWrapper(HttpRequest request) {
+    this.request = request;
+  }
+
+  public GenericUrl getUrl() {
+    return request.getUrl();
+  }
 }
