@@ -125,10 +125,11 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
     # Configure the mock to return a response with an OK status code.
     self.mock_get.side_effect = OSError()
     cmd = ["lls"]
-    with self.assertRaises(RuntimeError) as error:
+    try:
       processes.check_call(cmd)
-    self.assertEqual(error.exception.message,\
-      'Executable {} not found'.format(str(cmd)))
+    except RuntimeError as error:
+     self.assertIn('Executable {} not found'.format(str(cmd)),\
+     error.args[0])
 
   def test_check_call_pip_install_non_existing_package(self):
     returncode = 1
@@ -170,10 +171,11 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
   def test_oserror_check_output_message(self):
     self.mock_get.side_effect = OSError()
     cmd = ["lls"]
-    with self.assertRaises(RuntimeError) as error:
+    try:
       processes.check_output(cmd)
-    self.assertEqual(error.exception.message,\
-      'Executable {} not found'.format(str(cmd)))
+    except RuntimeError as error:
+     self.assertIn('Executable {} not found'.format(str(cmd)),\
+     error.args[0])
 
   def test_check_output_pip_install_non_existing_package(self):
     returncode = 1
@@ -205,10 +207,11 @@ class TestErrorHandlingCall(unittest.TestCase):
   def test_oserror_check_output_message(self):
     self.mock_get.side_effect = OSError()
     cmd = ["lls"]
-    with self.assertRaises(RuntimeError) as error:
+    try:
       processes.call(cmd)
-    self.assertEqual(error.exception.message,\
-      'Executable {} not found'.format(str(cmd)))
+    except RuntimeError as error:
+     self.assertIn('Executable {} not found'.format(str(cmd)),\
+     error.args[0])
 
   def test_check_output_pip_install_non_existing_package(self):
     returncode = 1
