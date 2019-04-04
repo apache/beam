@@ -39,8 +39,10 @@ import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
 import info.archinnov.achilles.embedded.CassandraShutDownHook;
+import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -92,16 +94,13 @@ public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 20L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
   private static final String CASSANDRA_HOST = "127.0.0.1";
-  private static final int CASSANDRA_PORT = 9042;
-  private static final String CASSANDRA_USERNAME = "cassandra";
-  private static final String CASSANDRA_ENCRYPTED_PASSWORD =
-      "Y2Fzc2FuZHJh"; // Base64 encoded version of "cassandra"
   private static final String CASSANDRA_TABLE = "scientist";
   private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
-  private static final int JMX_PORT = 7199;
   private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final int FLUSH_TIMEOUT = 30000;
+  private static int jmxPort;
+  private static int cassandraPort;
 
   private static Cluster cluster;
   private static Session session;
@@ -112,6 +111,7 @@ public class CassandraIOTest implements Serializable {
 
   @BeforeClass
   public static void startCassandra() throws Exception {
+    jmxPort = getFreeLocalPort();
     shutdownHook = new CassandraShutDownHook();
     // randomized port at startup
     String data = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "data").getPath();
@@ -128,9 +128,10 @@ public class CassandraIOTest implements Serializable {
             .withHintsFolder(hints)
             .withSavedCachesFolder(savedCache)
             .withShutdownHook(shutdownHook)
-            .withJMXPort(JMX_PORT)
+            .withJMXPort(jmxPort)
             .buildNativeCluster();
 
+    cassandraPort = cluster.getConfiguration().getProtocolOptions().getPort();
     session = CassandraIOTest.cluster.newSession();
 
     LOGGER.info("Create Cassandra tables");
@@ -145,6 +146,13 @@ public class CassandraIOTest implements Serializable {
                 + "(person_id));",
             CASSANDRA_KEYSPACE, CASSANDRA_TABLE_WRITE));
     insertRecords();
+  }
+
+  private static int getFreeLocalPort() throws IOException {
+    ServerSocket serverSocket = new ServerSocket(0);
+    int port = serverSocket.getLocalPort();
+    serverSocket.close();
+    return port;
   }
 
   @AfterClass
@@ -197,7 +205,7 @@ public class CassandraIOTest implements Serializable {
         new JMXServiceURL(
             String.format(
                 "service:jmx:rmi://%s/jndi/rmi://%s:%s/jmxrmi",
-                CASSANDRA_HOST, CASSANDRA_HOST, JMX_PORT));
+                CASSANDRA_HOST, CASSANDRA_HOST, jmxPort));
     JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
     MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
     ObjectName objectName = new ObjectName(STORAGE_SERVICE_MBEAN);
@@ -214,7 +222,7 @@ public class CassandraIOTest implements Serializable {
     CassandraIO.Read<Scientist> read =
         CassandraIO.<Scientist>read()
             .withHosts(Collections.singletonList(CASSANDRA_HOST))
-            .withPort(CASSANDRA_PORT)
+            .withPort(cassandraPort)
             .withKeyspace(CASSANDRA_KEYSPACE)
             .withTable(CASSANDRA_TABLE);
     CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(read, null);
@@ -229,7 +237,7 @@ public class CassandraIOTest implements Serializable {
         pipeline.apply(
             CassandraIO.<Scientist>read()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withTable(CASSANDRA_TABLE)
                 .withCoder(SerializableCoder.of(Scientist.class))
@@ -264,7 +272,7 @@ public class CassandraIOTest implements Serializable {
         pipeline.apply(
             CassandraIO.<Scientist>read()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withTable(CASSANDRA_TABLE)
                 .withQuery(
@@ -301,7 +309,7 @@ public class CassandraIOTest implements Serializable {
         .apply(
             CassandraIO.<ScientistWrite>write()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(ScientistWrite.class));
     // table to write to is specified in the entity in @Table annotation (in that case scientist)
@@ -361,7 +369,7 @@ public class CassandraIOTest implements Serializable {
     pipeline.apply(
         CassandraIO.<String>read()
             .withHosts(Collections.singletonList(CASSANDRA_HOST))
-            .withPort(CASSANDRA_PORT)
+            .withPort(cassandraPort)
             .withKeyspace(CASSANDRA_KEYSPACE)
             .withTable(CASSANDRA_TABLE)
             .withCoder(SerializableCoder.of(String.class))
@@ -383,7 +391,7 @@ public class CassandraIOTest implements Serializable {
         .apply(
             CassandraIO.<String>write()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withMapperFactoryFn(factory)
                 .withEntity(String.class));
@@ -403,7 +411,7 @@ public class CassandraIOTest implements Serializable {
         .apply(
             CassandraIO.<String>delete()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withMapperFactoryFn(factory)
                 .withEntity(String.class));
@@ -418,7 +426,7 @@ public class CassandraIOTest implements Serializable {
     CassandraIO.Read<Scientist> read =
         CassandraIO.<Scientist>read()
             .withHosts(Collections.singletonList(CASSANDRA_HOST))
-            .withPort(CASSANDRA_PORT)
+            .withPort(cassandraPort)
             .withKeyspace(CASSANDRA_KEYSPACE)
             .withTable(CASSANDRA_TABLE)
             .withEntity(Scientist.class)
@@ -468,7 +476,7 @@ public class CassandraIOTest implements Serializable {
         .apply(
             CassandraIO.<Scientist>delete()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(Scientist.class));
 
