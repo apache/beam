@@ -15,29 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.util;
 
-import java.io.IOException;
+/** Lambda interface for defining a custom error to log based on an http request and response. */
+interface HttpCallCustomError {
 
-/**
- * An adapter for converting between Apache Beam and Google API client representations of backoffs.
- */
-public class BackOffAdapter {
-  /**
-   * Returns an adapter to convert from {@link BackOff} to {@link
-   * com.google.api.client.util.BackOff}.
-   */
-  public static com.google.api.client.util.BackOff toGcpBackOff(final BackOff backOff) {
-    return new com.google.api.client.util.BackOff() {
-      @Override
-      public void reset() throws IOException {
-        backOff.reset();
-      }
-
-      @Override
-      public long nextBackOffMillis() throws IOException {
-        return backOff.nextBackOffMillis();
-      }
-    };
-  }
+  /** @return A string which represents a custom error to be logged for the request and response. */
+  String customError(HttpRequestWrapper request, HttpResponseWrapper response);
 }
