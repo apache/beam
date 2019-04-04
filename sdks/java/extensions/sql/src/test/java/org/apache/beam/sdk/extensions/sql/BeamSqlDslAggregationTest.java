@@ -165,6 +165,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             + "sum(f_double) as sum5, avg(f_double) as avg5, "
             + "max(f_double) as max5, min(f_double) as min5, "
             + "max(f_timestamp) as max6, min(f_timestamp) as min6, "
+            + "max(f_string) as max7, min(f_string) as min7, "
             + "var_pop(f_double) as varpop1, var_samp(f_double) as varsamp1, "
             + "var_pop(f_int) as varpop2, var_samp(f_int) as varsamp2 "
             + "FROM TABLE_A group by f_int2";
@@ -199,6 +200,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addDoubleField("min5")
             .addDateTimeField("max6")
             .addDateTimeField("min6")
+            .addStringField("max7")
+            .addStringField("min7")
             .addDoubleField("varpop1")
             .addDoubleField("varsamp1")
             .addInt32Field("varpop2")
@@ -232,6 +235,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                 1.0,
                 parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
                 parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                "第四行",
+                "string_row1",
                 1.25,
                 1.666666667,
                 1,
