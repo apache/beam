@@ -59,6 +59,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
   private GrpcFnServer<GrpcDataService> fnDataServer;
   private GrpcFnServer<GrpcStateService> fnStateServer;
   private ControlClientPool controlClientPool;
+  private ExecutorService dataExecutor;
   private IdGenerator idGenerator = IdGenerators.incrementingLongs();
 
   public SamzaExecutionContext(SamzaPipelineOptions options) {
@@ -92,7 +93,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
     if (SamzaRunnerOverrideConfigs.isPortableMode(options)) {
       try {
         controlClientPool = MapControlClientPool.create();
-        final ExecutorService dataExecutor = Executors.newCachedThreadPool();
+        dataExecutor = Executors.newCachedThreadPool();
 
         fnControlServer =
             GrpcFnServer.allocatePortAndCreateFor(
@@ -131,19 +132,29 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
 
   @Override
   public void stop() {
-    closeFnServer(fnControlServer);
+    closeAutoClosable(fnControlServer);
     fnControlServer = null;
-    closeFnServer(fnDataServer);
+    closeAutoClosable(fnDataServer);
     fnDataServer = null;
-    closeFnServer(fnStateServer);
+    closeAutoClosable(fnStateServer);
     fnStateServer = null;
+    if (dataExecutor != null) {
+      dataExecutor.shutdown();
+      dataExecutor = null;
+    }
+    controlClientPool = null;
+    closeAutoClosable(jobBundleFactory);
+    jobBundleFactory = null;
   }
 
-  private void closeFnServer(GrpcFnServer<?> fnServer) {
-    try (AutoCloseable closer = fnServer) {
+  private static void closeAutoClosable(AutoCloseable closeable) {
+    try (AutoCloseable closer = closeable) {
       // do nothing
     } catch (Exception e) {
-      LOG.error("Failed to close fn api servers. Ignore since this is shutdown process...", e);
+      LOG.error(
+          "Failed to close {}. Ignore since this is shutdown process...",
+          closeable.getClass().getSimpleName(),
+          e);
     }
   }
 
