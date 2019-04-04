@@ -463,18 +463,19 @@ Adjust any of the above properties to the improve clarity and presentation of th
 
 ### Checklist to proceed to the next step
 
-1. Release Manager’s GPG key is published to `dist.apache.org`
-2. Release Manager’s GPG key is configured in `git` configuration
-3. Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
-4. Release Manager’s Nexus User Token is configured in `settings.xml`
-5. JIRA release item for the subsequent release has been created
-6. All test failures from branch verification have associated JIRA issues
-7. There are no release blocking JIRA issues
-8. Release Notes in JIRA have been audited and adjusted
-9. Combined javadoc has the appropriate contents.
-10. Release branch has been created
-11. Originating branch has the version information updated to the new version
-12. Nightly snapshot is in progress (do revisit it continually)
+* Release Manager’s GPG key is published to `dist.apache.org`
+* Release Manager’s GPG key is configured in `git` configuration
+* Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
+* Release Manager’s Nexus User Token is configured in `settings.xml`
+* JIRA release item for the subsequent release has been created
+* All test failures from branch verification have associated JIRA issues
+* There are no release blocking JIRA issues
+* Release Notes in JIRA have been audited and adjusted
+* Combined javadoc has the appropriate contents.
+* Release branch has been created
+* There are no open pull requests to release branch
+* Originating branch has the version information updated to the new version
+* Nightly snapshot is in progress (do revisit it continually)
 
 **********
 
