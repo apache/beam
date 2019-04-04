@@ -194,13 +194,13 @@ Release manager needs to have an account with PyPI. If you need one, [register a
 
 When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:
 
-__Attention__: Only PMC has permission to perform this. If you are not a PMC, please ask for help in dev@ mailing list.
+__Attention__: Only Jira admins have permission to perform this. If you are not a Jira admin, please ask for help on
+dev@beam.apache.org.
 
 1. In JIRA, navigate to [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
-1. Add a new release. Choose the next minor version number after the version currently underway, select the release cut date (today’s date) as the `Start Date`, and choose `Add`.
-1. At the end of the release, go to the same page and mark the recently released version as released. Use the `...` menu and choose `Release`.
+2. Add a new release. Choose the next minor version number after the version currently underway, select the release cut date (today’s date) as the `Start Date`, and choose `Add`.
 
-### Create a release branch in apache/beam repository
+### Cut the release branch
 
 Attention: Only committer has permission to create release branch in apache/beam.
 
@@ -208,83 +208,68 @@ Release candidates are built from a release branch. As a final step in preparati
 
 There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.
 
-#### Use cut_release_branch.sh to cut a release branch
-* Script: [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
+#### Identify a healthy commit
 
-* Usage
-  ```
-  # Cut a release branch
-  ./beam/release/src/main/scripts/cut_release_branch.sh 
-  --release= ${RELEASE_VERSION}
-  --next_release=${NEXT_VERSION}
-  
-  # Show help page
-  ./beam/release/src/main/scripts/cut_release_branch.sh -h
-  ```
-* Tasks included
-  1. Create release-${RELEASE_VERSION} branch locally.
-  1. Change and commit dev versoin number in master branch:
-  
-     [BeamModulePlugin.groovy](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L209),
-     [gradle.properties](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/gradle.properties#L25),
-     [version.py](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/sdks/python/apache_beam/version.py#L21)
-  1. Change and commit version number in release branch:
-  
-     [version.py](https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21), 
-     [build.gradle](https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39)
-     
-#### Run all steps manually
-* Checkout working branch
-   
-  Check out the version of the codebase from which you start the release. For a new minor or major release, this may be `HEAD` of the `master` branch. To build a hotfix/incremental release, instead of the `master` branch, use the release tag of the release being patched. (Please make sure your cloned repository is up-to-date before starting.)
+The release process should start from a commit where 
+[postcommit](https://builds.apache.org/view/A-D/view/Beam/view/PostCommit/) tests were heathy. This can be difficult
+to achieve and also difficult to identify with our current tooling, but do your best. Note that commit hash.
 
-      git checkout <master branch OR release tag>
+```bash
+HEALTHY_COMMIT=<commit you have chosen>
+```
 
-  **NOTE**: If you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, rather than the master branch.
+**NOTE**: If you are doing an incremental/hotfix release (e.g. 2.5.1), you will start at the final commit
+on the prior release branch.
 
-* Set up environment variables
+```bash
+HEALTHY_COMMIT=release-${PRIOR_RELEASE}
+```
 
-  Set up a few environment variables to simplify Maven commands that follow. (We use `bash` Unix syntax in this guide.)
+#### Establish the release branch
+These simple steps establish the release branch at the healthy commit, without making any changes.
 
-      RELEASE=2.5.0
-      NEXT_VERSION_IN_BASE_BRANCH=2.6.0
-      BRANCH=release-${RELEASE}
+      git checkout -b release-${RELEASE_VERSION} ${HEALTHY_COMMIT}
+      git push origin release-${RELEASE_VERSION}
 
-  Version represents the release currently underway, while next version specifies the anticipated next version to be released from that branch. Normally, 1.2.0 is followed by 1.3.0, while 1.2.3 is followed by 1.2.4.
+#### Set the version on the release branch to be non-dev
+Like any change, changing the version needs to go through test and review. Use the script to
+set the version and open a pull request against the `release-${RELEASE_VERSION}` branch.
 
-  **NOTE**: Only if you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, before running the following instructions:
+* Script: [set_version.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/set_version.sh)
 
-      BASE_RELEASE=2.5.0
-      RELEASE=2.5.1
-      NEXT_VERSION_IN_BASE_BRANCH=2.6.0
-      git checkout tags/${BASE_RELEASE}
-
-* Create release branch locally
-    
-      git branch ${BRANCH}
-
-* Update version files in the master branch.
-  
-      # Now change the version in existing gradle files, and Python files
-      sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" build_rules.gradle
-      sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
-      sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
-  
-      # Save changes in master branch
-      git add gradle.properties build_rules.gradle sdks/python/apache_beam/version.py
-      git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
-
-* Check out the release branch.
-
-      git checkout ${BRANCH}
-    
-
-* Update version files in release branch
+      git checkout -b set-release-version origin/release-${RELEASE_VERSION}
+      set_version.sh "$RELEASE_VERSION" --release
+      git commit -m "Set version to $RELEASE_VERSION"
       
-      DEV=${RELEASE}.dev
-      sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
-      sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
+* Manual places to set the version if not using the script:
 
+  1. Gradle/Java [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties#L26), )
+  2. Gradle [BeamModulePlugin.groovy](https://github.com/apache/beam/blob/master/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L287)
+  3. Python [version.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py#L21)
+  4. Dataflow runner [build.gradle](https://github.com/apache/beam/tree/master/runners/google-cloud-dataflow-java/build.gradle#L39)
+
+#### Advance the version on the master branch
+Like any change, advancing the SNAPSHOT/dev version on the master branch needs to go through test
+and review. Use the script to set the version and open a pull request against the `master` branch.
+
+* Script: [set_version.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/set_version.sh)
+
+  Without the `--release` flag, this script will include `-SNAPSHOT` for Java versions and `.dev` for Python versions.
+
+      git checkout -b set-dev-version origin/master
+      ./set_version.sh --version=${NEXT_VERSION}
+      git commit -m "Move dev/snapshot version to $NEXT_VERSION"
+
+* Manual places to set the version if not using the script:
+
+  1. Gradle/Java [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties#L26)); be sure to
+     append `-SNAPSHOT`
+  2. Gradle [BeamModulePlugin.groovy](https://github.com/apache/beam/blob/master/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L287);
+     do not add any special suffix
+  3. Python [version.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py#L21); be sure
+     to append `.dev`
+
+  **Note:** unlike the release branch, no change is required for the Dataflow runner.
 
 ### Start a snapshot build
 
@@ -1025,7 +1010,8 @@ Merge the website pull request to [list the release]({{ site.baseurl }}/get-star
 
 ### Mark the version as released in JIRA
 
-In JIRA, inside [version management](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions), hover over the current release and a settings menu will appear. Click `Release`, and select today’s date.
+Navigate to the [list of releases in Jira](https://issues.apache.org/jira/projects/BEAM/releases) and select the one you
+are finalizing. In the upper left, click the "Release" button.
 
 ### Recordkeeping with ASF
 
