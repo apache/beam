@@ -42,7 +42,6 @@ import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 
@@ -90,9 +89,12 @@ def file_prefix_generator(with_validation=True):
 
 
 def _make_new_file_writer(file_prefix, destination):
-  if isinstance(destination, bigquery_api.TableReference):
-    destination = '%s:%s.%s' % (
-        destination.projectId, destination.datasetId, destination.tableId)
+  destination = bigquery_tools.get_hashable_destination(destination)
+
+  # Windows does not allow : on filenames. Replacing with underscore.
+  # Other disallowed characters are:
+  # https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
+  destination = destination.replace(':', '.')
 
   directory = fs.FileSystems.join(file_prefix, destination)
 
