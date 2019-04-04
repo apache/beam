@@ -115,6 +115,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.Commi
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.io.FileSystems;
@@ -122,7 +123,6 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;

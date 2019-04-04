@@ -40,7 +40,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitRequest;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.StubbedExecutor;
-import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;

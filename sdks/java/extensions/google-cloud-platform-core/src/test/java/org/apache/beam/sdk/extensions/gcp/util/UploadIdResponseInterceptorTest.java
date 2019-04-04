@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.util;
 
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
@@ -30,7 +30,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** A test for {@link UploadIdResponseInterceptor}. */
+/** A test for {@link org.apache.beam.sdk.extensions.gcp.util.UploadIdResponseInterceptor}. */
 @RunWith(JUnit4.class)
 public class UploadIdResponseInterceptorTest {
 
