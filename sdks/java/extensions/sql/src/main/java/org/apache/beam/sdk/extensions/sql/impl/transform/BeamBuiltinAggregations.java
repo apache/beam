@@ -87,6 +87,7 @@ public class BeamBuiltinAggregations {
       case FLOAT:
       case DATETIME:
       case DECIMAL:
+      case STRING:
         return new CustMax<>();
       case INT32:
         return Max.ofIntegers();
@@ -112,6 +113,7 @@ public class BeamBuiltinAggregations {
       case FLOAT:
       case DATETIME:
       case DECIMAL:
+      case STRING:
         return new CustMin();
       case INT32:
         return Min.ofIntegers();
