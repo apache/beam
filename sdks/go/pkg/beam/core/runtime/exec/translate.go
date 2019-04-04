@@ -375,13 +375,15 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				n := &ParDo{UID: b.idgen.New(), PID: id.to, Inbound: in, Out: out}
+				n := &ParDo{UID: b.idgen.New(), PID: transform.UniqueName, Inbound: in, Out: out}
 				n.Fn, err = graph.AsDoFn(fn)
 				if err != nil {
 					return nil, err
 				}
-				// TODO(lostluck): 2018/03/22 Look into why transform.UniqueName isn't populated at this point, and switch n.PID to that instead.
-				n.PID = path.Base(n.Fn.Name())
+				if n.PID == "" {
+					// Handle the case where transform.UniqueName isn't populated.
+					n.PID = path.Base(n.Fn.Name())
+				}
 
 				input := unmarshalKeyedValues(transform.GetInputs())
 				for i := 1; i < len(input); i++ {
@@ -406,12 +408,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				u = n
 
 			case graph.Combine:
-				cn := &Combine{UID: b.idgen.New(), Out: out[0]}
+				cn := &Combine{UID: b.idgen.New(), PID: transform.UniqueName, Out: out[0]}
 				cn.Fn, err = graph.AsCombineFn(fn)
 				if err != nil {
 					return nil, err
 				}
 				cn.UsesKey = typex.IsKV(in[0].Type)
+
+				if cn.PID == "" {
+					// Handle the case where transform.UniqueName isn't populated.
+					cn.PID = path.Base(cn.Fn.Name())
+				}
 
 				switch urn {
 				case urnPerKeyCombinePre:
