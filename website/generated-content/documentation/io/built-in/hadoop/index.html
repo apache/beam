@@ -677,7 +677,7 @@ There are scenarios when this may prove faster than accessing content through th
    <span class="n">MyDbOutputFormatKeyClass</span><span class="o">,</span> <span class="n">Object</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
 <span class="n">myHadoopConfiguration</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span><span class="s">"mapreduce.job.output.value.class"</span><span class="o">,</span>
    <span class="n">MyDbOutputFormatValueClass</span><span class="o">,</span> <span class="n">Object</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
-<span class="n">myHadoopConfiguration</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span><span class="s">"mapreduce.job.output.value.class"</span><span class="o">,</span>
+<span class="n">myHadoopConfiguration</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span><span class="s">"mapreduce.job.partitioner.class"</span><span class="o">,</span>
    <span class="n">MyPartitionerClass</span><span class="o">,</span> <span class="n">Object</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
 <span class="n">myHadoopConfiguration</span><span class="o">.</span><span class="na">setInt</span><span class="o">(</span><span class="s">"mapreduce.job.reduces"</span><span class="o">,</span> <span class="mi">2</span><span class="o">);</span>
 </code></pre>
