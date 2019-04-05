@@ -26,30 +26,30 @@ the development of more complex pipelines.
 ## Word Count
 
 A good starting point for new users is our set of
-[word count](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples) examples, which computes word frequencies.  This series of four successively more detailed pipelines is described in detail in the accompanying [walkthrough](https://beam.apache.org/get-started/wordcount-example/).
+[word count](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin) examples, which computes word frequencies.  This series of four successively more detailed pipelines is described in detail in the accompanying [walkthrough](https://beam.apache.org/get-started/wordcount-example/).
 
-1. [`MinimalWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java) is the simplest word count pipeline and introduces basic concepts like [Pipelines](https://beam.apache.org/documentation/programming-guide/#pipeline),
+1. [`MinimalWordCount`](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin/MinimalWordCount.kt) is the simplest word count pipeline and introduces basic concepts like [Pipelines](https://beam.apache.org/documentation/programming-guide/#pipeline),
 [PCollections](https://beam.apache.org/documentation/programming-guide/#pcollection),
 [ParDo](https://beam.apache.org/documentation/programming-guide/#transforms-pardo),
 and [reading and writing data](https://beam.apache.org/documentation/programming-guide/#io) from external storage.
 
-1. [`WordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java) introduces best practices like [PipelineOptions](https://beam.apache.org/documentation/programming-guide/#pipeline) and custom [PTransforms](https://beam.apache.org/documentation/programming-guide/#transforms-composite).
+1. [`WordCount`](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin/WordCount.kt) introduces best practices like [PipelineOptions](https://beam.apache.org/documentation/programming-guide/#pipeline) and custom [PTransforms](https://beam.apache.org/documentation/programming-guide/#transforms-composite).
 
-1. [`DebuggingWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java)
+1. [`DebuggingWordCount`](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin/DebuggingWordCount.kt)
 demonstrates some best practices for instrumenting your pipeline code.
 
-1. [`WindowedWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java) shows how to run the same pipeline over either unbounded PCollections in streaming mode or bounded PCollections in batch mode.
+1. [`WindowedWordCount`](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin/WindowedWordCount.kt) shows how to run the same pipeline over either unbounded PCollections in streaming mode or bounded PCollections in batch mode.
 
 ## Running Examples
 
 See [Apache Beam WordCount Example](https://beam.apache.org/get-started/wordcount-example/) for information on running these examples.
 
-## Beyond Word Count
+## Beyond Word Count [WIP]
 
-After you've finished running your first few word count pipelines, take a look at the [cookbook](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook)
+After you've finished running your first few word count pipelines, take a look at the [cookbook](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin/cookbook)
 directory for some common and useful patterns like joining, filtering, and combining.
 
-The [complete](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete)
+The [complete](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin/complete)
 directory contains a few realistic end-to-end pipelines.
 
 See the other examples as well. This directory includes a Java 8 version of the
