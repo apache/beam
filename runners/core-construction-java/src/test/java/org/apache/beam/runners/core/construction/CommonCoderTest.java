@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -90,6 +91,7 @@ public class CommonCoderTest {
           .put(getUrn(StandardCoders.Enum.ITERABLE), IterableCoder.class)
           .put(getUrn(StandardCoders.Enum.TIMER), Timer.Coder.class)
           .put(getUrn(StandardCoders.Enum.GLOBAL_WINDOW), GlobalWindow.Coder.class)
+          .put(getUrn(StandardCoders.Enum.DOUBLE), DoubleCoder.class)
           .put(
               getUrn(StandardCoders.Enum.WINDOWED_VALUE),
               WindowedValue.FullWindowedValueCoder.class)
@@ -270,6 +272,8 @@ public class CommonCoderTest {
               (int) paneInfoMap.get("index"),
               (int) paneInfoMap.get("on_time_index"));
       return WindowedValue.of(windowValue, timestamp, windows, paneInfo);
+    } else if (s.equals(getUrn(StandardCoders.Enum.DOUBLE))) {
+      return Double.parseDouble((String) value);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -298,6 +302,8 @@ public class CommonCoderTest {
     } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))) {
       return WindowedValue.FullWindowedValueCoder.of(
           components.get(0), (Coder<BoundedWindow>) components.get(1));
+    } else if (s.equals(getUrn(StandardCoders.Enum.DOUBLE))) {
+      return DoubleCoder.of();
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }
@@ -357,6 +363,9 @@ public class CommonCoderTest {
     } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))) {
       assertEquals(expectedValue, actualValue);
 
+    } else if (s.equals(getUrn(StandardCoders.Enum.DOUBLE))) {
+
+      assertEquals(expectedValue, actualValue);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }
