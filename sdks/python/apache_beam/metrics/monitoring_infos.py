@@ -35,15 +35,18 @@ from apache_beam.portability.api.metrics_pb2 import CounterData
 from apache_beam.portability.api.metrics_pb2 import Metric
 from apache_beam.portability.api.metrics_pb2 import MonitoringInfo
 
-ELEMENT_COUNT_URN = common_urns.monitoring_infos.ELEMENT_COUNT.urn
-START_BUNDLE_MSECS_URN = common_urns.monitoring_infos.START_BUNDLE_MSECS.urn
-PROCESS_BUNDLE_MSECS_URN = common_urns.monitoring_infos.PROCESS_BUNDLE_MSECS.urn
-FINISH_BUNDLE_MSECS_URN = common_urns.monitoring_infos.FINISH_BUNDLE_MSECS.urn
-TOTAL_MSECS_URN = common_urns.monitoring_infos.TOTAL_MSECS.urn
+ELEMENT_COUNT_URN = common_urns.monitoring_info_specs.ELEMENT_COUNT.spec.urn
+START_BUNDLE_MSECS_URN = (
+    common_urns.monitoring_info_specs.START_BUNDLE_MSECS.spec.urn)
+PROCESS_BUNDLE_MSECS_URN = (
+    common_urns.monitoring_info_specs.PROCESS_BUNDLE_MSECS.spec.urn)
+FINISH_BUNDLE_MSECS_URN = (
+    common_urns.monitoring_info_specs.FINISH_BUNDLE_MSECS.spec.urn)
+TOTAL_MSECS_URN = common_urns.monitoring_info_specs.TOTAL_MSECS.spec.urn
 USER_COUNTER_URN_PREFIX = (
-    common_urns.monitoring_infos.USER_COUNTER_URN_PREFIX.urn)
+    common_urns.monitoring_info_specs.USER_COUNTER.spec.urn)
 USER_DISTRIBUTION_COUNTER_URN_PREFIX = (
-    common_urns.monitoring_infos.USER_DISTRIBUTION_COUNTER_URN_PREFIX.urn)
+    common_urns.monitoring_info_specs.USER_DISTRIBUTION_COUNTER.spec.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
