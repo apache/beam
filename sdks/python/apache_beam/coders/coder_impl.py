@@ -683,7 +683,7 @@ class SequenceCoderImpl(StreamCoderImpl):
 
   The resulting encoding would look like this::
 
-    -1
+    0
     countA element(0) element(1) ... element(countA - 1)
     countB element(0) element(1) ... element(countB - 1)
     ...
@@ -720,13 +720,14 @@ class SequenceCoderImpl(StreamCoderImpl):
       out.write_bigendian_int32(len(value))
       for elem in value:
         self._elem_coder.encode_to_stream(elem, out, True)
+      if len(value) == 0: out.write_var_int64(0)
     else:
       # We don't know the size without traversing it so use a fixed size buffer
       # and encode as many elements as possible into it before outputting
       # the size followed by the elements.
 
-      # -1 to indicate that the length is not known.
-      out.write_bigendian_int32(-1)
+      # 0 to indicate that the length is not known.
+      out.write_bigendian_int32(0)
       buffer = create_OutputStream()
       if self._write_state is None:
         target_buffer_size = self._DEFAULT_BUFFER_SIZE
@@ -761,8 +762,7 @@ class SequenceCoderImpl(StreamCoderImpl):
 
   def decode_from_stream(self, in_stream, nested):
     size = in_stream.read_bigendian_int32()
-
-    if size >= 0:
+    if size > 0:
       elements = [self._elem_coder.decode_from_stream(in_stream, True)
                   for _ in range(size)]
     else:
@@ -796,6 +796,7 @@ class SequenceCoderImpl(StreamCoderImpl):
     estimated_size = 0
     # Size of 32-bit integer storing number of elements.
     estimated_size += 4
+    if (len(value) == 0): estimated_size += 1
     if isinstance(value, observable.ObservableMixin):
       return estimated_size, [(value, self._elem_coder)]
 

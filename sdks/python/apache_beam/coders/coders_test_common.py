@@ -429,6 +429,9 @@ class CodersTest(unittest.TestCase):
       def __iter__(self):
         return iter([1, 2, 3])
 
+      def __len__(self):
+        return len([1,2,3])
+
     # Coder for elements from the observable iterator.
     elem_coder = coders.VarIntCoder()
     iter_coder = coders.TupleSequenceCoder(elem_coder)
