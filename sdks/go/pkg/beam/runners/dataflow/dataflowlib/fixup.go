@@ -16,11 +16,7 @@
 package dataflowlib
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
 )
 
 // Fixup proto pipeline with Dataflow quirks.
