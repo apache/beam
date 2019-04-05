@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# Do not merge.
+
 """Pipeline options obtained from command line parsing."""
 
 from __future__ import absolute_import
