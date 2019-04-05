@@ -23,7 +23,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 public class MetricUrns {
   /**
    * Parse a {@link MetricName} from a {@link
-   * org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoUrns.Enum}.
+   * org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs.Enum}.
    *
    * <p>Should be consistent with {@code parse_namespace_and_name} in monitoring_infos.py.
    */
