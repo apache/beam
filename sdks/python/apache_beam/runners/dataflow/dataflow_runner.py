@@ -790,7 +790,7 @@ class DataflowRunner(PipelineRunner):
     if (use_fnapi and use_unified_worker and signature.is_splittable_dofn()):
       restriction_coder = (
           signature.get_restriction_provider().restriction_coder())
-      step.add_property('restriction_encoding',
+      step.add_property(PropertyNames.RESTRICTION_ENCODING,
                         self._get_cloud_encoding(restriction_coder, use_fnapi))
 
   @staticmethod
