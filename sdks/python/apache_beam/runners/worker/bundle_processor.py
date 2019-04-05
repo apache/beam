@@ -960,9 +960,9 @@ def create(*args):
 
     def process(self, element_restriction, *args, **kwargs):
       element, restriction = element_restriction
-      for part in self.restriction_provider.split(element, restriction):
-        yield ((element, part),
-               self.restriction_provider.restriction_size(element, part))
+      for part, size in self.restriction_provider.split_and_size(
+          element, restriction):
+        yield ((element, part), size)
 
   return _create_sdf_operation(SplitAndSizeRestrictions, *args)
 

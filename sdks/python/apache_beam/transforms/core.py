@@ -196,15 +196,16 @@ class RestrictionProvider(object):
   an instance of ``RestrictionProvider``.
 
   The provided ``RestrictionProvider`` instance must provide suitable overrides
-  for the following methods.
+  for the following methods:
   * create_tracker()
   * initial_restriction()
 
   Optionally, ``RestrictionProvider`` may override default implementations of
-  following methods.
+  following methods:
   * restriction_coder()
   * restriction_size()
   * split()
+  * split_and_size()
 
   ** Pausing and resuming processing of an element **
 
@@ -254,9 +255,6 @@ class RestrictionProvider(object):
     reading input element for each of the returned restrictions should be the
     same as the total set of elements produced by reading the input element for
     the input restriction.
-
-    TODO(chamikara): give suitable hints for performing splitting, for example
-    number of parts or size in bytes.
     """
     yield restriction
 
@@ -278,6 +276,12 @@ class RestrictionProvider(object):
     of the restriction.
     """
     return self.create_tracker(restriction).default_size()
+
+  def split_and_size(self, element, restriction):
+    """Like split, but also does sizing, returning (restriction, size) pairs.
+    """
+    for part in self.split(element, restriction):
+      yield part, self.restriction_size(element, part)
 
 
 def get_function_arguments(obj, func):
