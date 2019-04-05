@@ -397,13 +397,13 @@ class CombineTest(unittest.TestCase):
 class LatestTest(unittest.TestCase):
 
   def test_globally(self):
-    l = [window.GlobalWindows.windowed_value(1, 100),
-         window.GlobalWindows.windowed_value(2, 200),
-         window.GlobalWindows.windowed_value(3, 300)]
+    l = [window.GlobalWindows.windowed_value(3, 100),
+         window.GlobalWindows.windowed_value(1, 200),
+         window.GlobalWindows.windowed_value(2, 300)]
     with TestPipeline() as p:
       pc = p | Create(l)
       latest = pc | combine.Latest.Globally()
-      assert_that(latest, equal_to([3]))
+      assert_that(latest, equal_to([2]))
 
   def test_globally_empty(self):
     l = []
@@ -413,13 +413,13 @@ class LatestTest(unittest.TestCase):
       assert_that(latest, equal_to([None]))
 
   def test_per_key(self):
-    l = [window.GlobalWindows.windowed_value(('a', 1), 100),
-         window.GlobalWindows.windowed_value(('b', 2), 200),
-         window.GlobalWindows.windowed_value(('a', 3), 300)]
+    l = [window.GlobalWindows.windowed_value(('a', 1), 300),
+         window.GlobalWindows.windowed_value(('b', 3), 100),
+         window.GlobalWindows.windowed_value(('a', 2), 200)]
     with TestPipeline() as p:
       pc = p | Create(l)
       latest = pc | combine.Latest.PerKey()
-      assert_that(latest, equal_to([('a', 3), ('b', 2)]))
+      assert_that(latest, equal_to([('a', 1), ('b', 3)]))
 
   def test_per_key_empty(self):
     l = []
@@ -462,11 +462,9 @@ class LatestCombineFnTest(unittest.TestCase):
     self.assertEquals(new_accumulator, (1, 100))
 
   def test_merge_accumulators(self):
-    accumulators = [(1, 100),
-                    (2, 200),
-                    (3, 300)]
+    accumulators = [(2, 400), (5, 100), (9, 200)]
     merged_accumulator = self.fn.merge_accumulators(accumulators)
-    self.assertEquals(merged_accumulator, (3, 300))
+    self.assertEquals(merged_accumulator, (2, 400))
 
   def test_extract_output(self):
     accumulator = (1, 100)
