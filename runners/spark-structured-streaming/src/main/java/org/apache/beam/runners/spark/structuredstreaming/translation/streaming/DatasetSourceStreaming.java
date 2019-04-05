@@ -19,6 +19,8 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -28,8 +30,10 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
@@ -65,6 +69,9 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
     private UnboundedSource<T, CheckpointMarkT> source;
     private SerializablePipelineOptions serializablePipelineOptions;
 
+    private SourceOffset startOffset;
+    private SourceOffset endOffset;
+
     @SuppressWarnings("unchecked")
     private DatasetMicroBatchReader(
         String checkpointLocation, DataSourceOptions options) {
@@ -88,22 +95,29 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
     }
 
     @Override public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
+      startOffset = (SourceOffset) start.orElse(new SourceOffset(-1L));
+      endOffset = (SourceOffset) end.orElse(new SourceOffset(-1L));
     }
 
     @Override public Offset getStartOffset() {
-      return null;
+      return startOffset;
     }
 
     @Override public Offset getEndOffset() {
-      return null;
+      return endOffset;
     }
 
     @Override public Offset deserializeOffset(String json) {
-      return null;
+      try {
+        Long offset = new ObjectMapper().readValue(json, Long.class);
+        return new SourceOffset(offset);
+      } catch (IOException e) {
+        throw new RuntimeException("Error deserializing Offset from " + json, e);
+      }
     }
 
     @Override public void commit(Offset end) {
-      //TODO no more to read after end Offset
+
     }
 
     @Override public void stop() {
@@ -134,6 +148,27 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
       } catch (Exception e) {
         throw new RuntimeException(
             "Error in splitting UnboundedSource " + source.getClass().getCanonicalName(), e);
+      }
+    }
+  }
+
+  private static class SourceOffset extends Offset {
+    Long offset;
+
+    private SourceOffset(Long offset) {
+      this.offset = offset;
+    }
+
+    private Long get() {
+      return offset;
+    }
+
+    @Override
+    public String json() {
+      try {
+        return new ObjectMapper().writeValueAsString(offset);
+      } catch (JsonProcessingException e) {
+        throw new RuntimeException("Error serializing Offset with value " + offset, e);
       }
     }
   }
@@ -171,14 +206,10 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
 
     @Override
     public InternalRow get() {
-/*
       WindowedValue<T> windowedValue =
           WindowedValue.timestampedValueInGlobalWindow(
               reader.getCurrent(), reader.getCurrentTimestamp());
       return RowHelpers.storeWindowedValueInRow(windowedValue, source.getOutputCoder());
-*/
-//TODO
-return null;
     }
 
     @Override
