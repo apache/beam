@@ -428,22 +428,31 @@ class LatestTest(unittest.TestCase):
       latest = pc | combine.Latest.PerKey()
       assert_that(latest, equal_to([]))
 
-  def test_per_key_type_violation(self):
-    l_dict = [window.GlobalWindows.windowed_value({'a': 1}, 100),
-              window.GlobalWindows.windowed_value({'b': 2}, 100),
-              window.GlobalWindows.windowed_value({'a': 3}, 100)]
-    l_3_tuple = [window.GlobalWindows.windowed_value((1, 2, 3), 100),
-                 window.GlobalWindows.windowed_value((4, 5, 6), 100),
-                 window.GlobalWindows.windowed_value((7, 8, 9), 100)]
+  def test_per_key_add_timestamp_element_type_violation(self):
+    l_int = [window.GlobalWindows.windowed_value(1, 300),
+             window.GlobalWindows.windowed_value(6, 900),
+             window.GlobalWindows.windowed_value(8, 500)]
+    l_dict = [window.GlobalWindows.windowed_value({'a': 5}, 200),
+              window.GlobalWindows.windowed_value({'b': 3}, 300),
+              window.GlobalWindows.windowed_value({'a': 8}, 100)]
+    l_3_tuple = [window.GlobalWindows.windowed_value((1, 2, 3), 800),
+                 window.GlobalWindows.windowed_value((4, 5, 6), 200),
+                 window.GlobalWindows.windowed_value((7, 8, 9), 700)]
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_int)
+        _ = pc | beam.ParDo(combine.Latest.PerKey.add_timestamp)
+
     with self.assertRaises(TypeCheckError):
       with TestPipeline() as p:
         pc = p | Create(l_dict)
-        _ = pc | combine.Latest.PerKey()
+        _ = pc | beam.ParDo(combine.Latest.PerKey.add_timestamp)
 
     with self.assertRaises(TypeCheckError):
       with TestPipeline() as p:
         pc = p | Create(l_3_tuple)
-        _ = pc | combine.Latest.PerKey()
+        _ = pc | beam.ParDo(combine.Latest.PerKey.add_timestamp)
 
 
 class LatestCombineFnTest(unittest.TestCase):
@@ -471,11 +480,24 @@ class LatestCombineFnTest(unittest.TestCase):
     output = self.fn.extract_output(accumulator)
     self.assertEquals(output, 1)
 
-  def test_input_type_violation(self):
-    l = [1, 2, 3]
+  def test_with_input_types_decorator_violation(self):
+    l_int = [1, 2, 3]
+    l_dict = [{'a': 3}, {'g': 5}, {'r': 8}]
+    l_3_tuple = [(12, 31, 41), (12, 34, 34), (84, 92, 74)]
+
     with self.assertRaises(TypeCheckError):
       with TestPipeline() as p:
-        pc = p | Create(l)
+        pc = p | Create(l_int)
+        _ = pc | beam.CombineGlobally(self.fn)
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_dict)
+        _ = pc | beam.CombineGlobally(self.fn)
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_3_tuple)
         _ = pc | beam.CombineGlobally(self.fn)
 
 
