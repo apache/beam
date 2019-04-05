@@ -41,8 +41,8 @@ func TestBeamContext(t *testing.T) {
 		ptID := "MY_TRANSFORM"
 		ctx := SetPTransformID(context.Background(), ptID)
 		key := getContextKey(ctx, name{})
-		if key.bundle != bundleIdUnset {
-			t.Errorf("bundleId = %q, want %q", key.bundle, bundleIdUnset)
+		if key.bundle != bundleIDUnset {
+			t.Errorf("bundleId = %q, want %q", key.bundle, bundleIDUnset)
 		}
 		if key.ptransform != ptID {
 			t.Errorf("ptransformId = %q, want %q", key.ptransform, ptID)
@@ -56,8 +56,8 @@ func TestBeamContext(t *testing.T) {
 		if key.bundle != bID {
 			t.Errorf("bundleId = %q, want %q", key.bundle, bID)
 		}
-		if key.ptransform != ptransformIdUnset {
-			t.Errorf("ptransformId = %q, want %q", key.ptransform, ptransformIdUnset)
+		if key.ptransform != ptransformIDUnset {
+			t.Errorf("ptransformId = %q, want %q", key.ptransform, ptransformIDUnset)
 		}
 	})
 }

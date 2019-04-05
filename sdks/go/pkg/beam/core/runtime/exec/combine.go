@@ -51,6 +51,11 @@ type Combine struct {
 	aiValConvert func(interface{}) interface{}
 }
 
+// GetPID returns the PTransformID for this CombineFn.
+func (n *Combine) GetPID() string {
+	return n.PID
+}
+
 // ID returns the UnitID for this node.
 func (n *Combine) ID() UnitID {
 	return n.UID

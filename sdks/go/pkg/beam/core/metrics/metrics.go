@@ -123,12 +123,12 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 }
 
 const (
-	bundleIdUnset     = "(bundle id unset)"
-	ptransformIdUnset = "(ptransform id unset)"
+	bundleIDUnset     = "(bundle id unset)"
+	ptransformIDUnset = "(ptransform id unset)"
 )
 
 func getContextKey(ctx context.Context, n name) key {
-	key := key{name: n, bundle: bundleIdUnset, ptransform: ptransformIdUnset}
+	key := key{name: n, bundle: bundleIDUnset, ptransform: ptransformIDUnset}
 	if id := ctx.Value(bundleKey); id != nil {
 		key.bundle = id.(string)
 	}
