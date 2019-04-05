@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.Lists;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -203,16 +204,11 @@ public class SelectHelpersTest {
         FieldAccessDescriptor.withFieldNames("rowArray[].field1").resolve(ARRAY_SCHEMA);
     Schema outputSchema = SelectHelpers.getOutputSchema(ARRAY_SCHEMA, fieldAccessDescriptor);
 
-    Schema expectedElementSchema = Schema.builder().addStringField("field1").build();
-    Schema expectedSchema =
-        Schema.builder().addArrayField("rowArray", FieldType.row(expectedElementSchema)).build();
+    Schema expectedSchema = Schema.builder().addArrayField("field1", FieldType.STRING).build();
     assertEquals(expectedSchema, outputSchema);
 
     Row row = SelectHelpers.selectRow(ARRAY_ROW, fieldAccessDescriptor, ARRAY_SCHEMA, outputSchema);
-
-    Row expectedElement = Row.withSchema(expectedElementSchema).addValue("first").build();
-    Row expectedRow =
-        Row.withSchema(expectedSchema).addArray(expectedElement, expectedElement).build();
+    Row expectedRow = Row.withSchema(expectedSchema).addArray("first", "first").build();
     assertEquals(expectedRow, row);
   }
 
@@ -222,19 +218,15 @@ public class SelectHelpersTest {
         FieldAccessDescriptor.withFieldNames("arrayOfRowArray[][].field1").resolve(ARRAY_SCHEMA);
     Schema outputSchema = SelectHelpers.getOutputSchema(ARRAY_SCHEMA, fieldAccessDescriptor);
 
-    Schema expectedElementSchema = Schema.builder().addStringField("field1").build();
     Schema expectedSchema =
-        Schema.builder()
-            .addArrayField("arrayOfRowArray", FieldType.array(FieldType.row(expectedElementSchema)))
-            .build();
+        Schema.builder().addArrayField("field1", FieldType.array(FieldType.STRING)).build();
     assertEquals(expectedSchema, outputSchema);
 
     Row row = SelectHelpers.selectRow(ARRAY_ROW, fieldAccessDescriptor, ARRAY_SCHEMA, outputSchema);
 
-    Row expectedElement = Row.withSchema(expectedElementSchema).addValue("first").build();
     Row expectedRow =
         Row.withSchema(expectedSchema)
-            .addArray(ImmutableList.of(expectedElement), ImmutableList.of(expectedElement))
+            .addArray(ImmutableList.of("first"), ImmutableList.of("first"))
             .build();
     assertEquals(expectedRow, row);
   }
@@ -247,17 +239,11 @@ public class SelectHelpersTest {
     Schema outputSchema = SelectHelpers.getOutputSchema(ARRAY_SCHEMA, fieldAccessDescriptor);
 
     Schema expectedElementSchema = Schema.builder().addStringField("field1").build();
-    Schema expectedSchema =
-        Schema.builder()
-            .addArrayField("nestedRowArray", FieldType.row(expectedElementSchema))
-            .build();
+    Schema expectedSchema = Schema.builder().addArrayField("field1", FieldType.STRING).build();
     assertEquals(expectedSchema, outputSchema);
 
     Row row = SelectHelpers.selectRow(ARRAY_ROW, fieldAccessDescriptor, ARRAY_SCHEMA, outputSchema);
-
-    Row expectedElement = Row.withSchema(expectedElementSchema).addValue("first").build();
-    Row expectedRow =
-        Row.withSchema(expectedSchema).addArray(expectedElement, expectedElement).build();
+    Row expectedRow = Row.withSchema(expectedSchema).addArray("first", "first").build();
     assertEquals(expectedRow, row);
   }
 
@@ -269,16 +255,11 @@ public class SelectHelpersTest {
 
     Schema expectedValueSchema = Schema.builder().addStringField("field1").build();
     Schema expectedSchema =
-        Schema.builder()
-            .addMapField("map", FieldType.INT32, FieldType.row(expectedValueSchema))
-            .build();
+        Schema.builder().addMapField("field1", FieldType.INT32, FieldType.STRING).build();
     assertEquals(expectedSchema, outputSchema);
 
     Row row = SelectHelpers.selectRow(MAP_ROW, fieldAccessDescriptor, MAP_SCHEMA, outputSchema);
-
-    Row expectedValueRow = Row.withSchema(expectedValueSchema).addValue("first").build();
-    Row expectedRow =
-        Row.withSchema(expectedSchema).addValue(ImmutableMap.of(1, expectedValueRow)).build();
+    Row expectedRow = Row.withSchema(expectedSchema).addValue(ImmutableMap.of(1, "first")).build();
     assertEquals(expectedRow, row);
   }
 
@@ -288,11 +269,20 @@ public class SelectHelpersTest {
         FieldAccessDescriptor.withFieldNames("map{}.*").resolve(MAP_SCHEMA);
     Schema outputSchema = SelectHelpers.getOutputSchema(MAP_SCHEMA, fieldAccessDescriptor);
     Schema expectedSchema =
-        Schema.builder().addMapField("map", FieldType.INT32, FieldType.row(FLAT_SCHEMA)).build();
+        Schema.builder()
+            .addMapField("field1", FieldType.INT32, FieldType.STRING)
+            .addMapField("field2", FieldType.INT32, FieldType.INT32)
+            .addMapField("field3", FieldType.INT32, FieldType.DOUBLE)
+            .build();
     assertEquals(expectedSchema, outputSchema);
 
     Row row = SelectHelpers.selectRow(MAP_ROW, fieldAccessDescriptor, MAP_SCHEMA, outputSchema);
-    Row expectedRow = Row.withSchema(expectedSchema).addValue(ImmutableMap.of(1, FLAT_ROW)).build();
+    Row expectedRow =
+        Row.withSchema(expectedSchema)
+            .addValue(ImmutableMap.of(1, FLAT_ROW.getValue(0)))
+            .addValue(ImmutableMap.of(1, FLAT_ROW.getValue(1)))
+            .addValue(ImmutableMap.of(1, FLAT_ROW.getValue(2)))
+            .build();
     assertEquals(expectedRow, row);
   }
 
@@ -302,22 +292,19 @@ public class SelectHelpersTest {
         FieldAccessDescriptor.withFieldNames("map.field1").resolve(MAP_ARRAY_SCHEMA);
     Schema outputSchema = SelectHelpers.getOutputSchema(MAP_ARRAY_SCHEMA, fieldAccessDescriptor);
 
-    Schema expectedValueSchema = Schema.builder().addStringField("field1").build();
     Schema expectedSchema =
         Schema.builder()
-            .addMapField(
-                "map", FieldType.INT32, FieldType.array(FieldType.row(expectedValueSchema)))
+            .addMapField("field1", FieldType.INT32, FieldType.array(FieldType.STRING))
             .build();
     assertEquals(expectedSchema, outputSchema);
 
     Row row =
         SelectHelpers.selectRow(
             MAP_ARRAY_ROW, fieldAccessDescriptor, MAP_ARRAY_SCHEMA, outputSchema);
-    Row expectedElement = Row.withSchema(expectedValueSchema).addValue("first").build();
 
     Row expectedRow =
         Row.withSchema(expectedSchema)
-            .addValue(ImmutableMap.of(1, ImmutableList.of(expectedElement)))
+            .addValue(ImmutableMap.of(1, ImmutableList.of("first")))
             .build();
     assertEquals(expectedRow, row);
   }
@@ -339,7 +326,7 @@ public class SelectHelpersTest {
 
     Row out = SelectHelpers.selectRow(r3, fieldAccessDescriptor, r3.getSchema(), outputSchema);
 
-    assertEquals(outputSchema, f2);
+    assertEquals(f2, outputSchema);
     assertEquals(r2, out);
   }
 
@@ -364,5 +351,31 @@ public class SelectHelpersTest {
 
     assertEquals(f3, outputSchema);
     assertEquals(r3, out);
+  }
+
+  @Test
+  public void testArrayRowArray() {
+    Schema f1 = Schema.builder().addStringField("f0").build();
+    Schema f2 = Schema.builder().addArrayField("f1", FieldType.row(f1)).build();
+    Schema f3 = Schema.builder().addRowField("f2", f2).build();
+    Schema f4 = Schema.builder().addArrayField("f3", FieldType.row(f3)).build();
+
+    Row r1 = Row.withSchema(f1).addValue("first").build();
+    Row r2 = Row.withSchema(f2).addArray(r1, r1).build();
+    Row r3 = Row.withSchema(f3).addValue(r2).build();
+    Row r4 = Row.withSchema(f4).addArray(r3, r3).build();
+
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("f3.f2.f1.f0").resolve(f4);
+    Schema outputSchema = SelectHelpers.getOutputSchema(f4, fieldAccessDescriptor);
+    Schema expectedSchema =
+        Schema.builder().addArrayField("f0", FieldType.array(FieldType.STRING)).build();
+    assertEquals(expectedSchema, outputSchema);
+    Row out = SelectHelpers.selectRow(r4, fieldAccessDescriptor, r4.getSchema(), outputSchema);
+    Row expected =
+        Row.withSchema(outputSchema)
+            .addArray(Lists.newArrayList("first", "first"), Lists.newArrayList("first", "first"))
+            .build();
+    assertEquals(expected, out);
   }
 }
