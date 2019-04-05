@@ -128,8 +128,8 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
     try:
       processes.check_call(cmd)
     except RuntimeError as error:
-     self.assertIn('Executable {} not found'.format(str(cmd)),\
-     error.args[0])
+      self.assertIn('Executable {} not found'.format(str(cmd)),\
+      error.args[0])
 
   def test_check_call_pip_install_non_existing_package(self):
     returncode = 1
@@ -140,16 +140,6 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
     output = "Collecting {}".format(package)
     self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
       cmd, output=output)
-    # Since error.exception.message is removed from
-    # python3 and the self.assertRaises
-    # dont return error.args a try, except is used.
-    # Example of how it could be used with python 2.7
-    # with self.assertRaises(RuntimeError) as error:
-    #   output = processes.check_call(cmd)
-    # self.assertEqual(error.exception.message.split("\n")[-2].strip(),\
-    #   "Pip install failed for package: {}".format(package))
-    # self.assertEqual(error.exception.message.split("\n")[-1].strip(),\
-    #   "Output from execution of subprocess: " + output)
     try:
       output = processes.check_call(cmd)
       self.fail("The test failed due to that\
@@ -174,8 +164,8 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
     try:
       processes.check_output(cmd)
     except RuntimeError as error:
-     self.assertIn('Executable {} not found'.format(str(cmd)),\
-     error.args[0])
+      self.assertIn('Executable {} not found'.format(str(cmd)),\
+      error.args[0])
 
   def test_check_output_pip_install_non_existing_package(self):
     returncode = 1
@@ -210,8 +200,8 @@ class TestErrorHandlingCall(unittest.TestCase):
     try:
       processes.call(cmd)
     except RuntimeError as error:
-     self.assertIn('Executable {} not found'.format(str(cmd)),\
-     error.args[0])
+      self.assertIn('Executable {} not found'.format(str(cmd)),\
+      error.args[0])
 
   def test_check_output_pip_install_non_existing_package(self):
     returncode = 1
