@@ -509,17 +509,16 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     table_ref2 = bigquery_tools.parse_table_reference(output_table_2)
 
     pipeline_verifiers = [
-        # TODO(pabloem): Enable BQTableMatcher.
-        #BigQueryTableMatcher(
-        #    project=self.project,
-        #    dataset=table_ref.datasetId,
-        #    table=table_ref.tableId,
-        #    expected_properties=additional_bq_parameters),
-        #BigQueryTableMatcher(
-        #    project=self.project,
-        #    dataset=table_ref2.datasetId,
-        #    table=table_ref2.tableId,
-        #    expected_properties=additional_bq_parameters),
+        BigQueryTableMatcher(
+            project=self.project,
+            dataset=table_ref.datasetId,
+            table=table_ref.tableId,
+            expected_properties=additional_bq_parameters),
+        BigQueryTableMatcher(
+            project=self.project,
+            dataset=table_ref2.datasetId,
+            table=table_ref2.tableId,
+            expected_properties=additional_bq_parameters),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT * FROM %s" % output_table_1,
@@ -593,8 +592,12 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
       input = p | beam.Create(_ELEMENTS)
 
       schema_table_pcv = beam.pvalue.AsDict(
-          p | "MakeSchemas" >> beam.Create([(output_table_1, schema1),
-                                            (output_table_2, schema2)]))
+          p | "MakeSchemas" >> beam.Create([(full_output_table_1, schema1),
+                                            (full_output_table_2, schema2)]))
+
+      table_record_pcv = beam.pvalue.AsDict(
+          p | "MakeTables" >> beam.Create([('table1', full_output_table_1),
+                                           ('table2', full_output_table_2)]))
 
       input2 = p | "Broken record" >> beam.Create([bad_record])
 
@@ -602,9 +605,10 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
       r = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=lambda x: (full_output_table_1
-                                if 'language' in x
-                                else output_table_2),
+               table=lambda x, tables: (tables['table1']
+                                        if 'language' in x
+                                        else tables['table2']),
+               table_side_inputs=(table_record_pcv,),
                schema=lambda dest, table_map: table_map.get(dest, None),
                schema_side_inputs=(schema_table_pcv,),
                method='STREAMING_INSERTS'))

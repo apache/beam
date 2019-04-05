@@ -412,6 +412,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
       schema_map_pcv = beam.pvalue.AsDict(
           p | "MakeSchemas" >> beam.Create(schema_kv_pairs))
 
+      table_record_pcv = beam.pvalue.AsDict(
+          p | "MakeTables" >> beam.Create([('table1', output_table_1),
+                                           ('table2', output_table_2)]))
+
       # Get all input in same machine
       input = (input
                | beam.Map(lambda x: (None, x))
@@ -420,9 +424,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
       _ = (input |
            "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
-               table=lambda x: (output_table_1
-                                if 'language' in x
-                                else output_table_2),
+               table=lambda x, tables: (tables['table1']
+                                        if 'language' in x
+                                        else tables['table2']),
+               table_side_inputs=(table_record_pcv,),
                schema=lambda dest, schema_map: schema_map.get(dest, None),
                schema_side_inputs=(schema_map_pcv,),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,

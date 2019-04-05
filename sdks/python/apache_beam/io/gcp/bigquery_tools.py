@@ -425,7 +425,11 @@ class BigQueryWrapper(object):
     return response
 
   def _create_table(self,
-      project_id, dataset_id, table_id, schema, additional_parameters=None):
+                    project_id,
+                    dataset_id,
+                    table_id,
+                    schema,
+                    additional_parameters=None):
     additional_parameters = additional_parameters or {}
     table = bigquery.Table(
         tableReference=bigquery.TableReference(

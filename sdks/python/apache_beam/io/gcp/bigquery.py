@@ -970,9 +970,8 @@ bigquery_v2_messages.TableSchema):
       Dict[str, Any]: The schema to be used if the BigQuery table to write has
       to be created but in the dictionary format.
     """
-    if (isinstance(schema, dict) or
+    if (isinstance(schema, (dict, vp.ValueProvider)) or
         callable(schema) or
-        isinstance(schema, vp.ValueProvider) or
         schema is None):
       return schema
     elif isinstance(schema, (str, unicode)):
@@ -1028,7 +1027,7 @@ bigquery_v2_messages.TableSchema):
                      *self.table_side_inputs)
                  | 'StreamInsertRows' >> ParDo(
                      bigquery_write_fn, *self.schema_side_inputs).with_outputs(
-                     BigQueryWriteFn.FAILED_ROWS, main='main'))
+                         BigQueryWriteFn.FAILED_ROWS, main='main'))
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:

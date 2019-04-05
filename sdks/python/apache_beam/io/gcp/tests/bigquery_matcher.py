@@ -193,11 +193,9 @@ class BigQueryTableMatcher(BaseMatcher):
 
     logging.info('Table proto is %s', self.actual_table)
 
-    return (
-        sorted((k,v)
-               for k, v in self.expected_properties.iteritems()) ==
-        sorted((k, self._get_or_none(self.actual_table, k))
-               for k in self.expected_properties))
+    return all(
+        self._match_property(v, self._get_or_none(self.actual_table, k))
+        for k, v in self.expected_properties.iteritems())
 
   @staticmethod
   def _get_or_none(obj, attr):
@@ -206,11 +204,22 @@ class BigQueryTableMatcher(BaseMatcher):
     except AttributeError:
       return None
 
+  @staticmethod
+  def _match_property(expected, actual):
+    logging.info("Matching %s to %s", expected, actual)
+    if isinstance(expected, dict):
+      return all(
+          BigQueryTableMatcher._match_property(
+              v, BigQueryTableMatcher._get_or_none(actual, k))
+          for k, v in expected.iteritems())
+    else:
+      return expected == actual
+
   def describe_to(self, description):
     description \
       .append_text("Expected table attributes are ") \
-      .append_text(sorted((k,v)
-                            for k, v in self.expected_properties.iteritems()))
+      .append_text(sorted((k, v)
+                          for k, v in self.expected_properties.iteritems()))
 
   def describe_mismatch(self, pipeline_result, mismatch_description):
     mismatch_description \
