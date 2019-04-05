@@ -376,7 +376,7 @@ myHadoopConfiguration.setClass("mapreduce.job.output.key.class",
    MyDbOutputFormatKeyClass, Object.class);
 myHadoopConfiguration.setClass("mapreduce.job.output.value.class",
    MyDbOutputFormatValueClass, Object.class);
-myHadoopConfiguration.setClass("mapreduce.job.output.value.class",
+myHadoopConfiguration.setClass("mapreduce.job.partitioner.class",
    MyPartitionerClass, Object.class);
 myHadoopConfiguration.setInt("mapreduce.job.reduces", 2);
 ```
