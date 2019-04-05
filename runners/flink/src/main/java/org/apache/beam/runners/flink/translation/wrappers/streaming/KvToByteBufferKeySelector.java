@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.nio.ByteBuffer;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -44,8 +43,7 @@ public class KvToByteBufferKeySelector<K, V>
   @Override
   public ByteBuffer getKey(WindowedValue<KV<K, V>> value) throws Exception {
     K key = value.getValue().getKey();
-    byte[] keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
-    return ByteBuffer.wrap(keyBytes);
+    return FlinkKeyUtils.encodeKey(key, keyCoder);
   }
 
   @Override
