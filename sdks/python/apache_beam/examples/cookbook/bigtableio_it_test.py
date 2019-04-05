@@ -28,14 +28,11 @@ import uuid
 import pytz
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtableio import ReadFromBigTable
 from apache_beam.io.gcp.bigtableio import WriteToBigTable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -190,25 +187,6 @@ class BigtableIOWriteTest(unittest.TestCase):
 
           logging.info('Number of Rows: %d', read_counter.committed)
           assert read_counter.committed == number
-
-  def test_bigtable_read(self):
-    pipeline_args = self.test_pipeline.options_list
-    pipeline_options = PipelineOptions(pipeline_args)
-
-    with beam.Pipeline(options=pipeline_options) as pipeline:
-      count = (pipeline
-               | 'Read Direct Rows' >> ReadFromBigTable(self.project,
-                                                        self.instance_id,
-                                                        self.table_id)
-               | 'Count' >> beam.combiners.Count.Globally())
-
-      read_rows = self.table.read_rows()
-      assert_that(count, equal_to([len([_ for _ in read_rows])]))
-
-      result = pipeline.run()
-      result.wait_until_finish()
-
-      assert result.state == PipelineState.DONE
 
 
 if __name__ == '__main__':
