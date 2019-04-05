@@ -202,10 +202,10 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     public <FirstT, SecondT> ByBuilder<FirstT, SecondT> of(
         PCollection<FirstT> left, PCollection<SecondT> right) {
       @SuppressWarnings("unchecked")
-      final Builder<FirstT, SecondT, ?, ?> casted = (Builder) this;
-      casted.left = requireNonNull(left);
-      casted.right = requireNonNull(right);
-      return casted;
+      final Builder<FirstT, SecondT, ?, ?> cast = (Builder) this;
+      cast.left = requireNonNull(left);
+      cast.right = requireNonNull(right);
+      return cast;
     }
 
     @Override
@@ -214,21 +214,21 @@ public class Join<LeftT, RightT, KeyT, OutputT>
         UnaryFunction<RightT, T> rightKeyExtractor,
         @Nullable TypeDescriptor<T> keyType) {
       @SuppressWarnings("unchecked")
-      final Builder<LeftT, RightT, T, ?> casted = (Builder) this;
-      casted.leftKeyExtractor = leftKeyExtractor;
-      casted.rightKeyExtractor = rightKeyExtractor;
-      casted.keyType = keyType;
-      return casted;
+      final Builder<LeftT, RightT, T, ?> cast = (Builder) this;
+      cast.leftKeyExtractor = leftKeyExtractor;
+      cast.rightKeyExtractor = rightKeyExtractor;
+      cast.keyType = keyType;
+      return cast;
     }
 
     @Override
     public <T> WindowByBuilder<KeyT, T> using(
         BinaryFunctor<LeftT, RightT, T> joinFunc, @Nullable TypeDescriptor<T> outputType) {
       @SuppressWarnings("unchecked")
-      final Builder<LeftT, RightT, KeyT, T> casted = (Builder) this;
-      casted.joinFunc = requireNonNull(joinFunc);
-      casted.outputType = outputType;
-      return casted;
+      final Builder<LeftT, RightT, KeyT, T> cast = (Builder) this;
+      cast.joinFunc = requireNonNull(joinFunc);
+      cast.outputType = outputType;
+      return cast;
     }
 
     @Override

@@ -25,7 +25,7 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+apply plugin: 'org.apache.beam.module'
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
@@ -68,10 +68,14 @@ test {
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
-}.onlyIf {
   // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
-  // Skip 1.6/1.7 tests for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  project.name != "beam-runners-flink-1.6" && project.name != "beam-runners-flink-1.7"
+  // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
+  if (project.name == "beam-runners-flink-1.6") {
+    mustRunAfter(":beam-runners-flink_2.11:test")
+  } else if (project.name == "beam-runners-flink-1.7") {
+    mustRunAfter(":beam-runners-flink_2.11:test")
+    mustRunAfter(":beam-runners-flink-1.6:test")
+  }
 }
 
 configurations {
@@ -84,6 +88,7 @@ dependencies {
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-build-tools", configuration: "shadow")
   shadow library.java.vendored_grpc_1_13_1
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api

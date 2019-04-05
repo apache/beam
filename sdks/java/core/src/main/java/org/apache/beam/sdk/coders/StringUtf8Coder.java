@@ -138,4 +138,10 @@ public class StringUtf8Coder extends AtomicCoder<String> {
     int size = Utf8.encodedLength(value);
     return (long) VarInt.getLength(size) + size;
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(String value) {
+    return value;
+  }
 }

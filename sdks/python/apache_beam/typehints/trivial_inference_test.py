@@ -29,6 +29,10 @@ from apache_beam.typehints import typehints
 global_int = 1
 
 
+@unittest.skipIf(sys.version_info >= (3, 6, 0) and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3.6. '
+                 'See BEAM-6877')
 class TrivialInferenceTest(unittest.TestCase):
 
   def assertReturnType(self, expected, f, inputs=()):
@@ -110,7 +114,8 @@ class TrivialInferenceTest(unittest.TestCase):
 
   @unittest.skipIf(sys.version_info[0] == 3 and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
+                   'This test still needs to be fixed on Python 3. '
+                   'See BEAM-6877')
   def testTupleListComprehension(self):
     self.assertReturnType(
         typehints.List[int],

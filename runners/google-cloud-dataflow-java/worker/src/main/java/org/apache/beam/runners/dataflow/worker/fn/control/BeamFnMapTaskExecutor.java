@@ -43,9 +43,8 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metrics;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.GaugeData;
@@ -62,6 +61,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.P
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
@@ -293,7 +293,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private final ReadOperation readOperation;
     private final RemoteGrpcPortWriteOperation grpcWriteOperation;
     private final RegisterAndProcessBundleOperation bundleProcessOperation;
-    private final long progressUpdatePeriodMs = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS;
+    private static final long progressUpdatePeriodMs =
+        ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS;
     private int progressErrors;
 
     private final Interpolator<Progress> progressInterpolator;
@@ -401,7 +402,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
-              bundleProcessOperation.getPtransformIdToUserStepContext());
+              this.bundleProcessOperation.getPtransformIdToUserStepContext(),
+              this.bundleProcessOperation.getPCollectionIdToNameContext());
 
       counterUpdates =
           monitoringInfos.stream()
@@ -618,7 +620,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         T[] newYs = (T[]) new Object[ys.length];
         newXs[0] = xs[0];
         newYs[0] = ys[0];
-        double dx = (xs[numPoints - 1] - xs[0]) / (numPoints / 2);
+        double dx = (xs[numPoints - 1] - xs[0]) / (numPoints / 2.0);
         for (int i = 1; i < numPoints / 2; i++) {
           double x = xs[0] + i * dx;
           newXs[i] = x;

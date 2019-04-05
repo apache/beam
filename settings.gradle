@@ -61,10 +61,6 @@ project(":beam-runners-flink-1.7-job-server").dir = file("runners/flink/1.7/job-
 include "beam-runners-flink-1.7-job-server-container"
 project(":beam-runners-flink-1.7-job-server-container").dir = file("runners/flink/1.7/job-server-container")
 /* End Flink Runner related settings */
-include "beam-runners-gcp-gcemd"
-project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
-include "beam-runners-gcp-gcsproxy"
-project(":beam-runners-gcp-gcsproxy").dir = file("runners/gcp/gcsproxy")
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
@@ -205,8 +201,18 @@ include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
 include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
-include "beam-sdks-python-precommit-dataflow"
-project(":beam-sdks-python-precommit-dataflow").dir = file("sdks/python/precommit/dataflow")
+include "beam-sdks-python-test-suites-dataflow"
+project(":beam-sdks-python-test-suites-dataflow").dir = file("sdks/python/test-suites/dataflow")
+include "beam-sdks-python-test-suites-dataflow-py3"
+project(":beam-sdks-python-test-suites-dataflow-py3").dir = file("sdks/python/test-suites/dataflow/py3")
+include "beam-sdks-python-test-suites-direct-py3"
+project(":beam-sdks-python-test-suites-direct-py3").dir = file("sdks/python/test-suites/direct/py3")
+include "beam-sdks-python-test-suites-tox-py35"
+project(":beam-sdks-python-test-suites-tox-py35").dir = file("sdks/python/test-suites/tox/py35")
+include "beam-sdks-python-test-suites-tox-py36"
+project(":beam-sdks-python-test-suites-tox-py36").dir = file("sdks/python/test-suites/tox/py36")
+include "beam-sdks-python-load-tests"
+project(":beam-sdks-python-load-tests").dir = file("sdks/python/apache_beam/testing/load_tests")
 include "beam-vendor-grpc-1_13_1"
 project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
 include "beam-sdks-java-test-utils"
@@ -227,3 +233,5 @@ include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
 include "beam-sdks-java-bom"
 project(":beam-sdks-java-bom").dir = file("sdks/java/bom")
+include "beam-test-tools"
+project(":beam-test-tools").dir = file(".test-infra/tools")

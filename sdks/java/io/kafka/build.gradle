@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(enableFindbugs: false)
+plugins { id 'org.apache.beam.module' }
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."

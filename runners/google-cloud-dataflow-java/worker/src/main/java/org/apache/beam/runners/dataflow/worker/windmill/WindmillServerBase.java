@@ -35,7 +35,7 @@ public class WindmillServerBase extends WindmillServerStub {
   }
 
   @Override
-  public void finalize() {
+  protected void finalize() {
     destroy(nativePointer);
   }
 
@@ -107,6 +107,12 @@ public class WindmillServerBase extends WindmillServerStub {
     } catch (IOException e) {
       throw new RuntimeException("Proto deserialization failed: " + e);
     }
+  }
+
+  @Override
+  public long getAndResetThrottleTime() {
+    // Windmill appliance does not have throttling.
+    return 0;
   }
 
   @Override

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 
 ext {
     kryoVersion = '4.0.2'
@@ -28,9 +28,11 @@ applyJavaNature(
     dependencies {
         include(dependency('com.esotericsoftware:.*'))
         include(dependency('org.ow2.asm:asm'))
+        include(dependency('org.objenesis:objenesis'))
     }
     relocate 'com.esotericsoftware', getJavaRelocatedPath('com.esotericsoftware')
     relocate 'org.objectweb', getJavaRelocatedPath('org.objectweb')
+    relocate 'org.objenesis', getJavaRelocatedPath('org.objenesis')
     }
 )
 

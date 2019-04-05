@@ -21,14 +21,16 @@ import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,9 +74,9 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
   @VisibleForTesting
   protected Map<String, String> createKnownUrnToCounterNameMapping() {
     Map<String, String> result = new HashMap<>();
-    result.put("beam:metric:pardo_execution_time:start_bundle_msecs:v1", "start-msecs");
-    result.put("beam:metric:pardo_execution_time:process_bundle_msecs:v1", "process-msecs");
-    result.put("beam:metric:pardo_execution_time:finish_bundle_msecs:v1", "finish-msecs");
+    result.put(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS, "start-msecs");
+    result.put(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS, "process-msecs");
+    result.put(MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS, "finish-msecs");
     return result;
   }
 
@@ -96,7 +98,8 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
     if (stepContext == null) {
       return Optional.of(
@@ -108,6 +111,7 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
   }
 
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
@@ -118,7 +122,8 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
     String urn = monitoringInfo.getUrn();
 
-    final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
 
     String counterName = urnToCounterNameMapping.get(urn);

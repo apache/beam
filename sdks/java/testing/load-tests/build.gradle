@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Load Tests"
@@ -63,6 +63,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-test-utils", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-kinesis", configuration: "shadow")
 
   gradleRun project(path: project.path, configuration: "shadow")
   gradleRun project(path: runnerDependency, configuration: "shadow")

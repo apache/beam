@@ -65,16 +65,6 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. This coder is injective.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
    * @return {@code true}, since {@link #getEncodedElementByteSize} returns a constant.
    */
   @Override
@@ -98,5 +88,11 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
       throw new CoderException("cannot encode a null Long");
     }
     return 8;
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Long value) {
+    return value;
   }
 }

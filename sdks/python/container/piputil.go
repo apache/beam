@@ -34,10 +34,10 @@ var (
 )
 
 func pipLocation() string {
-  if v, ok := os.LookupEnv("pip"); ok {
-    return v
-  }
-  return "/usr/local/bin/pip"
+	if v, ok := os.LookupEnv("pip"); ok {
+		return v
+	}
+	return "/usr/local/bin/pip"
 }
 
 // pipInstallRequirements installs the given requirement, if present.

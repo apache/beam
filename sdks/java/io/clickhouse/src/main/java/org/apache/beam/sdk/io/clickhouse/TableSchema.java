@@ -22,9 +22,11 @@ import java.io.Serializable;
 import java.io.StringReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 
 /** A descriptor for ClickHouse table schema. */
@@ -72,6 +74,10 @@ public abstract class TableSchema implements Serializable {
       case STRING:
         return Schema.FieldType.STRING;
 
+      case FIXEDSTRING:
+        int size = columnType.fixedStringSize(); // non-null for fixed strings
+        return Schema.FieldType.logicalType(LogicalTypes.FixedBytes.of(size));
+
       case FLOAT32:
         return Schema.FieldType.FLOAT;
 
@@ -98,6 +104,10 @@ public abstract class TableSchema implements Serializable {
 
       case ARRAY:
         return Schema.FieldType.array(getEquivalentFieldType(columnType.arrayElementType()));
+
+      case ENUM8:
+      case ENUM16:
+        return Schema.FieldType.STRING;
     }
 
     // not possible, errorprone checks for exhaustive switch
@@ -140,6 +150,9 @@ public abstract class TableSchema implements Serializable {
     // Primitive types
     DATE,
     DATETIME,
+    ENUM8,
+    ENUM16,
+    FIXEDSTRING,
     FLOAT32,
     FLOAT64,
     INT8,
@@ -198,7 +211,17 @@ public abstract class TableSchema implements Serializable {
     public abstract TypeName typeName();
 
     @Nullable
+    public abstract Map<String, Integer> enumValues();
+
+    @Nullable
+    public abstract Integer fixedStringSize();
+
+    @Nullable
     public abstract ColumnType arrayElementType();
+
+    public ColumnType withNullable(boolean nullable) {
+      return toBuilder().nullable(nullable).build();
+    }
 
     public static ColumnType of(TypeName typeName) {
       return ColumnType.builder().typeName(typeName).nullable(false).build();
@@ -206,6 +229,30 @@ public abstract class TableSchema implements Serializable {
 
     public static ColumnType nullable(TypeName typeName) {
       return ColumnType.builder().typeName(typeName).nullable(true).build();
+    }
+
+    public static ColumnType fixedString(int size) {
+      return ColumnType.builder()
+          .typeName(TypeName.FIXEDSTRING)
+          .nullable(false)
+          .fixedStringSize(size)
+          .build();
+    }
+
+    public static ColumnType enum8(Map<String, Integer> enumValues) {
+      return ColumnType.builder()
+          .typeName(TypeName.ENUM8)
+          .nullable(false)
+          .enumValues(enumValues)
+          .build();
+    }
+
+    public static ColumnType enum16(Map<String, Integer> enumValues) {
+      return ColumnType.builder()
+          .typeName(TypeName.ENUM16)
+          .nullable(false)
+          .enumValues(enumValues)
+          .build();
     }
 
     public static ColumnType array(ColumnType arrayElementType) {
@@ -258,6 +305,9 @@ public abstract class TableSchema implements Serializable {
             return Integer.valueOf(value);
           case INT64:
             return Long.valueOf(value);
+          case ENUM16:
+          case ENUM8:
+          case FIXEDSTRING:
           case STRING:
             return value;
           case UINT8:
@@ -276,6 +326,8 @@ public abstract class TableSchema implements Serializable {
       }
     }
 
+    abstract Builder toBuilder();
+
     public static Builder builder() {
       return new AutoValue_TableSchema_ColumnType.Builder();
     }
@@ -288,6 +340,10 @@ public abstract class TableSchema implements Serializable {
       public abstract Builder arrayElementType(ColumnType arrayElementType);
 
       public abstract Builder nullable(boolean nullable);
+
+      public abstract Builder enumValues(Map<String, Integer> enumValues);
+
+      public abstract Builder fixedStringSize(Integer size);
 
       public abstract ColumnType build();
     }

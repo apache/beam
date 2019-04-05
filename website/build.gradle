@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-// Define common lifecycle tasks and artifact types
-apply plugin: "base"
-
-// Publish website to asf-git branch.
-apply plugin: 'org.ajoberstar.grgit'
+plugins {
+  id 'base'                  // Define common lifecycle tasks and artifact types
+  id 'org.ajoberstar.grgit'  // Publish website to asf-git branch.
+}
 
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
@@ -188,7 +187,6 @@ task testWebsite(type: Exec) {
 }
 
 testWebsite.dependsOn 'buildLocalWebsite'
-check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite

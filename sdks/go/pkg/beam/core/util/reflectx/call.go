@@ -16,14 +16,11 @@
 package reflectx
 
 import (
-	"context"
 	"reflect"
 	"sync"
 
 	"fmt"
 	"runtime/debug"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 //go:generate specialize --input=calls.tmpl
@@ -54,9 +51,6 @@ func RegisterFunc(t reflect.Type, maker func(interface{}) Func) {
 	defer funcsMu.Unlock()
 
 	key := t.String()
-	if _, exists := funcs[key]; exists {
-		log.Debugf(context.Background(), "Func for %v already registered. Overwriting.", key)
-	}
 	funcs[key] = maker
 }
 

@@ -348,6 +348,7 @@ public class BatchDataflowWorker implements Closeable {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(network));
         }
+
         worker =
             mapTaskExecutorFactory.create(
                 sdkWorkerHarness.getControlClientHandler(),
@@ -370,6 +371,8 @@ public class BatchDataflowWorker implements Closeable {
                 counterSet,
                 executionContext,
                 stageName);
+      } else {
+        throw new IllegalStateException("Work Item was neither a MapTask nor a SourceOperation");
       }
       workItemStatusClient.setWorker(worker, executionContext);
 

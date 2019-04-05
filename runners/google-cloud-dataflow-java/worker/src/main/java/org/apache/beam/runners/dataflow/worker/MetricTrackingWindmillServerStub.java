@@ -111,7 +111,10 @@ public class MetricTrackingWindmillServerStub {
     this.gcThrashingMonitor = gcThrashingMonitor;
     this.readQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
     this.readPool = new ArrayList<>(NUM_THREADS);
+    this.useStreamingRequests = useStreamingRequests;
+  }
 
+  public void start() {
     if (useStreamingRequests) {
       streamPool =
           new WindmillServerStub.StreamPool<>(
@@ -128,7 +131,6 @@ public class MetricTrackingWindmillServerStub {
         readPool.get(i).start();
       }
     }
-    this.useStreamingRequests = useStreamingRequests;
   }
 
   private void getDataLoop() {
@@ -235,13 +237,15 @@ public class MetricTrackingWindmillServerStub {
     activeHeartbeats.set(active.size());
     try {
       if (useStreamingRequests) {
+        // With streaming requests, always send the request even when it is empty, to ensure that
+        // we trigger health checks for the stream even when it is idle.
         GetDataStream stream = streamPool.getStream();
         try {
           stream.refreshActiveWork(active);
         } finally {
           streamPool.releaseStream(stream);
         }
-      } else {
+      } else if (!active.isEmpty()) {
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
         for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
           builder.addRequests(

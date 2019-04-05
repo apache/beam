@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import collections
+import sys
 import typing
 from builtins import next
 from builtins import range
@@ -35,9 +36,27 @@ _TypeMapEntry = collections.namedtuple(
     '_TypeMapEntry', ['match', 'arity', 'beam_type'])
 
 
+def _get_compatible_args(typ):
+  # On Python versions < 3.5.3, the Tuple and Union type from typing do
+  # not have an __args__ attribute, but a __tuple_params__, and a
+  # __union_params__ argument respectively.
+  if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
+    if getattr(typ, '__tuple_params__', None) is not None:
+      return typ.__tuple_params__
+    elif getattr(typ, '__union_params__', None) is not None:
+      return typ.__union_params__
+  return None
+
+
 def _get_arg(typ, index):
   """Returns the index-th argument to the given type."""
-  return typ.__args__[index]
+  try:
+    return typ.__args__[index]
+  except AttributeError:
+    compatible_args = _get_compatible_args(typ)
+    if compatible_args is None:
+      raise
+    return compatible_args[index]
 
 
 def _len_arg(typ):
@@ -45,8 +64,10 @@ def _len_arg(typ):
   try:
     return len(typ.__args__)
   except AttributeError:
-    # For Any type, which takes no arguments.
-    return 0
+    compatible_args = _get_compatible_args(typ)
+    if compatible_args is None:
+      return 0
+    return len(compatible_args)
 
 
 def _safe_issubclass(derived, parent):

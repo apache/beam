@@ -211,7 +211,7 @@ class DoFnSignature(object):
     self.start_bundle_method = MethodWrapper(do_fn, 'start_bundle')
     self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
 
-    restriction_provider = self._get_restriction_provider(do_fn)
+    restriction_provider = self.get_restriction_provider()
     self.initial_restriction_method = (
         MethodWrapper(restriction_provider, 'initial_restriction')
         if restriction_provider else None)
@@ -237,7 +237,7 @@ class DoFnSignature(object):
         method = timer_spec._attached_callback
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
 
-  def _get_restriction_provider(self, do_fn):
+  def get_restriction_provider(self):
     result = _find_param_with_default(self.process_method,
                                       default_as_type=RestrictionProvider)
     return result[1] if result else None
@@ -292,6 +292,7 @@ class DoFnInvoker(object):
     self.output_processor = output_processor
     self.signature = signature
     self.user_state_context = None
+    self.bundle_finalizer_param = None
 
   @staticmethod
   def create_invoker(
@@ -299,7 +300,8 @@ class DoFnInvoker(object):
       output_processor=None,
       context=None, side_inputs=None, input_args=None, input_kwargs=None,
       process_invocation=True,
-      user_state_context=None):
+      user_state_context=None,
+      bundle_finalizer_param=None):
     """ Creates a new DoFnInvoker based on given arguments.
 
     Args:
@@ -321,6 +323,8 @@ class DoFnInvoker(object):
                             method efficiently.
         user_state_context: The UserStateContext instance for the current
                             Stateful DoFn.
+        bundle_finalizer_param: The param that passed to a process method, which
+                                allows a callback to be registered.
     """
     side_inputs = side_inputs or []
     default_arg_values = signature.process_method.defaults
@@ -333,7 +337,7 @@ class DoFnInvoker(object):
       return PerWindowInvoker(
           output_processor,
           signature, context, side_inputs, input_args, input_kwargs,
-          user_state_context)
+          user_state_context, bundle_finalizer_param)
 
   def invoke_process(self, windowed_value, restriction_tracker=None,
                      output_processor=None,
@@ -423,7 +427,8 @@ class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
 
   def __init__(self, output_processor, signature, context,
-               side_inputs, input_args, input_kwargs, user_state_context):
+               side_inputs, input_args, input_kwargs, user_state_context,
+               bundle_finalizer_param):
     super(PerWindowInvoker, self).__init__(output_processor, signature)
     self.side_inputs = side_inputs
     self.context = context
@@ -434,6 +439,10 @@ class PerWindowInvoker(DoFnInvoker):
         (core.DoFn.WindowParam in default_arg_values) or
         signature.is_stateful_dofn())
     self.user_state_context = user_state_context
+    self.is_splittable = signature.is_splittable_dofn()
+    self.restriction_tracker = None
+    self.current_windowed_value = None
+    self.bundle_finalizer_param = bundle_finalizer_param
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -484,6 +493,8 @@ class PerWindowInvoker(DoFnInvoker):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, core.DoFn.TimerParam):
         args_with_placeholders.append(ArgPlaceholder(d))
+      elif d == core.DoFn.BundleFinalizerParam:
+        args_with_placeholders.append(ArgPlaceholder(d))
       else:
         # If no more args are present then the value must be passed via kwarg
         try:
@@ -515,7 +526,16 @@ class PerWindowInvoker(DoFnInvoker):
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
 
+    if self.is_splittable and not restriction_tracker:
+      restriction = self.invoke_initial_restriction(windowed_value.value)
+      restriction_tracker = self.invoke_create_tracker(restriction)
+
     if restriction_tracker:
+      if len(windowed_value.windows) > 1 and self.has_windowed_inputs:
+        # Should never get here due to window explosion in
+        # the upstream pair-with-restriction.
+        raise NotImplementedError(
+            'SDFs in multiply-windowed values with windowed arguments.')
       restriction_tracker_param = _find_param_with_default(
           self.signature.process_method,
           default_as_type=core.RestrictionProvider)[0]
@@ -524,7 +544,17 @@ class PerWindowInvoker(DoFnInvoker):
             'A RestrictionTracker %r was provided but DoFn does not have a '
             'RestrictionTrackerParam defined' % restriction_tracker)
       additional_kwargs[restriction_tracker_param] = restriction_tracker
-    if self.has_windowed_inputs and len(windowed_value.windows) != 1:
+      try:
+        self.current_windowed_value = windowed_value
+        self.restriction_tracker = restriction_tracker
+        return self._invoke_per_window(
+            windowed_value, additional_args, additional_kwargs,
+            output_processor)
+      finally:
+        self.restriction_tracker = None
+        self.current_windowed_value = windowed_value
+
+    elif self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
         self._invoke_per_window(
             WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)),
@@ -586,6 +616,8 @@ class PerWindowInvoker(DoFnInvoker):
       elif isinstance(p, core.DoFn.TimerParam):
         args_for_process[i] = (
             self.user_state_context.get_timer(p.timer_spec, key, window))
+      elif p == core.DoFn.BundleFinalizerParam:
+        args_for_process[i] = self.bundle_finalizer_param
 
     if additional_kwargs:
       if kwargs_for_process is None:
@@ -601,6 +633,41 @@ class PerWindowInvoker(DoFnInvoker):
     else:
       output_processor.process_outputs(
           windowed_value, self.process_method(*args_for_process))
+
+    if self.is_splittable:
+      deferred_status = self.restriction_tracker.deferred_status()
+      if deferred_status:
+        deferred_restriction, deferred_watermark = deferred_status
+        element = windowed_value.value
+        size = self.signature.get_restriction_provider().restriction_size(
+            element, deferred_restriction)
+        return (
+            windowed_value.with_value(((element, deferred_restriction), size)),
+            deferred_watermark)
+
+  def try_split(self, fraction):
+    restriction_tracker = self.restriction_tracker
+    current_windowed_value = self.current_windowed_value
+    if restriction_tracker and current_windowed_value:
+      split = restriction_tracker.try_split(fraction)
+      if split:
+        primary, residual = split
+        element = self.current_windowed_value.value
+        restriction_provider = self.signature.get_restriction_provider()
+        primary_size = restriction_provider.restriction_size(element, primary)
+        residual_size = restriction_provider.restriction_size(element, residual)
+        return (
+            (self.current_windowed_value.with_value(
+                ((element, primary), primary_size)),
+             None),
+            (self.current_windowed_value.with_value(
+                ((element, residual), residual_size)),
+             restriction_tracker.current_watermark()))
+
+  def current_element_progress(self):
+    restriction_tracker = self.restriction_tracker
+    if restriction_tracker:
+      return restriction_tracker.current_progress()
 
 
 class DoFnRunner(Receiver):
@@ -644,6 +711,7 @@ class DoFnRunner(Receiver):
 
     self.step_name = step_name
     self.context = DoFnContext(step_name, state=state)
+    self.bundle_finalizer_param = DoFn.BundleFinalizerParam()
 
     do_fn_signature = DoFnSignature(fn)
 
@@ -672,16 +740,30 @@ class DoFnRunner(Receiver):
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
         do_fn_signature, output_processor, self.context, side_inputs, args,
-        kwargs, user_state_context=user_state_context)
+        kwargs, user_state_context=user_state_context,
+        bundle_finalizer_param=self.bundle_finalizer_param)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
 
   def process(self, windowed_value):
     try:
-      self.do_fn_invoker.invoke_process(windowed_value)
+      return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
+
+  def process_with_sized_restriction(self, windowed_value):
+    (element, restriction), _ = windowed_value.value
+    return self.do_fn_invoker.invoke_process(
+        windowed_value.with_value(element),
+        restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
+            restriction))
+
+  def try_split(self, fraction):
+    return self.do_fn_invoker.try_split(fraction)
+
+  def current_element_progress(self):
+    return self.do_fn_invoker.current_element_progress()
 
   def process_user_timer(self, timer_spec, key, window, timestamp):
     try:
@@ -701,6 +783,9 @@ class DoFnRunner(Receiver):
 
   def finish(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
+
+  def finalize(self):
+    self.bundle_finalizer_param.finalize_bundle()
 
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:

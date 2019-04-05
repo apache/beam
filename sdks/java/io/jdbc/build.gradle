@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(enableFindbugs: false)
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(enableSpotbugs: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

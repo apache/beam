@@ -19,8 +19,8 @@ package org.apache.beam.runners.flink;
 
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -36,14 +36,15 @@ public class FlinkJobServerDriverTest {
 
   @Test
   public void testConfigurationDefaults() {
-    FlinkJobServerDriver.ServerConfiguration config =
-        new FlinkJobServerDriver.ServerConfiguration();
-    assertThat(config.host, is("localhost"));
-    assertThat(config.port, is(8099));
-    assertThat(config.artifactPort, is(8098));
-    assertThat(config.flinkMasterUrl, is("[auto]"));
-    assertThat(config.sdkWorkerParallelism, is(1L));
-    assertThat(config.cleanArtifactsPerJob, is(false));
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        new FlinkJobServerDriver.FlinkServerConfiguration();
+    assertThat(config.getHost(), is("localhost"));
+    assertThat(config.getPort(), is(8099));
+    assertThat(config.getArtifactPort(), is(8098));
+    assertThat(config.getExpansionPort(), is(8097));
+    assertThat(config.getFlinkMasterUrl(), is("[auto]"));
+    assertThat(config.getSdkWorkerParallelism(), is(1L));
+    assertThat(config.isCleanArtifactsPerJob(), is(true));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
   }
@@ -58,22 +59,27 @@ public class FlinkJobServerDriverTest {
               "42",
               "--artifact-port",
               "43",
+              "--expansion-port",
+              "44",
               "--flink-master-url=jobmanager",
               "--sdk-worker-parallelism=4",
-              "--clean-artifacts-per-job",
+              "--clean-artifacts-per-job=false",
             });
-    assertThat(driver.configuration.host, is("test"));
-    assertThat(driver.configuration.port, is(42));
-    assertThat(driver.configuration.artifactPort, is(43));
-    assertThat(driver.configuration.flinkMasterUrl, is("jobmanager"));
-    assertThat(driver.configuration.sdkWorkerParallelism, is(4L));
-    assertThat(driver.configuration.cleanArtifactsPerJob, is(true));
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        (FlinkJobServerDriver.FlinkServerConfiguration) driver.configuration;
+    assertThat(config.getHost(), is("test"));
+    assertThat(config.getPort(), is(42));
+    assertThat(config.getArtifactPort(), is(43));
+    assertThat(config.getExpansionPort(), is(44));
+    assertThat(config.getFlinkMasterUrl(), is("jobmanager"));
+    assertThat(config.getSdkWorkerParallelism(), is(4L));
+    assertThat(config.isCleanArtifactsPerJob(), is(false));
   }
 
   @Test
   public void testConfigurationFromConfig() {
-    FlinkJobServerDriver.ServerConfiguration config =
-        new FlinkJobServerDriver.ServerConfiguration();
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        new FlinkJobServerDriver.FlinkServerConfiguration();
     FlinkJobServerDriver driver = FlinkJobServerDriver.fromConfig(config);
     assertThat(driver.configuration, is(config));
   }
@@ -82,20 +88,23 @@ public class FlinkJobServerDriverTest {
   public void testJobServerDriver() throws Exception {
     FlinkJobServerDriver driver = null;
     Thread driverThread = null;
-    final PrintStream oldOut = System.err;
+    final PrintStream oldErr = System.err;
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    PrintStream newOut = new PrintStream(baos);
+    PrintStream newErr = new PrintStream(baos);
     try {
-      System.setErr(newOut);
-      driver = FlinkJobServerDriver.fromParams(new String[] {"--job-port=0", "--artifact-port=0"});
+      System.setErr(newErr);
+      driver =
+          FlinkJobServerDriver.fromParams(
+              new String[] {"--job-port=0", "--artifact-port=0", "--expansion-port=0"});
       driverThread = new Thread(driver);
       driverThread.start();
       boolean success = false;
       while (!success) {
-        newOut.flush();
+        newErr.flush();
         String output = baos.toString(Charsets.UTF_8.name());
         if (output.contains("JobService started on localhost:")
-            && output.contains("ArtifactStagingService started on localhost:")) {
+            && output.contains("ArtifactStagingService started on localhost:")
+            && output.contains("ExpansionService started on localhost:")) {
           success = true;
         } else {
           Thread.sleep(100);
@@ -104,10 +113,10 @@ public class FlinkJobServerDriverTest {
       assertThat(driverThread.isAlive(), is(true));
     } catch (Throwable t) {
       // restore to print exception
-      System.setErr(oldOut);
+      System.setErr(oldErr);
       throw t;
     } finally {
-      System.setErr(oldOut);
+      System.setErr(oldErr);
       if (driver != null) {
         driver.stop();
       }

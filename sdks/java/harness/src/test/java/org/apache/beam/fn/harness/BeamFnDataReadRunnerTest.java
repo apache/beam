@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -47,6 +48,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
@@ -126,12 +129,22 @@ public class BeamFnDataReadRunnerTest {
 
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     String localOutputId = "outputPC";
+    String pTransformId = "pTransformId";
     consumers.register(
-        localOutputId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+        localOutputId,
+        pTransformId,
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     RunnerApi.PTransform pTransform =
         RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
@@ -141,7 +154,7 @@ public class BeamFnDataReadRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
-            "pTransformId",
+            pTransformId,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
             ImmutableMap.of(

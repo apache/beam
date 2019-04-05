@@ -118,23 +118,29 @@ public class NodesTest {
                         GlobalWindow.Coder.INSTANCE))));
     assertSame(
         param,
-        RegisterRequestNode.create(param, nameContexts, sideInputInfos, pcollectionViews)
+        RegisterRequestNode.create(
+                param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of())
             .getRegisterRequest());
     assertSame(
         nameContexts,
-        RegisterRequestNode.create(param, nameContexts, sideInputInfos, pcollectionViews)
+        RegisterRequestNode.create(
+                param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of())
             .getPTransformIdToPartialNameContextMap());
     assertSame(
         sideInputInfos,
-        RegisterRequestNode.create(param, nameContexts, sideInputInfos, pcollectionViews)
+        RegisterRequestNode.create(
+                param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of())
             .getPTransformIdToSideInputInfoMap());
     assertSame(
         pcollectionViews,
-        RegisterRequestNode.create(param, nameContexts, sideInputInfos, pcollectionViews)
+        RegisterRequestNode.create(
+                param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of())
             .getPTransformIdToPCollectionViewMap());
     assertNotEquals(
-        RegisterRequestNode.create(param, nameContexts, sideInputInfos, pcollectionViews),
-        RegisterRequestNode.create(param, nameContexts, sideInputInfos, pcollectionViews));
+        RegisterRequestNode.create(
+            param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of()),
+        RegisterRequestNode.create(
+            param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of()));
   }
 
   @Test

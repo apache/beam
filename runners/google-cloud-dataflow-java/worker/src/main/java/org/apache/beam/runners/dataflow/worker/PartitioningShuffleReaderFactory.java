@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.decodeBase64;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
@@ -54,7 +54,8 @@ public class PartitioningShuffleReaderFactory implements ReaderFactory {
       @Nullable DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
-    checkNotNull(options, "PipelineOptions must not be null in PartitioningShuffleReaderFactory");
+    checkArgument(
+        options != null, "PipelineOptions must not be null in PartitioningShuffleReaderFactory");
     @SuppressWarnings({"unchecked", "rawtypes"})
     Coder<WindowedValue<KV<Object, Object>>> typedCoder =
         (Coder<WindowedValue<KV<Object, Object>>>) coder;

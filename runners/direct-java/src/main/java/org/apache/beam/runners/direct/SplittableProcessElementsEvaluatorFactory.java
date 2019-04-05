@@ -32,7 +32,7 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElem
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -46,12 +46,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Thre
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-class SplittableProcessElementsEvaluatorFactory<
-        InputT,
-        OutputT,
-        RestrictionT,
-        PositionT,
-        TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
+class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT, PositionT>
     implements TransformEvaluatorFactory {
   private final ParDoEvaluatorFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
@@ -74,8 +69,8 @@ class SplittableProcessElementsEvaluatorFactory<
                 checkArgument(
                     ProcessElements.class.isInstance(application.getTransform()),
                     "No know extraction of the fn from " + application);
-                final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
-                    (ProcessElements<InputT, OutputT, RestrictionT, TrackerT>)
+                final ProcessElements<InputT, OutputT, RestrictionT, PositionT> transform =
+                    (ProcessElements<InputT, OutputT, RestrictionT, PositionT>)
                         application.getTransform();
                 return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()));
               }
@@ -111,11 +106,11 @@ class SplittableProcessElementsEvaluatorFactory<
       AppliedPTransform<
               PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>,
               PCollectionTuple,
-              ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
+              ProcessElements<InputT, OutputT, RestrictionT, PositionT>>
           application,
       CommittedBundle<InputT> inputBundle)
       throws Exception {
-    final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
+    final ProcessElements<InputT, OutputT, RestrictionT, PositionT> transform =
         application.getTransform();
 
     final DoFnLifecycleManagerRemovingTransformEvaluator<
@@ -128,11 +123,12 @@ class SplittableProcessElementsEvaluatorFactory<
                 inputBundle.getKey(),
                 application.getTransform().getSideInputs(),
                 application.getTransform().getMainOutputTag(),
-                application.getTransform().getAdditionalOutputTags().getAll());
+                application.getTransform().getAdditionalOutputTags().getAll(),
+                DoFnSchemaInformation.create());
     final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
         evaluator.getParDoEvaluator();
-    final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-        (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
+    final ProcessFn<InputT, OutputT, RestrictionT, PositionT> processFn =
+        (ProcessFn<InputT, OutputT, RestrictionT, PositionT>)
             ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
 
     final DirectExecutionContext.DirectStepContext stepContext = pde.getStepContext();
@@ -191,7 +187,8 @@ class SplittableProcessElementsEvaluatorFactory<
         stepContext,
         inputCoder,
         outputCoders,
-        windowingStrategy) -> {
+        windowingStrategy,
+        doFnSchemaInformation) -> {
       ProcessFn<InputT, OutputT, RestrictionT, ?> processFn = (ProcessFn) fn;
       return DoFnRunners.newProcessFnRunner(
           processFn,
@@ -204,7 +201,8 @@ class SplittableProcessElementsEvaluatorFactory<
           stepContext,
           inputCoder,
           outputCoders,
-          windowingStrategy);
+          windowingStrategy,
+          doFnSchemaInformation);
     };
   }
 }

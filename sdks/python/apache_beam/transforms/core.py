@@ -28,7 +28,6 @@ from builtins import map
 from builtins import object
 from builtins import range
 
-from future.builtins import filter
 from past.builtins import unicode
 
 from apache_beam import coders
@@ -204,6 +203,7 @@ class RestrictionProvider(object):
   Optionally, ``RestrictionProvider`` may override default implementations of
   following methods.
   * restriction_coder()
+  * restriction_size()
   * split()
 
   ** Pausing and resuming processing of an element **
@@ -271,6 +271,14 @@ class RestrictionProvider(object):
     """
     return coders.registry.get_coder(object)
 
+  def restriction_size(self, element, restriction):
+    """Returns the size of an element with respect to the given element.
+
+    By default, asks a newly-created restriction tracker for the default size
+    of the restriction.
+    """
+    return self.create_tracker(restriction).default_size()
+
 
 def get_function_arguments(obj, func):
   """Return the function arguments based on the name provided. If they have
@@ -327,6 +335,32 @@ class _TimerDoFnParam(_DoFnParam):
     self.param_id = 'TimerParam(%s)' % timer_spec.name
 
 
+class _BundleFinalizerParam(_DoFnParam):
+  """Bundle Finalization DoFn parameter."""
+
+  def __init__(self):
+    self._callbacks = []
+    self.param_id = "FinalizeBundle"
+
+  def register(self, callback):
+    self._callbacks.append(callback)
+
+  # Log errors when calling callback to make sure all callbacks get called
+  # though there are errors. And errors should not fail pipeline.
+  def finalize_bundle(self):
+    for callback in self._callbacks:
+      try:
+        callback()
+      except Exception as e:
+        logging.warn("Got exception from finalization call: %s", e)
+
+  def has_callbacks(self):
+    return len(self._callbacks) > 0
+
+  def reset(self):
+    del self._callbacks[:]
+
+
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
@@ -345,9 +379,11 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   TimestampParam = _DoFnParam('TimestampParam')
   WindowParam = _DoFnParam('WindowParam')
   WatermarkReporterParam = _DoFnParam('WatermarkReporterParam')
+  BundleFinalizerParam = _BundleFinalizerParam
 
   DoFnProcessParams = [ElementParam, SideInputParam, TimestampParam,
-                       WindowParam, WatermarkReporterParam]
+                       WindowParam, WatermarkReporterParam,
+                       BundleFinalizerParam]
 
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),
@@ -371,7 +407,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     If specified, following default arguments are used by the ``DoFnRunner`` to
     be able to pass the parameters correctly.
 
-    ``DoFn.ElementParam``: element to be processed.
+    ``DoFn.ElementParam``: element to be processed, should not be mutated.
     ``DoFn.SideInputParam``: a side input that may be used when processing.
     ``DoFn.TimestampParam``: timestamp of the input element.
     ``DoFn.WindowParam``: ``Window`` the input element belongs to.
@@ -570,20 +606,21 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """
     raise NotImplementedError(str(self))
 
-  def add_input(self, accumulator, element, *args, **kwargs):
+  def add_input(self, mutable_accumulator, element, *args, **kwargs):
     """Return result of folding element into accumulator.
 
     CombineFn implementors must override add_input.
 
     Args:
-      accumulator: the current accumulator
-      element: the element to add
+      mutable_accumulator: the current accumulator,
+        may be modified and returned for efficiency
+      element: the element to add, should not be mutated
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
     raise NotImplementedError(str(self))
 
-  def add_inputs(self, accumulator, elements, *args, **kwargs):
+  def add_inputs(self, mutable_accumulator, elements, *args, **kwargs):
     """Returns the result of folding each element in elements into accumulator.
 
     This is provided in case the implementation affords more efficient
@@ -591,25 +628,48 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     over the inputs invoking add_input for each one.
 
     Args:
-      accumulator: the current accumulator
-      elements: the elements to add
+      mutable_accumulator: the current accumulator,
+        may be modified and returned for efficiency
+      elements: the elements to add, should not be mutated
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
     for element in elements:
-      accumulator = self.add_input(accumulator, element, *args, **kwargs)
-    return accumulator
+      mutable_accumulator =\
+        self.add_input(mutable_accumulator, element, *args, **kwargs)
+    return mutable_accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     """Returns the result of merging several accumulators
     to a single accumulator value.
 
     Args:
-      accumulators: the accumulators to merge
+      accumulators: the accumulators to merge.
+        Only the first accumulator may be modified and returned for efficiency;
+        the other accumulators should not be mutated, because they may be
+        shared with other code and mutating them could lead to incorrect
+        results or data corruption.
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
     raise NotImplementedError(str(self))
+
+  def compact(self, accumulator, *args, **kwargs):
+    """Optionally returns a more compact represenation of the accumulator.
+
+    This is called before an accumulator is sent across the wire, and can
+    be useful in cases where values are buffered or otherwise lazily
+    kept unprocessed when added to the accumulator.  Should return an
+    equivalent, though possibly modified, accumulator.
+
+    By default returns the accumulator unmodified.
+
+    Args:
+      accumulator: the current accumulator
+      *args: Additional arguments and side inputs.
+      **kwargs: Additional arguments and side inputs.
+    """
+    return accumulator
 
   def extract_output(self, accumulator, *args, **kwargs):
     """Return result of converting accumulator into the output value.
@@ -651,9 +711,11 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return CallableWrapperCombineFn(fn)
 
   @staticmethod
-  def maybe_from_callable(fn):
+  def maybe_from_callable(fn, has_side_inputs=True):
     if isinstance(fn, CombineFn):
       return fn
+    elif callable(fn) and not has_side_inputs:
+      return NoSideInputsCallableWrapperCombineFn(fn)
     elif callable(fn):
       return CallableWrapperCombineFn(fn)
     else:
@@ -665,6 +727,23 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_COMBINE_FN)
 
 
+class _ReiterableChain(object):
+  """Like itertools.chain, but allowing re-iteration."""
+  def __init__(self, iterables):
+    self.iterables = iterables
+
+  def __iter__(self):
+    for iterable in self.iterables:
+      for item in iterable:
+        yield item
+
+  def __bool__(self):
+    for iterable in self.iterables:
+      for _ in iterable:
+        return True
+    return False
+
+
 class CallableWrapperCombineFn(CombineFn):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -673,9 +752,9 @@ class CallableWrapperCombineFn(CombineFn):
   The purpose of this class is to conveniently wrap simple functions and use
   them in Combine transforms.
   """
-  _EMPTY = object()
+  _DEFAULT_BUFFER_SIZE = 10
 
-  def __init__(self, fn):
+  def __init__(self, fn, buffer_size=_DEFAULT_BUFFER_SIZE):
     """Initializes a CallableFn object wrapping a callable.
 
     Args:
@@ -692,45 +771,40 @@ class CallableWrapperCombineFn(CombineFn):
 
     super(CallableWrapperCombineFn, self).__init__()
     self._fn = fn
+    self._buffer_size = buffer_size
 
   def display_data(self):
     return {'fn_dd': self._fn}
 
   def __repr__(self):
-    return "CallableWrapperCombineFn(%s)" % self._fn
+    return "%s(%s)" % (self.__class__.__name__, self._fn)
 
   def create_accumulator(self, *args, **kwargs):
-    return self._EMPTY
+    return []
 
   def add_input(self, accumulator, element, *args, **kwargs):
-    if accumulator is self._EMPTY:
-      return element
-    return self._fn([accumulator, element], *args, **kwargs)
+    accumulator.append(element)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator, *args, **kwargs)]
+    return accumulator
 
   def add_inputs(self, accumulator, elements, *args, **kwargs):
-    if accumulator is self._EMPTY:
-      return self._fn(elements, *args, **kwargs)
-    elif isinstance(elements, (list, tuple)):
-      return self._fn([accumulator] + list(elements), *args, **kwargs)
-
-    def union():
-      yield accumulator
-      for e in elements:
-        yield e
-    return self._fn(union(), *args, **kwargs)
+    accumulator.extend(elements)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator, *args, **kwargs)]
+    return accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    filter_fn = lambda x: x is not self._EMPTY
+    return [self._fn(_ReiterableChain(accumulators), *args, **kwargs)]
 
-    class ReiterableNonEmptyAccumulators(object):
-      def __iter__(self):
-        return filter(filter_fn, accumulators)
-
-    # It's (weakly) assumed that self._fn is associative.
-    return self._fn(ReiterableNonEmptyAccumulators(), *args, **kwargs)
+  def compact(self, accumulator, *args, **kwargs):
+    if len(accumulator) <= 1:
+      return accumulator
+    else:
+      return [self._fn(accumulator, *args, **kwargs)]
 
   def extract_output(self, accumulator, *args, **kwargs):
-    return self._fn(()) if accumulator is self._EMPTY else accumulator
+    return self._fn(accumulator, *args, **kwargs)
 
   def default_type_hints(self):
     fn_hints = get_type_hints(self._fn)
@@ -773,6 +847,42 @@ class CallableWrapperCombineFn(CombineFn):
           (max, float): cy_combiners.MaxFloatFn(),
       }
     return known_types.get((self._fn, input_type), self)
+
+
+class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A CombineFn (function) object wrapping a callable object with no side inputs.
+
+  This is identical to its parent, but avoids accepting and passing *args
+  and **kwargs for efficiency as they are known to be empty.
+  """
+  def create_accumulator(self):
+    return []
+
+  def add_input(self, accumulator, element):
+    accumulator.append(element)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator)]
+    return accumulator
+
+  def add_inputs(self, accumulator, elements):
+    accumulator.extend(elements)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator)]
+    return accumulator
+
+  def merge_accumulators(self, accumulators):
+    return [self._fn(_ReiterableChain(accumulators))]
+
+  def compact(self, accumulator):
+    if len(accumulator) <= 1:
+      return accumulator
+    else:
+      return [self._fn(accumulator)]
+
+  def extract_output(self, accumulator):
+    return self._fn(accumulator)
 
 
 class PartitionFn(WithTypeHints):
@@ -880,7 +990,7 @@ class ParDo(PTransformWithSideInputs):
     return trivial_inference.element_type(
         self.fn.infer_output_type(input_type))
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     if isinstance(fn, DoFn):
       return fn
     return CallableWrapperDoFn(fn)
@@ -963,6 +1073,14 @@ class ParDo(PTransformWithSideInputs):
         "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
+    from apache_beam.runners.common import DoFnSignature
+    is_splittable = DoFnSignature(self.fn).is_splittable_dofn()
+    if is_splittable:
+      restriction_coder = (
+          DoFnSignature(self.fn).get_restriction_provider().restriction_coder())
+      restriction_coder_id = context.coders.get_id(restriction_coder)
+    else:
+      restriction_coder_id = None
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
@@ -971,6 +1089,8 @@ class ParDo(PTransformWithSideInputs):
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=python_urns.PICKLED_DOFN_INFO,
                     payload=picked_pardo_fn_data)),
+            splittable=is_splittable,
+            restriction_coder_id=restriction_coder_id,
             state_specs={spec.name: spec.to_runner_api(context)
                          for spec in state_specs},
             timer_specs={spec.name: spec.to_runner_api(context)
@@ -1142,7 +1262,7 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if (output_hint is None
       and get_type_hints(wrapper).input_types
       and get_type_hints(wrapper).input_types[0]):
-    output_hint = get_type_hints(wrapper).input_types[0]
+    output_hint = get_type_hints(wrapper).input_types[0][0]
   if output_hint:
     get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
   # pylint: disable=protected-access
@@ -1354,9 +1474,9 @@ class CombinePerKey(PTransformWithSideInputs):
             'combine_fn_dd':
             self.fn}
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     self._fn_label = ptransform.label_from_callable(fn)
-    return fn if isinstance(fn, CombineFn) else CombineFn.from_callable(fn)
+    return CombineFn.maybe_from_callable(fn, has_side_inputs)
 
   def default_label(self):
     return '%s(%s)' % (self.__class__.__name__, self._fn_label)
@@ -1408,8 +1528,8 @@ class CombinePerKey(PTransformWithSideInputs):
 # TODO(robertwb): Rename to CombineGroupedValues?
 class CombineValues(PTransformWithSideInputs):
 
-  def make_fn(self, fn):
-    return fn if isinstance(fn, CombineFn) else CombineFn.from_callable(fn)
+  def make_fn(self, fn, has_side_inputs):
+    return CombineFn.maybe_from_callable(fn, has_side_inputs)
 
   def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
@@ -1543,8 +1663,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       create_accumulator = combine_fn.create_accumulator
       add_input = combine_fn.add_input
       merge_accumulators = combine_fn.merge_accumulators
-      # TODO(BEAM-4030): Remove the getattr indirection.
-      compact = getattr(combine_fn, 'compact', None)
+      compact = combine_fn.compact
 
     class PostCombineFn(CombineFn):
       @staticmethod
@@ -1556,8 +1675,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           return combine_fn.add_input(accumulator, value)
       create_accumulator = combine_fn.create_accumulator
       merge_accumulators = combine_fn.merge_accumulators
-      # TODO(BEAM-4030): Remove the getattr indirection.
-      compact = getattr(combine_fn, 'compact', None)
+      compact = combine_fn.compact
       extract_output = combine_fn.extract_output
 
     def StripNonce(nonce_key_value):
@@ -1741,7 +1859,7 @@ class Partition(PTransformWithSideInputs):
       # selected partition.
       yield pvalue.TaggedOutput(str(partition), element)
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
 
   def expand(self, pcoll):

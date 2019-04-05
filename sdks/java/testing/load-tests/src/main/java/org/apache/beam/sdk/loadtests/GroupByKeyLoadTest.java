@@ -22,9 +22,9 @@ import static java.lang.String.format;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -85,11 +85,12 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
     PCollection<KV<byte[], byte[]>> input =
         pipeline
             .apply("Read input", readFromSource(sourceOptions))
-            .apply("Collect start time metrics", ParDo.of(runtimeMonitor));
-    input = applyWindowing(input);
+            .apply("Collect start time metrics", ParDo.of(runtimeMonitor))
+            .apply(
+                "Total bytes monitor",
+                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
-    input.apply(
-        "Total bytes monitor", ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
+    input = applyWindowing(input);
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
       applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)

@@ -18,22 +18,20 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
-def aws_java_sdk_version = "1.11.319"
-
 dependencies {
   shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version"
-  shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version"
-  shadow "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version"
-  shadow "com.amazonaws:aws-java-sdk-sqs:$aws_java_sdk_version"
-  shadow "com.amazonaws:aws-java-sdk-sns:$aws_java_sdk_version"
+  shadow library.java.aws_java_sdk_cloudwatch
+  shadow library.java.aws_java_sdk_core
+  shadow library.java.aws_java_sdk_s3
+  shadow library.java.aws_java_sdk_sns
+  shadow library.java.aws_java_sdk_sqs
   shadow "commons-lang:commons-lang:2.6"
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations

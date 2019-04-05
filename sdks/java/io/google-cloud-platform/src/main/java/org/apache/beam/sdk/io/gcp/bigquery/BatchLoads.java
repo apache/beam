@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -56,7 +58,6 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -74,8 +75,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
-class BatchLoads<DestinationT>
-    extends PTransform<PCollection<KV<DestinationT, TableRow>>, WriteResult> {
+class BatchLoads<DestinationT, ElementT>
+    extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);
 
   // The maximum number of file writers to keep open in a single bundle at a time, since file
@@ -91,11 +92,11 @@ class BatchLoads<DestinationT>
 
   @VisibleForTesting
   // Maximum number of files in a single partition.
-  static final int MAX_NUM_FILES = 10000;
+  static final int DEFAULT_MAX_FILES_PER_PARTITION = 10000;
 
   @VisibleForTesting
   // Maximum number of bytes in a single partition -- 11 TiB just under BQ's 12 TiB limit.
-  static final long MAX_SIZE_BYTES = 11 * (1L << 40);
+  static final long DEFAULT_MAX_BYTES_PER_PARTITION = 11 * (1L << 40);
 
   // The maximum size of a single file - 4TiB, just under the 5 TiB limit.
   static final long DEFAULT_MAX_FILE_SIZE = 4 * (1L << 40);
@@ -123,10 +124,15 @@ class BatchLoads<DestinationT>
   private final Coder<DestinationT> destinationCoder;
   private int maxNumWritersPerBundle;
   private long maxFileSize;
+  private int maxFilesPerPartition;
+  private long maxBytesPerPartition;
   private int numFileShards;
   private Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
   private ValueProvider<String> loadJobProjectId;
+  private final Coder<ElementT> elementCoder;
+  private final SerializableFunction<ElementT, TableRow> toRowFunction;
+  private String kmsKey;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -139,7 +145,10 @@ class BatchLoads<DestinationT>
       Coder<DestinationT> destinationCoder,
       ValueProvider<String> customGcsTempLocation,
       @Nullable ValueProvider<String> loadJobProjectId,
-      boolean ignoreUnknownValues) {
+      boolean ignoreUnknownValues,
+      Coder<ElementT> elementCoder,
+      SerializableFunction<ElementT, TableRow> toRowFunction,
+      @Nullable String kmsKey) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -149,10 +158,15 @@ class BatchLoads<DestinationT>
     this.maxNumWritersPerBundle = DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE;
     this.maxFileSize = DEFAULT_MAX_FILE_SIZE;
     this.numFileShards = DEFAULT_NUM_FILE_SHARDS;
+    this.maxFilesPerPartition = DEFAULT_MAX_FILES_PER_PARTITION;
+    this.maxBytesPerPartition = DEFAULT_MAX_BYTES_PER_PARTITION;
     this.triggeringFrequency = null;
     this.customGcsTempLocation = customGcsTempLocation;
     this.loadJobProjectId = loadJobProjectId;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.elementCoder = elementCoder;
+    this.toRowFunction = toRowFunction;
+    this.kmsKey = kmsKey;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -190,6 +204,16 @@ class BatchLoads<DestinationT>
     this.maxFileSize = maxFileSize;
   }
 
+  @VisibleForTesting
+  void setMaxFilesPerPartition(int maxFilesPerPartition) {
+    this.maxFilesPerPartition = maxFilesPerPartition;
+  }
+
+  @VisibleForTesting
+  void setMaxBytesPerPartition(long maxBytesPerPartition) {
+    this.maxBytesPerPartition = maxBytesPerPartition;
+  }
+
   @Override
   public void validate(PipelineOptions options) {
     // We will use a BigQuery load job -- validate the temp location.
@@ -220,7 +244,7 @@ class BatchLoads<DestinationT>
   }
 
   // Expand the pipeline when the user has requested periodically-triggered file writes.
-  private WriteResult expandTriggered(PCollection<KV<DestinationT, TableRow>> input) {
+  private WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
     checkArgument(numFileShards > 0);
     Pipeline p = input.getPipeline();
     final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
@@ -232,10 +256,10 @@ class BatchLoads<DestinationT>
     // Instead we ensure that the files are written if a threshold number of records are ready.
     // We use only the user-supplied trigger on the actual BigQuery load. This allows us to
     // offload the data to the filesystem.
-    PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
+    PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal",
-            Window.<KV<DestinationT, TableRow>>into(new GlobalWindows())
+            Window.<KV<DestinationT, ElementT>>into(new GlobalWindows())
                 .triggering(
                     Repeatedly.forever(
                         AfterFirst.of(
@@ -278,6 +302,8 @@ class BatchLoads<DestinationT>
                             singletonTable,
                             dynamicDestinations,
                             tempFilePrefixView,
+                            maxFilesPerPartition,
+                            maxBytesPerPartition,
                             multiPartitionsTag,
                             singlePartitionTag))
                     .withSideInputs(tempFilePrefixView)
@@ -303,22 +329,23 @@ class BatchLoads<DestinationT>
                         loadJobIdPrefixView,
                         writeDisposition,
                         createDisposition,
-                        maxRetryJobs))
+                        maxRetryJobs,
+                        kmsKey))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
   }
 
   // Expand the pipeline when the user has not requested periodically-triggered file writes.
-  public WriteResult expandUntriggered(PCollection<KV<DestinationT, TableRow>> input) {
+  public WriteResult expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
     Pipeline p = input.getPipeline();
     final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
-    PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
+    PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal",
-            Window.<KV<DestinationT, TableRow>>into(new GlobalWindows())
+            Window.<KV<DestinationT, ElementT>>into(new GlobalWindows())
                 .triggering(DefaultTrigger.of())
                 .discardingFiredPanes());
     PCollection<WriteBundlesToFiles.Result<DestinationT>> results =
@@ -345,6 +372,8 @@ class BatchLoads<DestinationT>
                             singletonTable,
                             dynamicDestinations,
                             tempFilePrefixView,
+                            maxFilesPerPartition,
+                            maxBytesPerPartition,
                             multiPartitionsTag,
                             singlePartitionTag))
                     .withSideInputs(tempFilePrefixView)
@@ -363,7 +392,8 @@ class BatchLoads<DestinationT>
                         loadJobIdPrefixView,
                         writeDisposition,
                         createDisposition,
-                        maxRetryJobs))
+                        maxRetryJobs,
+                        kmsKey))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
@@ -422,27 +452,31 @@ class BatchLoads<DestinationT>
   // Writes input data to dynamically-sharded, per-bundle files. Returns a PCollection of filename,
   // file byte size, and table destination.
   PCollection<WriteBundlesToFiles.Result<DestinationT>> writeDynamicallyShardedFiles(
-      PCollection<KV<DestinationT, TableRow>> input, PCollectionView<String> tempFilePrefix) {
+      PCollection<KV<DestinationT, ElementT>> input, PCollectionView<String> tempFilePrefix) {
     TupleTag<WriteBundlesToFiles.Result<DestinationT>> writtenFilesTag =
         new TupleTag<WriteBundlesToFiles.Result<DestinationT>>("writtenFiles") {};
-    TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag =
-        new TupleTag<KV<ShardedKey<DestinationT>, TableRow>>("unwrittenRecords") {};
+    TupleTag<KV<ShardedKey<DestinationT>, ElementT>> unwrittedRecordsTag =
+        new TupleTag<KV<ShardedKey<DestinationT>, ElementT>>("unwrittenRecords") {};
     PCollectionTuple writeBundlesTuple =
         input.apply(
             "WriteBundlesToFiles",
             ParDo.of(
                     new WriteBundlesToFiles<>(
-                        tempFilePrefix, unwrittedRecordsTag, maxNumWritersPerBundle, maxFileSize))
+                        tempFilePrefix,
+                        unwrittedRecordsTag,
+                        maxNumWritersPerBundle,
+                        maxFileSize,
+                        toRowFunction))
                 .withSideInputs(tempFilePrefix)
                 .withOutputTags(writtenFilesTag, TupleTagList.of(unwrittedRecordsTag)));
     PCollection<WriteBundlesToFiles.Result<DestinationT>> writtenFiles =
         writeBundlesTuple
             .get(writtenFilesTag)
             .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
-    PCollection<KV<ShardedKey<DestinationT>, TableRow>> unwrittenRecords =
+    PCollection<KV<ShardedKey<DestinationT>, ElementT>> unwrittenRecords =
         writeBundlesTuple
             .get(unwrittedRecordsTag)
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), TableRowJsonCoder.of()));
+            .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), elementCoder));
 
     // If the bundles contain too many output tables to be written inline to files (due to memory
     // limits), any unwritten records will be spilled to the unwrittenRecordsTag PCollection.
@@ -461,14 +495,14 @@ class BatchLoads<DestinationT>
   // Writes input data to statically-sharded files. Returns a PCollection of filename,
   // file byte size, and table destination.
   PCollection<WriteBundlesToFiles.Result<DestinationT>> writeShardedFiles(
-      PCollection<KV<DestinationT, TableRow>> input, PCollectionView<String> tempFilePrefix) {
+      PCollection<KV<DestinationT, ElementT>> input, PCollectionView<String> tempFilePrefix) {
     checkState(numFileShards > 0);
-    PCollection<KV<ShardedKey<DestinationT>, TableRow>> shardedRecords =
+    PCollection<KV<ShardedKey<DestinationT>, ElementT>> shardedRecords =
         input
             .apply(
                 "AddShard",
                 ParDo.of(
-                    new DoFn<KV<DestinationT, TableRow>, KV<ShardedKey<DestinationT>, TableRow>>() {
+                    new DoFn<KV<DestinationT, ElementT>, KV<ShardedKey<DestinationT>, ElementT>>() {
                       int shardNumber;
 
                       @Setup
@@ -477,28 +511,31 @@ class BatchLoads<DestinationT>
                       }
 
                       @ProcessElement
-                      public void processElement(ProcessContext c) {
-                        DestinationT destination = c.element().getKey();
-                        TableRow tableRow = c.element().getValue();
-                        c.output(
+                      public void processElement(
+                          @Element KV<DestinationT, ElementT> element,
+                          OutputReceiver<KV<ShardedKey<DestinationT>, ElementT>> o) {
+                        DestinationT destination = element.getKey();
+                        o.output(
                             KV.of(
                                 ShardedKey.of(destination, ++shardNumber % numFileShards),
-                                tableRow));
+                                element.getValue()));
                       }
                     }))
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), TableRowJsonCoder.of()));
+            .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), elementCoder));
 
     return writeShardedRecords(shardedRecords, tempFilePrefix);
   }
 
   private PCollection<Result<DestinationT>> writeShardedRecords(
-      PCollection<KV<ShardedKey<DestinationT>, TableRow>> shardedRecords,
+      PCollection<KV<ShardedKey<DestinationT>, ElementT>> shardedRecords,
       PCollectionView<String> tempFilePrefix) {
     return shardedRecords
         .apply("GroupByDestination", GroupByKey.create())
         .apply(
             "WriteGroupedRecords",
-            ParDo.of(new WriteGroupedRecordsToFiles<DestinationT>(tempFilePrefix, maxFileSize))
+            ParDo.of(
+                    new WriteGroupedRecordsToFiles<DestinationT, ElementT>(
+                        tempFilePrefix, maxFileSize, toRowFunction))
                 .withSideInputs(tempFilePrefix))
         .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
   }
@@ -515,7 +552,8 @@ class BatchLoads<DestinationT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             ListCoder.of(StringUtf8Coder.of()));
 
-    // If WriteBundlesToFiles produced more than MAX_NUM_FILES files or MAX_SIZE_BYTES bytes, then
+    // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
+    // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
     // specified in multiPartitionsTag.
     return input
@@ -526,7 +564,7 @@ class BatchLoads<DestinationT>
         .apply(
             "MultiPartitionsWriteTables",
             new WriteTables<>(
-                false,
+                true,
                 bigQueryServices,
                 jobIdTokenView,
                 WriteDisposition.WRITE_EMPTY,
@@ -535,7 +573,8 @@ class BatchLoads<DestinationT>
                 dynamicDestinations,
                 loadJobProjectId,
                 maxRetryJobs,
-                ignoreUnknownValues));
+                ignoreUnknownValues,
+                kmsKey));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -558,7 +597,7 @@ class BatchLoads<DestinationT>
         .apply(
             "SinglePartitionWriteTables",
             new WriteTables<>(
-                true,
+                false,
                 bigQueryServices,
                 loadJobIdPrefixView,
                 writeDisposition,
@@ -567,7 +606,8 @@ class BatchLoads<DestinationT>
                 dynamicDestinations,
                 loadJobProjectId,
                 maxRetryJobs,
-                ignoreUnknownValues));
+                ignoreUnknownValues,
+                kmsKey));
   }
 
   private WriteResult writeResult(Pipeline p) {
@@ -577,7 +617,7 @@ class BatchLoads<DestinationT>
   }
 
   @Override
-  public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
+  public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
     return (triggeringFrequency != null) ? expandTriggered(input) : expandUntriggered(input);
   }
 }

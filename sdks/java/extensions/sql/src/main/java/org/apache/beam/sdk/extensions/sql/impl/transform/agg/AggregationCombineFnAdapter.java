@@ -144,7 +144,7 @@ public class AggregationCombineFnAdapter<T> {
     if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
       combineFn = getUdafCombineFn(call);
     } else {
-      combineFn = BeamBuiltinAggregations.create(functionName, field.getType().getTypeName());
+      combineFn = BeamBuiltinAggregations.create(functionName, field.getType());
     }
     if (call.getArgList().isEmpty()) {
       return new SingleInputCombiner(combineFn);

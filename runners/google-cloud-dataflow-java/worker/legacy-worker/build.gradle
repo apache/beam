@@ -23,7 +23,7 @@
 // 2. Not have artifacts such as test results and jars write over each other.
 // 3. Better compatibility with Intellij since Intellij requires separate content roots.
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
@@ -81,7 +81,7 @@ def excluded_dependencies = [
 applyJavaNature(
         publish: false,
         exportJavadoc: false,
-        enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */,
+        enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
         shadowJarValidationExcludes: [
             "org/apache/beam/runners/dataflow/worker/**",
             "org/apache/beam/repackaged/beam_runners_google_cloud_dataflow_java_legacy_worker/**",
@@ -163,7 +163,7 @@ configurations {
 
     // Ban these dependencies from all configurations
     all {
-        // Ban the usage of AppleJavaExtensions in findbugs.
+        // Ban the usage of AppleJavaExtensions in spotbugs.
         exclude group: "com.apple", module: "AppleJavaExtensions"
     }
 }
@@ -209,6 +209,7 @@ dependencies {
     shadowTest library.java.guava_testlib
     shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
     shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+    shadowTest project(path: ":beam-sdks-java-harness", configuration: "shadowTest")
     shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
     shadowTest library.java.hamcrest_core
     shadowTest library.java.hamcrest_library

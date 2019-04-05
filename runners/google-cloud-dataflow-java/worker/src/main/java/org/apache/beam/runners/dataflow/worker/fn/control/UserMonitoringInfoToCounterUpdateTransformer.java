@@ -23,9 +23,9 @@ import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs.Enum;
+import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
@@ -53,12 +53,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
     this.specValidator = specMonitoringInfoValidator;
   }
 
-  static final String BEAM_METRICS_USER_PREFIX =
-      Enum.USER_COUNTER
-          .getValueDescriptor()
-          .getOptions()
-          .getExtension(BeamFnApi.monitoringInfoSpec)
-          .getUrn();
+  static final String BEAM_METRICS_USER_PREFIX = MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX;
 
   private Optional<String> validate(MonitoringInfo monitoringInfo) {
     Optional<String> validatorResult = specValidator.validate(monitoringInfo);
@@ -74,7 +69,8 @@ class UserMonitoringInfoToCounterUpdateTransformer
               BEAM_METRICS_USER_PREFIX, urn));
     }
 
-    final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
     if (stepContext == null) {
       return Optional.of(
@@ -90,6 +86,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
    * @return Relevant CounterUpdate or null if transformation failed.
    */
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
@@ -100,7 +97,8 @@ class UserMonitoringInfoToCounterUpdateTransformer
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
     String urn = monitoringInfo.getUrn();
 
-    final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
+    final String ptransform =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
 
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
 

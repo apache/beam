@@ -65,6 +65,7 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:windowed_value:v1':
           lambda v, w: coders.WindowedValueCoder(v, w),
       'beam:coder:timer:v1': coders._TimerCoder,
+      'beam:coder:double:v1': coders.FloatCoder,
   }
 
   _urn_to_json_value_parser = {
@@ -87,6 +88,7 @@ class StandardCodersTest(unittest.TestCase):
           lambda x, payload_parser: dict(
               payload=payload_parser(x['payload']),
               timestamp=Timestamp(micros=x['timestamp'])),
+      'beam:coder:double:v1': lambda x: float(x),
   }
 
   def test_standard_coders(self):
@@ -95,6 +97,16 @@ class StandardCodersTest(unittest.TestCase):
       self._run_standard_coder(name, spec)
 
   def _run_standard_coder(self, name, spec):
+    def assert_equal(actual, expected):
+      """Handle nan values which self.assertEqual fails on."""
+      import math
+      if (isinstance(actual, float)
+          and isinstance(expected, float)
+          and math.isnan(actual)
+          and math.isnan(expected)):
+        return
+      self.assertEqual(actual, expected)
+
     coder = self.parse_coder(spec['coder'])
     parse_value = self.json_value_parser(spec['coder'])
     nested_list = [spec['nested']] if 'nested' in spec else [True, False]
@@ -108,8 +120,8 @@ class StandardCodersTest(unittest.TestCase):
             self.to_fix[spec['index'], expected_encoded] = actual_encoded
           else:
             self.assertEqual(expected_encoded, actual_encoded)
-            self.assertEqual(decode_nested(coder, expected_encoded, nested),
-                             value)
+            decoded = decode_nested(coder, expected_encoded, nested)
+            assert_equal(decoded, value)
         else:
           # Only verify decoding for a non-deterministic coder
           self.assertEqual(decode_nested(coder, expected_encoded, nested),

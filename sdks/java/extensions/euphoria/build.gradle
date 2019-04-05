@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
@@ -32,10 +32,6 @@ dependencies {
     testCompile library.java.mockito_core
     testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
     testCompile project(':beam-runners-direct-java')
-}
-
-tasks.withType(JavaCompile) {
-    options.compilerArgs += ['-Xlint:deprecation']
 }
 
 test {

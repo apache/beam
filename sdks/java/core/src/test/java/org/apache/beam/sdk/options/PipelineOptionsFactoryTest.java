@@ -49,7 +49,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
-import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -74,6 +73,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1437,11 +1437,14 @@ public class PipelineOptionsFactoryTest {
   private interface NonPublicPipelineOptions extends PipelineOptions {}
 
   @Test
-  public void testNonPublicInterfaceLogsWarning() throws Exception {
+  public void testNonPublicInterfaceThrowsException() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Please mark non-public interface "
+            + NonPublicPipelineOptions.class.getName()
+            + " as public.");
+
     PipelineOptionsFactory.as(NonPublicPipelineOptions.class);
-    // Make sure we print the name of the class.
-    expectedLogs.verifyWarn(NonPublicPipelineOptions.class.getName());
-    expectedLogs.verifyWarn("all non-public interfaces to be in the same package");
   }
 
   /** A test interface containing all supported List return types. */

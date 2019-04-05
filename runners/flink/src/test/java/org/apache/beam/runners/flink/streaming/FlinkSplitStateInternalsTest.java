@@ -98,6 +98,14 @@ public class FlinkSplitStateInternalsTest extends StateInternalsTest {
 
   @Override
   @Ignore
+  public void testMergeCombiningWithContextValueIntoSource() {}
+
+  @Override
+  @Ignore
+  public void testMergeCombiningWithContextValueIntoNewNamespace() {}
+
+  @Override
+  @Ignore
   public void testWatermarkEarliestState() {}
 
   @Override

@@ -69,6 +69,11 @@ public class RowCoder extends CustomCoder<Row> {
           .build();
 
   private final Schema schema;
+
+  public UUID getId() {
+    return id;
+  }
+
   private final UUID id;
   @Nullable private transient Coder<Row> delegateCoder = null;
 
@@ -134,11 +139,6 @@ public class RowCoder extends CustomCoder<Row> {
     Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
   }
 
-  @Override
-  public boolean consistentWithEquals() {
-    return true;
-  }
-
   /** Returns the coder used for a given primitive type. */
   public static <T> Coder<T> coderForFieldType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
@@ -171,6 +171,8 @@ public class RowCoder extends CustomCoder<Row> {
 
   private static long estimatedSizeBytes(FieldType typeDescriptor, Object value) {
     switch (typeDescriptor.getTypeName()) {
+      case LOGICAL_TYPE:
+        return estimatedSizeBytes(typeDescriptor.getLogicalType().getBaseType(), value);
       case ROW:
         return estimatedSizeBytes((Row) value);
       case ARRAY:
@@ -200,5 +202,11 @@ public class RowCoder extends CustomCoder<Row> {
       default:
         return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public Object structuralValue(Row value) {
+    return value;
   }
 }

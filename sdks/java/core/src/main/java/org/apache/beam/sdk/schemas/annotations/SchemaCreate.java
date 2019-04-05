@@ -32,12 +32,12 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * <p>For example, the following Java POJO.
  *
  * <pre><code>
- *   {@literal @}DefaultSchema(JavaBeanSchema.class)
+ * {@literal @}DefaultSchema(JavaBeanSchema.class)
  *  class MyClass {
  *    public final String user;
  *    public final int age;
  *
- *    {@literal @}SchemaCreate
+ *   {@literal @}SchemaCreate
  *    public MyClass(String user, int age) {
  *      this.user = user;
  *      this.age = age;
@@ -53,14 +53,14 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * <pre><code>
  * {@literal @}DefaultSchema(JavaBeanSchema.class)
- * class MyClass {
- *   public final String user;
- *   public final int age;
+ *  class MyClass {
+ *    public final String user;
+ *    public final int age;
  *
- *   private MyClass(String user, int age) { this.user = user; this.age = age; }
+ *    private MyClass(String user, int age) { this.user = user; this.age = age; }
  *
  *   {@literal @}SchemaCreate
- *   public static MyClass create(String user, int age) {
+ *    public static MyClass create(String user, int age) {
  *      return new MyClass(user, age);
  *    }
  * }

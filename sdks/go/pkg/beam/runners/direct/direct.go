@@ -220,8 +220,13 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 	var u exec.Node
 	switch edge.Op {
 	case graph.ParDo:
-		pardo := &exec.ParDo{UID: b.idgen.New(), Fn: edge.DoFn, Inbound: edge.Input, Out: out}
-		pardo.PID = path.Base(pardo.Fn.Name())
+		pardo := &exec.ParDo{
+			UID:     b.idgen.New(),
+			Fn:      edge.DoFn,
+			Inbound: edge.Input,
+			Out:     out,
+			PID:     path.Base(edge.DoFn.Name()),
+		}
 		if len(edge.Input) == 1 {
 			u = pardo
 			break
@@ -249,7 +254,13 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 	case graph.Combine:
 		usesKey := typex.IsKV(edge.Input[0].Type)
 
-		u = &exec.Combine{UID: b.idgen.New(), Fn: edge.CombineFn, UsesKey: usesKey, Out: out[0]}
+		u = &exec.Combine{
+			UID:     b.idgen.New(),
+			Fn:      edge.CombineFn,
+			UsesKey: usesKey,
+			Out:     out[0],
+			PID:     path.Base(edge.CombineFn.Name()),
+		}
 
 	case graph.CoGBK:
 		u = &CoGBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}

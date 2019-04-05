@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Core Java"
@@ -35,6 +35,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
   shadow library.java.joda_time
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")

@@ -35,6 +35,8 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 
 /** Various compression types for reading/writing files. */
 @SuppressWarnings("ImmutableEnumChecker")
@@ -124,6 +126,29 @@ public enum Compression {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       throw new UnsupportedOperationException("Writing ZIP files is currently unsupported");
+    }
+  },
+
+  /**
+   * ZStandard compression.
+   *
+   * <p>The {@code .zst} extension is specified in <a href=https://tools.ietf.org/html/rfc8478>RFC
+   * 8478</a>.
+   *
+   * <p>The Beam Java SDK does not pull in the Zstd library by default, so it is the user's
+   * responsibility to declare an explicit dependency on {@code zstd-jni}. Attempts to read or write
+   * .zst files without {@code zstd-jni} loaded will result in {@code NoClassDefFoundError} at
+   * runtime.
+   */
+  ZSTD(".zst", ".zst", ".zstd") {
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(new ZstdCompressorInputStream(Channels.newInputStream(channel)));
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(new ZstdCompressorOutputStream(Channels.newOutputStream(channel)));
     }
   },
 

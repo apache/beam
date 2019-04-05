@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -51,6 +52,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.fn.control.ProcessRemoteBundleOperation;
 import org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation;
+import org.apache.beam.runners.dataflow.worker.fn.control.TimerReceiver;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortReadOperation;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -345,12 +347,53 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                     outputReceiverMap.put(
                         outputReceiverNode.getPcollectionId(),
                         outputReceiverNode.getOutputReceiver()));
+
+        DataflowOperationContext operationContextStage =
+            executionContext.createOperationContext(
+                NameContext.create(stageName, stageName, stageName, stageName));
+        TimerReceiver timerReceiver =
+            new TimerReceiver(
+                input.getExecutableStage().getComponents(),
+                executionContext.getStepContext(operationContextStage).namespacedToUser(),
+                stageBundleFactory);
+
+        ImmutableMap.Builder<String, DataflowOperationContext>
+            ptransformIdToOperationContextBuilder = ImmutableMap.builder();
+
+        for (Map.Entry<String, NameContext> entry :
+            input.getPTransformIdToPartialNameContextMap().entrySet()) {
+          NameContext fullNameContext =
+              NameContext.create(
+                  stageName,
+                  entry.getValue().originalName(),
+                  entry.getValue().systemName(),
+                  entry.getValue().userName());
+
+          DataflowOperationContext operationContext =
+              executionContext.createOperationContext(fullNameContext);
+          ptransformIdToOperationContextBuilder.put(entry.getKey(), operationContext);
+        }
+
+        ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts =
+            ptransformIdToOperationContextBuilder.build();
+
+        ImmutableMap<String, SideInputReader> ptransformIdToSideInputReaders =
+            buildPTransformIdToSideInputReadersMap(
+                executionContext, input, ptransformIdToOperationContexts);
+
+        Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
+            ptransformIdToSideInputIdToPCollectionView = buildSideInputIdToPCollectionView(input);
+
         return OperationNode.create(
             new ProcessRemoteBundleOperation(
+                input.getExecutableStage(),
                 executionContext.createOperationContext(
                     NameContext.create(stageName, stageName, stageName, stageName)),
                 stageBundleFactory,
-                outputReceiverMap));
+                outputReceiverMap,
+                timerReceiver,
+                ptransformIdToSideInputReaders,
+                ptransformIdToSideInputIdToPCollectionView));
       }
     };
   }
@@ -384,6 +427,19 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
               entry.getKey(), executionContext.getStepContext(operationContext));
         }
 
+        ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContext =
+            ImmutableMap.builder();
+        for (Map.Entry<String, NameContext> entry :
+            input.getPCollectionToPartialNameContextMap().entrySet()) {
+          pcollectionIdToNameContext.put(
+              entry.getKey(),
+              NameContext.create(
+                  stageName,
+                  entry.getValue().originalName(),
+                  entry.getValue().systemName(),
+                  entry.getValue().userName()));
+        }
+
         ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts =
             ptransformIdToOperationContextBuilder.build();
 
@@ -405,6 +461,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                 ptransformIdToStepContext.build(),
                 ptransformIdToSideInputReaders,
                 ptransformIdToSideInputIdToPCollectionView,
+                pcollectionIdToNameContext.build(),
                 // TODO: Set NameContext properly for these operations.
                 executionContext.createOperationContext(
                     NameContext.create(stageName, stageName, stageName, stageName))));
@@ -416,6 +473,33 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
   private static ImmutableMap<String, SideInputReader> buildPTransformIdToSideInputReadersMap(
       DataflowExecutionContext executionContext,
       RegisterRequestNode registerRequestNode,
+      ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts) {
+
+    ImmutableMap.Builder<String, SideInputReader> ptransformIdToSideInputReaders =
+        ImmutableMap.builder();
+    for (Map.Entry<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionView :
+        registerRequestNode.getPTransformIdToPCollectionViewMap().entrySet()) {
+      try {
+        ptransformIdToSideInputReaders.put(
+            ptransformIdToPCollectionView.getKey(),
+            executionContext.getSideInputReader(
+                // Note that the side input infos will only be populated for a batch pipeline
+                registerRequestNode
+                    .getPTransformIdToSideInputInfoMap()
+                    .get(ptransformIdToPCollectionView.getKey()),
+                ptransformIdToPCollectionView.getValue(),
+                ptransformIdToOperationContexts.get(ptransformIdToPCollectionView.getKey())));
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+    return ptransformIdToSideInputReaders.build();
+  }
+
+  /** Returns a map from PTransform id to side input reader. */
+  private static ImmutableMap<String, SideInputReader> buildPTransformIdToSideInputReadersMap(
+      DataflowExecutionContext executionContext,
+      ExecutableStageNode registerRequestNode,
       ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts) {
 
     ImmutableMap.Builder<String, SideInputReader> ptransformIdToSideInputReaders =
@@ -458,6 +542,27 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     }
 
     return ptransformIdToSideInputIdToPCollectionViewBuilder.build();
+  }
+
+  /** Returns a map where key is the SideInput id, value is PCollectionView. */
+  private static Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
+      buildSideInputIdToPCollectionView(ExecutableStageNode executableStageNode) {
+    ImmutableMap.Builder<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
+        sideInputIdToPCollectionViewMapBuilder = ImmutableMap.builder();
+
+    for (Map.Entry<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews :
+        executableStageNode.getPTransformIdToPCollectionViewMap().entrySet()) {
+      for (PCollectionView<?> pCollectionView : ptransformIdToPCollectionViews.getValue()) {
+        sideInputIdToPCollectionViewMapBuilder.put(
+            RunnerApi.ExecutableStagePayload.SideInputId.newBuilder()
+                .setTransformId(ptransformIdToPCollectionViews.getKey())
+                .setLocalName(pCollectionView.getTagInternal().getId())
+                .build(),
+            pCollectionView);
+      }
+    }
+
+    return sideInputIdToPCollectionViewMapBuilder.build();
   }
 
   /**

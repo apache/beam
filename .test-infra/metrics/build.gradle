@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins {
+  id 'org.apache.beam.module'
+  // https://github.com/avast/gradle-docker-compose-plugin
+  id 'com.avast.gradle.docker-compose'
+}
 applyGroovyNature()
 
 repositories { mavenCentral() }
-
-// https://github.com/avast/gradle-docker-compose-plugin
-apply plugin: "com.avast.gradle.docker-compose"
 
 dependencies {
   testCompile library.groovy.groovy_all

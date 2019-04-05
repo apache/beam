@@ -98,7 +98,8 @@ class LeaderBoardIT(unittest.TestCase):
 
     for _ in range(message_count):
       self.pub_client.publish(topic.name,
-                              self.INPUT_EVENT % self._test_timestamp)
+                              (self.INPUT_EVENT % self._test_timestamp
+                              ).encode('utf-8'))
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     include(dependency(library.java.protobuf_java))
@@ -69,6 +69,7 @@ dependencies {
   compile library.java.commons_compress
   compile library.java.commons_lang3
   compile library.java.guava_testlib
+  shadow library.java.antlr
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
@@ -89,4 +90,5 @@ dependencies {
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest library.java.quickcheck_core
   shadowTest library.java.avro_tests
+  shadowTest library.java.zstd_jni
 }

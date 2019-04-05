@@ -19,13 +19,16 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The class that instantiates and manages the execution of a given job. Depending on if the job is
@@ -36,6 +39,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * (translated) job.
  */
 class FlinkPipelineExecutionEnvironment {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);
 
   private final FlinkPipelineOptions options;
 
@@ -76,14 +82,28 @@ class FlinkPipelineExecutionEnvironment {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
-    PipelineTranslationModeOptimizer optimizer = new PipelineTranslationModeOptimizer(options);
-    optimizer.translate(pipeline);
+    final boolean hasUnboundedOutput =
+        PipelineTranslationModeOptimizer.hasUnboundedOutput(pipeline);
+    if (hasUnboundedOutput) {
+      LOG.info("Found unbounded PCollection. Switching to streaming execution.");
+      options.setStreaming(true);
+    }
+
+    // Replace transforms only after determining the execution mode (batch/streaming)
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
+
+    // Needs to be done before creating the Flink ExecutionEnvironments
+    prepareFilesToStageForRemoteClusterExecution(options);
 
     FlinkPipelineTranslator translator;
     if (options.isStreaming()) {
       this.flinkStreamEnv =
           FlinkExecutionEnvironments.createStreamExecutionEnvironment(
               options, options.getFilesToStage());
+      if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
+        LOG.warn(
+            "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
+      }
       translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
       this.flinkBatchEnv =
@@ -91,9 +111,6 @@ class FlinkPipelineExecutionEnvironment {
               options, options.getFilesToStage());
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
-
-    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
-    prepareFilesToStageForRemoteClusterExecution(options);
 
     translator.translate(pipeline);
   }
@@ -107,7 +124,9 @@ class FlinkPipelineExecutionEnvironment {
     if (!options.getFlinkMaster().matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
       options.setFilesToStage(
           PipelineResources.prepareFilesForStaging(
-              options.getFilesToStage(), options.getTempLocation()));
+              options.getFilesToStage(),
+              MoreObjects.firstNonNull(
+                  options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
     }
   }
 
@@ -132,5 +151,15 @@ class FlinkPipelineExecutionEnvironment {
   JobGraph getJobGraph(Pipeline p) {
     translate(p);
     return flinkStreamEnv.getStreamGraph().getJobGraph();
+  }
+
+  @VisibleForTesting
+  ExecutionEnvironment getBatchExecutionEnvironment() {
+    return flinkBatchEnv;
+  }
+
+  @VisibleForTesting
+  StreamExecutionEnvironment getStreamExecutionEnvironment() {
+    return flinkStreamEnv;
   }
 }

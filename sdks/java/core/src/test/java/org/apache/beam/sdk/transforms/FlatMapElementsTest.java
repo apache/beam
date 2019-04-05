@@ -27,11 +27,16 @@ import static org.junit.Assert.assertThat;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.FlatMapElements.FlatMapWithFailures;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionAsMapHandler;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
+import org.apache.beam.sdk.transforms.WithFailures.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -326,5 +331,105 @@ public class FlatMapElementsTest implements Serializable {
     public List<Integer> numAndNegation(int input) {
       return ImmutableList.of(input, -input);
     }
+  }
+
+  /** Test of {@link FlatMapWithFailures} with a pre-built exception handler. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testExceptionAsMap() throws Exception {
+
+    Result<PCollection<Integer>, KV<Integer, Map<String, String>>> result =
+        pipeline
+            .apply(Create.of(0, 2, 3))
+            .apply(
+                FlatMapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> ImmutableList.of(i + 1 / i, -i - 1 / i))
+                    .exceptionsVia(new ExceptionAsMapHandler<Integer>() {}));
+
+    PAssert.that(result.output()).containsInAnyOrder(2, -2, 3, -3);
+    pipeline.run();
+  }
+
+  /** Test of {@link FlatMapWithFailures} with handling defined via lambda expression. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapWithFailuresLambda() {
+    Result<PCollection<Integer>, KV<Integer, String>> result =
+        pipeline
+            .apply(Create.of(0, 2, 3))
+            .apply(
+                FlatMapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> ImmutableList.of(i + 1 / i, -i - 1 / i))
+                    .exceptionsInto(
+                        TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.strings()))
+                    .exceptionsVia(f -> KV.of(f.element(), f.exception().getMessage())));
+
+    PAssert.that(result.output()).containsInAnyOrder(2, -2, 3, -3);
+    PAssert.that(result.failures()).containsInAnyOrder(KV.of(0, "/ by zero"));
+    pipeline.run();
+  }
+
+  /**
+   * Test of {@link FlatMapWithFailures()} with a {@link SimpleFunction} and no {@code into} call.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapWithFailuresSimpleFunction() {
+    Result<PCollection<Integer>, KV<Integer, String>> result =
+        pipeline
+            .apply(Create.of(0, 2, 3))
+            .apply(
+                FlatMapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> ImmutableList.of(i + 1 / i, -i - 1 / i))
+                    .exceptionsVia(
+                        new SimpleFunction<ExceptionElement<Integer>, KV<Integer, String>>() {
+                          @Override
+                          public KV<Integer, String> apply(ExceptionElement<Integer> failure) {
+                            return KV.of(failure.element(), failure.exception().getMessage());
+                          }
+                        }));
+
+    PAssert.that(result.output()).containsInAnyOrder(2, -2, 3, -3);
+    PAssert.that(result.failures()).containsInAnyOrder(KV.of(0, "/ by zero"));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testFlatMapWithFailuresDisplayData() {
+    InferableFunction<Integer, List<Integer>> inferableFn =
+        new InferableFunction<Integer, List<Integer>>() {
+          @Override
+          public List<Integer> apply(Integer input) {
+            return ImmutableList.of(input);
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "baz"));
+          }
+        };
+
+    InferableFunction<ExceptionElement<Integer>, String> exceptionHandler =
+        new InferableFunction<ExceptionElement<Integer>, String>() {
+          @Override
+          public String apply(ExceptionElement<Integer> input) throws Exception {
+            return "";
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("bar", "buz"));
+          }
+        };
+
+    FlatMapWithFailures<?, ?, ?> mapWithFailures =
+        FlatMapElements.via(inferableFn).exceptionsVia(exceptionHandler);
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("class", inferableFn.getClass()));
+    assertThat(
+        DisplayData.from(mapWithFailures),
+        hasDisplayItem("exceptionHandler.class", exceptionHandler.getClass()));
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("foo", "baz"));
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("bar", "buz"));
   }
 }

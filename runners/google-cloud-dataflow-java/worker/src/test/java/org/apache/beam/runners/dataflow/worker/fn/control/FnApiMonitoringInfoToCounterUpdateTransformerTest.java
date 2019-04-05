@@ -25,7 +25,8 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -34,6 +35,10 @@ import org.mockito.MockitoAnnotations;
 public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
 
   @Mock private UserMonitoringInfoToCounterUpdateTransformer mockUserCounterTransformer;
+
+  @Mock
+  private UserDistributionMonitoringInfoToCounterUpdateTransformer
+      mockUserDistributionCounterTransformer;
 
   @Mock private UserMonitoringInfoToCounterUpdateTransformer mockGenericTransformer1;
 
@@ -48,7 +53,9 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
         Collections.EMPTY_MAP;
     FnApiMonitoringInfoToCounterUpdateTransformer testObject =
         new FnApiMonitoringInfoToCounterUpdateTransformer(
-            mockUserCounterTransformer, genericTransformers);
+            mockUserCounterTransformer,
+            mockUserDistributionCounterTransformer,
+            genericTransformers);
 
     CounterUpdate expectedResult = new CounterUpdate();
     when(mockUserCounterTransformer.transform(any())).thenReturn(expectedResult);
@@ -57,7 +64,7 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
             .setUrn("user:prefix:anyNamespace:anyName")
-            .putLabels("PTRANSFORM", "anyValue")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
 
     CounterUpdate result = testObject.transform(monitoringInfo);
@@ -72,16 +79,23 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
     genericTransformers.put(validUrn, mockGenericTransformer1);
 
     when(mockUserCounterTransformer.getSupportedUrnPrefix()).thenReturn("invalid:prefix:");
+    when(mockUserDistributionCounterTransformer.getSupportedUrnPrefix())
+        .thenReturn("invalid:prefix2:");
 
     FnApiMonitoringInfoToCounterUpdateTransformer testObject =
         new FnApiMonitoringInfoToCounterUpdateTransformer(
-            mockUserCounterTransformer, genericTransformers);
+            mockUserCounterTransformer,
+            mockUserDistributionCounterTransformer,
+            genericTransformers);
 
     CounterUpdate expectedResult = new CounterUpdate();
     when(mockGenericTransformer1.transform(any())).thenReturn(expectedResult);
 
     MonitoringInfo monitoringInfo =
-        MonitoringInfo.newBuilder().setUrn(validUrn).putLabels("PTRANSFORM", "anyValue").build();
+        MonitoringInfo.newBuilder()
+            .setUrn(validUrn)
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
+            .build();
 
     CounterUpdate result = testObject.transform(monitoringInfo);
 

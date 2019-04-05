@@ -20,7 +20,9 @@
 
 from __future__ import absolute_import
 
+import collections
 import time
+from functools import reduce
 
 from google.protobuf import timestamp_pb2
 
@@ -29,9 +31,9 @@ from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
 from apache_beam.portability import common_urns
-from apache_beam.portability.api.beam_fn_api_pb2 import CounterData
-from apache_beam.portability.api.beam_fn_api_pb2 import Metric
-from apache_beam.portability.api.beam_fn_api_pb2 import MonitoringInfo
+from apache_beam.portability.api.metrics_pb2 import CounterData
+from apache_beam.portability.api.metrics_pb2 import Metric
+from apache_beam.portability.api.metrics_pb2 import MonitoringInfo
 
 ELEMENT_COUNT_URN = common_urns.monitoring_infos.ELEMENT_COUNT.urn
 START_BUNDLE_MSECS_URN = common_urns.monitoring_infos.START_BUNDLE_MSECS.urn
@@ -40,6 +42,8 @@ FINISH_BUNDLE_MSECS_URN = common_urns.monitoring_infos.FINISH_BUNDLE_MSECS.urn
 TOTAL_MSECS_URN = common_urns.monitoring_infos.TOTAL_MSECS.urn
 USER_COUNTER_URN_PREFIX = (
     common_urns.monitoring_infos.USER_COUNTER_URN_PREFIX.urn)
+USER_DISTRIBUTION_COUNTER_URN_PREFIX = (
+    common_urns.monitoring_infos.USER_DISTRIBUTION_COUNTER_URN_PREFIX.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
@@ -52,6 +56,11 @@ LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
+
+# TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
+PCOLLECTION_LABEL = 'PCOLLECTION'
+PTRANSFORM_LABEL = 'PTRANSFORM'
+TAG_LABEL = 'TAG'
 
 
 def to_timestamp_proto(timestamp_secs):
@@ -101,9 +110,9 @@ def create_labels(ptransform='', tag=''):
   """
   labels = {}
   if tag:
-    labels['TAG'] = tag
+    labels[TAG_LABEL] = tag
   if ptransform:
-    labels['PTRANSFORM'] = ptransform
+    labels[PTRANSFORM_LABEL] = ptransform
   return labels
 
 
@@ -185,6 +194,17 @@ def user_metric_urn(namespace, name):
   return '%s%s:%s' % (USER_COUNTER_URN_PREFIX, namespace, name)
 
 
+def user_distribution_metric_urn(namespace, name):
+  """Returns the metric URN for a user distribution metric,
+  with a proper URN prefix.
+
+  Args:
+    namespace: The namespace of the metric.
+    name: The name of the metric.
+  """
+  return '%s%s:%s' % (USER_DISTRIBUTION_COUNTER_URN_PREFIX, namespace, name)
+
+
 def is_counter(monitoring_info_proto):
   """Returns true if the monitoring info is a coutner metric."""
   return monitoring_info_proto.type in COUNTER_TYPES
@@ -200,9 +220,22 @@ def is_gauge(monitoring_info_proto):
   return monitoring_info_proto.type in GAUGE_TYPES
 
 
+def _is_user_monitoring_info(monitoring_info_proto):
+  return monitoring_info_proto.urn.startswith(
+      USER_COUNTER_URN_PREFIX)
+
+
+def _is_user_distribution_monitoring_info(monitoring_info_proto):
+  return monitoring_info_proto.urn.startswith(
+      USER_DISTRIBUTION_COUNTER_URN_PREFIX)
+
+
 def is_user_monitoring_info(monitoring_info_proto):
   """Returns true if the monitoring info is a user metric."""
-  return monitoring_info_proto.urn.startswith(USER_COUNTER_URN_PREFIX)
+
+  return _is_user_monitoring_info(
+      monitoring_info_proto) or _is_user_distribution_monitoring_info(
+          monitoring_info_proto)
 
 
 def extract_metric_result_map_value(monitoring_info_proto):
@@ -228,9 +261,15 @@ def extract_metric_result_map_value(monitoring_info_proto):
 def parse_namespace_and_name(monitoring_info_proto):
   """Returns the (namespace, name) tuple of the URN in the monitoring info."""
   to_split = monitoring_info_proto.urn
-  if is_user_monitoring_info(monitoring_info_proto):
-    # Remove the URN prefix which indicates that it is a user counter.
-    to_split = monitoring_info_proto.urn[len(USER_COUNTER_URN_PREFIX):]
+
+  # Remove the URN prefix which indicates that it is a user counter.
+  prefix_len = 0
+  if _is_user_distribution_monitoring_info(monitoring_info_proto):
+    prefix_len = len(USER_DISTRIBUTION_COUNTER_URN_PREFIX)
+  elif _is_user_monitoring_info(monitoring_info_proto):
+    prefix_len = len(USER_COUNTER_URN_PREFIX)
+  to_split = monitoring_info_proto.urn[prefix_len:]
+
   # If it is not a user counter, just use the first part of the URN, i.e. 'beam'
   split = to_split.split(':')
   return split[0], ':'.join(split[1:])
@@ -241,6 +280,47 @@ def to_key(monitoring_info_proto):
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.
   """
-  key_items = [i for i in monitoring_info_proto.labels.items()]
+  key_items = list(monitoring_info_proto.labels.items())
   key_items.append(monitoring_info_proto.urn)
   return frozenset(key_items)
+
+
+_KNOWN_COMBINERS = {
+    SUM_INT64_TYPE: lambda a, b: Metric(
+        counter_data=CounterData(
+            int64_value=
+            a.counter_data.int64_value + b.counter_data.int64_value)),
+    # TODO: Distributions, etc.
+}
+
+
+def max_timestamp(a, b):
+  if a.ToNanoseconds() > b.ToNanoseconds():
+    return a
+  else:
+    return b
+
+
+def consolidate(metrics, key=to_key):
+  grouped = collections.defaultdict(list)
+  for metric in metrics:
+    grouped[key(metric)].append(metric)
+  for values in grouped.values():
+    if len(values) == 1:
+      yield values[0]
+    else:
+      combiner = _KNOWN_COMBINERS.get(values[0].type)
+      if combiner:
+        def merge(a, b):
+          # pylint: disable=cell-var-from-loop
+          return MonitoringInfo(
+              urn=a.urn,
+              type=a.type,
+              labels=dict((label, value) for label, value in a.labels.items()
+                          if b.labels.get(label) == value),
+              metric=combiner(a.metric, b.metric),
+              timestamp=max_timestamp(a.timestamp, b.timestamp))
+        yield reduce(merge, values)
+      else:
+        for value in values:
+          yield value

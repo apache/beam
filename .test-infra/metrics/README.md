@@ -17,8 +17,12 @@
     under the License.
 -->
 # BeamMonitoring
-This folder contains files required to deploy the Beam Community metrics stack
-on your local machine.
+This folder contains resources required to deploy the Beam community metrics
+stack.
+
+[Beam community dashboard is available here.](https://s.apache.org/beam-community-metrics)
+
+Whole stack can be deployed on your local machine as well.
 
 This includes
 * Python scripts for ingesting data from sources (Jenkins, JIRA,

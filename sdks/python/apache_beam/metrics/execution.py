@@ -40,6 +40,7 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.monitoring_infos import user_distribution_metric_urn
 from apache_beam.metrics.monitoring_infos import user_metric_urn
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import statesampler
@@ -48,36 +49,38 @@ from apache_beam.runners.worker import statesampler
 class MetricKey(object):
   """Key used to identify instance of metric cell.
 
-  Metrics are internally keyed by the name of the step they're associated with
-  and the name of the metric.
+  Metrics are internally keyed by the name of the step they're associated with,
+  the name and namespace (if it is a user defined metric) of the metric,
+  and any extra label metadata added by the runner specific metric collection
+  service.
   """
-  def __init__(self, step, metric):
+  def __init__(self, step, metric, labels=None):
     """Initializes ``MetricKey``.
 
     Args:
       step: A string with the step this metric cell is part of.
-      metric: A ``MetricName`` that identifies a metric.
+      metric: A ``MetricName`` namespace+name that identifies a metric.
+      labels: An arbitrary set of labels that also identifies the metric.
     """
     self.step = step
     self.metric = metric
+    self.labels = labels if labels else dict()
 
   def __eq__(self, other):
     return (self.step == other.step and
-            self.metric == other.metric)
+            self.metric == other.metric and
+            self.labels == other.labels)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):
-    return hash((self.step, self.metric))
+    return hash((self.step, self.metric, frozenset(self.labels)))
 
   def __repr__(self):
-    return 'MetricKey(step={}, metric={})'.format(
-        self.step, self.metric)
-
-  def __hash__(self):
-    return hash((self.step, self.metric))
+    return 'MetricKey(step={}, metric={}, labels={})'.format(
+        self.step, self.metric, self.labels)
 
 
 class MetricResult(object):
@@ -121,6 +124,16 @@ class MetricResult(object):
   def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
+
+  def __str__(self):
+    return repr(self)
+
+  @property
+  def result(self):
+    """Short-hand for falling back to attempted metrics if it seems that
+    committed was not populated (e.g. due to not being supported on a given
+    runner"""
+    return self.committed if self.committed else self.attempted
 
 
 class _MetricsEnvironment(object):
@@ -233,7 +246,7 @@ class MetricsContainer(object):
 
     for k, v in self.distributions.items():
       all_user_metrics.append(monitoring_infos.int64_distribution(
-          user_metric_urn(k.namespace, k.name),
+          user_distribution_metric_urn(k.namespace, k.name),
           v.get_cumulative().to_runner_api_monitoring_info(),
           ptransform=transform_id
       ))

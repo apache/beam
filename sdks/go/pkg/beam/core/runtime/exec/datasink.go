@@ -61,7 +61,7 @@ func (n *DataSink) StartBundle(ctx context.Context, id string, data DataContext)
 	return nil
 }
 
-func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
 	// Marshal the pieces into a temporary buffer since they must be transmitted on FnAPI as a single
 	// unit.
 	var b bytes.Buffer

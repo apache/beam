@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
@@ -68,7 +69,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Writes partitions to BigQuery tables.
  *
- * <p>The input is a list of files corresponding to each partition of a table. loadThese files are
+ * <p>The input is a list of files corresponding to each partition of a table. These files are
  * loaded into a temporary table (or into the final table if there is only one partition). The
  * output is a {@link KV} mapping each final table to a list of the temporary tables containing its
  * data.
@@ -83,7 +84,7 @@ class WriteTables<DestinationT>
         PCollection<KV<TableDestination, String>>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
-  private final boolean singlePartition;
+  private final boolean tempTable;
   private final BigQueryServices bqServices;
   private final PCollectionView<String> loadJobIdPrefixView;
   private final WriteDisposition firstPaneWriteDisposition;
@@ -95,6 +96,7 @@ class WriteTables<DestinationT>
   private final ValueProvider<String> loadJobProjectId;
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
+  @Nullable private final String kmsKey;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -175,14 +177,24 @@ class WriteTables<DestinationT>
           BigQueryHelpers.createJobId(
               c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
-      if (!singlePartition) {
+      if (tempTable) {
+        // This is a temp table. Create a new one for each partition and each pane.
         tableReference.setTableId(jobIdPrefix);
       }
 
-      WriteDisposition writeDisposition =
-          (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
-      CreateDisposition createDisposition =
-          (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
+      WriteDisposition writeDisposition = firstPaneWriteDisposition;
+      CreateDisposition createDisposition = firstPaneCreateDisposition;
+      if (c.pane().getIndex() > 0 && !tempTable) {
+        // If writing directly to the destination, then the table is created on the first write
+        // and we should change the disposition for subsequent writes.
+        writeDisposition = WriteDisposition.WRITE_APPEND;
+        createDisposition = CreateDisposition.CREATE_NEVER;
+      } else if (tempTable) {
+        // In this case, we are writing to a temp table and always need to create it.
+        // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
+        writeDisposition = WriteDisposition.WRITE_TRUNCATE;
+        createDisposition = CreateDisposition.CREATE_IF_NEEDED;
+      }
 
       BigQueryHelpers.PendingJob retryJob =
           startLoad(
@@ -252,7 +264,7 @@ class WriteTables<DestinationT>
   }
 
   public WriteTables(
-      boolean singlePartition,
+      boolean tempTable,
       BigQueryServices bqServices,
       PCollectionView<String> loadJobIdPrefixView,
       WriteDisposition writeDisposition,
@@ -261,8 +273,9 @@ class WriteTables<DestinationT>
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       @Nullable ValueProvider<String> loadJobProjectId,
       int maxRetryJobs,
-      boolean ignoreUnknownValues) {
-    this.singlePartition = singlePartition;
+      boolean ignoreUnknownValues,
+      String kmsKey) {
+    this.tempTable = tempTable;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
     this.firstPaneWriteDisposition = writeDisposition;
@@ -274,6 +287,7 @@ class WriteTables<DestinationT>
     this.loadJobProjectId = loadJobProjectId;
     this.maxRetryJobs = maxRetryJobs;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.kmsKey = kmsKey;
   }
 
   @Override
@@ -328,6 +342,10 @@ class WriteTables<DestinationT>
             .setIgnoreUnknownValues(ignoreUnknownValues);
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
+    }
+    if (kmsKey != null) {
+      loadConfig.setDestinationEncryptionConfiguration(
+          new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
     String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
     String bqLocation =

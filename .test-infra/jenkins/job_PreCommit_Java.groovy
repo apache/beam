@@ -34,5 +34,23 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
+    recordIssues {
+      tools {
+        errorProne()
+        java()
+        checkStyle {
+          pattern('**/build/reports/checkstyle/*.xml')
+        }
+        configure { node ->
+          node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
+            pattern('**/build/reports/spotbugs/*.xml')
+          }
+       }
+      }
+      enabledForFailure(true)
+    }
+    jacocoCodeCoverage {
+      execPattern('**/build/jacoco/*.exec')
+    }
   }
 }

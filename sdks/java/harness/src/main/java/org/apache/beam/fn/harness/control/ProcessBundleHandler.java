@@ -39,7 +39,6 @@ import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
@@ -47,15 +46,17 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Message;
@@ -224,11 +225,19 @@ public class ProcessBundleHandler {
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ExecutionStateTracker stateTracker =
+        new ExecutionStateTracker(ExecutionStateSampler.instance());
+    PCollectionConsumerRegistry pCollectionConsumerRegistry =
+        new PCollectionConsumerRegistry(metricsContainerRegistry, stateTracker);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, stateTracker, ExecutionStateTracker.START_STATE_NAME);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -293,13 +302,7 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-      // TODO(ajamato): A MetricsContainerImpl should be created and used for each PTransform
-      // or the metric should be registered in some other way with the ptransform name context,
-      // not for the instruction. This fails to associate each user counter with an appropriate
-      // ptransform.
-      MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
-      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
-
+      try (Closeable closeTracker = stateTracker.activate()) {
         // Already in reverse topological order so we don't need to do anything.
         for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
           LOG.debug("Starting function {}", startFunction);
@@ -317,13 +320,25 @@ public class ProcessBundleHandler {
         if (!allResiduals.isEmpty()) {
           response.addAllResidualRoots(allResiduals.values());
         }
+      }
+      // Get start bundle Execution Time Metrics.
+      for (MonitoringInfo mi : startFunctionRegistry.getExecutionTimeMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
+      // Get process bundle Execution Time Metrics.
+      for (MonitoringInfo mi : pCollectionConsumerRegistry.getExecutionTimeMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
 
-        for (MonitoringInfo mi : metricsContainer.getMonitoringInfos()) {
-          response.addMonitoringInfos(mi);
-        }
+      // Get finish bundle Execution Time Metrics.
+      for (MonitoringInfo mi : finishFunctionRegistry.getExecutionTimeMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
+      // Extract all other MonitoringInfos other than the execution time monitoring infos.
+      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
       }
     }
-
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 

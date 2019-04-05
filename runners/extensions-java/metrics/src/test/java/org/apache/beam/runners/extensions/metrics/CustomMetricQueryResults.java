@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -36,105 +37,38 @@ class CustomMetricQueryResults extends MetricQueryResults {
     this.isCommittedSupported = isCommittedSupported;
   }
 
+  public static final String NAMESPACE = "ns1";
+
+  private <T> List<MetricResult<T>> makeResults(
+      String step, String name, T committed, T attempted) {
+    MetricName metricName = MetricName.named(NAMESPACE, name);
+    MetricKey key = MetricKey.create(step, metricName);
+    return Collections.singletonList(
+        isCommittedSupported
+            ? MetricResult.create(key, committed, attempted)
+            : MetricResult.attempted(key, attempted));
+  }
+
   @Override
   public List<MetricResult<Long>> getCounters() {
-    return Collections.singletonList(
-        new MetricResult<Long>() {
-
-          @Override
-          public MetricName getName() {
-            return MetricName.named("ns1", "n1");
-          }
-
-          @Override
-          public String getStep() {
-            return "s1";
-          }
-
-          @Override
-          public Long getCommitted() {
-            if (!isCommittedSupported) {
-              // This is what getCommitted code is like for AccumulatedMetricResult on runners
-              // that do not support committed metrics
-              throw new UnsupportedOperationException(
-                  "This runner does not currently support committed"
-                      + " metrics results. Please use 'attempted' instead.");
-            }
-            return 10L;
-          }
-
-          @Override
-          public Long getAttempted() {
-            return 20L;
-          }
-        });
+    return makeResults("s1", "n1", 10L, 20L);
   }
 
   @Override
   public List<MetricResult<DistributionResult>> getDistributions() {
-    return Collections.singletonList(
-        new MetricResult<DistributionResult>() {
-
-          @Override
-          public MetricName getName() {
-            return MetricName.named("ns1", "n2");
-          }
-
-          @Override
-          public String getStep() {
-            return "s2";
-          }
-
-          @Override
-          public DistributionResult getCommitted() {
-            if (!isCommittedSupported) {
-              // This is what getCommitted code is like for AccumulatedMetricResult on runners
-              // that do not support committed metrics
-              throw new UnsupportedOperationException(
-                  "This runner does not currently support committed"
-                      + " metrics results. Please use 'attempted' instead.");
-            }
-            return DistributionResult.create(10L, 2L, 5L, 8L);
-          }
-
-          @Override
-          public DistributionResult getAttempted() {
-            return DistributionResult.create(25L, 4L, 3L, 9L);
-          }
-        });
+    return makeResults(
+        "s2",
+        "n2",
+        DistributionResult.create(10L, 2L, 5L, 8L),
+        DistributionResult.create(25L, 4L, 3L, 9L));
   }
 
   @Override
   public List<MetricResult<GaugeResult>> getGauges() {
-    return Collections.singletonList(
-        new MetricResult<GaugeResult>() {
-
-          @Override
-          public MetricName getName() {
-            return MetricName.named("ns1", "n3");
-          }
-
-          @Override
-          public String getStep() {
-            return "s3";
-          }
-
-          @Override
-          public GaugeResult getCommitted() {
-            if (!isCommittedSupported) {
-              // This is what getCommitted code is like for AccumulatedMetricResult on runners
-              // that do not support committed metrics
-              throw new UnsupportedOperationException(
-                  "This runner does not currently support committed"
-                      + " metrics results. Please use 'attempted' instead.");
-            }
-            return GaugeResult.create(100L, new Instant(345862800L));
-          }
-
-          @Override
-          public GaugeResult getAttempted() {
-            return GaugeResult.create(120L, new Instant(345862800L));
-          }
-        });
+    return makeResults(
+        "s3",
+        "n3",
+        GaugeResult.create(100L, new Instant(345862800L)),
+        GaugeResult.create(120L, new Instant(345862800L)));
   }
 }

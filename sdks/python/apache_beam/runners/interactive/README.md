@@ -119,7 +119,7 @@ a quick reference). For a more general and complete getting started guide, see
     when you run `setup.py`**
 
 *   ```bash
-    $ git clone git@github.com:apache/beam.git
+    $ git clone https://github.com/apache/beam
     $ cd beam/sdks/python
     $ python setup.py install
     ```
@@ -159,7 +159,7 @@ Or after you've already opend a notebook, change the kernel by clicking
 
 Voila! You can now run Beam pipelines interactively in your Jupyter notebook!
 
-**See [Interactive Beam Example.ipynb](examples/Interactive Beam Example.ipynb)
+**See [Interactive Beam Example.ipynb](examples/Interactive%20Beam%20Example.ipynb)
 for more examples.**
 
 ## Portability
@@ -251,7 +251,7 @@ You can choose to run Interactive Beam on Flink with the following settings.
 **Note**: Python Flink Runner (combination of PortableRunner and FlinkService)
 is being actively developed now, so these setups and commands are subject to
 changes. This guide and
-[Interactive Beam Running on Flink.ipynb](exampls/Interactive Beam Running on Flink.ipynb)
+[Interactive Beam Running on Flink.ipynb](examples/Interactive%20Beam%20Running%20on%20Flink.ipynb)
 capture the status of the world when it's last updated.
 
 ## TL;DR;

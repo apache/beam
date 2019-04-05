@@ -27,11 +27,13 @@ from builtins import object
 
 import google.protobuf.wrappers_pb2
 from future.moves import pickle
+from past.builtins import unicode
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -161,6 +163,9 @@ class Coder(object):
       del d['_impl']
       return d
     return self.__dict__
+
+  def to_type_hint(self):
+    raise NotImplementedError('BEAM-2717')
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):
@@ -321,6 +326,13 @@ class StrUtf8Coder(Coder):
   def is_deterministic(self):
     return True
 
+  def to_type_hint(self):
+    return unicode
+
+
+Coder.register_structured_urn(
+    common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
+
 
 class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
@@ -376,6 +388,9 @@ class BytesCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def to_type_hint(self):
+    return bytes
+
   def as_cloud_object(self, coders_context=None):
     return {
         '@type': 'kind:bytes',
@@ -399,6 +414,9 @@ class VarIntCoder(FastCoder):
 
   def is_deterministic(self):
     return True
+
+  def to_type_hint(self):
+    return int
 
   def as_cloud_object(self, coders_context=None):
     return {
@@ -424,11 +442,17 @@ class FloatCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def to_type_hint(self):
+    return float
+
   def __eq__(self, other):
     return type(self) == type(other)
 
   def __hash__(self):
     return hash(type(self))
+
+
+Coder.register_structured_urn(common_urns.coders.DOUBLE.urn, FloatCoder)
 
 
 class TimestampCoder(FastCoder):
@@ -568,6 +592,9 @@ class PickleCoder(_PickleCoderBase):
   def as_deterministic_coder(self, step_label, error_message=None):
     return DeterministicFastPrimitivesCoder(self, step_label)
 
+  def to_type_hint(self):
+    return typehints.Any
+
 
 class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
@@ -599,6 +626,9 @@ class DeterministicFastPrimitivesCoder(FastCoder):
   def value_coder(self):
     return self
 
+  def to_type_hint(self):
+    return typehints.Any
+
 
 class FastPrimitivesCoder(FastCoder):
   """Encodes simple primitives (e.g. str, int) efficiently.
@@ -620,6 +650,9 @@ class FastPrimitivesCoder(FastCoder):
       return self
     else:
       return DeterministicFastPrimitivesCoder(self, step_label)
+
+  def to_type_hint(self):
+    return typehints.Any
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
     value = super(FastCoder, self).as_cloud_object(coders_context)
@@ -745,6 +778,9 @@ class TupleCoder(FastCoder):
     else:
       return TupleCoder([c.as_deterministic_coder(step_label, error_message)
                          for c in self._coders])
+
+  def to_type_hint(self):
+    return typehints.Tuple[tuple(c.to_type_hint() for c in self._coders)]
 
   @staticmethod
   def from_type_hint(typehint, registry):
@@ -877,6 +913,9 @@ class IterableCoder(FastCoder):
 
   def value_coder(self):
     return self._elem_coder
+
+  def to_type_hint(self):
+    return typehints.Iterable[self._elem_coder.to_type_hint()]
 
   @staticmethod
   def from_type_hint(typehint, registry):

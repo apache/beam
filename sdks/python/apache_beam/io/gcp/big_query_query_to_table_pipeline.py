@@ -48,21 +48,26 @@ def run_bq_pipeline(argv=None):
   parser.add_argument('--use_standard_sql', action='store_true',
                       dest='use_standard_sql',
                       help='Output BQ table to write results to.')
+  parser.add_argument('--kms_key', default=None,
+                      help='Use this Cloud KMS key with BigQuery.')
+
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   table_schema = parse_table_schema_from_json(known_args.output_schema)
+  kms_key = known_args.kms_key
 
   p = TestPipeline(options=PipelineOptions(pipeline_args))
 
   # pylint: disable=expression-not-assigned
   # pylint: disable=bad-continuation
   (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-      query=known_args.query, use_standard_sql=known_args.use_standard_sql))
-   | 'write' >> beam.io.Write(beam.io.BigQuerySink(
+      query=known_args.query, use_standard_sql=known_args.use_standard_sql,
+      kms_key=kms_key))
+   | 'write' >> beam.io.WriteToBigQuery(
            known_args.output,
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY)))
+           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   result = p.run()
   result.wait_until_finish()

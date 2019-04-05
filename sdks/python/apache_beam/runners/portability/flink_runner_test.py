@@ -28,6 +28,7 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 import apache_beam as beam
+from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
@@ -44,6 +45,7 @@ if __name__ == '__main__':
   #     --flink_job_server_jar=/path/to/job_server.jar \
   #     --type=Batch \
   #     --environment_type=docker \
+  #     --extra_experiments=beam_experiments \
   #     [FlinkRunnerTest.test_method, ...]
 
   parser = argparse.ArgumentParser(add_help=True)
@@ -54,6 +56,8 @@ if __name__ == '__main__':
   parser.add_argument('--environment_type', default='docker',
                       help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
+  parser.add_argument('--extra_experiments', default=[], action='append',
+                      help='Beam experiments config.')
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
@@ -62,6 +66,7 @@ if __name__ == '__main__':
   environment_type = known_args.environment_type.lower()
   environment_config = (
       known_args.environment_config if known_args.environment_config else None)
+  extra_experiments = known_args.extra_experiments
 
   # This is defined here to only be run when we invoke this file explicitly.
   class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
@@ -69,6 +74,7 @@ if __name__ == '__main__':
     _use_subprocesses = True
 
     conf_dir = None
+    expansion_port = None
 
     @classmethod
     def tearDownClass(cls):
@@ -101,12 +107,13 @@ if __name__ == '__main__':
           ]))
 
     @classmethod
-    def _subprocess_command(cls, port):
+    def _subprocess_command(cls, job_port, expansion_port):
       # will be cleaned up at the end of this method, and recreated and used by
       # the job server
       tmp_dir = mkdtemp(prefix='flinktest')
 
       cls._create_conf_dir()
+      cls.expansion_port = expansion_port
 
       try:
         return [
@@ -115,8 +122,9 @@ if __name__ == '__main__':
             '--flink-master-url', '[local]',
             '--flink-conf-dir', cls.conf_dir,
             '--artifacts-dir', tmp_dir,
-            '--job-port', str(port),
+            '--job-port', str(job_port),
             '--artifact-port', '0',
+            '--expansion-port', str(expansion_port),
         ]
       finally:
         rmtree(tmp_dir)
@@ -127,7 +135,8 @@ if __name__ == '__main__':
 
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
-      options.view_as(DebugOptions).experiments = ['beam_fn_api']
+      options.view_as(DebugOptions).experiments = [
+          'beam_fn_api'] + extra_experiments
       options._all_options['parallelism'] = 1
       options._all_options['shutdown_sources_on_final_watermark'] = True
       options.view_as(PortableOptions).environment_type = (
@@ -148,18 +157,20 @@ if __name__ == '__main__':
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
 
-    def test_assert_that(self):
-      # We still want to make sure asserts fail, even if the message
-      # isn't right (BEAM-6019).
-      with self.assertRaises(Exception):
-        with self.create_pipeline() as p:
-          assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
+    def test_external_transform(self):
+      options = self.create_options()
+      options._all_options['parallelism'] = 1
+      options._all_options['streaming'] = True
 
-    def test_error_message_includes_stage(self):
-      raise unittest.SkipTest("BEAM-6019")
+      expansion_address = "localhost:" + str(FlinkRunnerTest.expansion_port)
 
-    def test_error_traceback_includes_user_code(self):
-      raise unittest.SkipTest("BEAM-6019")
+      with self.create_pipeline() as p:
+        res = (
+            p
+            | GenerateSequence(start=1, stop=10,
+                               expansion_service=expansion_address))
+
+        assert_that(res, equal_to([i for i in range(1, 10)]))
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding
@@ -205,6 +216,15 @@ if __name__ == '__main__':
             msg='Failed to find expected counter %s in line %s' % (
                 counter_name, line)
         )
+
+    def test_sdf(self):
+      raise unittest.SkipTest("BEAM-2939")
+
+    def test_callbacks_with_exception(self):
+      raise unittest.SkipTest("BEAM-6868")
+
+    def test_register_finalizations(self):
+      raise unittest.SkipTest("BEAM-6868")
 
     # Inherits all other tests.
 

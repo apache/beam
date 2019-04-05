@@ -20,6 +20,7 @@ package org.apache.beam.sdk.options;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /**
  * Apache Beam provides a number of experimental features that can be enabled with this flag. If
@@ -46,5 +47,17 @@ public interface ExperimentalOptions extends PipelineOptions {
 
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     return experiments != null && experiments.contains(experiment);
+  }
+
+  /** Adds experiment to options if not already present. */
+  static void addExperiment(ExperimentalOptions options, String experiment) {
+    List<String> experiments = options.getExperiments();
+    if (experiments == null) {
+      experiments = Lists.newArrayList();
+    }
+    if (!experiments.contains(experiment)) {
+      experiments.add(experiment);
+    }
+    options.setExperiments(experiments);
   }
 }

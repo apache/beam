@@ -60,12 +60,12 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -230,7 +230,7 @@ class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static class ValueWithRecordIdKeySelector<T>
+  static class ValueWithRecordIdKeySelector<T>
       implements KeySelector<WindowedValue<ValueWithRecordId<T>>, ByteBuffer>,
           ResultTypeQueryable<ByteBuffer> {
 
@@ -417,7 +417,8 @@ class FlinkStreamingTransformTranslators {
           Map<TupleTag<?>, Coder<?>> outputCoders,
           Coder keyCoder,
           KeySelector<WindowedValue<InputT>, ?> keySelector,
-          Map<Integer, PCollectionView<?>> transformedSideInputs);
+          Map<Integer, PCollectionView<?>> transformedSideInputs,
+          DoFnSchemaInformation doFnSchemaInformation);
     }
 
     static <InputT, OutputT> void translateParDo(
@@ -428,6 +429,7 @@ class FlinkStreamingTransformTranslators {
         Map<TupleTag<?>, PValue> outputs,
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
+        DoFnSchemaInformation doFnSchemaInformation,
         FlinkStreamingTranslationContext context,
         DoFnOperatorFactory<InputT, OutputT> doFnOperatorFactory) {
 
@@ -505,7 +507,8 @@ class FlinkStreamingTransformTranslators {
                 outputCoders,
                 keyCoder,
                 keySelector,
-                new HashMap<>() /* side-input mapping */);
+                new HashMap<>() /* side-input mapping */,
+                doFnSchemaInformation);
 
         outputStream =
             inputDataStream.transform(transformName, outputTypeInformation, doFnOperator);
@@ -531,7 +534,8 @@ class FlinkStreamingTransformTranslators {
                 outputCoders,
                 keyCoder,
                 keySelector,
-                transformedSideInputs.f0);
+                transformedSideInputs.f0,
+                doFnSchemaInformation);
 
         if (stateful) {
           // we have to manually construct the two-input transform because we're not
@@ -617,6 +621,9 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
+      DoFnSchemaInformation doFnSchemaInformation;
+      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
       ParDoTranslationHelper.translateParDo(
           getCurrentTransformName(context),
           doFn,
@@ -625,6 +632,7 @@ class FlinkStreamingTransformTranslators {
           context.getOutputs(transform),
           mainOutputTag,
           additionalOutputTags.getAll(),
+          doFnSchemaInformation,
           context,
           (doFn1,
               stepName,
@@ -641,7 +649,8 @@ class FlinkStreamingTransformTranslators {
               outputCoders1,
               keyCoder,
               keySelector,
-              transformedSideInputs) ->
+              transformedSideInputs,
+              doFnSchemaInformation1) ->
               new DoFnOperator<>(
                   doFn1,
                   stepName,
@@ -657,19 +666,20 @@ class FlinkStreamingTransformTranslators {
                   sideInputs1,
                   context1.getPipelineOptions(),
                   keyCoder,
-                  keySelector));
+                  keySelector,
+                  doFnSchemaInformation1));
     }
   }
 
   private static class SplittableProcessElementsStreamingTranslator<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
+          InputT, OutputT, RestrictionT, PositionT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
           SplittableParDoViaKeyedWorkItems.ProcessElements<
-              InputT, OutputT, RestrictionT, TrackerT>> {
+              InputT, OutputT, RestrictionT, PositionT>> {
 
     @Override
     public void translateNode(
-        SplittableParDoViaKeyedWorkItems.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>
+        SplittableParDoViaKeyedWorkItems.ProcessElements<InputT, OutputT, RestrictionT, PositionT>
             transform,
         FlinkStreamingTranslationContext context) {
 
@@ -681,6 +691,7 @@ class FlinkStreamingTransformTranslators {
           context.getOutputs(transform),
           transform.getMainOutputTag(),
           transform.getAdditionalOutputTags().getAll(),
+          DoFnSchemaInformation.create(),
           context,
           (doFn,
               stepName,
@@ -697,7 +708,8 @@ class FlinkStreamingTransformTranslators {
               outputCoders1,
               keyCoder,
               keySelector,
-              transformedSideInputs) ->
+              transformedSideInputs,
+              doFnSchemaInformation) ->
               new SplittableDoFnOperator<>(
                   doFn,
                   stepName,
@@ -1291,7 +1303,7 @@ class FlinkStreamingTransformTranslators {
       return unboundedSourceWrapper;
     }
 
-    private UnboundedSourceWrapperNoValueWithRecordId(
+    UnboundedSourceWrapperNoValueWithRecordId(
         UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper) {
       this.unboundedSourceWrapper = unboundedSourceWrapper;
     }

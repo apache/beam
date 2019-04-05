@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -90,7 +89,7 @@ public interface DoFnInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> TrackerT invokeNewTracker(
+  <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> invokeNewTracker(
       RestrictionT restriction);
 
   /** Get the bound {@link DoFn}. */
@@ -136,14 +135,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a link to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a link to the input element. */
+    Object schemaElement(DoFn<InputT, OutputT> doFn);
+
     /** Provide a link to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
-
-    /**
-     * Provides a link to the input element converted to a {@link Row} object. The input collection
-     * must have a schema registered for this to be called.
-     */
-    Row asRow(@Nullable String id);
 
     /** Provide a link to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
@@ -192,7 +188,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public Row asRow(@Nullable String id) {
+    public InputT schemaElement(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

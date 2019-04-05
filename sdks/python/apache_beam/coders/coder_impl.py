@@ -95,6 +95,17 @@ class CoderImpl(object):
     """Decodes an object to an unnested string."""
     raise NotImplementedError
 
+  def encode_all(self, values):
+    out = create_OutputStream()
+    for value in values:
+      self.encode_to_stream(value, out, True)
+    return out.get()
+
+  def decode_all(self, encoded):
+    input_stream = create_InputStream(encoded)
+    while input_stream.size() > 0:
+      yield self.decode_from_stream(input_stream, True)
+
   def encode_nested(self, value):
     out = create_OutputStream()
     self.encode_to_stream(value, out, True)
@@ -940,7 +951,12 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
-            restore_sign * (abs(wv.timestamp_micros) // 1000)))
+            restore_sign * (
+                abs(
+                    MIN_TIMESTAMP_micros
+                    if wv.timestamp_micros < MIN_TIMESTAMP_micros
+                    else wv.timestamp_micros
+                ) // 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     self._pane_info_coder.encode_to_stream(wv.pane_info, out, True)

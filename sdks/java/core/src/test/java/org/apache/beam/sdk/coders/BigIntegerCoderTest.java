@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.math.BigInteger;
@@ -87,5 +88,12 @@ public class BigIntegerCoderTest {
     thrown.expectMessage("cannot encode a null BigInteger");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
+  }
+
+  @Test
+  public void testStructuralValueReturnTheSameValue() {
+    BigInteger expected = BigInteger.valueOf(223L);
+    Object actual = TEST_CODER.structuralValue(expected);
+    assertEquals(expected, actual);
   }
 }

@@ -252,6 +252,7 @@ public class TextIO {
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNumShards(0)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -629,6 +630,9 @@ public class TextIO {
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
+    /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
+    abstract boolean getNoSpilling();
+
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -672,6 +676,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setNumShards(int numShards);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -899,6 +905,11 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public TypedWrite<UserT, DestinationT> withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -980,6 +991,9 @@ public class TextIO {
       }
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
+      }
+      if (getNoSpilling()) {
+        write = write.withNoSpilling();
       }
       return input.apply("WriteFiles", write);
     }
@@ -1145,6 +1159,11 @@ public class TextIO {
       return new Write(inner.withWindowedWrites());
     }
 
+    /** See {@link TypedWrite#withNoSpilling}. */
+    public Write withNoSpilling() {
+      return new Write(inner.withNoSpilling());
+    }
+
     /**
      * Specify that output filenames are wanted.
      *
@@ -1191,7 +1210,10 @@ public class TextIO {
     /** @see Compression#ZIP */
     ZIP(Compression.ZIP),
 
-    /** @see Compression#ZIP */
+    /** @see Compression#ZSTD */
+    ZSTD(Compression.ZSTD),
+
+    /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
     private final Compression canonical;

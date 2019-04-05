@@ -260,7 +260,12 @@ public class SdkHarnessClient implements AutoCloseable {
       try {
         // We don't have to worry about the completion stage.
         if (exception == null) {
-          progressHandler.onCompleted(MoreFutures.get(response));
+          BeamFnApi.ProcessBundleResponse completedResponse = MoreFutures.get(response);
+          progressHandler.onCompleted(completedResponse);
+          if (completedResponse.getResidualRootsCount() > 0) {
+            throw new IllegalStateException(
+                "TODO: [BEAM-2939] residual roots in process bundle response not yet supported.");
+          }
         } else {
           // TODO: [BEAM-3962] Handle aborting the bundle being processed.
           throw new IllegalStateException(

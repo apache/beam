@@ -22,10 +22,11 @@
 // https://github.com/GoogleCloudPlatform/cloud-opensource-java/blob/master/library-best-practices/JLBP-15.md
 // for more details on BOMs.
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-
-apply plugin: "java"
-apply plugin: "maven-publish"
+plugins {
+  id 'org.apache.beam.module'
+  id 'java'
+  id 'maven-publish'
+}
 
 def isRelease(Project project) {
   return project.hasProperty('isRelease')
@@ -105,7 +106,6 @@ afterEvaluate {
     publications {
       mavenJava(MavenPublication) {
         version = project.version
-        artifact mavenJavaBomOutputFile
       }
     }
     repositories project.ext.repositories

@@ -21,17 +21,27 @@ from __future__ import absolute_import
 import decimal
 import json
 import logging
+import random
 import re
+import time
 import unittest
 
 import hamcrest as hc
 import mock
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.options import value_provider
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
@@ -274,176 +284,6 @@ class TestBigQuerySink(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class WriteToBigQuery(unittest.TestCase):
 
-  def test_dofn_client_start_bundle_called(self):
-    client = mock.Mock()
-    client.tables.Get.return_value = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
-    schema = {'fields': [
-        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
-
-    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
-        table_id='table_id',
-        dataset_id='dataset_id',
-        project_id='project_id',
-        batch_size=2,
-        schema=schema,
-        create_disposition=create_disposition,
-        write_disposition=write_disposition,
-        test_client=client)
-
-    fn.start_bundle()
-    self.assertTrue(client.tables.Get.called)
-
-  def test_dofn_client_start_bundle_create_called(self):
-    client = mock.Mock()
-    client.tables.Get.return_value = None
-    client.tables.Insert.return_value = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
-    schema = {'fields': [
-        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
-
-    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
-        table_id='table_id',
-        dataset_id='dataset_id',
-        project_id='project_id',
-        batch_size=2,
-        schema=schema,
-        create_disposition=create_disposition,
-        write_disposition=write_disposition,
-        test_client=client)
-
-    fn.start_bundle()
-    self.assertTrue(client.tables.Get.called)
-    self.assertTrue(client.tables.Insert.called)
-
-  def test_dofn_client_process_performs_batching(self):
-    client = mock.Mock()
-    client.tables.Get.return_value = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = \
-        bigquery.TableDataInsertAllResponse(insertErrors=[])
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
-    schema = {'fields': [
-        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
-
-    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
-        table_id='table_id',
-        dataset_id='dataset_id',
-        project_id='project_id',
-        batch_size=2,
-        schema=schema,
-        create_disposition=create_disposition,
-        write_disposition=write_disposition,
-        test_client=client)
-
-    fn.start_bundle()
-    fn.process({'month': 1})
-
-    self.assertTrue(client.tables.Get.called)
-    # InsertRows not called as batch size is not hit yet
-    self.assertFalse(client.tabledata.InsertAll.called)
-
-  def test_dofn_client_process_flush_called(self):
-    client = mock.Mock()
-    client.tables.Get.return_value = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = (
-        bigquery.TableDataInsertAllResponse(insertErrors=[]))
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
-    schema = {'fields': [
-        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
-
-    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
-        table_id='table_id',
-        dataset_id='dataset_id',
-        project_id='project_id',
-        batch_size=2,
-        schema=schema,
-        create_disposition=create_disposition,
-        write_disposition=write_disposition,
-        test_client=client)
-
-    fn.start_bundle()
-    fn.process({'month': 1})
-    fn.process({'month': 2})
-    self.assertTrue(client.tables.Get.called)
-    # InsertRows called as batch size is hit
-    self.assertTrue(client.tabledata.InsertAll.called)
-
-  def test_dofn_client_finish_bundle_flush_called(self):
-    client = mock.Mock()
-    client.tables.Get.return_value = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = \
-        bigquery.TableDataInsertAllResponse(insertErrors=[])
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
-    schema = {'fields': [
-        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
-
-    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
-        table_id='table_id',
-        dataset_id='dataset_id',
-        project_id='project_id',
-        batch_size=2,
-        schema=schema,
-        create_disposition=create_disposition,
-        write_disposition=write_disposition,
-        test_client=client)
-
-    fn.start_bundle()
-    fn.process({'month': 1})
-
-    self.assertTrue(client.tables.Get.called)
-    # InsertRows not called as batch size is not hit
-    self.assertFalse(client.tabledata.InsertAll.called)
-
-    fn.finish_bundle()
-    # InsertRows called in finish bundle
-    self.assertTrue(client.tabledata.InsertAll.called)
-
-  def test_dofn_client_no_records(self):
-    client = mock.Mock()
-    client.tables.Get.return_value = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = \
-        bigquery.TableDataInsertAllResponse(insertErrors=[])
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
-    schema = {'fields': [
-        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
-
-    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
-        table_id='table_id',
-        dataset_id='dataset_id',
-        project_id='project_id',
-        batch_size=2,
-        schema=schema,
-        create_disposition=create_disposition,
-        write_disposition=write_disposition,
-        test_client=client)
-
-    fn.start_bundle()
-    self.assertTrue(client.tables.Get.called)
-    # InsertRows not called as batch size is not hit
-    self.assertFalse(client.tabledata.InsertAll.called)
-
-    fn.finish_bundle()
-    # InsertRows not called in finish bundle as no records
-    self.assertFalse(client.tabledata.InsertAll.called)
-
   def test_noop_schema_parsing(self):
     expected_table_schema = None
     table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(
@@ -528,6 +368,237 @@ class WriteToBigQuery(unittest.TestCase):
     dict_schema = (
         beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
     self.assertEqual(expected_dict_schema, dict_schema)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class BigQueryStreamingInsertTransformTests(unittest.TestCase):
+
+  def test_dofn_client_process_performs_batching(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = \
+      bigquery.TableDataInsertAllResponse(insertErrors=[])
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        batch_size=2,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        kms_key=None,
+        test_client=client)
+
+    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
+
+    # InsertRows not called as batch size is not hit yet
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+  def test_dofn_client_process_flush_called(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = (
+        bigquery.TableDataInsertAllResponse(insertErrors=[]))
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        batch_size=2,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        kms_key=None,
+        test_client=client)
+
+    fn.start_bundle()
+    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
+    fn.process(('project_id:dataset_id.table_id', {'month': 2}))
+    # InsertRows called as batch size is hit
+    self.assertTrue(client.tabledata.InsertAll.called)
+
+  def test_dofn_client_finish_bundle_flush_called(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = \
+      bigquery.TableDataInsertAllResponse(insertErrors=[])
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        batch_size=2,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        kms_key=None,
+        test_client=client)
+
+    fn.start_bundle()
+
+    # Destination is a tuple of (destination, schema) to ensure the table is
+    # created.
+    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
+
+    self.assertTrue(client.tables.Get.called)
+    # InsertRows not called as batch size is not hit
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+    fn.finish_bundle()
+    # InsertRows called in finish bundle
+    self.assertTrue(client.tabledata.InsertAll.called)
+
+  def test_dofn_client_no_records(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = \
+      bigquery.TableDataInsertAllResponse(insertErrors=[])
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        batch_size=2,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        kms_key=None,
+        test_client=client)
+
+    fn.start_bundle()
+    # InsertRows not called as batch size is not hit
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+    fn.finish_bundle()
+    # InsertRows not called in finish bundle as no records
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+
+class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
+  BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
+
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.test_pipeline.get_option('project')
+
+    self.dataset_id = '%s%s%d' % (self.BIG_QUERY_DATASET_ID,
+                                  str(int(time.time())),
+                                  random.randint(0, 10000))
+    self.bigquery_client = bigquery_tools.BigQueryWrapper()
+    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
+    self.output_table = "%s.output_table" % (self.dataset_id)
+    logging.info("Created dataset %s in project %s",
+                 self.dataset_id, self.project)
+
+  @attr('IT')
+  def test_value_provider_transform(self):
+    output_table_1 = '%s%s' % (self.output_table, 1)
+    output_table_2 = '%s%s' % (self.output_table, 2)
+    schema = {'fields': [
+        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_1,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_2,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink')
+
+    with beam.Pipeline(argv=args) as p:
+      input = p | beam.Create([row for row in _ELEMENTS if 'language' in row])
+
+      _ = (input
+           | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
+               table=value_provider.StaticValueProvider(
+                   str, '%s:%s' % (self.project, output_table_1)),
+               schema=value_provider.StaticValueProvider(dict, schema),
+               method='STREAMING_INSERTS'))
+      _ = (input
+           | "WriteWithMultipleDests2" >> beam.io.gcp.bigquery.WriteToBigQuery(
+               table=value_provider.StaticValueProvider(
+                   str, '%s:%s' % (self.project, output_table_2)),
+               method='FILE_LOADS'))
+
+  @attr('IT')
+  def test_multiple_destinations_transform(self):
+    output_table_1 = '%s%s' % (self.output_table, 1)
+    output_table_2 = '%s%s' % (self.output_table, 2)
+
+    full_output_table_1 = '%s:%s' % (self.project, output_table_1)
+    full_output_table_2 = '%s:%s' % (self.project, output_table_2)
+
+    schema1 = {'fields': [
+        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+    schema2 = {'fields': [
+        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'foundation', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+
+    bad_record = {'language': 1, 'manguage': 2}
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_1,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_2,
+            data=[(d['name'], d['foundation'])
+                  for d in _ELEMENTS
+                  if 'foundation' in d])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink')
+
+    with beam.Pipeline(argv=args) as p:
+      input = p | beam.Create(_ELEMENTS)
+
+      input2 = p | "Broken record" >> beam.Create([bad_record])
+
+      input = (input, input2) | beam.Flatten()
+
+      r = (input
+           | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
+               table=lambda x: (full_output_table_1
+                                if 'language' in x
+                                else full_output_table_2),
+               schema=lambda dest: (schema1
+                                    if dest == full_output_table_1
+                                    else schema2),
+               method='STREAMING_INSERTS'))
+
+      assert_that(r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
+                  equal_to([(full_output_table_1, bad_record)]))
+
+  def tearDown(self):
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=self.project, datasetId=self.dataset_id,
+        deleteContents=True)
+    try:
+      logging.info("Deleting dataset %s in project %s",
+                   self.dataset_id, self.project)
+      self.bigquery_client.client.datasets.Delete(request)
+    except HttpError:
+      logging.debug('Failed to clean up dataset %s in project %s',
+                    self.dataset_id, self.project)
 
 
 if __name__ == '__main__':

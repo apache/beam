@@ -19,10 +19,13 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
@@ -30,6 +33,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Shuffle
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.TimestampExtractTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -41,6 +45,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.joda.time.Duration;
 
 /**
@@ -51,7 +56,7 @@ import org.joda.time.Duration;
  * <ol>
  *   <li>{@code [named] ..................} give name to the operator [optional]
  *   <li>{@code of .......................} input dataset
- *   <li>{@code [mapped] .................} compare objects retrieved by this {@link UnaryFunction}
+ *   <li>{@code [projected] ..............} compare objects retrieved by this {@link UnaryFunction}
  *       instead of raw input elements
  *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
  *       windowing
@@ -68,8 +73,8 @@ import org.joda.time.Duration;
             + "(e.g. using bloom filters), which might reduce the space complexity",
     state = StateComplexity.CONSTANT,
     repartitions = 1)
-public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, OutputT>
-    implements CompositeOperator<InputT, OutputT> {
+public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT>
+    implements CompositeOperator<InputT, InputT> {
 
   /**
    * Starts building a nameless {@link Distinct} operator to process the given input dataset.
@@ -80,7 +85,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
    * @see #named(String)
    * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> MappedBuilder<InputT, InputT> of(PCollection<InputT> input) {
+  public static <InputT> ProjectedBuilder<InputT, InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -98,11 +103,28 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> MappedBuilder<InputT, InputT> of(PCollection<InputT> input);
+    <InputT> ProjectedBuilder<InputT, InputT> of(PCollection<InputT> input);
   }
 
-  /** Builder for the 'mapped' step. */
-  public interface MappedBuilder<InputT, OutputT> extends WindowByBuilder<OutputT> {
+  /**
+   * A policy to be applied when multiple elements exist for the same comparison key. Note that this
+   * can be specified only when specifying the projection, because otherwise complete elements are
+   * compared and therefore it makes no sense to select between identical elements.
+   */
+  public enum SelectionPolicy {
+
+    /** Select any element (non deterministically). */
+    ANY,
+
+    /** Select element with lowest timestamp. */
+    OLDEST,
+
+    /** Select element with highest timestamp. */
+    NEWEST
+  }
+
+  /** Builder for the 'projected' step. */
+  public interface ProjectedBuilder<InputT, KeyT> extends WindowByBuilder<InputT, KeyT> {
 
     /**
      * Optionally specifies a function to transform the input elements into another type among which
@@ -111,184 +133,282 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
      * <p>This is, while windowing will be applied on basis of original input elements, the distinct
      * operator will be carried out on the transformed elements.
      *
-     * @param <T> the type of the transformed elements
-     * @param mapper a transform function applied to input element
+     * @param <KeyT> the type of the transformed elements
+     * @param transform a transform function applied to input element
      * @return the next builder to complete the setup of the {@link Distinct} operator
      */
-    default <T> WindowByBuilder<T> mapped(UnaryFunction<InputT, T> mapper) {
-      return mapped(mapper, null);
+    default <KeyT> WindowByBuilder<InputT, KeyT> projected(UnaryFunction<InputT, KeyT> transform) {
+      return projected(transform, SelectionPolicy.ANY, null);
     }
 
-    <T> WindowByBuilder<T> mapped(
-        UnaryFunction<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType);
+    default <KeyT> WindowByBuilder<InputT, KeyT> projected(
+        UnaryFunction<InputT, KeyT> transform, TypeDescriptor<KeyT> projectedType) {
+
+      return projected(transform, SelectionPolicy.ANY, requireNonNull(projectedType));
+    }
+
+    default <KeyT> WindowByBuilder<InputT, KeyT> projected(
+        UnaryFunction<InputT, KeyT> transform, SelectionPolicy policy) {
+
+      return projected(transform, policy, null);
+    }
+
+    <KeyT> WindowByBuilder<InputT, KeyT> projected(
+        UnaryFunction<InputT, KeyT> transform,
+        SelectionPolicy policy,
+        @Nullable TypeDescriptor<KeyT> projectedType);
   }
 
   /** Builder for the 'windowBy' step. */
-  public interface WindowByBuilder<OutputT>
-      extends Builders.WindowBy<TriggerByBuilder<OutputT>>,
-          OptionalMethodBuilder<WindowByBuilder<OutputT>, Builders.Output<OutputT>>,
-          Builders.Output<OutputT> {
+  public interface WindowByBuilder<InputT, KeyT>
+      extends Builders.WindowBy<TriggerByBuilder<InputT>>,
+          OptionalMethodBuilder<WindowByBuilder<InputT, KeyT>, Builders.Output<InputT>>,
+          Builders.Output<InputT> {
 
     @Override
-    <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(WindowFn<Object, T> windowing);
+    <W extends BoundedWindow> TriggerByBuilder<InputT> windowBy(WindowFn<Object, W> windowing);
 
     @Override
-    default Builders.Output<OutputT> applyIf(
-        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, Builders.Output<OutputT>> fn) {
+    default Builders.Output<InputT> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<InputT, KeyT>, Builders.Output<InputT>> fn) {
+
       return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
 
   /** Builder for the 'triggeredBy' step. */
-  public interface TriggerByBuilder<OutputT>
-      extends Builders.TriggeredBy<AccumulationModeBuilder<OutputT>> {
+  public interface TriggerByBuilder<T> extends Builders.TriggeredBy<AccumulationModeBuilder<T>> {
 
     @Override
-    AccumulationModeBuilder<OutputT> triggeredBy(Trigger trigger);
+    AccumulationModeBuilder<T> triggeredBy(Trigger trigger);
   }
 
   /** Builder for the 'accumulationMode' step. */
-  public interface AccumulationModeBuilder<OutputT>
-      extends Builders.AccumulationMode<WindowedOutputBuilder<OutputT>> {
+  public interface AccumulationModeBuilder<T>
+      extends Builders.AccumulationMode<WindowedOutputBuilder<T>> {
 
     @Override
-    WindowedOutputBuilder<OutputT> accumulationMode(
-        WindowingStrategy.AccumulationMode accumulationMode);
+    WindowedOutputBuilder<T> accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
   }
 
   /** Builder for 'windowed output' step. */
-  public interface WindowedOutputBuilder<OutputT>
-      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, Builders.Output<OutputT> {}
+  public interface WindowedOutputBuilder<T>
+      extends Builders.WindowedOutput<WindowedOutputBuilder<T>>, Builders.Output<T> {}
 
-  private static class Builder<InputT, OutputT>
+  private static class Builder<InputT, KeyT>
       implements OfBuilder,
-          MappedBuilder<InputT, OutputT>,
-          WindowByBuilder<OutputT>,
-          TriggerByBuilder<OutputT>,
-          AccumulationModeBuilder<OutputT>,
-          WindowedOutputBuilder<OutputT>,
-          Builders.Output<OutputT> {
+          ProjectedBuilder<InputT, KeyT>,
+          WindowByBuilder<InputT, KeyT>,
+          TriggerByBuilder<InputT>,
+          AccumulationModeBuilder<InputT>,
+          WindowedOutputBuilder<InputT>,
+          Builders.Output<InputT> {
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
     private PCollection<InputT> input;
-    @Nullable private UnaryFunction<InputT, OutputT> mapper;
-    @Nullable private TypeDescriptor<OutputT> outputType;
+
+    @SuppressWarnings("unchecked")
+    private UnaryFunction<InputT, KeyT> transform = (UnaryFunction) e -> e;
+
+    private SelectionPolicy policy = null;
+
+    @Nullable private TypeDescriptor<KeyT> projectedType;
+    @Nullable private TypeDescriptor<InputT> outputType;
+    private boolean projected = false;
 
     Builder(@Nullable String name) {
       this.name = name;
     }
 
     @Override
-    public <T> MappedBuilder<T, T> of(PCollection<T> input) {
+    public <T> ProjectedBuilder<T, T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T, T> casted = (Builder) this;
-      casted.input = requireNonNull(input);
-      return casted;
+      final Builder<T, T> cast = (Builder) this;
+      cast.input = requireNonNull(input);
+      return cast;
     }
 
     @Override
-    public <T> WindowByBuilder<T> mapped(
-        UnaryFunction<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType) {
+    public <K> WindowByBuilder<InputT, K> projected(
+        UnaryFunction<InputT, K> transform,
+        SelectionPolicy policy,
+        @Nullable TypeDescriptor<K> projectedType) {
+
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T> casted = (Builder) this;
-      casted.mapper = requireNonNull(mapper);
-      casted.outputType = outputType;
-      return casted;
+      final Builder<InputT, K> cast = (Builder) this;
+      cast.transform = requireNonNull(transform);
+      cast.policy = requireNonNull(policy);
+      cast.projectedType = projectedType;
+      cast.projected = true;
+      return cast;
     }
 
     @Override
-    public <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(
-        WindowFn<Object, T> windowFn) {
+    public <W extends BoundedWindow> TriggerByBuilder<InputT> windowBy(
+        WindowFn<Object, W> windowFn) {
+
       windowBuilder.windowBy(windowFn);
       return this;
     }
 
     @Override
-    public AccumulationModeBuilder<OutputT> triggeredBy(Trigger trigger) {
+    public AccumulationModeBuilder<InputT> triggeredBy(Trigger trigger) {
       windowBuilder.triggeredBy(trigger);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> accumulationMode(
+    public WindowedOutputBuilder<InputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
       windowBuilder.accumulationMode(accumulationMode);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> withAllowedLateness(Duration allowedLateness) {
+    public WindowedOutputBuilder<InputT> withAllowedLateness(Duration allowedLateness) {
       windowBuilder.withAllowedLateness(allowedLateness);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> withAllowedLateness(
+    public WindowedOutputBuilder<InputT> withAllowedLateness(
         Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
       windowBuilder.withAllowedLateness(allowedLateness, closingBehavior);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> withTimestampCombiner(
+    public WindowedOutputBuilder<InputT> withTimestampCombiner(
         TimestampCombiner timestampCombiner) {
       windowBuilder.withTimestampCombiner(timestampCombiner);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
+    public WindowedOutputBuilder<InputT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
       windowBuilder.withOnTimeBehavior(behavior);
       return this;
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public PCollection<OutputT> output(OutputHint... outputHints) {
-      if (mapper == null) {
-        this.mapper = (UnaryFunction) UnaryFunction.identity();
+    public PCollection<InputT> output(OutputHint... outputHints) {
+      if (transform == null) {
+        this.transform = (UnaryFunction) UnaryFunction.identity();
       }
-      final Distinct<InputT, OutputT> distinct =
-          new Distinct<>(name, mapper, outputType, windowBuilder.getWindow().orElse(null));
+      final Distinct<InputT, KeyT> distinct =
+          new Distinct<>(
+              name,
+              transform,
+              outputType,
+              projectedType,
+              windowBuilder.getWindow().orElse(null),
+              policy,
+              projected);
       return OperatorTransform.apply(distinct, PCollectionList.of(input));
     }
   }
 
+  private final boolean projected;
+  private final @Nullable SelectionPolicy policy;
+
   private Distinct(
       @Nullable String name,
-      UnaryFunction<InputT, OutputT> mapper,
-      @Nullable TypeDescriptor<OutputT> outputType,
-      @Nullable Window<InputT> window) {
-    super(name, outputType, mapper, outputType, window);
+      UnaryFunction<InputT, KeyT> transform,
+      @Nullable TypeDescriptor<InputT> outputType,
+      @Nullable TypeDescriptor<KeyT> projectedType,
+      @Nullable Window<InputT> window,
+      @Nullable SelectionPolicy policy,
+      boolean projected) {
+
+    super(name, outputType, transform, projectedType, window);
+    this.projected = projected;
+    this.policy = policy;
+
+    Preconditions.checkState(
+        !projected || policy != null,
+        "Please specify selection policy when using projected distinct.");
   }
 
   @Override
-  public PCollection<OutputT> expand(PCollectionList<InputT> inputs) {
-    final PCollection<KV<OutputT, Void>> distinct =
-        ReduceByKey.named(getName().orElse(null))
-            .of(PCollectionLists.getOnlyElement(inputs))
-            .keyBy(getKeyExtractor())
-            .valueBy(e -> null, TypeDescriptors.nulls())
-            .combineBy(e -> null)
-            .applyIf(
-                getWindow().isPresent(),
-                builder -> {
-                  @SuppressWarnings("unchecked")
-                  final ReduceByKey.WindowByInternalBuilder<InputT, OutputT, Void> casted =
-                      (ReduceByKey.WindowByInternalBuilder) builder;
-                  return casted.windowBy(
-                      getWindow()
-                          .orElseThrow(
-                              () ->
-                                  new IllegalStateException(
-                                      "Unable to resolve windowing for Distinct expansion.")));
+  public PCollection<InputT> expand(PCollectionList<InputT> inputs) {
+    PCollection<InputT> tmp = PCollectionLists.getOnlyElement(inputs);
+    PCollection<InputT> input =
+        getWindow()
+            .map(
+                w -> {
+                  PCollection<InputT> ret = tmp.apply(w);
+                  ret.setTypeDescriptor(tmp.getTypeDescriptor());
+                  return ret;
                 })
-            .output();
-    return MapElements.named(getName().orElse("") + "::extract-keys")
-        .of(distinct)
-        .using(KV::getKey, getKeyType().orElse(null))
+            .orElse(tmp);
+    if (!projected) {
+      PCollection<KV<InputT, Void>> distinct =
+          ReduceByKey.named(getName().orElse(null))
+              .of(input)
+              .keyBy(e -> e, input.getTypeDescriptor())
+              .valueBy(e -> null, TypeDescriptors.nulls())
+              .combineBy(e -> null, TypeDescriptors.nulls())
+              .output();
+      return MapElements.named(getName().orElse("") + "::extract-keys")
+          .of(distinct)
+          .using(KV::getKey, input.getTypeDescriptor())
+          .output();
+    }
+    UnaryFunction<PCollection<InputT>, PCollection<InputT>> transformFn = getTransformFn();
+    return transformFn.apply(input);
+  }
+
+  private UnaryFunction<PCollection<InputT>, PCollection<InputT>> getTransformFn() {
+    switch (policy) {
+      case NEWEST:
+      case OLDEST:
+        String name = getName().orElse(null);
+        return input -> input.apply(TimestampExtractTransform.of(name, this::reduceTimestamped));
+      case ANY:
+        return this::reduceSelectingAny;
+      default:
+        throw new IllegalArgumentException("Unknown policy " + policy);
+    }
+  }
+
+  private PCollection<InputT> reduceSelectingAny(PCollection<InputT> input) {
+    return ReduceByKey.named(getName().orElse(null))
+        .of(input)
+        .keyBy(getKeyExtractor(), getKeyType().orElse(null))
+        .valueBy(e -> e, getOutputType().orElse(null))
+        .combineBy(values -> nonEmpty(values.findAny()), getOutputType().orElse(null))
+        .outputValues();
+  }
+
+  private PCollection<InputT> reduceTimestamped(PCollection<KV<Long, InputT>> input) {
+    CombinableReduceFunction<KV<Long, InputT>> select = getReduceFn();
+    PCollection<KV<Long, InputT>> outputValues =
+        ReduceByKey.named(getName().orElse(null))
+            .of(input)
+            .keyBy(e -> getKeyExtractor().apply(e.getValue()), getKeyType().orElse(null))
+            .valueBy(e -> e, requireNonNull(input.getTypeDescriptor()))
+            .combineBy(select, requireNonNull(input.getTypeDescriptor()))
+            .outputValues();
+    return MapElements.named(getName().map(n -> n + "::unwrap").orElse(null))
+        .of(outputValues)
+        .using(KV::getValue, getOutputType().orElse(null))
         .output();
+  }
+
+  private CombinableReduceFunction<KV<Long, InputT>> getReduceFn() {
+    return policy == SelectionPolicy.NEWEST
+        ? values ->
+            nonEmpty(
+                values.collect(Collectors.maxBy((a, b) -> Long.compare(a.getKey(), b.getKey()))))
+        : values ->
+            nonEmpty(
+                values.collect(Collectors.minBy((a, b) -> Long.compare(a.getKey(), b.getKey()))));
+  }
+
+  private static <T> T nonEmpty(Optional<T> in) {
+    return in.orElseThrow(() -> new IllegalStateException("Empty reduce values?"));
   }
 }

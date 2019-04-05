@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import io
 import logging
-import os
 import posixpath
 import sys
 import unittest
@@ -448,10 +447,6 @@ class HadoopFileSystemTest(unittest.TestCase):
     self.assertFalse(self.fs.exists(url1))
     self.assertTrue(self.fs.exists(url2))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_rename_file_error(self):
     url1 = self.fs.join(self.tmpdir, 'f1')
     url2 = self.fs.join(self.tmpdir, 'f2')

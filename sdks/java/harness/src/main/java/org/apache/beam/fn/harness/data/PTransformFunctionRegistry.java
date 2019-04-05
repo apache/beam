@@ -17,11 +17,19 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.SimpleExecutionState;
+import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
+import org.apache.beam.sdk.function.ThrowingRunnable;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 
 /**
  * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
@@ -31,8 +39,8 @@ import org.slf4j.LoggerFactory;
  * <p>Usage: // Instantiate and use the registry for each class of functions. i.e. start. finish.
  *
  * <pre>
- * PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
- * PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+ * PTransformFunctionRegistry startFunctionRegistry;
+ * PTransformFunctionRegistry finishFunctionRegistry;
  * startFunctionRegistry.register(myStartThrowingRunnable);
  * finishFunctionRegistry.register(myFinishThrowingRunnable);
  *
@@ -48,24 +56,65 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 public class PTransformFunctionRegistry {
-  private static final Logger LOG = LoggerFactory.getLogger(PTransformFunctionRegistry.class);
 
+  private MetricsContainerStepMap metricsContainerRegistry;
+  private ExecutionStateTracker stateTracker;
+  private String executionStateName;
   private List<ThrowingRunnable> runnables = new ArrayList<>();
+  private SimpleStateRegistry executionStates = new SimpleStateRegistry();
 
   /**
-   * Register the runnable to process the specific pTransformId.
+   * Construct the registry to run for either start or finish bundle functions.
+   *
+   * @param metricsContainerRegistry - Used to enable a metric container to properly account for the
+   *     pTransform in user metrics.
+   * @param stateTracker - The tracker to enter states in order to calculate execution time metrics.
+   * @param executionStateName - The state name for the state .
+   */
+  public PTransformFunctionRegistry(
+      MetricsContainerStepMap metricsContainerRegistry,
+      ExecutionStateTracker stateTracker,
+      String executionStateName) {
+    this.metricsContainerRegistry = metricsContainerRegistry;
+    this.executionStateName = executionStateName;
+    this.stateTracker = stateTracker;
+  }
+
+  /**
+   * Register the runnable to process the specific pTransformId and track its execution time.
    *
    * @param pTransformId
    * @param runnable
    */
   public void register(String pTransformId, ThrowingRunnable runnable) {
+    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
+    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
+    String executionTimeUrn = "";
+    if (executionStateName.equals(ExecutionStateTracker.START_STATE_NAME)) {
+      executionTimeUrn = MonitoringInfoConstants.Urns.START_BUNDLE_MSECS;
+    } else if (executionStateName.equals(ExecutionStateTracker.FINISH_STATE_NAME)) {
+      executionTimeUrn = MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS;
+    }
+
+    SimpleExecutionState state =
+        new SimpleExecutionState(this.executionStateName, executionTimeUrn, labelsMetadata);
+    executionStates.register(state);
+
     ThrowingRunnable wrapped =
         () -> {
-          // TODO(ajamato): Setup the proper pTransform context for Metrics to use.
-          // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
-          runnable.run();
+          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+          try (Closeable metricCloseable = MetricsEnvironment.scopedMetricsContainer(container)) {
+            try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
+              runnable.run();
+            }
+          }
         };
     runnables.add(wrapped);
+  }
+
+  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
+  public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
+    return executionStates.getExecutionTimeMonitoringInfos();
   }
 
   /**

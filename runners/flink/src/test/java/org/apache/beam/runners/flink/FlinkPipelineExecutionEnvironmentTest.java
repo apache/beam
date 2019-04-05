@@ -19,15 +19,27 @@ package org.apache.beam.runners.flink;
 
 import static java.util.Arrays.asList;
 import static org.apache.beam.sdk.testing.RegexMatcher.matches;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.core.Every.everyItem;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
@@ -37,7 +49,13 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.RemoteEnvironment;
+import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,6 +64,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockito.internal.util.reflection.Whitebox;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
 @RunWith(JUnit4.class)
@@ -114,6 +133,69 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   }
 
   @Test
+  public void shouldUseDefaultTempLocationIfNoneSet() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster("clusterAddress");
+
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    flinkEnv.translate(pipeline);
+
+    String defaultTmpDir = System.getProperty("java.io.tmpdir");
+
+    assertThat(options.getFilesToStage(), hasItem(startsWith(defaultTmpDir)));
+  }
+
+  @Test
+  public void shouldUsePreparedFilesOnRemoteEnvironment() throws Exception {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster("clusterAddress");
+
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    flinkEnv.translate(pipeline);
+
+    ExecutionEnvironment executionEnvironment = flinkEnv.getBatchExecutionEnvironment();
+    assertThat(executionEnvironment, instanceOf(RemoteEnvironment.class));
+
+    @SuppressWarnings("unchecked")
+    List<URL> jarFiles = (List<URL>) Whitebox.getInternalState(executionEnvironment, "jarFiles");
+
+    List<URL> urlConvertedStagedFiles = convertFilesToURLs(options.getFilesToStage());
+
+    assertThat(jarFiles, is(urlConvertedStagedFiles));
+  }
+
+  @Test
+  public void shouldUsePreparedFilesOnRemoteStreamEnvironment() throws Exception {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster("clusterAddress");
+    options.setStreaming(true);
+
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    flinkEnv.translate(pipeline);
+
+    StreamExecutionEnvironment streamExecutionEnvironment =
+        flinkEnv.getStreamExecutionEnvironment();
+    assertThat(streamExecutionEnvironment, instanceOf(RemoteStreamEnvironment.class));
+
+    @SuppressWarnings("unchecked")
+    List<URL> jarFiles =
+        (List<URL>) Whitebox.getInternalState(streamExecutionEnvironment, "jarFiles");
+
+    List<URL> urlConvertedStagedFiles = convertFilesToURLs(options.getFilesToStage());
+
+    assertThat(jarFiles, is(urlConvertedStagedFiles));
+  }
+
+  @Test
   public void shouldUseTransformOverrides() {
     boolean[] testParameters = {true, false};
     for (boolean streaming : testParameters) {
@@ -133,6 +215,99 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
       assertThat(
           overridesList.size(), is(FlinkTransformOverrides.getDefaultOverrides(options).size()));
     }
+  }
+
+  @Test
+  public void shouldUseStreamingTransformOverridesWithUnboundedSources() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    // no explicit streaming mode set
+    options.setRunner(FlinkRunner.class);
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+    Pipeline p = Mockito.spy(Pipeline.create(options));
+
+    // Add unbounded source which will set the streaming mode to true
+    p.apply(GenerateSequence.from(0));
+
+    flinkEnv.translate(p);
+
+    ArgumentCaptor<ImmutableList> captor = ArgumentCaptor.forClass(ImmutableList.class);
+    Mockito.verify(p).replaceAll(captor.capture());
+    ImmutableList<PTransformOverride> overridesList = captor.getValue();
+
+    assertThat(
+        overridesList,
+        hasItem(
+            PTransformOverride.of(
+                PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+                CreateStreamingFlinkView.Factory.INSTANCE)));
+  }
+
+  @Test
+  public void testTranslationModeOverrideWithUnboundedSources() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setStreaming(false);
+
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(GenerateSequence.from(0));
+    flinkEnv.translate(pipeline);
+
+    assertThat(options.isStreaming(), Matchers.is(true));
+  }
+
+  @Test
+  public void testTranslationModeNoOverrideWithoutUnboundedSources() {
+    boolean[] testArgs = new boolean[] {true, false};
+    for (boolean streaming : testArgs) {
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      options.setRunner(FlinkRunner.class);
+      options.setStreaming(streaming);
+
+      FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+      Pipeline pipeline = Pipeline.create(options);
+      pipeline.apply(GenerateSequence.from(0).to(10));
+      flinkEnv.translate(pipeline);
+
+      assertThat(options.isStreaming(), Matchers.is(streaming));
+    }
+  }
+
+  @Test
+  public void shouldLogWarningWhenCheckpointingIsDisabled() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.getOptions().setRunner(TestFlinkRunner.class);
+
+    pipeline
+        // Add an UnboundedSource to check for the warning if checkpointing is disabled
+        .apply(GenerateSequence.from(0))
+        .apply(
+            ParDo.of(
+                new DoFn<Long, Void>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext ctx) {
+                    throw new RuntimeException("Failing here is ok.");
+                  }
+                }));
+
+    final PrintStream oldErr = System.err;
+    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    PrintStream replacementStdErr = new PrintStream(byteArrayOutputStream);
+    try {
+      System.setErr(replacementStdErr);
+      // Run pipeline and fail during execution
+      pipeline.run();
+      fail("Should have failed");
+    } catch (Exception e) {
+      // We want to fail here
+    } finally {
+      System.setErr(oldErr);
+    }
+    replacementStdErr.flush();
+    assertThat(
+        new String(byteArrayOutputStream.toByteArray(), Charsets.UTF_8),
+        containsString(
+            "UnboundedSources present which rely on checkpointing, but checkpointing is disabled."));
   }
 
   private FlinkPipelineOptions testPreparingResourcesToStage(String flinkMaster)
@@ -160,5 +335,18 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     options.setTempLocation(tempLocation);
     options.setFilesToStage(filesToStage);
     return options;
+  }
+
+  private static List<URL> convertFilesToURLs(List<String> filePaths) {
+    return filePaths.stream()
+        .map(
+            file -> {
+              try {
+                return new File(file).getAbsoluteFile().toURI().toURL();
+              } catch (MalformedURLException e) {
+                throw new RuntimeException("Failed to convert to URL", e);
+              }
+            })
+        .collect(Collectors.toList());
   }
 }

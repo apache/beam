@@ -29,7 +29,7 @@ if [[ $PWD != *sdks/python* ]]; then
 fi
 
 # Go to the Apache Beam Python SDK root
-if [[ "*sdks/python" != $PWD ]]; then
+if [[ $PWD != *sdks/python ]]; then
   cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
 fi
 
@@ -171,6 +171,7 @@ ignore_identifiers = [
   # DoFn param inner classes, due to a Sphinx misparsing of inner classes
   '_StateDoFnParam',
   '_TimerDoFnParam',
+  '_BundleFinalizerParam',
 
   # Sphinx cannot find this py:class reference target
   'typing.Generic',

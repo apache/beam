@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,6 +29,7 @@ import java.util.List;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
@@ -120,9 +122,8 @@ class ElasticSearchIOTestUtils {
         restClient.performRequest(
             "POST", endPoint, Collections.singletonMap("refresh", "wait_for"), requestBody);
     ElasticsearchIO.checkForErrors(
-        response.getEntity(), ElasticsearchIO.getBackendVersion(connectionConfiguration));
+        response.getEntity(), ElasticsearchIO.getBackendVersion(connectionConfiguration), false);
   }
-
   /**
    * Forces a refresh of the given index to make recently inserted documents available for search
    * using the index and type named in the connectionConfiguration.
@@ -242,5 +243,20 @@ class ElasticSearchIOTestUtils {
         restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
     JsonNode searchResult = parseResponse(response.getEntity());
     return searchResult.path("hits").path("total").asInt();
+  }
+
+  public static void setIndexMapping(
+      ConnectionConfiguration connectionConfiguration, RestClient restClient) throws IOException {
+    String endpoint = String.format("/%s", connectionConfiguration.getIndex());
+    String requestString =
+        String.format(
+            "{\"mappings\":{\"%s\":{\"properties\":{\"age\":{\"type\":\"long\"},"
+                + " \"scientist\":{\"type\":\"%s\"}, \"id\":{\"type\":\"long\"}}}}}",
+            connectionConfiguration.getType(),
+            getBackendVersion(connectionConfiguration) == 2 ? "string" : "text");
+    HttpEntity requestBody = new NStringEntity(requestString, ContentType.APPLICATION_JSON);
+    Request request = new Request("PUT", endpoint);
+    request.setEntity(requestBody);
+    restClient.performRequest(request);
   }
 }

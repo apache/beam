@@ -51,19 +51,13 @@ import org.slf4j.LoggerFactory;
 /**
  * A test of {@link CassandraIO} on a concrete and independent Cassandra instance.
  *
- * <p>This test requires a running Cassandra instance, and the test dataset must exists.
+ * <p>This test requires a running Cassandra instance at [localhost:9042], and the test dataset must exists.
  *
- * <p>You can run this test directly using Maven with:
+ * <p>You can run this test directly using gradle with:
  *
  * <pre>{@code
- * ./gradlew integrationTest -p sdks/java/io/cassandra -DintegrationTestPipelineOptions='[
- * "--cassandraHost=1.2.3.4",
- * "--cassandraPort=9042"
- * "--numberOfRecords=1000"
- * ]'
- * --tests org.apache.beam.sdk.io.cassandra.CassandraIOIT
- * -DintegrationTestRunner=direct
- * }</pre>
+ * ./gradlew integrationTest -p sdks/java/io/cassandra -DintegrationTestPipelineOptions='["--cassandraHost=127.0.0.1","--cassandraPort=9042","--numberOfRecords=1000"]' --tests org.apache.beam.sdk.io.cassandra.CassandraIOIT -DintegrationTestRunner=direct
+ * </pre>
  */
 @RunWith(JUnit4.class)
 public class CassandraIOIT implements Serializable {
@@ -105,7 +99,6 @@ public class CassandraIOIT implements Serializable {
     dropTable(options, KEYSPACE, TABLE);
   }
 
-  /** Tests writing then reading data for a HBase database. */
   @Test
   public void testWriteThenRead() {
     runWrite();

@@ -252,13 +252,13 @@ public class Combine {
    *
    * <p>For example:
    *
-   * <pre>{@code
-   * public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
+   * <pre><code>
+   * public class AverageFn extends{@literal CombineFn<Integer, AverageFn.Accum, Double>} {
    *   public static class Accum implements Serializable {
    *     int sum = 0;
    *     int count = 0;
    *
-   *    {@literal@}Override
+   *    {@literal @Override}
    *     public boolean equals(Object other) {
    *       if (other == null) return false;
    *       if (other == this) return true;
@@ -277,12 +277,14 @@ public class Combine {
    *   public Accum createAccumulator() {
    *     return new Accum();
    *   }
+   *
    *   public Accum addInput(Accum accum, Integer input) {
    *       accum.sum += input;
    *       accum.count++;
    *       return accum;
    *   }
-   *   public Accum mergeAccumulators(Iterable<Accum> accums) {
+   *
+   *   public Accum{@literal mergeAccumulators(Iterable<Accum> accums)} {
    *     Accum merged = createAccumulator();
    *     for (Accum accum : accums) {
    *       merged.sum += accum.sum;
@@ -290,13 +292,14 @@ public class Combine {
    *     }
    *     return merged;
    *   }
+   *
    *   public Double extractOutput(Accum accum) {
    *     return ((double) accum.sum) / accum.count;
    *   }
-   * }
+   * }{@literal
    * PCollection<Integer> pc = ...;
    * PCollection<Double> average = pc.apply(Combine.globally(new AverageFn()));
-   * }</pre>
+   * }</code></pre>
    *
    * <p>Combining functions used by {@link Combine.Globally}, {@link Combine.PerKey}, {@link
    * Combine.GroupedValues}, and {@code PTransforms} derived from them should be <i>associative</i>
@@ -338,16 +341,18 @@ public class Combine {
     /**
      * Adds the given input value to the given accumulator, returning the new accumulator value.
      *
-     * <p>For efficiency, the input accumulator may be modified and returned.
+     * @param mutableAccumulator may be modified and returned for efficiency
+     * @param input should not be mutated
      */
-    public abstract AccumT addInput(AccumT accumulator, InputT input);
+    public abstract AccumT addInput(AccumT mutableAccumulator, InputT input);
 
     /**
      * Returns an accumulator representing the accumulation of all the input values accumulated in
      * the merging accumulators.
      *
-     * <p>May modify any of the argument accumulators. May return a fresh accumulator, or may return
-     * one of the (modified) argument accumulators.
+     * @param accumulators only the first accumulator may be modified and returned for efficiency;
+     *     the other accumulators should not be mutated, because they may be shared with other code
+     *     and mutating them could lead to incorrect results or data corruption.
      */
     public abstract AccumT mergeAccumulators(Iterable<AccumT> accumulators);
 

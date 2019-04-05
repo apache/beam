@@ -108,7 +108,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 					if err != nil {
 						return fmt.Errorf("stream value decode failed: %v", err)
 					}
-					buf = append(buf, value)
+					buf = append(buf, *value)
 				}
 			} else {
 				// Multi-chunked stream.
@@ -131,7 +131,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 						if err != nil {
 							return fmt.Errorf("stream value decode failed: %v", err)
 						}
-						buf = append(buf, value)
+						buf = append(buf, *value)
 					}
 				}
 			}
@@ -174,7 +174,9 @@ func (n *DataSource) Process(ctx context.Context) error {
 func (n *DataSource) FinishBundle(ctx context.Context) error {
 	log.Infof(ctx, "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
 	n.source = nil
-	return n.Out.FinishBundle(ctx)
+	err := n.Out.FinishBundle(ctx)
+	atomic.StoreInt64(&n.count, 0)
+	return err
 }
 
 func (n *DataSource) Down(ctx context.Context) error {

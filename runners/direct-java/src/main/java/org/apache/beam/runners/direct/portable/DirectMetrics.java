@@ -29,8 +29,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
-import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
@@ -38,6 +36,8 @@ import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricFiltering;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -261,8 +261,7 @@ class DirectMetrics extends MetricResults {
     if (MetricFiltering.matches(filter, entry.getKey())) {
       resultsBuilder.add(
           MetricResult.create(
-              entry.getKey().metricName(),
-              entry.getKey().stepName(),
+              entry.getKey(),
               entry.getValue().extractCommitted(),
               entry.getValue().extractLatestAttempted()));
     }

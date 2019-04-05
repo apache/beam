@@ -22,17 +22,24 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link PCollectionConsumerRegistryTest}. */
-@RunWith(JUnit4.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(MetricsEnvironment.class)
 public class PCollectionConsumerRegistryTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -44,13 +51,17 @@ public class PCollectionConsumerRegistryTest {
   @Test
   public void multipleConsumersSamePCollection() throws Exception {
     final String pCollectionA = "pCollectionA";
+    final String pTransformId = "pTransformId";
 
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, consumerA1);
-    consumers.register(pCollectionA, consumerA2);
+    consumers.register(pCollectionA, pTransformId, consumerA1);
+    consumers.register(pCollectionA, pTransformId, consumerA2);
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
@@ -65,24 +76,57 @@ public class PCollectionConsumerRegistryTest {
     // Check that the underlying consumers are each invoked per element.
     verify(consumerA1, times(numElements)).accept(element);
     verify(consumerA2, times(numElements)).accept(element);
-
     assertThat(consumers.keySet(), contains(pCollectionA));
-    assertThat(consumers.getUnderlyingConsumers(pCollectionA), contains(consumerA1, consumerA2));
   }
 
   @Test
   public void throwsOnRegisteringAfterMultiplexingConsumerWasInitialized() throws Exception {
     final String pCollectionA = "pCollectionA";
+    final String pTransformId = "pTransformId";
 
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, consumerA1);
+    consumers.register(pCollectionA, pTransformId, consumerA1);
     consumers.getMultiplexingConsumer(pCollectionA);
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("cannot be register()-d after");
-    consumers.register(pCollectionA, consumerA2);
+    consumers.register(pCollectionA, pTransformId, consumerA2);
+  }
+
+  @Test
+  public void testScopedMetricContainerInvokedUponAcceptingElement() throws Exception {
+    mockStatic(MetricsEnvironment.class);
+    final String pCollectionA = "pCollectionA";
+
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
+    FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
+
+    consumers.register("pCollectionA", "pTransformA", consumerA1);
+    consumers.register("pCollectionA", "pTransformB", consumerA2);
+
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+
+    WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
+    wrapperConsumer.accept(element);
+
+    // Verify that static scopedMetricsContainer is called with pTransformA's container.
+    PowerMockito.verifyStatic(times(1));
+    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformA"));
+
+    // Verify that static scopedMetricsContainer is called with pTransformB's container.
+    PowerMockito.verifyStatic(times(1));
+    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformB"));
   }
 }

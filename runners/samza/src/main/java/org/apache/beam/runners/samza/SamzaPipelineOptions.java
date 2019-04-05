@@ -24,7 +24,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.samza.config.ConfigFactory;
 import org.apache.samza.config.factories.PropertiesConfigFactory;
 
-/** Options which can be used to configure a Samza PipelineRunner. */
+/** Options which can be used to configure a Samza PortablePipelineRunner. */
 public interface SamzaPipelineOptions extends PipelineOptions {
 
   @Description(
@@ -46,6 +46,20 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   Map<String, String> getConfigOverride();
 
   void setConfigOverride(Map<String, String> configs);
+
+  @Description("The instance name of the job")
+  @Default.String("1")
+  String getJobInstance();
+
+  void setJobInstance(String instance);
+
+  @Description(
+      "Samza application execution environment."
+          + "See {@link org.apache.beam.runners.samza.SamzaExecutionEnvironment} for detailed environment descriptions.")
+  @Default.Enum("LOCAL")
+  SamzaExecutionEnvironment getSamzaExecutionEnvironment();
+
+  void setSamzaExecutionEnvironment(SamzaExecutionEnvironment environment);
 
   @Description("The interval to check for watermarks in milliseconds.")
   @Default.Long(1000)
@@ -70,4 +84,22 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   int getStoreBatchGetSize();
 
   void setStoreBatchGetSize(int storeBatchGetSize);
+
+  @Description("Enable/disable Beam metrics in Samza Runner")
+  @Default.Boolean(true)
+  Boolean getEnableMetrics();
+
+  void setEnableMetrics(Boolean enableMetrics);
+
+  @Description("The config for state to be durable")
+  @Default.Boolean(false)
+  Boolean getStateDurable();
+
+  void setStateDurable(Boolean stateDurable);
+
+  @Description("The maximum number of event-time timers buffered in memory for a transform.")
+  @Default.Integer(50000)
+  int getTimerBufferSize();
+
+  void setTimerBufferSize(int timerBufferSize);
 }

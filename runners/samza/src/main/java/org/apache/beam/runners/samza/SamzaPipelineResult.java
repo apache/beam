@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.runtime.ApplicationRunner;
@@ -52,7 +53,7 @@ public class SamzaPipelineResult implements PipelineResult {
 
   @Override
   public State cancel() {
-    runner.kill(app);
+    runner.kill();
     return waitUntilFinish();
   }
 
@@ -87,7 +88,7 @@ public class SamzaPipelineResult implements PipelineResult {
   }
 
   private StateInfo getStateInfo() {
-    final ApplicationStatus status = runner.status(app);
+    final ApplicationStatus status = runner.status();
     switch (status.getStatusCode()) {
       case New:
         return new StateInfo(State.STOPPED);
@@ -98,7 +99,8 @@ public class SamzaPipelineResult implements PipelineResult {
       case UnsuccessfulFinish:
         LOG.error(status.getThrowable().getMessage(), status.getThrowable());
         return new StateInfo(
-            State.FAILED, new Pipeline.PipelineExecutionException(status.getThrowable()));
+            State.FAILED,
+            new Pipeline.PipelineExecutionException(getUserCodeException(status.getThrowable())));
       default:
         return new StateInfo(State.UNKNOWN);
     }
@@ -116,5 +118,22 @@ public class SamzaPipelineResult implements PipelineResult {
       this.state = state;
       this.error = error;
     }
+  }
+
+  /**
+   * Some of the Beam unit tests relying on the exception message to do assertion. This function
+   * will find the original UserCodeException so the message will be exposed directly.
+   */
+  private static Throwable getUserCodeException(Throwable throwable) {
+    Throwable t = throwable;
+    while (t != null) {
+      if (t instanceof UserCodeException) {
+        return t;
+      }
+
+      t = t.getCause();
+    }
+
+    return throwable;
   }
 }

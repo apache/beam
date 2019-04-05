@@ -22,6 +22,8 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.joda.time.Days;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -33,7 +35,7 @@ public class ClickHouseWriter {
   private static final Instant EPOCH_INSTANT = new Instant(0L);
 
   @SuppressWarnings("unchecked")
-  public static void writeNullableValue(
+  static void writeNullableValue(
       ClickHouseRowBinaryStream stream, ColumnType columnType, Object value) throws IOException {
 
     if (value == null) {
@@ -45,10 +47,22 @@ public class ClickHouseWriter {
   }
 
   @SuppressWarnings("unchecked")
-  public static void writeValue(
-      ClickHouseRowBinaryStream stream, ColumnType columnType, Object value) throws IOException {
+  static void writeValue(ClickHouseRowBinaryStream stream, ColumnType columnType, Object value)
+      throws IOException {
 
     switch (columnType.typeName()) {
+      case FIXEDSTRING:
+        byte[] bytes;
+
+        if (value instanceof String) {
+          bytes = ((String) value).getBytes(Charsets.UTF_8);
+        } else {
+          bytes = ((byte[]) value);
+        }
+
+        stream.writeBytes(bytes);
+        break;
+
       case FLOAT32:
         stream.writeFloat32((Float) value);
         break;
@@ -93,6 +107,22 @@ public class ClickHouseWriter {
         stream.writeUInt64((Long) value);
         break;
 
+      case ENUM8:
+        Integer enum8 = columnType.enumValues().get((String) value);
+        Preconditions.checkNotNull(
+            enum8,
+            "unknown enum value '" + value + "', possible values: " + columnType.enumValues());
+        stream.writeInt8(enum8);
+        break;
+
+      case ENUM16:
+        Integer enum16 = columnType.enumValues().get((String) value);
+        Preconditions.checkNotNull(
+            enum16,
+            "unknown enum value '" + value + "', possible values: " + columnType.enumValues());
+        stream.writeInt16(enum16);
+        break;
+
       case DATE:
         Days epochDays = Days.daysBetween(EPOCH_INSTANT, (ReadableInstant) value);
         stream.writeUInt16(epochDays.getDays());
@@ -113,7 +143,7 @@ public class ClickHouseWriter {
     }
   }
 
-  public static void writeRow(ClickHouseRowBinaryStream stream, TableSchema schema, Row row)
+  static void writeRow(ClickHouseRowBinaryStream stream, TableSchema schema, Row row)
       throws IOException {
     for (TableSchema.Column column : schema.columns()) {
       if (!column.materializedOrAlias()) {

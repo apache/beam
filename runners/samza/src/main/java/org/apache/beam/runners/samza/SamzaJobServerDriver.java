@@ -31,7 +31,9 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagin
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -39,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server. */
+// TODO extend JobServerDriver
 public class SamzaJobServerDriver {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobServerDriver.class);
 
@@ -78,10 +81,13 @@ public class SamzaJobServerDriver {
 
   private static InMemoryJobService createJobService(int controlPort) throws IOException {
     JobInvoker jobInvoker =
-        new JobInvoker() {
+        new JobInvoker("samza-job-invoker") {
           @Override
-          public JobInvocation invoke(
-              RunnerApi.Pipeline pipeline, Struct options, @Nullable String retrievalToken)
+          protected JobInvocation invokeWithExecutor(
+              RunnerApi.Pipeline pipeline,
+              Struct options,
+              @Nullable String retrievalToken,
+              ListeningExecutorService executorService)
               throws IOException {
             SamzaPipelineOptions samzaPipelineOptions =
                 PipelineOptionsTranslation.fromProto(options).as(SamzaPipelineOptions.class);
@@ -96,7 +102,14 @@ public class SamzaJobServerDriver {
             String invocationId =
                 String.format(
                     "%s_%s", samzaPipelineOptions.getJobName(), UUID.randomUUID().toString());
-            return new SamzaJobInvocation(pipeline, samzaPipelineOptions, invocationId);
+            SamzaPipelineRunner pipelineRunner = new SamzaPipelineRunner(samzaPipelineOptions);
+            JobInfo jobInfo =
+                JobInfo.create(
+                    invocationId,
+                    samzaPipelineOptions.getJobName(),
+                    retrievalToken,
+                    PipelineOptionsTranslation.toProto(samzaPipelineOptions));
+            return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
           }
         };
     return InMemoryJobService.create(

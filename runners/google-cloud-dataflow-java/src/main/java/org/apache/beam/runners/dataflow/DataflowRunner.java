@@ -456,6 +456,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                         BatchViewOverrides.BatchViewAsIterable.class, this)));
       }
     }
+    /* TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
     // Uses Reshuffle, so has to be before the Reshuffle override
     overridesBuilder.add(
         PTransformOverride.of(
@@ -466,6 +467,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PTransformOverride.of(
             PTransformMatchers.requiresStableInputParDoMulti(),
             RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
+    */
     // Expands into Reshuffle and single-output ParDo, so has to be before the overrides below.
     if (fnApiEnabled) {
       overridesBuilder.add(
@@ -782,6 +784,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
 
+    if (options.getFlexRSGoal()
+        == DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED) {
+      newJob.getEnvironment().setFlexResourceSchedulingGoal("FLEXRS_COST_OPTIMIZED");
+    } else if (options.getFlexRSGoal()
+        == DataflowPipelineOptions.FlexResourceSchedulingGoal.SPEED_OPTIMIZED) {
+      newJob.getEnvironment().setFlexResourceSchedulingGoal("FLEXRS_SPEED_OPTIMIZED");
+    }
+
     // Represent the minCpuPlatform pipeline option as an experiment, if not already present.
     List<String> experiments =
         firstNonNull(dataflowOptions.getExperiments(), new ArrayList<String>());
@@ -887,9 +897,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
-                  + "exceeds the allowable limit for the API. Use experiment "
-                  + "'upload_graph' (--experiments=upload_graph) to direct the runner to "
-                  + "upload the JSON to your GCS staging bucket instead of embedding in the API request.";
+                  + "exceeds the allowable limit. "
+                  + "For more information, please see the documentation on job submission:\n"
+                  + "https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#jobs";
         } else {
           errorMessages = e.getDetails().getMessage();
         }
@@ -1789,14 +1799,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static String getContainerImageForJob(DataflowPipelineOptions options) {
     String workerHarnessContainerImage = options.getWorkerHarnessContainerImage();
+
+    String javaVersionId =
+        Float.parseFloat(System.getProperty("java.specification.version")) >= 9 ? "java11" : "java";
     if (!workerHarnessContainerImage.contains("IMAGE")) {
       return workerHarnessContainerImage;
     } else if (hasExperiment(options, "beam_fn_api")) {
       return workerHarnessContainerImage.replace("IMAGE", "java");
     } else if (options.isStreaming()) {
-      return workerHarnessContainerImage.replace("IMAGE", "beam-java-streaming");
+      return workerHarnessContainerImage.replace(
+          "IMAGE", String.format("beam-%s-streaming", javaVersionId));
     } else {
-      return workerHarnessContainerImage.replace("IMAGE", "beam-java-batch");
+      return workerHarnessContainerImage.replace(
+          "IMAGE", String.format("beam-%s-batch", javaVersionId));
     }
   }
 

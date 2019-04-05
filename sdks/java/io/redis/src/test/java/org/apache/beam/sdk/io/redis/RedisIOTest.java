@@ -20,8 +20,10 @@ package org.apache.beam.sdk.io.redis;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.io.redis.RedisIO.Write.Method;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -29,6 +31,8 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -187,6 +191,30 @@ public class RedisIOTest {
   }
 
   @Test
+  public void testWriteReadUsingSaddMethod() throws Exception {
+    String key = "key";
+
+    Jedis jedis =
+        RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
+
+    List<String> values = Arrays.asList("0", "1", "2", "3", "2", "4", "0", "5");
+    List<KV<String, String>> kvs = Lists.newArrayList();
+    for (String value : values) {
+      kvs.add(KV.of(key, value));
+    }
+
+    PCollection<KV<String, String>> write = writePipeline.apply(Create.of(kvs));
+    write.apply(
+        RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.SADD));
+
+    writePipeline.run();
+
+    Set<String> expected = Sets.newHashSet(values);
+    Set<String> members = jedis.smembers(key);
+    Assert.assertEquals(expected, members);
+  }
+
+  @Test
   public void testWriteUsingHLLMethod() throws Exception {
     String key = "key";
 
@@ -221,6 +249,7 @@ public class RedisIOTest {
     Assert.assertEquals(111, read.connectionConfiguration().port());
     Assert.assertEquals("pass", read.connectionConfiguration().auth());
     Assert.assertEquals(5, read.connectionConfiguration().timeout());
+    Assert.assertEquals(false, read.connectionConfiguration().ssl());
   }
 
   @Test
@@ -230,6 +259,7 @@ public class RedisIOTest {
     Assert.assertEquals(111, write.connectionConfiguration().port());
     Assert.assertEquals("pass", write.connectionConfiguration().auth());
     Assert.assertEquals(5, write.connectionConfiguration().timeout());
+    Assert.assertEquals(false, write.connectionConfiguration().ssl());
     Assert.assertEquals(Method.APPEND, write.method());
   }
 

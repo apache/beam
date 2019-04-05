@@ -274,6 +274,7 @@ class KafkaExactlyOnceSink<K, V>
 
     // Futures ignored as exceptions will be flushed out in the commitTxn
     @SuppressWarnings("FutureReturnValueIgnored")
+    @RequiresStableInput
     @ProcessElement
     public void processElement(
         @StateId(NEXT_ID) ValueState<Long> nextIdState,
@@ -608,7 +609,7 @@ class KafkaExactlyOnceSink<K, V>
 
         return new ShardWriter<>(shard, writerId, producer, producerName, spec, committedSeqId);
 
-      } catch (Exception e) {
+      } catch (IOException e) {
         producer.close();
         throw e;
       }

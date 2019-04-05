@@ -91,6 +91,9 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Returns a stream allowing individual WorkItemCommitRequests to be streamed to Windmill. */
   public abstract CommitWorkStream commitWorkStream();
 
+  /** Returns the amount of time the server has been throttled and resets the time to 0. */
+  public abstract long getAndResetThrottleTime();
+
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
 
@@ -99,13 +102,6 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   public interface WindmillStream {
     /** Indicates that no more requests will be sent. */
     void close();
-
-    /**
-     * Waits for the server to close its end of the connection.
-     *
-     * <p>Should only be called after calling close.
-     */
-    void awaitTermination() throws InterruptedException;
 
     /** Waits for the server to close its end of the connection, with timeout. */
     boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -34,10 +35,19 @@ class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationModeOptimizer.class);
 
-  private final FlinkPipelineOptions options;
+  private boolean hasUnboundedCollections;
 
-  public PipelineTranslationModeOptimizer(FlinkPipelineOptions options) {
-    this.options = options;
+  static boolean hasUnboundedOutput(Pipeline p) {
+    PipelineTranslationModeOptimizer optimizer = new PipelineTranslationModeOptimizer();
+    optimizer.translate(p);
+    return optimizer.hasUnboundedCollections;
+  }
+
+  private PipelineTranslationModeOptimizer() {}
+
+  @Override
+  public void translate(Pipeline pipeline) {
+    super.translate(pipeline);
   }
 
   @Override
@@ -53,8 +63,8 @@ class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
     AppliedPTransform<?, ?, ?> appliedPTransform = node.toAppliedPTransform(getPipeline());
     if (hasUnboundedOutput(appliedPTransform)) {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
-      LOG.info("Found {}. Switching to streaming execution.", transformClass);
-      options.setStreaming(true);
+      LOG.debug("Found unbounded PCollection for transform %s", transformClass);
+      hasUnboundedCollections = true;
     }
   }
 

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -52,7 +52,7 @@ public class BoundedDataset<T> implements Dataset {
   }
 
   BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
-    this.windowedValues = Iterables.transform(values, WindowingHelpers.windowValueFunction());
+    this.windowedValues = Iterables.transform(values, WindowedValue::valueInGlobalWindow);
     this.jsc = jsc;
     this.coder = coder;
   }
@@ -117,6 +117,6 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void setName(String name) {
-    rdd.setName(name);
+    getRDD().setName(name);
   }
 }
