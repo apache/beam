@@ -717,11 +717,13 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
     transform_id = self.proto_context.transforms.get_id(transform_node)
+    use_fnapi = apiclient._use_fnapi(options)
+    use_unified_worker = apiclient._use_unified_worker(options)
     # The data transmitted in SERIALIZED_FN is different depending on whether
     # this is a fnapi pipeline or not.
-    if (apiclient._use_fnapi(options) and
+    if (use_fnapi and
         (transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn or
-         apiclient._use_unified_worker(options))):
+         use_unified_worker)):
       # Patch side input ids to be unique across a given pipeline.
       if (label_renames and
           transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
@@ -780,6 +782,16 @@ class DataflowRunner(PipelineRunner):
                '%s_%s' % (PropertyNames.OUT, side_tag))})
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
+
+    # Add the restriction encoding if we are a splittable DoFn
+    # and are using the Fn API on the unified worker.
+    from apache_beam.runners.common import DoFnSignature
+    signature = DoFnSignature(transform_node.transform.fn)
+    if (use_fnapi and use_unified_worker and signature.is_splittable_dofn()):
+      restriction_coder = (
+          signature.get_restriction_provider().restriction_coder())
+      step.add_property(PropertyNames.RESTRICTION_ENCODING,
+                        self._get_cloud_encoding(restriction_coder, use_fnapi))
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
