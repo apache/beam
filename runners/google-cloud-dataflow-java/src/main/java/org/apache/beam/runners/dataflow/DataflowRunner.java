@@ -356,18 +356,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 DeduplicatedFlattenFactory.create()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()))
-        // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
-        // However, we want a different expansion for single-output splittable ParDo.
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDoSingle(),
-                new ReflectiveOneToOneOverrideFactory(
-                    SplittableParDoOverrides.ParDoSingleViaMulti.class, this)))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDoMulti(),
-                new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
+                PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
+    if (!fnApiEnabled) {
+      // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
+      // However, we want a different expansion for single-output splittable ParDo.
+      overridesBuilder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDoSingle(),
+                  new ReflectiveOneToOneOverrideFactory(
+                      SplittableParDoOverrides.ParDoSingleViaMulti.class, this)))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDoMulti(),
+                  new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
+    }
     if (streaming) {
       if (!hasExperiment(options, "enable_custom_pubsub_source")) {
         overridesBuilder.add(

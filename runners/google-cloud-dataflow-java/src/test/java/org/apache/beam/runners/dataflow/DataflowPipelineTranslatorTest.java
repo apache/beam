@@ -730,12 +730,11 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
   }
 
-  /** Smoke test to fail fast if translation of a splittable ParDo in streaming breaks. */
+  /** Smoke test to fail fast if translation of a splittable ParDo in FnAPI. */
   @Test
-  public void testStreamingSplittableParDoTranslationFnApi() throws Exception {
+  public void testSplittableParDoTranslationFnApi() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    options.setStreaming(true);
     options.setExperiments(Arrays.asList("beam_fn_api"));
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
@@ -753,27 +752,27 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Job job = result.getJob();
 
-    // The job should contain a SplittableParDo.ProcessKeyedElements step, translated as
-    // "SplittableProcessKeyed".
+    // The job should contain a ParDo step, containing a "restriction_encoding".
 
     List<Step> steps = job.getSteps();
-    Step processKeyedStep = null;
+    Step splittableParDo = null;
     for (Step step : steps) {
-      if ("SplittableProcessKeyed".equals(step.getKind())) {
-        assertNull(processKeyedStep);
-        processKeyedStep = step;
+      if ("ParallelDo".equals(step.getKind())
+          && step.getProperties().containsKey(PropertyNames.RESTRICTION_ENCODING)) {
+        assertNull(splittableParDo);
+        splittableParDo = step;
       }
     }
-    assertNotNull(processKeyedStep);
+    assertNotNull(splittableParDo);
 
-    String fn = Structs.getString(processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN);
+    String fn = Structs.getString(splittableParDo.getProperties(), PropertyNames.SERIALIZED_FN);
 
     Components componentsProto = result.getPipelineProto().getComponents();
     RehydratedComponents components = RehydratedComponents.forComponents(componentsProto);
-    RunnerApi.PTransform spkTransform = componentsProto.getTransformsOrThrow(fn);
+    RunnerApi.PTransform splittableTransform = componentsProto.getTransformsOrThrow(fn);
     assertEquals(
-        PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, spkTransform.getSpec().getUrn());
-    ParDoPayload payload = ParDoPayload.parseFrom(spkTransform.getSpec().getPayload());
+        PTransformTranslation.PAR_DO_TRANSFORM_URN, splittableTransform.getSpec().getUrn());
+    ParDoPayload payload = ParDoPayload.parseFrom(splittableTransform.getSpec().getPayload());
     assertThat(
         ParDoTranslation.doFnWithExecutionInformationFromProto(payload.getDoFn()).getDoFn(),
         instanceOf(TestSplittableFn.class));
@@ -787,7 +786,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         CloudObjects.coderFromCloudObject(
             (CloudObject)
                 Structs.getObject(
-                    processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
+                    splittableParDo.getProperties(), PropertyNames.RESTRICTION_ENCODING));
     assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
   }
 
