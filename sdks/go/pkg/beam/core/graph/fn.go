@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -213,12 +214,12 @@ func AsDoFn(fn *Fn) (*DoFn, error) {
 	if fn.Fn != nil {
 		fn.methods[processElementName] = fn.Fn
 	}
-	if err := verifyValidNames(fn, setupName, startBundleName, processElementName, finishBundleName, teardownName); err != nil {
+	if err := verifyValidNames("graph.AsDoFn", fn, setupName, startBundleName, processElementName, finishBundleName, teardownName); err != nil {
 		return nil, err
 	}
 
 	if _, ok := fn.methods[processElementName]; !ok {
-		return nil, fmt.Errorf("failed to find %v method: %v", processElementName, fn)
+		return nil, fmt.Errorf("graph.AsDoFn: failed to find %v method: %v", processElementName, fn)
 	}
 
 	// TODO(herohde) 5/18/2017: validate the signatures, incl. consistency.
@@ -281,26 +282,67 @@ func NewCombineFn(fn interface{}) (*CombineFn, error) {
 
 // AsCombineFn converts a Fn to a CombineFn, if possible.
 func AsCombineFn(fn *Fn) (*CombineFn, error) {
+	const fnKind = "graph.AsCombineFn"
 	if fn.methods == nil {
 		fn.methods = make(map[string]*funcx.Fn)
 	}
 	if fn.Fn != nil {
 		fn.methods[mergeAccumulatorsName] = fn.Fn
 	}
-	if err := verifyValidNames(fn, setupName, createAccumulatorName, addInputName, mergeAccumulatorsName, extractOutputName, compactName, teardownName); err != nil {
+	if err := verifyValidNames(fnKind, fn, setupName, createAccumulatorName, addInputName, mergeAccumulatorsName, extractOutputName, compactName, teardownName); err != nil {
 		return nil, err
 	}
 
-	if _, ok := fn.methods[mergeAccumulatorsName]; !ok {
-		return nil, fmt.Errorf("failed to find %v method: %v", mergeAccumulatorsName, fn)
+	mergeFn, ok := fn.methods[mergeAccumulatorsName]
+	if !ok {
+		return nil, fmt.Errorf("%v: failed to find required %v method on type: %v", fnKind, mergeAccumulatorsName, fn.Name())
 	}
 
-	// TODO(herohde) 5/24/2017: validate the signatures, incl. consistency.
+	// CombineFn methods must satisfy the following:
+	// CreateAccumulator func() (A, error?)
+	// AddInput func(A, I) (A, error?)
+	// MergeAccumulators func(A, A) (A, error?)
+	// ExtractOutput func(A) (O, error?)
+	// This means that the other signatures *must* match the type used in MergeAccumulators.
+	if len(mergeFn.Ret) <= 0 {
+		return nil, fmt.Errorf("%v: %v requires at least 1 return value. : %v", fnKind, mergeAccumulatorsName, mergeFn)
+	}
+	accumType := mergeFn.Ret[0].T
+
+	mSig := funcx.Replace(mergeAccumulatorsSig, typex.TType, accumType)
+	if err := funcx.Satisfy(mergeFn, mSig); err != nil {
+		return nil, &verifyMethodError{fnKind, mergeAccumulatorsName, err, fn, accumType, mSig}
+	}
+
+	if fx, ok := fn.methods[createAccumulatorName]; ok {
+		caSig := funcx.Replace(createAccumulatorSig, typex.TType, accumType)
+		if err := funcx.Satisfy(fx, caSig); err != nil {
+			return nil, &verifyMethodError{fnKind, createAccumulatorName, err, fn, accumType, caSig}
+		}
+	}
+	if fx, ok := fn.methods[addInputName]; ok {
+		// AddInput needs the last parameter type substituted.
+		p := fx.Param[len(fx.Param)-1]
+		aiSig := funcx.Replace(addInputSig, typex.TType, accumType)
+		aiSig = funcx.Replace(aiSig, typex.VType, p.T)
+		if err := funcx.Satisfy(fx, aiSig); err != nil {
+			return nil, &verifyMethodError{fnKind, addInputName, err, fn, accumType, aiSig}
+		}
+	}
+	if fx, ok := fn.methods[extractOutputName]; ok {
+		// ExtractOutput needs the first Return type substituted.
+		r := fx.Ret[0]
+		eoSig := funcx.Replace(extractOutputSig, typex.TType, accumType)
+		eoSig = funcx.Replace(eoSig, typex.WType, r.T)
+		if err := funcx.Satisfy(fx, eoSig); err != nil {
+			return nil, &verifyMethodError{fnKind, extractOutputName, err, fn, accumType, eoSig}
+		}
+	}
 
 	return (*CombineFn)(fn), nil
 }
 
-func verifyValidNames(fn *Fn, names ...string) error {
+func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
 	m := make(map[string]bool)
 	for _, name := range names {
 		m[name] = true
@@ -308,8 +350,76 @@ func verifyValidNames(fn *Fn, names ...string) error {
 
 	for key := range fn.methods {
 		if !m[key] {
-			return fmt.Errorf("unexpected method %v present. Valid methods are: %v", key, names)
+			return fmt.Errorf("%s: unexpected exported method %v present. Valid methods are: %v", fnKind, key, names)
 		}
 	}
 	return nil
 }
+
+type verifyMethodError struct {
+	// Context for the error.
+	fnKind, methodName string
+	// The triggering error.
+	err error
+
+	fn        *Fn
+	accumType reflect.Type
+	sig       *funcx.Signature
+}
+
+func (e *verifyMethodError) Error() string {
+	name := e.fn.methods[e.methodName].Fn.Name()
+	if e.fn.Fn == nil {
+		// Methods might be hidden behind reflect.methodValueCall, which is
+		// not useful to the end user.
+		name = fmt.Sprintf("%s.%s", e.fn.Name(), e.methodName)
+	}
+	typ := e.fn.methods[e.methodName].Fn.Type()
+	switch e.methodName {
+	case mergeAccumulatorsName:
+		// Provide a clearer error for MergeAccumulators, since it's the root method
+		// for CombineFns.
+		// The root error doesn't matter here since we can't be certain what the accumulator
+		// type is before mergeAccumulators is verified.
+		return fmt.Sprintf("%v: %s must be a binary merge of accumulators to be a CombineFn. "+
+			"It is of type \"%v\", but it must be of type func(context.Context?, A, A) (A, error?) "+
+			"where A is the accumulator type",
+			e.fnKind, name, typ)
+	case createAccumulatorName, addInputName, extractOutputName:
+		// Commonly the accumulator type won't match.
+		if err, ok := e.err.(*funcx.TypeMismatchError); ok && err.Want == e.accumType {
+			return fmt.Sprintf("%s invalid %v: %s has type \"%v\", but expected \"%v\" "+
+				"to be the accumulator type \"%v\"; expected a signature like %v",
+				e.fnKind, e.methodName, name, typ, err.Got, e.accumType, e.sig)
+		}
+	}
+	return fmt.Sprintf("%s invalid %v %v: \"%v\" for %v; expected a signature like %v",
+		e.fnKind, e.methodName, name, e.err, typ, e.sig)
+}
+
+var (
+	mergeAccumulatorsSig = &funcx.Signature{
+		OptArgs:   []reflect.Type{reflectx.Context},
+		Args:      []reflect.Type{typex.TType, typex.TType},
+		Return:    []reflect.Type{typex.TType},
+		OptReturn: []reflect.Type{reflectx.Error},
+	}
+	createAccumulatorSig = &funcx.Signature{
+		OptArgs:   []reflect.Type{reflectx.Context},
+		Args:      []reflect.Type{},
+		Return:    []reflect.Type{typex.TType},
+		OptReturn: []reflect.Type{reflectx.Error},
+	}
+	addInputSig = &funcx.Signature{
+		OptArgs:   []reflect.Type{reflectx.Context},
+		Args:      []reflect.Type{typex.TType, typex.VType},
+		Return:    []reflect.Type{typex.TType},
+		OptReturn: []reflect.Type{reflectx.Error},
+	}
+	extractOutputSig = &funcx.Signature{
+		OptArgs:   []reflect.Type{reflectx.Context},
+		Args:      []reflect.Type{typex.TType},
+		Return:    []reflect.Type{typex.WType},
+		OptReturn: []reflect.Type{reflectx.Error},
+	}
+)
