@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
@@ -67,7 +67,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
   private final String stepName;
   private final String stepId;
-  private final PCollection.IsBounded isBounded;
+  private final IsBounded isBounded;
 
   private transient StateInternalsFactory<K> stateInternalsFactory;
   private transient SamzaTimerInternalsFactory<K> timerInternalsFactory;
@@ -82,7 +82,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
       String stepName,
       String stepId,
-      PCollection.IsBounded isBounded) {
+      IsBounded isBounded) {
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;

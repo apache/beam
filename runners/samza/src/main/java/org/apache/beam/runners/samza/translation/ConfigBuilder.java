@@ -48,9 +48,13 @@ import org.apache.samza.runtime.RemoteApplicationRunner;
 import org.apache.samza.serializers.ByteSerdeFactory;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
 import org.apache.samza.zk.ZkJobCoordinatorFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Builder class to generate configs for BEAM samza runner during runtime. */
 public class ConfigBuilder {
+  private static final Logger LOG = LoggerFactory.getLogger(ConfigBuilder.class);
+
   private static final String APP_RUNNER_CLASS = "app.runner.class";
   private static final String YARN_PACKAGE_PATH = "yarn.package.path";
   private static final String JOB_FACTORY_CLASS = "job.factory.class";
@@ -102,10 +106,14 @@ public class ConfigBuilder {
 
     // If user provides a config file, use it as base configs.
     if (StringUtils.isNoneEmpty(configFilePath)) {
+      LOG.info("configFilePath: " + configFilePath);
+
       final File configFile = new File(configFilePath);
       final URI configUri = configFile.toURI();
       final ConfigFactory configFactory =
           options.getConfigFactory().getDeclaredConstructor().newInstance();
+
+      LOG.info("configFactory: " + configFactory.getClass().getName());
 
       // Config file must exist for default properties config
       // TODO: add check to all non-empty files once we don't need to
@@ -226,10 +234,12 @@ public class ConfigBuilder {
             .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
 
     if (options.getStateDurable()) {
+      LOG.info("stateDurable is enabled");
       configBuilder.put("stores.beamStore.changelog", getChangelogTopic(options, "beamStore"));
       configBuilder.put("job.host-affinity.enabled", "true");
     }
 
+    LOG.info("Execution environment is " + options.getSamzaExecutionEnvironment());
     switch (options.getSamzaExecutionEnvironment()) {
       case YARN:
         configBuilder.putAll(yarnRunConfig());
