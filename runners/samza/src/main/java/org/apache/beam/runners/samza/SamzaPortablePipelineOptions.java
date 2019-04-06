@@ -21,7 +21,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 
 /** Samza pipeline option that contains portability specific logic. For internal usage only. */
-interface SamzaPortablePipelineOptions extends SamzaPipelineOptions {
+public interface SamzaPortablePipelineOptions extends SamzaPipelineOptions {
   @Description("The job service port. (Default: 11440) ")
   @Default.Integer(11440)
   int getJobPort();
