@@ -39,13 +39,17 @@ public class SamzaJobServerDriver {
 
   private final SamzaPortablePipelineOptions pipelineOptions;
 
-  private SamzaJobServerDriver(SamzaPortablePipelineOptions pipelineOptions) {
+  protected SamzaJobServerDriver(SamzaPortablePipelineOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
   }
 
   public static void main(String[] args) throws Exception {
     SamzaPortablePipelineOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(args).as(SamzaPortablePipelineOptions.class);
+    fromOptions(pipelineOptions).run();
+  }
+
+  public static SamzaJobServerDriver fromOptions(SamzaPortablePipelineOptions pipelineOptions) {
     Map<String, String> overrideConfig =
         pipelineOptions.getConfigOverride() != null
             ? pipelineOptions.getConfigOverride()
@@ -55,15 +59,6 @@ public class SamzaJobServerDriver {
         SamzaRunnerOverrideConfigs.FN_CONTROL_PORT,
         String.valueOf(pipelineOptions.getControlPort()));
     pipelineOptions.setConfigOverride(overrideConfig);
-    try {
-      fromOptions(pipelineOptions).run();
-    } catch (Exception e) {
-      LOG.error("Hit exception with SamzaJobServer. Exiting...", e);
-      throw e;
-    }
-  }
-
-  public static SamzaJobServerDriver fromOptions(SamzaPortablePipelineOptions pipelineOptions) {
     return new SamzaJobServerDriver(pipelineOptions);
   }
 
@@ -91,7 +86,7 @@ public class SamzaJobServerDriver {
         jobInvoker);
   }
 
-  private void run() throws Exception {
+  public void run() throws Exception {
     InMemoryJobService service = createJobService();
     GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
         GrpcFnServer.allocatePortAndCreateFor(
