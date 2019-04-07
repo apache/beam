@@ -195,7 +195,7 @@ class BigQueryTableMatcher(BaseMatcher):
 
     return all(
         self._match_property(v, self._get_or_none(self.actual_table, k))
-        for k, v in self.expected_properties.iteritems())
+        for k, v in self.expected_properties.items())
 
   @staticmethod
   def _get_or_none(obj, attr):
@@ -211,7 +211,7 @@ class BigQueryTableMatcher(BaseMatcher):
       return all(
           BigQueryTableMatcher._match_property(
               v, BigQueryTableMatcher._get_or_none(actual, k))
-          for k, v in expected.iteritems())
+          for k, v in expected.items())
     else:
       return expected == actual
 
@@ -219,7 +219,7 @@ class BigQueryTableMatcher(BaseMatcher):
     description \
       .append_text("Expected table attributes are ") \
       .append_text(sorted((k, v)
-                          for k, v in self.expected_properties.iteritems()))
+                          for k, v in self.expected_properties.items()))
 
   def describe_mismatch(self, pipeline_result, mismatch_description):
     mismatch_description \
