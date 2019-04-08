@@ -31,12 +31,15 @@ option java_outer_classname = "ExternalTransforms";
 import "beam_runner_api.proto";
 
 message ConfigValue {
-  string coder_urn = 1;
+  // Coder and its components (in case of a compound Coder)
+  repeated string coder_urn = 1;
+  // The Payload which is decoded using the coder_urn
   bytes payload = 2;
 }
 
 // A configuration payload for an external transform.
 // Used as the payload of ExternalTransform as part of an ExpansionRequest.
 message ExternalConfigurationPayload {
+  // Configuration key => value
   map<string, ConfigValue> configuration = 1;
 }
