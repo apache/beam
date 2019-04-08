@@ -708,7 +708,7 @@ itself.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Create a Java Collection, in this case a List of Strings.</span>
-    <span class="kd">static</span> <span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">LINES</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
+    <span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">LINES</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
       <span class="s">"To be, or not to be: that is the question: "</span><span class="o">,</span>
       <span class="s">"Whether 'tis nobler in the mind to suffer "</span><span class="o">,</span>
       <span class="s">"The slings and arrows of outrageous fortune, "</span><span class="o">,</span>
@@ -720,7 +720,7 @@ itself.</p>
     <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
     <span class="c1">// Apply Create, passing the list and the coder, to create the PCollection.</span>
-    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">LINES</span><span class="o">)).</span><span class="na">setCoder</span><span class="o">(</span><span class="n">StringUtf8Coder</span><span class="o">.</span><span class="na">of</span><span class="o">())</span>
+    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">LINES</span><span class="o">)).</span><span class="na">setCoder</span><span class="o">(</span><span class="n">StringUtf8Coder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
 <span class="o">}</span>
 </code></pre>
 </div>
