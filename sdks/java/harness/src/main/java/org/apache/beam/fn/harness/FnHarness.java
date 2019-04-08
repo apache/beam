@@ -33,6 +33,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builde
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.fn.BeamWorkerInitializers;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
@@ -79,6 +80,7 @@ public class FnHarness {
   }
 
   public static void main(String[] args) throws Exception {
+    BeamWorkerInitializers.runOnStartup();
     System.out.format("SDK Fn Harness started%n");
     System.out.format("Harness ID %s%n", System.getenv(HARNESS_ID));
     System.out.format("Logging location %s%n", System.getenv(LOGGING_API_SERVICE_DESCRIPTOR));
@@ -97,6 +99,16 @@ public class FnHarness {
     main(id, options, loggingApiServiceDescriptor, controlApiServiceDescriptor);
   }
 
+  /**
+   * Run a FnHarness with the given id and options that attaches to the specified logging and
+   * control API service descriptors.
+   *
+   * @param id Harness ID
+   * @param options The options for this pipeline
+   * @param loggingApiServiceDescriptor
+   * @param controlApiServiceDescriptor
+   * @throws Exception
+   */
   public static void main(
       String id,
       PipelineOptions options,
@@ -123,6 +135,18 @@ public class FnHarness {
         outboundObserverFactory);
   }
 
+  /**
+   * Run a FnHarness with the given id and options that attaches to the specified logging and
+   * control API service descriptors using the given channel factory and outbound observer factory.
+   *
+   * @param id Harness ID
+   * @param options The options for this pipeline
+   * @param loggingApiServiceDescriptor
+   * @param controlApiServiceDescriptor
+   * @param channelFactory
+   * @param outboundObserverFactory
+   * @throws Exception
+   */
   public static void main(
       String id,
       PipelineOptions options,
@@ -165,6 +189,8 @@ public class FnHarness {
       BeamFnControlClient control =
           new BeamFnControlClient(
               id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);
+
+      BeamWorkerInitializers.runBeforeProcessing(options);
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());
