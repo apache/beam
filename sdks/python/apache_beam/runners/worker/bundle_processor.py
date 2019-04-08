@@ -47,7 +47,6 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
@@ -236,9 +235,7 @@ class StateBackedSideInputMap(object):
         raw_view = _StateBackedIterable(
             state_handler, state_key, self._element_coder)
 
-      elif (access_pattern == common_urns.side_inputs.MULTIMAP.urn or
-            access_pattern ==
-            dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN):
+      elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
         cache = {}
         key_coder_impl = self._element_coder.key_coder().get_impl()
         value_coder = self._element_coder.value_coder()
