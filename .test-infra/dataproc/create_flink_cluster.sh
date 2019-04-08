@@ -101,7 +101,7 @@ function start_tunnel() {
 }
 
 function create_cluster() {
-  local metadata="beam-images-to-pull=${HARNESS_IMAGES_TO_PULL},"
+  local metadata="beam-sdk-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL},"
   metadata+="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true"
 
