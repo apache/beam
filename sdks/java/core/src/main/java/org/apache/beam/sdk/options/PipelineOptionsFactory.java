@@ -46,7 +46,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -1784,15 +1783,11 @@ public class PipelineOptionsFactory {
 
     private Cache() {
       final ClassLoader loader = ReflectHelpers.findClassLoader();
-
-      Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
-          Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-      pipelineRunnerRegistrars.addAll(
-          Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class, loader)));
       // Store the list of all available pipeline runners.
       ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
           ImmutableMap.builder();
-      for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
+      for (PipelineRunnerRegistrar registrar :
+          ReflectHelpers.loadServicesOrdered(PipelineRunnerRegistrar.class, loader)) {
         for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
           String runnerName = klass.getSimpleName().toLowerCase();
           builder.put(runnerName, klass);
@@ -1807,12 +1802,8 @@ public class PipelineOptionsFactory {
 
     /** Load and register the list of all classes that extend PipelineOptions. */
     private void initializeRegistry(final ClassLoader loader) {
-      register(PipelineOptions.class);
-      Set<PipelineOptionsRegistrar> pipelineOptionsRegistrars =
-          Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-      pipelineOptionsRegistrars.addAll(
-          Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class, loader)));
-      for (PipelineOptionsRegistrar registrar : pipelineOptionsRegistrars) {
+      for (PipelineOptionsRegistrar registrar :
+          ReflectHelpers.loadServicesOrdered(PipelineOptionsRegistrar.class, loader)) {
         for (Class<? extends PipelineOptions> klass : registrar.getPipelineOptions()) {
           register(klass);
         }
