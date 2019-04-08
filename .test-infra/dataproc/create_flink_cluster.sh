@@ -23,7 +23,9 @@
 #    DATAPROC_VERSION: Dataproc version. Optional. Default: 1.2
 #    CLUSTER_NAME: Cluster name
 #    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
-#    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (accepts 1 or more urls)
+#    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (optional: 0, 1 or multiple urls for every harness image)
+#    JOB_SERVER_IMAGE: Url to job server docker image to pull on dataproc master (optional)
+#    ARTIFACTS_DIR: Url to bucket where artifacts will be stored for staging (optional)
 #    FLINK_DOWNLOAD_URL: Url to Flink .tar archive to be installed on the cluster
 #    FLINK_NUM_WORKERS: Number of Flink workers
 #    DETACHED_MODE: Detached mode: should the SSH tunnel run in detached mode?
@@ -32,6 +34,8 @@
 #    CLUSTER_NAME=flink \
 #    GCS_BUCKET=gs://<GCS_BUCKET>/flink \
 #    HARNESS_IMAGES_TO_PULL='gcr.io/<IMAGE_REPOSITORY>/python:latest gcr.io/<IMAGE_REPOSITORY>/java:latest' \
+#    JOB_SERVER_IMAGE=gcr.io/<IMAGE_REPOSITORY>/job-server-flink:latest \
+#    ARTIFACTS_DIR=gs://<bucket-for-artifacts> \
 #    FLINK_DOWNLOAD_URL=http://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.12.tgz \
 #    FLINK_NUM_WORKERS=2 \
 #    DETACHED_MODE=false \
@@ -89,6 +93,10 @@ function get_leader() {
   echo "Using Yarn Application master: $YARN_APPLICATION_MASTER"
 }
 
+function start_job_server() {
+  gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} --command="sudo --user yarn docker run --detach --publish 8099:8099 --publish 8098:8098 --publish 8097:8097 --volume ~/.config/gcloud:/root/.config/gcloud ${JOB_SERVER_IMAGE} --flink-master-url=${YARN_APPLICATION_MASTER} --artifacts-dir=${ARTIFACTS_DIR}"
+}
+
 function start_tunnel() {
   local job_server_config=`gcloud compute ssh --quiet --zone=$GCLOUD_ZONE yarn@$MASTER_NAME --command="curl -s \"http://$YARN_APPLICATION_MASTER/jobmanager/config\""`
   local key="jobmanager.rpc.port"
@@ -96,7 +104,10 @@ function start_tunnel() {
   local jobmanager_rpc_port=`echo $job_server_config | python -c "import sys, json; print [ e['value'] for e in json.load(sys.stdin) if e['key'] == u'$key'][0]"`
 
   local detached_mode_params=$([[ $DETACHED_MODE == "true" ]] && echo " -Nf >& /dev/null" || echo "")
-  local tunnel_command="gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} -- -L ${FLINK_LOCAL_PORT}:${YARN_APPLICATION_MASTER} -L ${jobmanager_rpc_port}:${yarn_application_master_host}:${jobmanager_rpc_port} -D 1080 ${detached_mode_params}"
+
+  local job_server_ports_forwarding=$([[ -n "${JOB_SERVER_IMAGE:=}" ]] && echo "-L 8099:localhost:8099 -L 8098:localhost:8098 -L 8097:localhost:8097" || echo "")
+
+  local tunnel_command="gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} -- -L ${FLINK_LOCAL_PORT}:${YARN_APPLICATION_MASTER} -L ${jobmanager_rpc_port}:${yarn_application_master_host}:${jobmanager_rpc_port} ${job_server_ports_forwarding} -D 1080 ${detached_mode_params}"
 
   eval $tunnel_command
 }
@@ -105,7 +116,8 @@ function create_cluster() {
   local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true"
 
-  [[ -n "${HARNESS_IMAGES_TO_PULL:=}" ]] && metadata+=",beam-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
+  [[ -n "${HARNESS_IMAGES_TO_PULL:=}" ]] && metadata+=",beam-sdk-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
+  [[ -n "${JOB_SERVER_IMAGE:=}" ]] && metadata+=",beam-job-server-image=${JOB_SERVER_IMAGE}"
 
   local image_version=$DATAPROC_VERSION
   echo "Starting dataproc cluster. Dataproc version: $image_version"
@@ -119,6 +131,7 @@ function main() {
   upload_init_actions
   create_cluster
   get_leader
+  [[ -n "${JOB_SERVER_IMAGE:=}" ]] && start_job_server
   start_tunnel
 }
 
