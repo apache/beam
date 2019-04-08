@@ -21,7 +21,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
@@ -336,7 +336,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	for i, in := range edge.Edge.Input {
 		m.addNode(in.From)
 
-		out := fmt.Sprintf("%v_inject%v", nodeID(in.From), i)
+		out := fmt.Sprintf("%v_%v_inject%v", nodeID(in.From), id, i)
 		m.makeNode(out, kvCoderID, in.From)
 
 		// Inject(i)
@@ -436,7 +436,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		UniqueName:    edge.Name,
 		Subtransforms: subtransforms,
 	}
-	return id
+	return cogbkID
 }
 
 func (m *marshaller) addNode(n *graph.Node) string {
@@ -462,9 +462,8 @@ func (m *marshaller) makeNode(id, cid string, n *graph.Node) string {
 func boolToBounded(bounded bool) pb.IsBounded_Enum {
 	if bounded {
 		return pb.IsBounded_BOUNDED
-	} else {
-		return pb.IsBounded_UNBOUNDED
 	}
+	return pb.IsBounded_UNBOUNDED
 }
 
 func (m *marshaller) addDefaultEnv() string {
