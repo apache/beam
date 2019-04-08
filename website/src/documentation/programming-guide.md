@@ -339,7 +339,7 @@ The following example code shows how to create a `PCollection` from an in-memory
 ```java
 public static void main(String[] args) {
     // Create a Java Collection, in this case a List of Strings.
-    static final List<String> LINES = Arrays.asList(
+    final List<String> LINES = Arrays.asList(
       "To be, or not to be: that is the question: ",
       "Whether 'tis nobler in the mind to suffer ",
       "The slings and arrows of outrageous fortune, ",
@@ -351,7 +351,7 @@ public static void main(String[] args) {
     Pipeline p = Pipeline.create(options);
 
     // Apply Create, passing the list and the coder, to create the PCollection.
-    p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of())
+    p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of());
 }
 ```
 ```py
