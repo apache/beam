@@ -25,6 +25,7 @@ import mock
 import apache_beam as beam
 from apache_beam.coders import BytesCoder
 from apache_beam.coders import IterableCoder
+from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import VarIntCoder
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -369,7 +370,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   def test_clearing_bag_state(self):
     class BagStateClearingStatefulDoFn(beam.DoFn):
 
-      BAG_STATE = BagStateSpec('bag_state', BytesCoder())
+      BAG_STATE = BagStateSpec('bag_state', StrUtf8Coder())
       EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
       CLEAR_TIMER = TimerSpec('clear_timer', TimeDomain.WATERMARK)
 
@@ -378,7 +379,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                   bag_state=beam.DoFn.StateParam(BAG_STATE),
                   emit_timer=beam.DoFn.TimerParam(EMIT_TIMER),
                   clear_timer=beam.DoFn.TimerParam(CLEAR_TIMER)):
-        key, value = element
+        value = element[1]
         bag_state.add(value)
         clear_timer.set(100)
         emit_timer.set(1000)
@@ -391,7 +392,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       @on_timer(CLEAR_TIMER)
       def clear_values(self, bag_state=beam.DoFn.StateParam(BAG_STATE)):
         bag_state.clear()
-
 
     with TestPipeline() as p:
       test_stream = (TestStream()
@@ -407,7 +407,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     self.assertEqual(
         [],
         StatefulDoFnOnDirectRunnerTest.all_records)
-
 
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()
