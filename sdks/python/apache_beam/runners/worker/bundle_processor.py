@@ -381,7 +381,7 @@ class OutputTimer(object):
         windowed_value.WindowedValue(
             (self._key, dict(timestamp=ts)), ts, (self._window,)))
 
-  def clear(self, timestamp):
+  def clear(self):
     self._receiver.receive((self._key, dict(clear=True)))
 
 
