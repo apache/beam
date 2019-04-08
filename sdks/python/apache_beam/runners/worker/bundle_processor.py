@@ -236,9 +236,7 @@ class StateBackedSideInputMap(object):
         raw_view = _StateBackedIterable(
             state_handler, state_key, self._element_coder)
 
-      elif (access_pattern == common_urns.side_inputs.MULTIMAP.urn or
-            access_pattern ==
-            dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN):
+      elif (access_pattern == common_urns.side_inputs.MULTIMAP.urn):
         cache = {}
         key_coder_impl = self._element_coder.key_coder().get_impl()
         value_coder = self._element_coder.value_coder()
