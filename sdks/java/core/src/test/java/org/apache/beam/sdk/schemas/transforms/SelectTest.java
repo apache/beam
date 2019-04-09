@@ -269,7 +269,9 @@ public class SelectTest {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PartialRowSingleArray)) return false;
+      if (!(o instanceof PartialRowSingleArray)) {
+        return false;
+      }
       PartialRowSingleArray that = (PartialRowSingleArray) o;
       return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
