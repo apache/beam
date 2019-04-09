@@ -309,37 +309,45 @@ func AsCombineFn(fn *Fn) (*CombineFn, error) {
 	}
 	accumType := mergeFn.Ret[0].T
 
-	mSig := funcx.Replace(mergeAccumulatorsSig, typex.TType, accumType)
-	if err := funcx.Satisfy(mergeFn, mSig); err != nil {
-		return nil, &verifyMethodError{fnKind, mergeAccumulatorsName, err, fn, accumType, mSig}
-	}
-
-	if fx, ok := fn.methods[createAccumulatorName]; ok {
-		caSig := funcx.Replace(createAccumulatorSig, typex.TType, accumType)
-		if err := funcx.Satisfy(fx, caSig); err != nil {
-			return nil, &verifyMethodError{fnKind, createAccumulatorName, err, fn, accumType, caSig}
-		}
-	}
-	if fx, ok := fn.methods[addInputName]; ok {
-		// AddInput needs the last parameter type substituted.
-		p := fx.Param[len(fx.Param)-1]
-		aiSig := funcx.Replace(addInputSig, typex.TType, accumType)
-		aiSig = funcx.Replace(aiSig, typex.VType, p.T)
-		if err := funcx.Satisfy(fx, aiSig); err != nil {
-			return nil, &verifyMethodError{fnKind, addInputName, err, fn, accumType, aiSig}
-		}
-	}
-	if fx, ok := fn.methods[extractOutputName]; ok {
-		// ExtractOutput needs the first Return type substituted.
-		r := fx.Ret[0]
-		eoSig := funcx.Replace(extractOutputSig, typex.TType, accumType)
-		eoSig = funcx.Replace(eoSig, typex.WType, r.T)
-		if err := funcx.Satisfy(fx, eoSig); err != nil {
-			return nil, &verifyMethodError{fnKind, extractOutputName, err, fn, accumType, eoSig}
+	for _, mthd := range []struct {
+		name    string
+		sigFunc func(fx *funcx.Fn, accumType reflect.Type) *funcx.Signature
+	}{
+		{mergeAccumulatorsName, func(fx *funcx.Fn, accumType reflect.Type) *funcx.Signature {
+			return funcx.Replace(mergeAccumulatorsSig, typex.TType, accumType)
+		}},
+		{createAccumulatorName, func(fx *funcx.Fn, accumType reflect.Type) *funcx.Signature {
+			return funcx.Replace(createAccumulatorSig, typex.TType, accumType)
+		}},
+		{addInputName, func(fx *funcx.Fn, accumType reflect.Type) *funcx.Signature {
+			// AddInput needs the last parameter type substituted.
+			p := fx.Param[len(fx.Param)-1]
+			aiSig := funcx.Replace(addInputSig, typex.TType, accumType)
+			return funcx.Replace(aiSig, typex.VType, p.T)
+		}},
+		{extractOutputName, func(fx *funcx.Fn, accumType reflect.Type) *funcx.Signature {
+			// ExtractOutput needs the first Return type substituted.
+			r := fx.Ret[0]
+			eoSig := funcx.Replace(extractOutputSig, typex.TType, accumType)
+			return funcx.Replace(eoSig, typex.WType, r.T)
+		}},
+	} {
+		if err := validateSignature(fnKind, mthd.name, fn, accumType, mthd.sigFunc); err != nil {
+			return nil, err
 		}
 	}
 
 	return (*CombineFn)(fn), nil
+}
+
+func validateSignature(fnKind, methodName string, fn *Fn, accumType reflect.Type, sigFunc func(*funcx.Fn, reflect.Type) *funcx.Signature) error {
+	if fx, ok := fn.methods[methodName]; ok {
+		sig := sigFunc(fx, accumType)
+		if err := funcx.Satisfy(fx, sig); err != nil {
+			return &verifyMethodError{fnKind, methodName, err, fn, accumType, sig}
+		}
+	}
+	return nil
 }
 
 func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
@@ -393,8 +401,9 @@ func (e *verifyMethodError) Error() string {
 				e.fnKind, e.methodName, name, typ, err.Got, e.accumType, e.sig)
 		}
 	}
-	return fmt.Sprintf("%s invalid %v %v: \"%v\" for %v; expected a signature like %v",
-		e.fnKind, e.methodName, name, e.err, typ, e.sig)
+	return fmt.Sprintf("%s invalid %v %v: got type %v but "+
+		"expected a signature like %v; original error: %v",
+		e.fnKind, e.methodName, name, typ, e.sig, e.err)
 }
 
 var (

@@ -83,7 +83,6 @@ func TestNewCombineFn(t *testing.T) {
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.cfn).String(), func(t *testing.T) {
 				if cfn, err := NewCombineFn(test.cfn); err != nil {
-					// DO NOT SUBMIT make into a Logf once errors are clear enough.
 					// Note to Developer: To work on improving the error messages, use t.Errorf instead!
 					t.Logf("NewCombineFn failed as expected:\n%v", err)
 				} else {
@@ -96,7 +95,10 @@ func TestNewCombineFn(t *testing.T) {
 
 // Do not copy. The following types are for testing signatures only.
 // They are not working examples.
+// Keep all test functions Above this point.
 type MyAccum struct{}
+
+// Examples of correct CombineFn signatures
 
 type GoodCombineFn struct{}
 
@@ -147,6 +149,10 @@ type GoodCombineFnUnexportedExtraMethod struct {
 func (fn *GoodCombineFnUnexportedExtraMethod) unexportedExtraMethod(context.Context, string) string {
 	return ""
 }
+
+// Examples of incorrect CombineFn signatures.
+// Embedding *GoodCombineFn avoids repetitive MergeAccumulators signatures when desired.
+// The immeadiately following examples are relating to accumulator mismatches.
 
 type BadCombineFnNoMergeAccumulators struct{}
 
@@ -200,6 +206,8 @@ func (fn *BadCombineFnMisMatchedExtractOutput) ExtractOutput(string) int {
 	return 0
 }
 
+// Examples of incorrect CreateAccumulator signatures
+
 type BadCombineFnInvalidCreateAccumulator1 struct {
 	*GoodCombineFn
 }
@@ -232,9 +240,7 @@ func (fn *BadCombineFnInvalidCreateAccumulator4) CreateAccumulator() (string, My
 	return "", MyAccum{}
 }
 
-type BadCombineFnExtraExportedMethod struct {
-	*GoodCombineFn
-}
+// Examples of incorrect AddInput signatures
 
 type BadCombineFnInvalidAddInput1 struct {
 	*GoodCombineFn
@@ -268,6 +274,8 @@ func (fn *BadCombineFnInvalidAddInput4) AddInput(MyAccum, string) (int, int, int
 	return 0, 0, 0
 }
 
+// Examples of incorrect ExtractOutput signatures
+
 type BadCombineFnInvalidExtractOutput1 struct {
 	*GoodCombineFn
 }
@@ -290,6 +298,12 @@ type BadCombineFnInvalidExtractOutput3 struct {
 
 func (fn *BadCombineFnInvalidExtractOutput3) ExtractOutput(context.Context, MyAccum, int) int {
 	return 0
+}
+
+// Other CombineFn Errors
+
+type BadCombineFnExtraExportedMethod struct {
+	*GoodCombineFn
 }
 
 func (fn *BadCombineFnExtraExportedMethod) ExtraMethod(string) int {
