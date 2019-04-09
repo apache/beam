@@ -131,7 +131,12 @@ def on_timer(timer_spec):
 
 
 def get_dofn_specs(dofn):
-  """Gets the state and timer specs for a DoFn, if any."""
+  """Gets the state and timer specs for a DoFn, if any.
+
+  Args:
+    dofn (apache_beam.transforms.core.DoFn): The DoFn instance to introspect for
+      timer and state specs.
+  """
 
   # Avoid circular import.
   from apache_beam.runners.common import MethodWrapper
