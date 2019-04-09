@@ -35,27 +35,18 @@ import logging
 import uuid
 
 import apache_beam as beam
-from apache_beam.io.gcp.datastore.v1.datastoreio import DeleteFromDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+from apache_beam.io.gcp.datastore.v1new.datastoreio import DeleteFromDatastore
+from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
+from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
+from apache_beam.io.gcp.datastore.v1new.types import Entity
+from apache_beam.io.gcp.datastore.v1new.types import Key
+from apache_beam.io.gcp.datastore.v1new.types import Query
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
-# Protect against environments where Datastore library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from google.cloud.proto.datastore.v1 import entity_pb2
-  from google.cloud.proto.datastore.v1 import query_pb2
-  from googledatastore import helper as datastore_helper
-  from googledatastore import PropertyFilter
-except ImportError:
-  pass
-# pylint: enable=wrong-import-order, wrong-import-position
-# pylint: enable=ungrouped-imports
 
 
 def new_pipeline_with_job_name(pipeline_options, job_name, suffix):
@@ -69,41 +60,23 @@ def new_pipeline_with_job_name(pipeline_options, job_name, suffix):
 
 
 class EntityWrapper(object):
-  """Create a Cloud Datastore entity from the given string."""
+  """
+  Create a Cloud Datastore entity from the given string.
 
-  def __init__(self, kind, namespace, ancestor):
+  Namespace and project are taken from the parent key.
+  """
+
+  def __init__(self, kind, parent_key):
     self._kind = kind
-    self._namespace = namespace
-    self._ancestor = ancestor
+    self._parent_key = parent_key
 
   def make_entity(self, content):
     """Create entity from given string."""
-    entity = entity_pb2.Entity()
-    if self._namespace is not None:
-      entity.key.partition_id.namespace_id = self._namespace
-
-    # All entities created will have the same ancestor
-    datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
-                                  self._kind, hashlib.sha1(content).hexdigest())
-
-    datastore_helper.add_properties(entity, {'content': str(content)})
+    key = Key([self._kind, hashlib.sha1(content.encode('utf-8')).hexdigest()],
+              parent=self._parent_key)
+    entity = Entity(key)
+    entity.set_properties({'content': str(content)})
     return entity
-
-
-def make_ancestor_query(kind, namespace, ancestor):
-  """Creates a Cloud Datastore ancestor query."""
-  ancestor_key = entity_pb2.Key()
-  datastore_helper.add_key_path(ancestor_key, kind, ancestor)
-  if namespace is not None:
-    ancestor_key.partition_id.namespace_id = namespace
-
-  query = query_pb2.Query()
-  query.kind.add().name = kind
-
-  datastore_helper.set_property_filter(
-      query.filter, '__key__', PropertyFilter.HAS_ANCESTOR, ancestor_key)
-
-  return query
 
 
 def run(argv=None):
@@ -133,45 +106,39 @@ def run(argv=None):
   kind = known_args.kind
   num_entities = known_args.num_entities
   project = gcloud_options.project
-  # a random ancesor key
-  ancestor = str(uuid.uuid4())
-  query = make_ancestor_query(kind, None, ancestor)
 
   # Pipeline 1: Create and write the specified number of Entities to the
   # Cloud Datastore.
+  ancestor_key = Key([kind, str(uuid.uuid4())], project=project)
   logging.info('Writing %s entities to %s', num_entities, project)
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-write')
-
-  # pylint: disable=expression-not-assigned
-  (p
-   | 'Input' >> beam.Create(list(range(known_args.num_entities)))
-   | 'To String' >> beam.Map(str)
-   | 'To Entity' >> beam.Map(EntityWrapper(kind, None, ancestor).make_entity)
-   | 'Write to Datastore' >> WriteToDatastore(project))
-
+  _ = (p
+       | 'Input' >> beam.Create(list(range(num_entities)))
+       | 'To String' >> beam.Map(str)
+       | 'To Entity' >> beam.Map(EntityWrapper(kind, ancestor_key).make_entity)
+       | 'Write to Datastore' >> WriteToDatastore(project))
   p.run()
 
+  query = Query(kind=kind, project=project, ancestor=ancestor_key)
   # Optional Pipeline 2: If a read limit was provided, read it and confirm
   # that the expected entities were read.
   if known_args.limit is not None:
     logging.info('Querying a limited set of %s entities and verifying count.',
                  known_args.limit)
     p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-limit')
-    query_with_limit = query_pb2.Query()
-    query_with_limit.CopyFrom(query)
-    query_with_limit.limit.value = known_args.limit
-    entities = p | 'read from datastore' >> ReadFromDatastore(project,
-                                                              query_with_limit)
+    query.limit = known_args.limit
+    entities = p | 'read from datastore' >> ReadFromDatastore(query)
     assert_that(
         entities | beam.combiners.Count.Globally(),
         equal_to([known_args.limit]))
 
     p.run()
+    query.limit = None
 
   # Pipeline 3: Query the written Entities and verify result.
   logging.info('Querying entities, asserting they match.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify')
-  entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
+  entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
   assert_that(
       entities | beam.combiners.Count.Globally(),
@@ -182,18 +149,17 @@ def run(argv=None):
   # Pipeline 4: Delete Entities.
   logging.info('Deleting entities.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-delete')
-  entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
-  # pylint: disable=expression-not-assigned
-  (entities
-   | 'To Keys' >> beam.Map(lambda entity: entity.key)
-   | 'Delete keys' >> DeleteFromDatastore(project))
+  entities = p | 'read from datastore' >> ReadFromDatastore(query)
+  _ = (entities
+       | 'To Keys' >> beam.Map(lambda entity: entity.key)
+       | 'delete entities' >> DeleteFromDatastore(project))
 
   p.run()
 
   # Pipeline 5: Query the written Entities, verify no results.
   logging.info('Querying for the entities to make sure there are none present.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-deleted')
-  entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
+  entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
   assert_that(
       entities | beam.combiners.Count.Globally(),

@@ -137,11 +137,14 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
+    'cachetools>=3.1.0,<4',
     # google-apitools 0.5.23 and above has important Python 3 supports.
     'google-apitools>=0.5.26,<0.5.27',
-    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    # [BEAM-4543] Datastore IO is not supported in Python 3.
+    # [BEAM-4543] googledatastore is not supported in Python 3.
+    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
     'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
+    'google-cloud-datastore==1.7.1',
     'google-cloud-pubsub==0.39.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
