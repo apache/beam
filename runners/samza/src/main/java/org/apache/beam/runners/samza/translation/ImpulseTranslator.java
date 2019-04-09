@@ -21,7 +21,9 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.samza.operators.KV;
+import org.apache.samza.serializers.KVSerde;
 import org.apache.samza.serializers.NoOpSerde;
+import org.apache.samza.serializers.Serde;
 import org.apache.samza.system.descriptors.GenericInputDescriptor;
 import org.apache.samza.system.descriptors.GenericSystemDescriptor;
 
@@ -40,8 +42,11 @@ public class ImpulseTranslator implements TransformTranslator {
     final String outputId = ctx.getOutputId(transform);
     final GenericSystemDescriptor systemDescriptor =
         new GenericSystemDescriptor(outputId, SamzaImpulseSystemFactory.class.getName());
+
+    // The KvCoder is needed here for Samza not to crop the key.
+    final Serde<KV<?, OpMessage<byte[]>>> kvSerde = KVSerde.of(new NoOpSerde(), new NoOpSerde<>());
     final GenericInputDescriptor<KV<?, OpMessage<byte[]>>> inputDescriptor =
-        systemDescriptor.getInputDescriptor(outputId, new NoOpSerde<>());
+        systemDescriptor.getInputDescriptor(outputId, kvSerde);
 
     ctx.registerInputMessageStream(outputId, inputDescriptor);
   }

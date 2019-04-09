@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -74,8 +75,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // NOTE: we use HashMap here to guarantee Serializability
   private final HashMap<String, PCollectionView<?>> idToViewMap;
   private final String stepName;
+  private final String stepId;
   private final Coder<InT> inputCoder;
   private final HashMap<TupleTag<?>, Coder<?>> outputCoders;
+  private final PCollection.IsBounded isBounded;
 
   // portable api related
   private final boolean isPortable;
@@ -114,6 +117,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       Map<String, PCollectionView<?>> idToViewMap,
       OutputManagerFactory<OutT> outputManagerFactory,
       String stepName,
+      String stepId,
+      PCollection.IsBounded isBounded,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
       Map<String, TupleTag<?>> idToTupleTagMap,
@@ -128,7 +133,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.idToViewMap = new HashMap<>(idToViewMap);
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
+    this.stepId = stepId;
     this.keyCoder = keyCoder;
+    this.isBounded = isBounded;
     this.isPortable = isPortable;
     this.stagePayload = stagePayload;
     this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
@@ -152,9 +159,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             .get()
             .as(SamzaPipelineOptions.class);
 
+    final String stateId = "pardo-" + stepId;
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            null, context.getTaskContext(), pipelineOptions, signature, mainOutputTag);
+            stateId, null, context.getTaskContext(), pipelineOptions, signature);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
@@ -163,6 +171,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             getTimerStateId(signature),
             nonKeyedStateInternalsFactory,
             windowingStrategy,
+            isBounded,
             pipelineOptions);
 
     this.sideInputHandler =
@@ -188,6 +197,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               doFn,
               windowingStrategy,
               stepName,
+              stateId,
               context,
               mainOutputTag,
               sideInputHandler,

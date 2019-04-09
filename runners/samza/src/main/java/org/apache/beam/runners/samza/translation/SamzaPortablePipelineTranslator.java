@@ -23,6 +23,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +63,8 @@ public class SamzaPortablePipelineTranslator {
     }
   }
 
-  public static void createConfig(RunnerApi.Pipeline pipeline, ConfigBuilder configBuilder) {
+  public static void createConfig(
+      RunnerApi.Pipeline pipeline, ConfigBuilder configBuilder, SamzaPipelineOptions options) {
     QueryablePipeline queryablePipeline =
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
@@ -72,7 +74,7 @@ public class SamzaPortablePipelineTranslator {
           TRANSLATORS.get(transform.getTransform().getSpec().getUrn());
       if (translator instanceof TransformConfigGenerator) {
         TransformConfigGenerator configGenerator = (TransformConfigGenerator) translator;
-        configBuilder.putAll(configGenerator.createPortableConfig(transform));
+        configBuilder.putAll(configGenerator.createPortableConfig(transform, options));
       }
     }
   }
