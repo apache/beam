@@ -74,6 +74,16 @@ public class ByteCoder extends AtomicCoder<Byte> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. This coder is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}. {@link ByteCoder#getEncodedElementByteSize} returns a constant.
    */
   @Override
@@ -97,11 +107,5 @@ public class ByteCoder extends AtomicCoder<Byte> {
       throw new CoderException("cannot estimate size for unsupported null value");
     }
     return 1;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(Byte value) {
-    return value;
   }
 }

@@ -75,6 +75,16 @@ public class FloatCoder extends AtomicCoder<Float> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. This coder is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}. {@link FloatCoder#getEncodedElementByteSize} returns a constant.
    */
   @Override
@@ -98,11 +108,5 @@ public class FloatCoder extends AtomicCoder<Float> {
       throw new CoderException("cannot encode a null Float");
     }
     return 4;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(Float value) {
-    return value;
   }
 }
