@@ -336,7 +336,9 @@ public class SelectTest {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PartialRowSingleMap)) return false;
+      if (!(o instanceof PartialRowSingleMap)) {
+        return false;
+      }
       PartialRowSingleMap that = (PartialRowSingleMap) o;
       return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
@@ -520,7 +522,9 @@ public class SelectTest {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PartialRowMultipleMaps)) return false;
+      if (!(o instanceof PartialRowMultipleMaps)) {
+        return false;
+      }
       PartialRowMultipleMaps that = (PartialRowMultipleMaps) o;
       return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
@@ -602,7 +606,9 @@ public class SelectTest {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PartialRowNestedArraysAndMaps)) return false;
+      if (!(o instanceof PartialRowNestedArraysAndMaps)) {
+        return false;
+      }
       PartialRowNestedArraysAndMaps that = (PartialRowNestedArraysAndMaps) o;
       return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
