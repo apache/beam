@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
@@ -75,12 +74,5 @@ public class BigEndianIntegerCoderTest {
   @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Integer.class)));
-  }
-
-  @Test
-  public void testStructuralValueReturnTheSameValue() {
-    Integer expected = 223;
-    Object actual = TEST_CODER.structuralValue(expected);
-    assertEquals(expected, actual);
   }
 }
