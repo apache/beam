@@ -47,7 +47,6 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
@@ -119,11 +118,14 @@ class DataInputOperation(RunnerIOOperation):
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(itervalues(consumers))), self.windowed_coder)]
     self.splitting_lock = threading.Lock()
+    self.started = False
 
   def start(self):
     super(DataInputOperation, self).start()
-    self.index = -1
-    self.stop = float('inf')
+    with self.splitting_lock:
+      self.index = -1
+      self.stop = float('inf')
+      self.started = True
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -141,6 +143,8 @@ class DataInputOperation(RunnerIOOperation):
 
   def try_split(self, fraction_of_remainder, total_buffer_size):
     with self.splitting_lock:
+      if not self.started:
+        return
       if total_buffer_size < self.index + 1:
         total_buffer_size = self.index + 1
       elif self.stop and total_buffer_size > self.stop:
@@ -178,6 +182,10 @@ class DataInputOperation(RunnerIOOperation):
       if stop_index < self.stop:
         self.stop = stop_index
         return self.stop - 1, None, None, self.stop
+
+  def finish(self):
+    with self.splitting_lock:
+      self.started = False
 
 
 class _StateBackedIterable(object):
@@ -236,9 +244,7 @@ class StateBackedSideInputMap(object):
         raw_view = _StateBackedIterable(
             state_handler, state_key, self._element_coder)
 
-      elif (access_pattern == common_urns.side_inputs.MULTIMAP.urn or
-            access_pattern ==
-            dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN):
+      elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
         cache = {}
         key_coder_impl = self._element_coder.key_coder().get_impl()
         value_coder = self._element_coder.value_coder()

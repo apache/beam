@@ -1,3 +1,4 @@
+#!groovy
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -15,23 +16,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
 
-import static org.junit.Assert.assertEquals;
+t = new TestScripts(args)
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+/*
+ * Generate a starter archetype project and ensure its correctness
+ */
 
-/** Tests for {@link BooleanCoder}. */
-@RunWith(JUnit4.class)
-public class BooleanCoderTest {
-  private static final Coder<Boolean> TEST_CODER = BooleanCoder.of();
+t.describe 'Generate project from starter archetype'
 
-  @Test
-  public void testStructuralValueReturnTheSameValue() {
-    Boolean expected = Boolean.TRUE;
-    Object actual = TEST_CODER.structuralValue(expected);
-    assertEquals(expected, actual);
-  }
-}
+t.intent 'Generates starter archetype project'
+StarterArchetype.generate(t)
+
+t.intent 'Runs the StarterPipeline Code with Direct runner'
+// Run the wordcount example with the Direct runner
+t.run """mvn compile exec:java -q \
+      -Dexec.mainClass=org.apache.beam.starter.StarterPipeline \
+      -Dexec.args="--inputFile=pom.xml --output=starterOutput"""
+
+// Verify output correctness
+String result = t.run "grep INFO starterOutput*"
+t.see "INFO: HELLO", result
+t.see "INFO: WORLD", result
+
+// Clean up
+t.done()

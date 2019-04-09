@@ -645,8 +645,10 @@ class SdfProcessSizedElements(DoOperation):
   def current_element_progress(self):
     with self.lock:
       if self.element_start_output_bytes is not None:
-        return self.dofn_runner.current_element_progress().with_completed(
-            self._total_output_bytes() - self.element_start_output_bytes)
+        progress = self.dofn_runner.current_element_progress()
+        if progress is not None:
+          return progress.with_completed(
+              self._total_output_bytes() - self.element_start_output_bytes)
 
   def progress_metrics(self):
     with self.lock:

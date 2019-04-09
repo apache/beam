@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
@@ -86,12 +85,5 @@ public class DurationCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(
         TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(ReadableDuration.class)));
-  }
-
-  @Test
-  public void testStructuralValueReturnTheSameValue() {
-    ReadableDuration expected = Duration.millis(3_000);
-    Object actual = TEST_CODER.structuralValue(expected);
-    assertEquals(expected, actual);
   }
 }

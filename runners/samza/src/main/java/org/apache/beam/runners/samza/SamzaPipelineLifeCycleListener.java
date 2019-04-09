@@ -15,24 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
+package org.apache.beam.runners.samza;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.samza.config.Config;
+import org.apache.samza.context.ExternalContext;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+/** Life cycle listener for a Samza pipeline during runtime. */
+public interface SamzaPipelineLifeCycleListener {
+  /** Callback when the pipeline options is created. */
+  void onInit(Config config);
 
-/** Tests for {@link FloatCoder}. */
-@RunWith(JUnit4.class)
-public class FloatCoderTest {
+  /** Callback when the pipeline is started. */
+  ExternalContext onStart();
 
-  private static final Coder<Float> TEST_CODER = FloatCoder.of();
+  /**
+   * Callback after the pipeline is submmitted. This will be invoked only for Samza jobs submitted
+   * to a cluster.
+   */
+  void onSubmit();
 
-  @Test
-  public void testStructuralValueReturnTheSameValue() {
-    Float expected = 23.45F;
-    Object actual = TEST_CODER.structuralValue(expected);
-    assertEquals(expected, actual);
+  /** Callback after the pipeline is finished. */
+  void onFinish();
+
+  /** A registrar for {@link SamzaPipelineLifeCycleListener}. */
+  interface Registrar {
+    SamzaPipelineLifeCycleListener getLifeCycleListener();
   }
 }

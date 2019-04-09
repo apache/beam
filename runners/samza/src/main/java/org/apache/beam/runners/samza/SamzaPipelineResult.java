@@ -38,12 +38,17 @@ public class SamzaPipelineResult implements PipelineResult {
   private final SamzaExecutionContext executionContext;
   private final ApplicationRunner runner;
   private final StreamApplication app;
+  private final SamzaPipelineLifeCycleListener listener;
 
   public SamzaPipelineResult(
-      StreamApplication app, ApplicationRunner runner, SamzaExecutionContext executionContext) {
+      StreamApplication app,
+      ApplicationRunner runner,
+      SamzaExecutionContext executionContext,
+      SamzaPipelineLifeCycleListener listener) {
     this.executionContext = executionContext;
     this.runner = runner;
     this.app = app;
+    this.listener = listener;
   }
 
   @Override
@@ -70,6 +75,11 @@ public class SamzaPipelineResult implements PipelineResult {
     }
 
     final StateInfo stateInfo = getStateInfo();
+
+    if (listener != null && (stateInfo.state == State.DONE || stateInfo.state == State.FAILED)) {
+      listener.onFinish();
+    }
+
     if (stateInfo.state == State.FAILED) {
       throw stateInfo.error;
     }

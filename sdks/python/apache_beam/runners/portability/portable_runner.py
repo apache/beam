@@ -114,7 +114,6 @@ class PortableRunner(runner.PipelineRunner):
           portable_options.environment_config
           or PortableRunner.default_docker_image())
       return beam_runner_api_pb2.Environment(
-          url=docker_image,
           urn=common_urns.environments.DOCKER.urn,
           payload=beam_runner_api_pb2.DockerPayload(
               container_image=docker_image

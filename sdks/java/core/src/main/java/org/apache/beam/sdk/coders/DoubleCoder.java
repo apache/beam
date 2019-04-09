@@ -75,6 +75,16 @@ public class DoubleCoder extends AtomicCoder<Double> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. This coder is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}. {@link DoubleCoder#getEncodedElementByteSize} returns a constant.
    */
   @Override
@@ -98,11 +108,5 @@ public class DoubleCoder extends AtomicCoder<Double> {
       throw new CoderException("cannot encode a null Double");
     }
     return 8;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(Double value) {
-    return value;
   }
 }

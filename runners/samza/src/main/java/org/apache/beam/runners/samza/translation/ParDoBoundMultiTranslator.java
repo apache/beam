@@ -148,6 +148,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
             idToPValueMap,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             node.getFullName(),
+            // TODO: infer a fixed id from the name
+            String.valueOf(ctx.getCurrentTopologicalId()),
+            input.isBounded(),
             false,
             null,
             Collections.emptyMap(),
@@ -237,6 +240,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
 
+    final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
+    final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
+
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             mainOutputTag,
@@ -250,6 +256,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             nodeFullname,
+            // TODO: infer a fixed id from the name
+            String.valueOf(ctx.getCurrentTopologicalId()),
+            isBounded,
             true,
             stagePayload,
             idToTupleTagMap,

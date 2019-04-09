@@ -32,11 +32,11 @@ import apache_beam.transforms as ptransform
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners import create_runner
-from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
@@ -385,7 +385,7 @@ class DataflowRunnerTest(unittest.TestCase):
     self.assertEqual(2, len(applied_transform.side_inputs))
     for side_input in applied_transform.side_inputs:
       self.assertEqual(
-          dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN,
+          common_urns.side_inputs.MULTIMAP.urn,
           side_input._side_input_data().access_pattern)
 
 
