@@ -25,14 +25,6 @@
 
 plugins { id 'org.apache.beam.module' }
 
-// Set a specific version of 'com.google.apis:google-api-services-dataflow'
-// by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
-// 'google_clients_version' defined in BeamModulePlugin will be used as default.
-def DATAFLOW_VERSION = "dataflow.version"
-
-// Get full dependency of 'com.google.apis:google-api-services-dataflow'
-def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
-
 // Returns a string representing the relocated path to be used with the shadow
 // plugin when given a suffix such as "com.".
 def getWorkerRelocatedPath = { String suffix ->
@@ -43,7 +35,10 @@ def getWorkerRelocatedPath = { String suffix ->
 // Following listed dependencies will be shaded only in fnapi worker, not legacy
 // worker
 def sdk_provided_dependencies = [
-        google_api_services_dataflow,
+        // Set a specific version of 'com.google.apis:google-api-services-dataflow'
+        // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
+        // 'dataflow' defined in BeamModulePlugin will be used as default.
+        library.java.google_api_services_dataflow,
         library.java.avro,
         library.java.google_api_client,
         library.java.google_http_client,

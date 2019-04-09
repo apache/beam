@@ -45,19 +45,21 @@ idea {
   }
 }
 
-def clickhouse_jdbc_version = "0.1.47"
-def testcontainers_version = "1.10.5"
+beam.versions {
+  clickhouse_jdbc "0.1.47"
+  testcontainers "1.10.5"
+}
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
-  shadow "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
+  shadow "ru.yandex.clickhouse:clickhouse-jdbc:$beam.versions.clickhouse_jdbc"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile "org.testcontainers:clickhouse:$testcontainers_version"
+  testCompile "org.testcontainers:clickhouse:$beam.versions.testcontainers"
 }

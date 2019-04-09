@@ -42,8 +42,10 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
 ext.summary = "IO to read and write with Apache Cassandra database"
 
-// compatible with all Cassandra versions up to 3.11.3
-def achilles_version = "6.0.2"
+// compatible with all Cassandra versions up to 3.11.3#
+beam.versions {
+  achilles "6.0.2"
+}
 
 dependencies {
   shadow library.java.vendored_guava_20_0
@@ -60,6 +62,6 @@ dependencies {
   testCompile library.java.mockito_core
 
   // for embedded cassandra
-  testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
+  testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$beam.versions.achilles"
   testCompile library.java.jackson_jaxb_annotations
 }

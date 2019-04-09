@@ -82,6 +82,10 @@ configurations {
   validatesRunner
 }
 
+beam.versions {
+  flink flink_version
+}
+
 dependencies {
   shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
@@ -95,12 +99,12 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.commons_compress
   shadow library.java.args4j
-  shadow "org.apache.flink:flink-clients_2.11:$flink_version"
-  shadow "org.apache.flink:flink-core:$flink_version"
-  shadow "org.apache.flink:flink-metrics-core:$flink_version"
-  shadow "org.apache.flink:flink-java:$flink_version"
-  shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
-  shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
+  shadow "org.apache.flink:flink-clients_2.11:${beam.versions.flink}"
+  shadow "org.apache.flink:flink-core:${beam.versions.flink}"
+  shadow "org.apache.flink:flink-metrics-core:${beam.versions.flink}"
+  shadow "org.apache.flink:flink-java:${beam.versions.flink}"
+  shadow "org.apache.flink:flink-runtime_2.11:${beam.versions.flink}"
+  shadow "org.apache.flink:flink-streaming-java_2.11:${beam.versions.flink}"
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
@@ -112,10 +116,10 @@ dependencies {
   shadowTest library.java.slf4j_simple
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest library.java.jackson_dataformat_yaml
-  shadowTest "org.apache.flink:flink-core:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  shadowTest "org.apache.flink:flink-core:${beam.versions.flink}:tests"
+  shadowTest "org.apache.flink:flink-runtime_2.11:${beam.versions.flink}:tests"
+  shadowTest "org.apache.flink:flink-streaming-java_2.11:${beam.versions.flink}:tests"
+  shadowTest "org.apache.flink:flink-test-utils_2.11:${beam.versions.flink}"
   shadowTest project(":beam-sdks-java-harness")
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")

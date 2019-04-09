@@ -76,7 +76,7 @@ configurations.all {
 
 dependencies {
   compile project(path: flinkRunnerProject, configuration: "shadow")
-  compile group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  compile group: "org.slf4j", name: "jcl-over-slf4j", version: "$beam.versions.slf4j"
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "shadowTest")
   validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")

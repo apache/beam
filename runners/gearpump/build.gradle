@@ -30,7 +30,9 @@ description = "Apache Beam :: Runners :: Gearpump"
  */
 evaluationDependsOn(":beam-sdks-java-core")
 
-def gearpump_version = "0.9.0"
+beam.versions {
+  gearpump "0.9.0"
+}
 
 configurations {
   validatesRunner
@@ -43,8 +45,8 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow "io.github.gearpump:gearpump-core_2.12:$gearpump_version:assembly"
-  shadow "io.github.gearpump:gearpump-streaming_2.12:$gearpump_version:assembly"
+  shadow "io.github.gearpump:gearpump-core_2.12:${beam.versions.gearpump}:assembly"
+  shadow "io.github.gearpump:gearpump-streaming_2.12:${beam.versions.gearpump}:assembly"
   shadow library.java.joda_time
   shadow library.java.jackson_annotations
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")

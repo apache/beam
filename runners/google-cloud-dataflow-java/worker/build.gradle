@@ -18,14 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 
-// Set a specific version of 'com.google.apis:google-api-services-dataflow'
-// by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
-// 'google_clients_version' defined in BeamModulePlugin will be used as default.
-def DATAFLOW_VERSION = "dataflow.version"
-
-// Get full dependency of 'com.google.apis:google-api-services-dataflow'
-def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
-
 applyJavaNature(
   publish: false,
   exportJavadoc: false,
@@ -76,7 +68,10 @@ dependencies {
   compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   compile project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
   compile library.java.vendored_grpc_1_13_1
-  compile google_api_services_dataflow
+  // Set a specific version of 'com.google.apis:google-api-services-dataflow'
+  // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
+  // 'dataflow' defined in BeamModulePlugin will be used as default.
+  compile library.java.google_api_services_dataflow
   compile library.java.avro
   compile library.java.google_api_client
   compile library.java.google_http_client

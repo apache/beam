@@ -58,21 +58,22 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.19.0"
-def avatica_version = "1.13.0"
-def hive_version = "2.1.0"
-def netty_version = "4.1.30.Final"
+beam.versions {
+  calcite = "1.19.0"
+  avatica = "1.13.0"
+  hive = "2.1.0"
+}
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.28"
-  fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
+  fmppTemplates "org.apache.calcite:calcite-core:$beam.versions.calcite"
   shadow library.java.vendored_guava_20_0 // Internal use
   compile library.java.guava // Interfaces with Calcite use this
-  compile "org.apache.calcite:calcite-core:$calcite_version"
-  compile "org.apache.calcite:calcite-linq4j:$calcite_version"
-  compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
+  compile "org.apache.calcite:calcite-core:$beam.versions.calcite"
+  compile "org.apache.calcite:calcite-linq4j:$beam.versions.calcite"
+  compile "org.apache.calcite.avatica:avatica-core:$beam.versions.avatica"
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api
@@ -98,8 +99,8 @@ dependencies {
 
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
-  shadowTest "io.netty:netty-all:$netty_version"
-  shadowTest("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
+  shadowTest "io.netty:netty-all:$beam.versions.netty"
+  shadowTest("org.apache.hive.hcatalog:hive-hcatalog-core:$beam.versions.hive") {
     // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
     // gets registered and gets started instead of ours,
     // and a ton of other stuff.
@@ -209,7 +210,7 @@ task integrationTest(type: Test) {
           .sourceSets
           .test
           .runtimeClasspath
-          .filter { it.name != "hive-exec-${hive_version}.jar" }
+          .filter { it.name != "hive-exec-${beam.versions.hive}.jar" }
   testClassesDirs = files(project(":beam-sdks-java-extensions-sql").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
