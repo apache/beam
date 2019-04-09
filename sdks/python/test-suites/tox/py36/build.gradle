@@ -42,5 +42,6 @@ testPy36Cython.mustRunAfter testPython36, testPy36Gcp
 task preCommitPy36() {
     dependsOn "testPython36"
     dependsOn "testPy36Gcp"
-    dependsOn "testPy36Cython"
+    // TODO: Activate when Jenkins workers are updated with python3.6-dev
+    // dependsOn "testPy36Cython"
 }
