@@ -242,6 +242,8 @@ public class JdbcIO {
     @Nullable
     abstract DataSource getDataSource();
 
+    abstract boolean isPoolingDataSource();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -258,14 +260,22 @@ public class JdbcIO {
 
       abstract Builder setDataSource(DataSource dataSource);
 
+      abstract Builder setPoolingDataSource(boolean poolingDataSource);
+
       abstract DataSourceConfiguration build();
     }
 
     public static DataSourceConfiguration create(DataSource dataSource) {
+      return create(dataSource, true);
+    }
+
+    public static DataSourceConfiguration create(
+        DataSource dataSource, boolean isPoolingDataSource) {
       checkArgument(dataSource != null, "dataSource can not be null");
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDataSource(dataSource)
+          .setPoolingDataSource(isPoolingDataSource)
           .build();
     }
 
@@ -284,6 +294,7 @@ public class JdbcIO {
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDriverClassName(driverClassName)
           .setUrl(url)
+          .setPoolingDataSource(true)
           .build();
     }
 
@@ -356,21 +367,25 @@ public class JdbcIO {
         current = basicDataSource;
       }
 
-      // wrapping the datasource as a pooling datasource
-      DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
-      PoolableConnectionFactory poolableConnectionFactory =
-          new PoolableConnectionFactory(connectionFactory, null);
-      GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-      poolConfig.setMaxTotal(1);
-      poolConfig.setMinIdle(0);
-      poolConfig.setMinEvictableIdleTimeMillis(10000);
-      poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
-      GenericObjectPool connectionPool =
-          new GenericObjectPool(poolableConnectionFactory, poolConfig);
-      poolableConnectionFactory.setPool(connectionPool);
-      poolableConnectionFactory.setDefaultAutoCommit(false);
-      poolableConnectionFactory.setDefaultReadOnly(false);
-      return new PoolingDataSource(connectionPool);
+      if (isPoolingDataSource()) {
+        // wrapping the datasource as a pooling datasource
+        DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
+        PoolableConnectionFactory poolableConnectionFactory =
+            new PoolableConnectionFactory(connectionFactory, null);
+        GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+        poolConfig.setMaxTotal(1);
+        poolConfig.setMinIdle(0);
+        poolConfig.setMinEvictableIdleTimeMillis(10000);
+        poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
+        GenericObjectPool connectionPool =
+            new GenericObjectPool(poolableConnectionFactory, poolConfig);
+        poolableConnectionFactory.setPool(connectionPool);
+        poolableConnectionFactory.setDefaultAutoCommit(false);
+        poolableConnectionFactory.setDefaultReadOnly(false);
+        return new PoolingDataSource(connectionPool);
+      } else {
+        return current;
+      }
     }
   }
 
