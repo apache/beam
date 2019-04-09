@@ -143,11 +143,12 @@ def commonExcludeCategories = [
 ]
 
 def fnApiWorkerExcludeCategories = [
+  'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
   'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
   'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported',
   'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders',
   'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
-  'org.apache.beam.sdk.testing.UsesSchema'
+  'org.apache.beam.sdk.testing.UsesSchema',
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
