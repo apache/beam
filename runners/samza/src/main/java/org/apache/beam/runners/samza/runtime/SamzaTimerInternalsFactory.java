@@ -36,6 +36,8 @@ import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
@@ -55,6 +57,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private final Scheduler<KeyedTimerData<K>> timerRegistry;
   private final int timerBufferSize;
   private final SamzaTimerState state;
+  private final IsBounded isBounded;
 
   private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -65,12 +68,14 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       int timerBufferSize,
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
-      Coder<BoundedWindow> windowCoder) {
+      Coder<BoundedWindow> windowCoder,
+      IsBounded isBounded) {
     this.keyCoder = keyCoder;
     this.timerRegistry = timerRegistry;
     this.timerBufferSize = timerBufferSize;
     this.eventTimeTimers = new TreeSet<>();
     this.state = new SamzaTimerState(timerStateId, nonKeyedStateInternalsFactory, windowCoder);
+    this.isBounded = isBounded;
   }
 
   static <K> SamzaTimerInternalsFactory<K> createTimerInternalFactory(
@@ -79,6 +84,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
+      IsBounded isBounded,
       SamzaPipelineOptions pipelineOptions) {
 
     final Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
@@ -89,7 +95,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         pipelineOptions.getTimerBufferSize(),
         timerStateId,
         nonKeyedStateInternalsFactory,
-        windowCoder);
+        windowCoder,
+        isBounded);
   }
 
   @Override
@@ -183,6 +190,13 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void setTimer(TimerData timerData) {
+      if (isBounded == IsBounded.UNBOUNDED
+          && timerData.getTimestamp().getMillis()
+              >= GlobalWindow.INSTANCE.maxTimestamp().getMillis()) {
+        // No need to register a timer of max timestamp if the input is unbounded
+        return;
+      }
+
       final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
 
       // persist it first

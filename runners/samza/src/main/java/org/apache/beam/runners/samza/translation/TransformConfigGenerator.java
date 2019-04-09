@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.translation;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -32,7 +33,8 @@ public interface TransformConfigGenerator<T extends PTransform<?, ?>> {
   }
 
   /** Generate config for portable api PTransform. */
-  default Map<String, String> createPortableConfig(PipelineNode.PTransformNode transform) {
+  default Map<String, String> createPortableConfig(
+      PipelineNode.PTransformNode transform, SamzaPipelineOptions options) {
     return Collections.emptyMap();
   }
 }
