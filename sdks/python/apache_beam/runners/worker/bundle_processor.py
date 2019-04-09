@@ -118,11 +118,14 @@ class DataInputOperation(RunnerIOOperation):
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(itervalues(consumers))), self.windowed_coder)]
     self.splitting_lock = threading.Lock()
+    self.started = False
 
   def start(self):
     super(DataInputOperation, self).start()
-    self.index = -1
-    self.stop = float('inf')
+    with self.splitting_lock:
+      self.index = -1
+      self.stop = float('inf')
+      self.started = True
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -140,6 +143,8 @@ class DataInputOperation(RunnerIOOperation):
 
   def try_split(self, fraction_of_remainder, total_buffer_size):
     with self.splitting_lock:
+      if not self.started:
+        return
       if total_buffer_size < self.index + 1:
         total_buffer_size = self.index + 1
       elif self.stop and total_buffer_size > self.stop:
@@ -177,6 +182,10 @@ class DataInputOperation(RunnerIOOperation):
       if stop_index < self.stop:
         self.stop = stop_index
         return self.stop - 1, None, None, self.stop
+
+  def finish(self):
+    with self.splitting_lock:
+      self.started = False
 
 
 class _StateBackedIterable(object):
