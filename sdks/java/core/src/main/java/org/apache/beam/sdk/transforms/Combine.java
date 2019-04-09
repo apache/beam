@@ -359,6 +359,8 @@ public class Combine {
     /**
      * Returns the output value that is the result of combining all the input values represented by
      * the given accumulator.
+     *
+     * @param accumulator can be modified for efficiency
      */
     public abstract OutputT extractOutput(AccumT accumulator);
 
