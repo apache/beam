@@ -789,7 +789,7 @@ class DoFnRunner(Receiver):
 
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
-      raise exn
+      raise
     step_annotation = " [while running '%s']" % self.step_name
     # To emulate exception chaining (not available in Python 2).
     try:

@@ -388,6 +388,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       def emit_values(self, bag_state=beam.DoFn.StateParam(BAG_STATE)):
         for value in bag_state.read():
           yield value
+        yield 'extra'
 
       @on_timer(CLEAR_TIMER)
       def clear_values(self, bag_state=beam.DoFn.StateParam(BAG_STATE)):
@@ -405,7 +406,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
            | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(
-        [],
+        ['extra'],
         StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_stateful_dofn_nonkeyed_input(self):
