@@ -57,6 +57,7 @@ dependencies {
   shadow library.java.args4j
   shadow "javax.servlet:javax.servlet-api:3.1.0"
   shadow "org.rocksdb:rocksdbjni:5.7.3"
+  shadow "org.apache.commons:commons-collections4:4.0"
 
   shadow "com.linkedin.samza-li:samza-api:$samza_version"
   shadow "com.linkedin.samza-li:samza-core_2.11:$samza_version"

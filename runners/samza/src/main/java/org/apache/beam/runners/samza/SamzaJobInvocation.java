@@ -81,6 +81,7 @@ public class SamzaJobInvocation implements JobInvocation {
   public void cancel() {
     try {
       if (pipelineResult != null) {
+        LOG.info("Cancelling pipeline {}", getId());
         pipelineResult.cancel();
       }
     } catch (Exception e) {

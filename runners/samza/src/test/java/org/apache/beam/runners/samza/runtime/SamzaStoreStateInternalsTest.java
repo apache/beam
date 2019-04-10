@@ -196,7 +196,8 @@ public class SamzaStoreStateInternalsTest implements Serializable {
         MetricsRegistry registry,
         SystemStreamPartition changeLogSystemStreamPartition,
         JobContext jobContext,
-        ContainerContext containerContext) {
+        ContainerContext containerContext,
+        StoreMode storeMode) {
       KeyValueStoreMetrics metrics = new KeyValueStoreMetrics(storeName, registry);
       return new TestStore(metrics);
     }

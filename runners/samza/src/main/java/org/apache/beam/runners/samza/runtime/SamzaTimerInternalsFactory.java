@@ -344,13 +344,17 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     private void loadEventTimeTimers() {
       if (!eventTimerTimerState.isEmpty().read()) {
         final Iterator<KeyedTimerData<K>> iter = eventTimerTimerState.readIterator().read();
-        for (int i = 0; i < timerBufferSize && iter.hasNext(); i++) {
+        int i = 0;
+        for (; i < timerBufferSize && iter.hasNext(); i++) {
           eventTimeTimers.add(iter.next());
         }
+
+        LOG.info("Loaded {} event time timers in memory", i);
 
         // manually close the iterator here
         final SamzaStoreStateInternals.KeyValueIteratorState iteratorState =
             (SamzaStoreStateInternals.KeyValueIteratorState) eventTimerTimerState;
+
         iteratorState.closeIterators();
       }
     }
@@ -359,11 +363,15 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       if (!processingTimerTimerState.isEmpty().read()) {
         final Iterator<KeyedTimerData<K>> iter = processingTimerTimerState.readIterator().read();
         // since the iterator will reach to the end, it will be closed automatically
+        int count = 0;
         while (iter.hasNext()) {
           final KeyedTimerData<K> keyedTimerData = iter.next();
           timerRegistry.schedule(
               keyedTimerData, keyedTimerData.getTimerData().getTimestamp().getMillis());
+          ++count;
         }
+
+        LOG.info("Loaded {} processing time timers in memory", count);
       }
     }
 
