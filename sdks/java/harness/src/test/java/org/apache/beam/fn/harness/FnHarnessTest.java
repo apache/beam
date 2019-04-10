@@ -17,7 +17,11 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.auto.service.AutoService;
 import java.util.ArrayList;
@@ -43,7 +47,6 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -64,9 +67,13 @@ public class FnHarnessTest {
           .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
           .build();
 
-  private static @Mock Runnable onStartupMock;
-  private static @Mock Consumer<PipelineOptions> beforeProcessingMock;
+  private static @Mock Runnable onStartupMock = mock(Runnable.class);
+  private static @Mock Consumer<PipelineOptions> beforeProcessingMock = mock(Consumer.class);
 
+  /**
+   * Fake BeamWorkerInitializer that simply forwards calls to mocked functions so that they can be
+   * observed in tests.
+   */
   @AutoService(BeamWorkerInitializer.class)
   public static class FnHarnessTestInitializer extends BeamWorkerInitializer {
     @Override
@@ -78,12 +85,6 @@ public class FnHarnessTest {
     public void beforeProcessing(PipelineOptions options) {
       beforeProcessingMock.accept(options);
     }
-  }
-
-  @Before
-  public void setup() {
-    onStartupMock = mock(Runnable.class);
-    beforeProcessingMock = mock(Consumer.class);
   }
 
   @Test(timeout = 10 * 1000)
