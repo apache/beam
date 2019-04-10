@@ -58,6 +58,30 @@ examples:
 ---
 
 coder:
+  urn: "beam:coder:string_utf8:v1"
+nested: false
+examples:
+  "abc": abc
+  "ab\0c": "ab\0c"
+  "\u00c3\u00bf": "\u00ff"
+  "\u00e5\u0085\u0089\u00e7\u00ba\u00bf": "光线"
+
+---
+
+coder:
+  urn: "beam:coder:string_utf8:v1"
+nested: true
+examples:
+  "\u0003abc": abc
+  "\u0004ab\0c": "ab\0c"
+  "\u0002\u00c3\u00bf": "\u00ff"
+  "\u0006\u00e5\u0085\u0089\u00e7\u00ba\u00bf": "光线"
+  "\u00c8\u0001       10|       20|       30|       40|       50|       60|       70|       80|       90|      100|      110|      120|      130|      140|      150|      160|      170|      180|      190|      200|":
+    "       10|       20|       30|       40|       50|       60|       70|       80|       90|      100|      110|      120|      130|      140|      150|      160|      170|      180|      190|      200|"
+
+---
+
+coder:
   urn: "beam:coder:varint:v1"
 examples:
   "\0": 0
