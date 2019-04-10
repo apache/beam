@@ -63,6 +63,7 @@ public class CoderTranslationTest {
           .add(ByteArrayCoder.of())
           .add(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
           .add(VarLongCoder.of())
+          .add(StringUtf8Coder.of())
           .add(IntervalWindowCoder.of())
           .add(IterableCoder.of(ByteArrayCoder.of()))
           .add(Timer.Coder.of(ByteArrayCoder.of()))
