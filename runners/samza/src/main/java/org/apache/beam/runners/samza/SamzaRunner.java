@@ -102,9 +102,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
 
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Post-processed Beam pipeline:\n{}", PipelineDotRenderer.toDotString(pipeline));
-    }
+    LOG.info("Beam pipeline DOT graph:\n{}", PipelineDotRenderer.toDotString(pipeline));
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
 
@@ -141,6 +139,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
         final MetricsReporter reporter = options.getMetricsReporters().get(i);
 
         reporters.put(name, (MetricsReporterFactory) (nm, processorId, config) -> reporter);
+        LOG.info(name + ": " + reporter.getClass().getName());
       }
       return reporters;
     } else {
