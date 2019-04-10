@@ -305,7 +305,7 @@ class EvaluationContext(object):
         and result.uncommitted_output_bundles[0].pcollection
         in self._pcollection_to_views):
       for view in self._pcollection_to_views[
-        result.uncommitted_output_bundles[0].pcollection]:
+          result.uncommitted_output_bundles[0].pcollection]:
         for committed_bundle in committed_bundles:
           # side_input must be materialized.
           self._side_inputs_container.add_values(
