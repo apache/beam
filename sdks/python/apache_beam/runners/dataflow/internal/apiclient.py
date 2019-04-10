@@ -116,7 +116,7 @@ class Step(object):
       ValueError: if the tag does not exist within outputs.
     """
     outputs = self._get_outputs()
-    if tag is None:
+    if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
       name = '%s_%s' % (PropertyNames.OUT, tag)
