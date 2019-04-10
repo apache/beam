@@ -23,12 +23,6 @@ apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.samza.SamzaJobServerDriver"
 
-repositories {
-  maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
-  }
-}
-
 applyJavaNature(
     validateShadowJar: false,
     exportJavadoc: false,
