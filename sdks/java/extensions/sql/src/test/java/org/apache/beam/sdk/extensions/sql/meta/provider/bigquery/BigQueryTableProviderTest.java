@@ -43,10 +43,10 @@ public class BigQueryTableProviderTest {
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
-    assertTrue(sqlTable instanceof BeamBigQueryTable);
+    assertTrue(sqlTable instanceof BigQueryTable);
 
-    BeamBigQueryTable bqTable = (BeamBigQueryTable) sqlTable;
-    assertEquals("project:dataset.table", bqTable.getTableSpec());
+    BigQueryTable bqTable = (BigQueryTable) sqlTable;
+    assertEquals("project:dataset.table", bqTable.bqLocation);
   }
 
   private static Table fakeTable(String name) {
