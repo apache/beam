@@ -56,6 +56,14 @@ public class SparkJobInvoker extends JobInvoker {
         String.format("%s_%s", sparkOptions.getJobName(), UUID.randomUUID().toString());
     LOG.info("Invoking job {}", invocationId);
 
+    // Options can't be translated to proto if runner class is unresolvable, so set it to null.
+    sparkOptions.setRunner(null);
+
+    if (sparkOptions.getAppName() == null) {
+      LOG.debug("App name was null. Using invocationId {}", invocationId);
+      sparkOptions.setAppName(invocationId);
+    }
+
     return createJobInvocation(
         invocationId, retrievalToken, executorService, pipeline, sparkOptions);
   }
