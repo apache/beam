@@ -24,7 +24,13 @@ import static org.apache.beam.sdk.io.common.TestRow.SelectNameFn;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 import static org.apache.beam.sdk.io.hadoop.inputformat.TestRowDBWritable.PrepareStatementFromTestRow;
 
+import com.google.cloud.Timestamp;
 import java.sql.SQLException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -34,6 +40,10 @@ import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -76,10 +86,14 @@ import org.postgresql.ds.PGSimpleDataSource;
  */
 public class HadoopInputFormatIOIT {
 
+  private static final String NAMESPACE = HadoopInputFormatIOIT.class.getName();
+
   private static PGSimpleDataSource dataSource;
   private static Integer numberOfRows;
   private static String tableName;
   private static SerializableConfiguration hadoopConfiguration;
+  private static String bigQueryDataset;
+  private static String bigQueryTable;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
@@ -93,6 +107,8 @@ public class HadoopInputFormatIOIT {
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     numberOfRows = options.getNumberOfRecords();
     tableName = DatabaseTestHelper.getTestTableName("HadoopInputFormatIOIT");
+    bigQueryDataset = options.getBigQueryDataset();
+    bigQueryTable = options.getBigQueryTable();
 
     executeWithRetry(HadoopInputFormatIOIT::createTable);
     setupHadoopConfiguration(options);
@@ -137,6 +153,7 @@ public class HadoopInputFormatIOIT {
         .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
         .apply("Produce db rows", ParDo.of(new DeterministicallyConstructTestRowFn()))
         .apply("Prevent fusion before writing", Reshuffle.viaRandomKey())
+        .apply("Collect write time", ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply(
             "Write using JDBCIO",
             JdbcIO.<TestRow>write()
@@ -144,7 +161,8 @@ public class HadoopInputFormatIOIT {
                 .withStatement(String.format("insert into %s values(?, ?)", tableName))
                 .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
 
-    writePipeline.run().waitUntilFinish();
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
 
     PCollection<String> consolidatedHashcode =
         readPipeline
@@ -152,12 +170,57 @@ public class HadoopInputFormatIOIT {
                 "Read using HadoopInputFormat",
                 HadoopInputFormatIO.<LongWritable, TestRowDBWritable>read()
                     .withConfiguration(hadoopConfiguration.get()))
+            .apply("Collect read time", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
             .apply("Get values only", Values.create())
             .apply("Values as string", ParDo.of(new SelectNameFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(getExpectedHashForRowCount(numberOfRows));
 
-    readPipeline.run().waitUntilFinish();
+    PipelineResult readResult = readPipeline.run();
+    readResult.waitUntilFinish();
+
+    collectAndPublishMetrics(writeResult, readResult);
+  }
+
+  private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
+    String uuid = UUID.randomUUID().toString();
+    String timestamp = Timestamp.now().toString();
+
+    Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
+    Set<Function<MetricsReader, NamedTestResult>> writeSuppliers =
+        getWriteSuppliers(uuid, timestamp);
+
+    IOITMetrics readMetrics =
+        new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
+    IOITMetrics writeMetrics =
+        new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
+    readMetrics.publish(bigQueryDataset, bigQueryTable);
+    writeMetrics.publish(bigQueryDataset, bigQueryTable);
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric("write_time");
+          long writeEnd = reader.getEndTimeMetric("write_time");
+          return NamedTestResult.create(
+              uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
+        });
+    return suppliers;
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(
+        reader -> {
+          long readStart = reader.getStartTimeMetric("read_time");
+          long readEnd = reader.getEndTimeMetric("read_time");
+          return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
+        });
+    return suppliers;
   }
 }

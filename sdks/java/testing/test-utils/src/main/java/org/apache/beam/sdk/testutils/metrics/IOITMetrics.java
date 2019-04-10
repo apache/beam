@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.common;
+package org.apache.beam.sdk.testutils.metrics;
 
 import java.util.Collection;
 import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 
