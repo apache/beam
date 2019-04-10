@@ -40,7 +40,8 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "303.1000.1.18"
+def samza_version = "305.1010.0.10"
+def guavaVersion = "20.0"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
@@ -59,15 +60,16 @@ dependencies {
   shadow "org.rocksdb:rocksdbjni:5.7.3"
 
   shadow "com.linkedin.samza-li:samza-api:$samza_version"
-  shadow "com.linkedin.samza-li:samza-core_2.10:$samza_version"
-  shadow "com.linkedin.samza-li:samza-kafka_2.10:$samza_version"
-  shadow "com.linkedin.samza-li:samza-kv_2.10:$samza_version"
-  shadow "com.linkedin.samza-li:samza-kv-rocksdb_2.10:$samza_version"
-  shadow "com.linkedin.samza-li:samza-kv-inmemory_2.10:$samza_version"
+  shadow "com.linkedin.samza-li:samza-core_2.11:$samza_version"
+  shadow "com.linkedin.samza-li:samza-kafka_2.11:$samza_version"
+  shadow "com.linkedin.samza-li:samza-kv_2.11:$samza_version"
+  shadow "com.linkedin.samza-li:samza-kv-rocksdb_2.11:$samza_version"
+  shadow "com.linkedin.samza-li:samza-kv-inmemory_2.11:$samza_version"
   shadow "com.linkedin.samza-li:samza-li-core-adapters:$samza_version"
-  shadow "com.linkedin.samza-li:samza-yarn_2.10:$samza_version"
+  shadow "com.linkedin.samza-li:samza-yarn_2.11:$samza_version"
+  shadow "com.google.guava:guava:$guavaVersion"
 
-  shadow "org.scala-lang:scala-library:2.10.7"
+  shadow "org.scala-lang:scala-library:2.11.8"
   shadow "org.apache.kafka:kafka-clients:0.11.0.2"
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
