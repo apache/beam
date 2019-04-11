@@ -47,34 +47,42 @@ public class TestStreamP extends AbstractProcessor {
   @SuppressWarnings("unchecked")
   private TestStreamP(byte[] payload, TestStream.TestStreamCoder payloadCoder, Coder outputCoder) {
     List events = decodePayload(payload, payloadCoder).getEvents();
-    traverser = Traversers.traverseStream(
-        events.stream()
-            .flatMap(
-                event -> {
-                  if (event instanceof TestStream.WatermarkEvent) {
-                    Instant watermark = ((TestStream.WatermarkEvent) event).getWatermark();
-                    if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(watermark)) {
-                      // this is an element added by advanceWatermarkToInfinity(), we ignore it,
-                      // it's always at the end
-                      return null;
-                    }
-                    return Stream.of(new Watermark(watermark.getMillis()));
-                  } else if (event instanceof TestStream.ElementEvent) {
-                    return StreamSupport.stream(((TestStream.ElementEvent<?>) event).getElements().spliterator(), false)
-                        .map(tv -> WindowedValue.timestampedValueInGlobalWindow(tv.getValue(), tv.getTimestamp()))
-                        .map(wV -> Utils.encodeWindowedValue(wV, outputCoder));
-                  } else {
-                    throw new UnsupportedOperationException("Event type not supported in TestStream: " + event.getClass() + ", event: " + event);
-                  }
-                }
-            )
-    );
+    traverser =
+        Traversers.traverseStream(
+            events.stream()
+                .flatMap(
+                    event -> {
+                      if (event instanceof TestStream.WatermarkEvent) {
+                        Instant watermark = ((TestStream.WatermarkEvent) event).getWatermark();
+                        if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(watermark)) {
+                          // this is an element added by advanceWatermarkToInfinity(), we ignore it,
+                          // it's always at the end
+                          return null;
+                        }
+                        return Stream.of(new Watermark(watermark.getMillis()));
+                      } else if (event instanceof TestStream.ElementEvent) {
+                        return StreamSupport.stream(
+                                ((TestStream.ElementEvent<?>) event).getElements().spliterator(),
+                                false)
+                            .map(
+                                tv ->
+                                    WindowedValue.timestampedValueInGlobalWindow(
+                                        tv.getValue(), tv.getTimestamp()))
+                            .map(wV -> Utils.encodeWindowedValue(wV, outputCoder));
+                      } else {
+                        throw new UnsupportedOperationException(
+                            "Event type not supported in TestStream: "
+                                + event.getClass()
+                                + ", event: "
+                                + event);
+                      }
+                    }));
   }
 
-  public static <T> ProcessorMetaSupplier supplier(byte[] payload, TestStream.TestStreamCoder payloadCoder, Coder outputCoder) {
+  public static <T> ProcessorMetaSupplier supplier(
+      byte[] payload, TestStream.TestStreamCoder payloadCoder, Coder outputCoder) {
     return ProcessorMetaSupplier.forceTotalParallelismOne(
-        ProcessorSupplier.of(() -> new TestStreamP(payload, payloadCoder, outputCoder))
-    );
+        ProcessorSupplier.of(() -> new TestStreamP(payload, payloadCoder, outputCoder)));
   }
 
   private static TestStream decodePayload(byte[] payload, TestStream.TestStreamCoder coder) {

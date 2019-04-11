@@ -25,5 +25,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 interface JetTransformTranslator<T extends PTransform> {
 
-  Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, TransformHierarchy.Node node, JetTranslationContext context);
+  Vertex translate(
+      Pipeline pipeline,
+      AppliedPTransform<?, ?, ?> appliedTransform,
+      TransformHierarchy.Node node,
+      JetTranslationContext context);
 }

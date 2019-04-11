@@ -87,10 +87,8 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   public PipelineResult run(Pipeline pipeline) {
     Boolean startOwnCluster = options.getJetStartOwnCluster();
     if (startOwnCluster) {
-      Collection<JetInstance> jetInstances = Arrays.asList(
-          Jet.newJetInstance(),
-          Jet.newJetInstance()
-      );
+      Collection<JetInstance> jetInstances =
+          Arrays.asList(Jet.newJetInstance(), Jet.newJetInstance());
       LOG.info("Started " + jetInstances.size() + " Jet cluster members");
     }
     try {
