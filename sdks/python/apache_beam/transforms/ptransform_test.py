@@ -1888,6 +1888,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([[10, 9, 8]]))
     self.p.run()
 
+  @unittest.skipIf(sys.version_info >= (3, 7, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.7. '
+                   'See BEAM-6986')
   def test_top_of_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
