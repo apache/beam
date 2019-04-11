@@ -77,10 +77,10 @@ public interface PortablePipelineOptions extends PipelineOptions {
       "Sets the number of sdk worker processes that will run on each worker node. Default is 1. If"
           + " 0, it will be automatically set by the runner by looking at different parameters "
           + "(e.g. number of CPU cores on the worker machine).")
-  @Nullable
-  Long getSdkWorkerParallelism();
+  @Default.Long(1L)
+  long getSdkWorkerParallelism();
 
-  void setSdkWorkerParallelism(@Nullable Long parallelism);
+  void setSdkWorkerParallelism(long parallelism);
 
   @Description("Duration in milliseconds for environment cache within a job. 0 means no caching.")
   @Default.Integer(0)
