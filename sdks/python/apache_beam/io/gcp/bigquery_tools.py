@@ -409,7 +409,9 @@ class BigQueryWrapper(object):
 
     Args:
       client: bigquery.BigqueryV2 instance
-      project_id, dataset_id, table_id: table lookup parameters
+      project_id: table lookup parameter
+      dataset_id: table lookup parameter
+      table_id: table lookup parameter
 
     Returns:
       bigquery.Table instance
@@ -601,7 +603,7 @@ class BigQueryWrapper(object):
       A bigquery.Table instance if table was found or created.
 
     Raises:
-      RuntimeError: For various mismatches between the state of the table and
+      `RuntimeError`: For various mismatches between the state of the table and
         the create/write dispositions passed in. For example if the table is not
         empty and WRITE_EMPTY was specified then an error will be raised since
         the table was expected to be empty.
