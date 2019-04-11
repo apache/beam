@@ -63,7 +63,7 @@ function err() {
   return 1
 }
 
-function retry_apt_command() {
+function retry_command() {
   cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -75,12 +75,12 @@ function retry_apt_command() {
 }
 
 function update_apt_get() {
-  retry_apt_command "apt-get update"
+  retry_command "apt-get update"
 }
 
 function install_apt_get() {
   pkgs="$@"
-  retry_apt_command "apt-get install -y $pkgs"
+  retry_command "apt-get install -y $pkgs"
 }
 
 function install_flink_snapshot() {
@@ -196,9 +196,10 @@ function main() {
     update_apt_get || err "Unable to update apt-get"
     install_apt_get flink || err "Unable to install flink"
   fi
+
   configure_flink || err "Flink configuration failed"
   if [[ "${role}" == 'Master' ]] ; then
-    start_flink_master || err "Unable to start Flink master"
+    (retry_command start_flink_master) || err "Unable to start Flink master"
   fi
 }
 
