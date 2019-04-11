@@ -32,6 +32,8 @@ public final class MonitoringInfoConstants {
   /** Supported MonitoringInfo Urns. */
   public static final class Urns {
     public static final String ELEMENT_COUNT = extractUrn(MonitoringInfoSpecs.Enum.ELEMENT_COUNT);
+    public static final String SAMPLED_BYTE_SIZE =
+        extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
     public static final String START_BUNDLE_MSECS =
         extractUrn(MonitoringInfoSpecs.Enum.START_BUNDLE_MSECS);
     public static final String PROCESS_BUNDLE_MSECS =
@@ -42,8 +44,6 @@ public final class MonitoringInfoConstants {
     public static final String USER_COUNTER = extractUrn(MonitoringInfoSpecs.Enum.USER_COUNTER);
     public static final String USER_DISTRIBUTION_COUNTER =
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_COUNTER);
-    public static final String SAMPLED_BYTE_SIZE =
-        extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
   }
 
   /** Standardised MonitoringInfo labels that can be utilized by runners. */

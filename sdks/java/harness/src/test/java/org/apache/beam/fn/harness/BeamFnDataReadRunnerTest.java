@@ -48,6 +48,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.Coder;
@@ -130,9 +131,18 @@ public class BeamFnDataReadRunnerTest {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+
+    RehydratedComponents rehydratedComponents = mock(RehydratedComponents.class);
+    org.apache.beam.sdk.values.PCollection pColl =
+        mock(org.apache.beam.sdk.values.PCollection.class);
+    Coder elementCoder = mock(Coder.class);
+    when(pColl.getCoder()).thenReturn(elementCoder);
+    when(rehydratedComponents.getPCollection(any())).thenReturn(pColl);
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), rehydratedComponents);
+
     String localOutputId = "outputPC";
     String pTransformId = "pTransformId";
     consumers.register(
@@ -157,6 +167,7 @@ public class BeamFnDataReadRunnerTest {
             pTransformId,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
+            rehydratedComponents,
             ImmutableMap.of(
                 localOutputId,
                 RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),

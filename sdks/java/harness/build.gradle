@@ -59,6 +59,7 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_13_1
   provided library.java.error_prone_annotations
+  testCompile project(path: ":runners:core-java", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit

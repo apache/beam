@@ -36,7 +36,6 @@ import org.apache.beam.runners.core.construction.PCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -86,13 +85,15 @@ abstract class DoFnPTransformRunnerFactory<
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      RehydratedComponents rehydratedComponents,
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
-      BundleSplitListener splitListener) {
+      BundleSplitListener splitListener)
+      throws IOException {
     Context<FnInputT, OutputT> context =
         new Context<>(
             pipelineOptions,
@@ -100,6 +101,7 @@ abstract class DoFnPTransformRunnerFactory<
             pTransformId,
             pTransform,
             processBundleInstructionId,
+            rehydratedComponents,
             pCollections,
             coders,
             windowingStrategies,
@@ -172,27 +174,22 @@ abstract class DoFnPTransformRunnerFactory<
         String ptransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
+        RehydratedComponents rehydratedComponents,
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        BundleSplitListener splitListener) {
+        BundleSplitListener splitListener)
+        throws IOException {
       this.pipelineOptions = pipelineOptions;
       this.beamFnStateClient = beamFnStateClient;
       this.ptransformId = ptransformId;
       this.pTransform = pTransform;
       this.processBundleInstructionId = processBundleInstructionId;
+      this.rehydratedComponents = rehydratedComponents;
       ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
           ImmutableMap.builder();
       try {
-        rehydratedComponents =
-            RehydratedComponents.forComponents(
-                    RunnerApi.Components.newBuilder()
-                        .putAllCoders(coders)
-                        .putAllPcollections(pCollections)
-                        .putAllWindowingStrategies(windowingStrategies)
-                        .build())
-                .withPipeline(Pipeline.create());
         parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
         doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
         doFnSignature = DoFnSignatures.signatureForDoFn(doFn);
@@ -205,7 +202,7 @@ abstract class DoFnPTransformRunnerFactory<
                         parDoPayload.getSideInputsMap().keySet(),
                         parDoPayload.getTimerSpecsMap().keySet())));
         PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
-        inputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
+        inputCoder = this.rehydratedComponents.getCoder(mainInput.getCoderId());
         if (inputCoder instanceof KvCoder
             // TODO: Stop passing windowed value coders within PCollections.
             || (inputCoder instanceof WindowedValue.WindowedValueCoder

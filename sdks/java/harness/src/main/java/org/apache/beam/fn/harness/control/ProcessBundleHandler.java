@@ -53,9 +53,11 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -145,6 +147,7 @@ public class ProcessBundleHandler {
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      RehydratedComponents rehydratedComponents,
       ProcessBundleDescriptor processBundleDescriptor,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
@@ -166,6 +169,7 @@ public class ProcessBundleHandler {
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
             processBundleInstructionId,
+            rehydratedComponents,
             processBundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
             pCollectionConsumerRegistry,
@@ -198,6 +202,7 @@ public class ProcessBundleHandler {
               pTransformId,
               pTransform,
               processBundleInstructionId,
+              rehydratedComponents,
               processBundleDescriptor.getPcollectionsMap(),
               processBundleDescriptor.getCodersMap(),
               processBundleDescriptor.getWindowingStrategiesMap(),
@@ -228,8 +233,19 @@ public class ProcessBundleHandler {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ExecutionStateTracker stateTracker =
         new ExecutionStateTracker(ExecutionStateSampler.instance());
+
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forComponents(
+                RunnerApi.Components.newBuilder()
+                    .putAllCoders(bundleDescriptor.getCodersMap())
+                    .putAllPcollections(bundleDescriptor.getPcollectionsMap())
+                    .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
+                    .build())
+            .withPipeline(Pipeline.create());
+
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
-        new PCollectionConsumerRegistry(metricsContainerRegistry, stateTracker);
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, stateTracker, rehydratedComponents);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -293,6 +309,7 @@ public class ProcessBundleHandler {
             entry.getKey(),
             entry.getValue(),
             request::getInstructionId,
+            rehydratedComponents,
             bundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
             pCollectionConsumerRegistry,
@@ -426,6 +443,7 @@ public class ProcessBundleHandler {
         String pTransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
+        RehydratedComponents rehydratedComponents,
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, WindowingStrategy> windowingStrategies,

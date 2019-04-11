@@ -59,6 +59,7 @@ public abstract class ElementByteSizeObserver implements Observer {
   }
 
   @Override
+  /** Update may be called multiple times per element */
   public void update(Observable obs, Object obj) {
     if (obj instanceof Long) {
       totalSize += (long) (scalingFactor * (Long) obj);

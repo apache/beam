@@ -29,6 +29,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /** A factory able to instantiate an appropriate handler for a given PTransform. */
@@ -64,6 +65,7 @@ public interface PTransformRunnerFactory<T> {
       String pTransformId,
       RunnerApi.PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      RehydratedComponents rehydratedComponents,
       Map<String, PCollection> pCollections,
       Map<String, Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
