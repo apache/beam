@@ -38,6 +38,8 @@ import org.junit.rules.TemporaryFolder;
 
 /** Unit tests for {@link HCatalogBeamSchema}. */
 public class HCatalogBeamSchemaTest implements Serializable {
+
+  private static final String TEST_TABLE_PARTITIONED = TEST_TABLE + "_partitioned";
   @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
   private static EmbeddedMetastoreService service;
@@ -87,6 +89,22 @@ public class HCatalogBeamSchemaTest implements Serializable {
   }
 
   @Test
+  public void testGetTableSchemaForPartitionedTable() throws Exception {
+    HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
+    Schema schema = hcatSchema.getTableSchema(TEST_DATABASE, TEST_TABLE_PARTITIONED).get();
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addNullableField("mycol1", Schema.FieldType.STRING)
+            .addNullableField("mycol2", Schema.FieldType.INT32)
+            .addNullableField("part1", Schema.FieldType.STRING)
+            .addNullableField("part2", Schema.FieldType.INT32)
+            .build();
+
+    assertEquals(expectedSchema, schema);
+  }
+
+  @Test
   public void testDoesntHaveTable() throws Exception {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     assertFalse(hcatSchema.getTableSchema(TEST_DATABASE, "non-existent-table").isPresent());
@@ -99,6 +117,12 @@ public class HCatalogBeamSchemaTest implements Serializable {
 
   private void reCreateTestTable() throws CommandNeedRetryException {
     service.executeQuery("drop table " + TEST_TABLE);
+    service.executeQuery("drop table " + TEST_TABLE_PARTITIONED);
     service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 int)");
+    service.executeQuery(
+        "create table "
+            + TEST_TABLE_PARTITIONED
+            + "(mycol1 string, mycol2 int) "
+            + "partitioned by (part1 string, part2 int)");
   }
 }
