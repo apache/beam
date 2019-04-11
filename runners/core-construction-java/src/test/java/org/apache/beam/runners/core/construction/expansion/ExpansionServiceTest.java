@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayOutputStream;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -195,6 +197,30 @@ public class ExpansionServiceTest {
             .setPayload(ByteString.copyFrom(baos2.toByteArray()))
             .build());
 
+    List<KV<List<Long>, byte[]>> byteKvListWithListKey =
+        ImmutableList.of("testing", "compound", "coders").stream()
+            .map(
+                str ->
+                    KV.of(
+                        Collections.singletonList((long) str.length()),
+                        str.getBytes(Charsets.UTF_8)))
+            .collect(Collectors.toList());
+    Coder compoundCoder3 =
+        IterableCoder.of(KvCoder.of(IterableCoder.of(VarLongCoder.of()), ByteArrayCoder.of()));
+    ByteArrayOutputStream baos3 = new ByteArrayOutputStream();
+    compoundCoder3.encode(byteKvListWithListKey, baos3);
+
+    builder.putConfiguration(
+        "config_key4",
+        ExternalTransforms.ConfigValue.newBuilder()
+            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))
+            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.KV))
+            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))
+            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
+            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.BYTES))
+            .setPayload(ByteString.copyFrom(baos3.toByteArray()))
+            .build());
+
     ExternalTransforms.ExternalConfigurationPayload externalConfig = builder.build();
     TestConfig config = new TestConfig();
     ExpansionService.ExternalTransformRegistrarLoader.populateConfiguration(config, externalConfig);
@@ -202,6 +228,8 @@ public class ExpansionServiceTest {
     assertThat(config.configKey1, Matchers.is(1L));
     assertArrayEquals(Iterables.toArray(config.configKey2, byte[].class), byteList.toArray());
     assertArrayEquals(Iterables.toArray(config.configKey3, KV.class), byteKvList.toArray());
+    assertArrayEquals(
+        Iterables.toArray(config.configKey4, KV.class), byteKvListWithListKey.toArray());
   }
 
   private static class TestConfig {
@@ -209,6 +237,7 @@ public class ExpansionServiceTest {
     private Long configKey1;
     private Iterable<byte[]> configKey2;
     private Iterable<KV<byte[], Long>> configKey3;
+    private Iterable<KV<Iterable<Long>, byte[]>> configKey4;
 
     public void setConfigKey1(Long configKey1) {
       this.configKey1 = configKey1;
@@ -220,6 +249,10 @@ public class ExpansionServiceTest {
 
     public void setConfigKey3(Iterable<KV<byte[], Long>> configKey3) {
       this.configKey3 = configKey3;
+    }
+
+    public void setConfigKey4(Iterable<KV<Iterable<Long>, byte[]>> configKey4) {
+      this.configKey4 = configKey4;
     }
   }
 
