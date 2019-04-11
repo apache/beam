@@ -42,6 +42,8 @@ public final class MonitoringInfoConstants {
     public static final String USER_COUNTER = extractUrn(MonitoringInfoSpecs.Enum.USER_COUNTER);
     public static final String USER_DISTRIBUTION_COUNTER =
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_COUNTER);
+    public static final String SAMPLED_BYTE_SIZE =
+        extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
   }
 
   /** Standardised MonitoringInfo labels that can be utilized by runners. */

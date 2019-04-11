@@ -131,7 +131,8 @@ public class JetMetricResults extends MetricResults
           .toList();
     }
 
-    private MetricResult<DistributionResult> distributionUpdateToResult(Map.Entry<MetricKey, DistributionData> entry) {
+    private MetricResult<DistributionResult> distributionUpdateToResult(
+        Map.Entry<MetricKey, DistributionData> entry) {
       MetricKey key = entry.getKey();
       DistributionResult distributionResult = entry.getValue().extractResult();
       return MetricResult.create(key, distributionResult, distributionResult);

@@ -101,9 +101,7 @@ public class DAGBuilder {
   }
 
   Vertex addVertex(String id, SupplierEx<Processor> processor) {
-    return dag.newVertex(id, processor)
-        .localParallelism(localParallelism)
-    ;
+    return dag.newVertex(id, processor).localParallelism(localParallelism);
   }
 
   private void wireUp() {
@@ -208,7 +206,7 @@ public class DAGBuilder {
 
     @Override
     public Object applyEx(byte[] b) throws Exception {
-      Object t = CoderUtils.decodeFromByteArray(coder, b); //todo: decoding twice....
+      Object t = CoderUtils.decodeFromByteArray(coder, b); // todo: decoding twice....
       Object key = null;
       if (t instanceof WindowedValue) {
         t = ((WindowedValue) t).getValue();

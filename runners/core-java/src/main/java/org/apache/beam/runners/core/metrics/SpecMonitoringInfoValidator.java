@@ -50,7 +50,7 @@ public class SpecMonitoringInfoValidator {
     MonitoringInfoSpec spec = null;
 
     for (MonitoringInfoSpec specIterator : specs) {
-      if (monitoringInfo.getUrn().startsWith(specIterator.getUrn())) {
+      if (monitoringInfo.getUrn().equals(specIterator.getUrn())) {
         spec = specIterator;
         break;
       }

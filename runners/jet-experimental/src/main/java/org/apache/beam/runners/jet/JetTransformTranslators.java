@@ -91,16 +91,21 @@ class JetTransformTranslators {
       implements JetTransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
     @Override
-    public Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, Node node, JetTranslationContext context) {
+    public Vertex translate(
+        Pipeline pipeline,
+        AppliedPTransform<?, ?, ?> appliedTransform,
+        Node node,
+        JetTranslationContext context) {
       if (!Utils.isBounded(appliedTransform)) {
         throw new UnsupportedOperationException(); // todo
       }
 
       BoundedSource<T> source;
       try {
-        source = ReadTranslation.boundedSourceFromTransform(
-            (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>) appliedTransform
-        );
+        source =
+            ReadTranslation.boundedSourceFromTransform(
+                (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
+                    appliedTransform);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -129,7 +134,11 @@ class JetTransformTranslators {
       implements JetTransformTranslator<PTransform<PCollection, PCollectionTuple>> {
 
     @Override
-    public Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, Node node, JetTranslationContext context) {
+    public Vertex translate(
+        Pipeline pipeline,
+        AppliedPTransform<?, ?, ?> appliedTransform,
+        Node node,
+        JetTranslationContext context) {
       boolean usesStateOrTimers = Utils.usesStateOrTimers(appliedTransform);
       DoFn<?, ?> doFn = Utils.getDoFn(appliedTransform);
 
@@ -234,7 +243,11 @@ class JetTransformTranslators {
           PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>>> {
 
     @Override
-    public Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, Node node, JetTranslationContext context) {
+    public Vertex translate(
+        Pipeline pipeline,
+        AppliedPTransform<?, ?, ?> appliedTransform,
+        Node node,
+        JetTranslationContext context) {
       String transformName = appliedTransform.getFullName();
 
       PCollection<KV<K, InputT>> input = Utils.getInput(appliedTransform);
@@ -271,12 +284,18 @@ class JetTransformTranslators {
       implements JetTransformTranslator<PTransform<PCollection<T>, PCollection<T>>> {
 
     @Override
-    public Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, Node node, JetTranslationContext context) {
+    public Vertex translate(
+        Pipeline pipeline,
+        AppliedPTransform<?, ?, ?> appliedTransform,
+        Node node,
+        JetTranslationContext context) {
       PCollectionView<T> view;
       try {
-        view = CreatePCollectionViewTranslation.getView(
-            (AppliedPTransform<PCollection<T>, PCollection<T>, PTransform<PCollection<T>, PCollection<T>>>) appliedTransform
-        );
+        view =
+            CreatePCollectionViewTranslation.getView(
+                (AppliedPTransform<
+                        PCollection<T>, PCollection<T>, PTransform<PCollection<T>, PCollection<T>>>)
+                    appliedTransform);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -311,7 +330,11 @@ class JetTransformTranslators {
       implements JetTransformTranslator<PTransform<PCollectionList<T>, PCollection<T>>> {
 
     @Override
-    public Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, Node node, JetTranslationContext context) {
+    public Vertex translate(
+        Pipeline pipeline,
+        AppliedPTransform<?, ?, ?> appliedTransform,
+        Node node,
+        JetTranslationContext context) {
       Collection<PValue> mainInputs = Utils.getMainInputs(pipeline, node);
       Map<String, Coder> inputCoders =
           Utils.getCoders(
@@ -341,7 +364,11 @@ class JetTransformTranslators {
   private static class WindowTranslator<T>
       implements JetTransformTranslator<PTransform<PCollection<T>, PCollection<T>>> {
     @Override
-    public Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, Node node, JetTranslationContext context) {
+    public Vertex translate(
+        Pipeline pipeline,
+        AppliedPTransform<?, ?, ?> appliedTransform,
+        Node node,
+        JetTranslationContext context) {
       WindowingStrategy<T, BoundedWindow> windowingStrategy =
           (WindowingStrategy<T, BoundedWindow>)
               ((PCollection) Utils.getOutput(appliedTransform).getValue()).getWindowingStrategy();
@@ -372,7 +399,11 @@ class JetTransformTranslators {
   private static class ImpulseTranslator
       implements JetTransformTranslator<PTransform<PBegin, PCollection<byte[]>>> {
     @Override
-    public Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, Node node, JetTranslationContext context) {
+    public Vertex translate(
+        Pipeline pipeline,
+        AppliedPTransform<?, ?, ?> appliedTransform,
+        Node node,
+        JetTranslationContext context) {
       String transformName = appliedTransform.getFullName();
       DAGBuilder dagBuilder = context.getDagBuilder();
       String vertexId = dagBuilder.newVertexId(transformName);
@@ -391,7 +422,11 @@ class JetTransformTranslators {
   private static class TestStreamTranslator<T>
       implements JetTransformTranslator<PTransform<PBegin, PCollection<T>>> {
     @Override
-    public Vertex translate(Pipeline pipeline, AppliedPTransform<?, ?, ?> appliedTransform, Node node, JetTranslationContext context) {
+    public Vertex translate(
+        Pipeline pipeline,
+        AppliedPTransform<?, ?, ?> appliedTransform,
+        Node node,
+        JetTranslationContext context) {
       String transformName = appliedTransform.getFullName();
       DAGBuilder dagBuilder = context.getDagBuilder();
       String vertexId = dagBuilder.newVertexId(transformName);
@@ -402,10 +437,12 @@ class JetTransformTranslators {
       // the collection.
       Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
       Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
-      TestStream.TestStreamCoder<T> payloadCoder = TestStream.TestStreamCoder.of(testStream.getValueCoder());
+      TestStream.TestStreamCoder<T> payloadCoder =
+          TestStream.TestStreamCoder.of(testStream.getValueCoder());
       byte[] encodedPayload = getEncodedPayload(testStream, payloadCoder);
       Vertex vertex =
-          dagBuilder.addVertex(vertexId, TestStreamP.supplier(encodedPayload, payloadCoder, outputCoder));
+          dagBuilder.addVertex(
+              vertexId, TestStreamP.supplier(encodedPayload, payloadCoder, outputCoder));
 
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
@@ -413,7 +450,8 @@ class JetTransformTranslators {
       return vertex;
     }
 
-    private static <T> byte[] getEncodedPayload(TestStream<T> testStream, TestStream.TestStreamCoder<T> coder) {
+    private static <T> byte[] getEncodedPayload(
+        TestStream<T> testStream, TestStream.TestStreamCoder<T> coder) {
       try {
         return CoderUtils.encodeToByteArray(coder, testStream);
       } catch (CoderException e) {
