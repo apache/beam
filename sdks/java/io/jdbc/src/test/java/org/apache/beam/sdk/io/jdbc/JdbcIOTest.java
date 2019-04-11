@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.dbcp2.PoolingDataSource;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
 import org.junit.After;
@@ -140,6 +141,19 @@ public class JdbcIOTest implements Serializable {
     try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
+  }
+
+  @Test
+  public void testDataSourceConfigurationDataSourceWithoutPool() throws Exception {
+    JdbcIO.DataSourceConfiguration config =
+        JdbcIO.DataSourceConfiguration.create(dataSource, false);
+    assertTrue(config.buildDatasource() instanceof ClientDataSource);
+  }
+
+  @Test
+  public void testDataSourceConfigurationDataSourceWithPool() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource, true);
+    assertTrue(config.buildDatasource() instanceof PoolingDataSource);
   }
 
   @Test
