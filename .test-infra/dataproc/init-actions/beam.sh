@@ -15,24 +15,22 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
-#    Pulls SDK Harness' images as specified in init action's metadata (see below).
+#    Pulls SDK Harness' and/or Job Server's images based on init action's metadata:
 #
-#    NOTE: In order to be able to pull particular images, their urls must be passed in metadata
-#    in the form of list, like this:
+#    beam-sdk-harness-images-to-pull=gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION> gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION>
+#    beam-job-server-image=gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION>
 #
-#    beam-images-to-pull=gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION> gcr.io/<IMAGE_REPOSITORY>/<IMAGE_NAME>:<IMAGE_REVISION>
+#    If you want to skip pulling job server / harness images simply don't pass urls for them.
 #
 set -euxo pipefail
 
-readonly BEAM_IMAGES_TO_PULL_METADATA_KEY="beam-images-to-pull"
-readonly BEAM_IMAGES_TO_PULL_DEFAULT="apache.bintray.io/beam/python:master"
-
+readonly BEAM_HARNESS_IMAGES_TO_PULL_METADATA_KEY="beam-sdk-harness-images-to-pull"
+readonly JOB_SERVER_IMAGE_METADATA_KEY="beam-job-server-image"
 
 function pull_images() {
 
   local beam_images_to_pull="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_IMAGES_TO_PULL_METADATA_KEY}" \
-    || echo "${BEAM_IMAGES_TO_PULL_DEFAULT}")"
+    "attributes/${BEAM_HARNESS_IMAGES_TO_PULL_METADATA_KEY}")"
 
   for image in $beam_images_to_pull
   do
@@ -44,8 +42,24 @@ function pull_images() {
   done
 }
 
+function pull_job_server() {
+  local job_server_location="$(/usr/share/google/get_metadata_value \
+    "attributes/${JOB_SERVER_IMAGE_METADATA_KEY}")"
+
+  if [[ -n "$job_server_location" ]] ; then
+    sudo -u yarn -i docker pull ${job_server_location}
+  fi
+
+}
+
 function main() {
+  local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
   pull_images
+
+  if [[ "${role}" == 'Master' ]] ; then
+    pull_job_server || err "Unable to pull Beam Job Server image on Flink Master"
+  fi
 }
 
 main "$@"
