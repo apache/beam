@@ -54,7 +54,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
 
   @Test
   public void testUserCounterUrnConstruction() {
-    String urn = SimpleMonitoringInfoBuilder.userMetricUrn("namespace", "name");
+    String urn = SimpleMonitoringInfoBuilder.userCounterUrn("namespace", "name");
     HashMap<String, String> labels = new HashMap<String, String>();
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
     assertEquals("name", name.getName());
@@ -65,7 +65,28 @@ public class MonitoringInfoMetricNameTest implements Serializable {
     assertEquals(name, name); // test self equals;
 
     // Reconstruct and test equality and hash code equivalence
-    urn = SimpleMonitoringInfoBuilder.userMetricUrn("namespace", "name");
+    urn = SimpleMonitoringInfoBuilder.userCounterUrn("namespace", "name");
+    labels = new HashMap<String, String>();
+    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
+
+    assertEquals(name, name2);
+    assertEquals(name.hashCode(), name2.hashCode());
+  }
+
+  @Test
+  public void testUserDistributionUrnConstruction() {
+    String urn = SimpleMonitoringInfoBuilder.userDistributionUrn("namespace", "name");
+    HashMap<String, String> labels = new HashMap<String, String>();
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+    assertEquals("name", name.getName());
+    assertEquals("namespace", name.getNamespace());
+    assertEquals(labels, name.getLabels());
+    assertEquals(urn, name.getUrn());
+
+    assertEquals(name, name); // test self equals;
+
+    // Reconstruct and test equality and hash code equivalence
+    urn = SimpleMonitoringInfoBuilder.userDistributionUrn("namespace", "name");
     labels = new HashMap<String, String>();
     MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
 

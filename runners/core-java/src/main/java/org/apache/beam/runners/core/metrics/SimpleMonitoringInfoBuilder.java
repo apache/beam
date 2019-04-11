@@ -48,7 +48,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * <p>Example Usage (ElementCount counter):
  *
  * <p>SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
- * builder.setUrn(SimpleMonitoringInfoBuilder.setUrnForUserMetric("myNamespace", "myName"));
+ * builder.setUrn(SimpleMonitoringInfoBuilder.setUrnForUserCounter("myNamespace", "myName"));
  * builder.setInt64Value(1); MonitoringInfo mi = builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
@@ -81,12 +81,45 @@ public class SimpleMonitoringInfoBuilder {
     this.validateAndDropInvalid = validateAndDropInvalid;
   }
 
+  /** @return The metric URN for a user counter, with a proper URN prefix. */
+  public static String userCounterUrn(String namespace, String name) {
+    return userMetricUrn(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX, namespace, name);
+  }
+
+  /** @return The metric URN for a user distribution, with a proper URN prefix. */
+  public static String userDistributionUrn(String namespace, String name) {
+    return userMetricUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_PREFIX, namespace, name);
+  }
+
+  /**
+   * Sets the urn of the MonitoringInfo to a proper user metric counter URN for the given params.
+   *
+   * @param namespace
+   * @param name
+   */
+  public SimpleMonitoringInfoBuilder setUrnForUserCounter(String namespace, String name) {
+    this.builder.setUrn(userCounterUrn(namespace, name));
+    return this;
+  }
+
+  /**
+   * Sets the urn of the MonitoringInfo to a proper user metric distribution URN for the given
+   * params.
+   *
+   * @param namespace
+   * @param name
+   */
+  public SimpleMonitoringInfoBuilder setUrnForUserDistribution(String namespace, String name) {
+    this.builder.setUrn(userDistributionUrn(namespace, name));
+    return this;
+  }
+
   /** @return The metric URN for a user metric, with a proper URN prefix. */
-  public static String userMetricUrn(String metricNamespace, String metricName) {
+  public static String userMetricUrn(String prefix, String metricNamespace, String metricName) {
     String fixedMetricNamespace = metricNamespace.replace(':', '_');
     String fixedMetricName = metricName.replace(':', '_');
     StringBuilder sb = new StringBuilder();
-    sb.append(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX);
+    sb.append(prefix);
     sb.append(fixedMetricNamespace);
     sb.append(':');
     sb.append(fixedMetricName);
@@ -103,17 +136,6 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  /**
-   * Sets the urn of the MonitoringInfo to a proper user metric URN for the given params.
-   *
-   * @param namespace
-   * @param name
-   */
-  public SimpleMonitoringInfoBuilder setUrnForUserMetric(String namespace, String name) {
-    this.builder.setUrn(userMetricUrn(namespace, name));
-    return this;
-  }
-
   /** Sets the timestamp of the MonitoringInfo to the current time. */
   public SimpleMonitoringInfoBuilder setTimestampToNow() {
     Instant time = Instant.now();
@@ -125,6 +147,29 @@ public class SimpleMonitoringInfoBuilder {
   public SimpleMonitoringInfoBuilder setInt64Value(long value) {
     this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
     this.setInt64TypeUrn();
+    return this;
+  }
+
+  /**
+   * Sets the IntDistributionData of the DistributionData in the MonitoringInfo, and the appropriate
+   * type URN.
+   */
+  public SimpleMonitoringInfoBuilder setInt64DistributionValue(DistributionData data) {
+    this.builder
+        .getMetricBuilder()
+        .getDistributionDataBuilder()
+        .getIntDistributionDataBuilder()
+        .setCount(data.count())
+        .setSum(data.sum())
+        .setMin(data.min())
+        .setMax(data.max());
+    this.setInt64DistributionTypeUrn();
+    return this;
+  }
+
+  /** Sets the the appropriate type URN for int64 distribution tuples. */
+  public SimpleMonitoringInfoBuilder setInt64DistributionTypeUrn() {
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64);
     return this;
   }
 

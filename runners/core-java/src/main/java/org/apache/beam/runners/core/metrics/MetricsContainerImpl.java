@@ -167,7 +167,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       }
     } else { // Note: (metricName instanceof MetricName) is always True.
       // Represents a user counter.
-      builder.setUrnForUserMetric(
+      builder.setUrnForUserCounter(
           metricUpdate.getKey().metricName().getNamespace(),
           metricUpdate.getKey().metricName().getName());
       // Drop if the stepname is not set. All user counters must be
@@ -182,6 +182,39 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return builder.build();
   }
 
+  /**
+   * @param metricUpdate
+   * @return The MonitoringInfo generated from the metricUpdate.
+   */
+  @Nullable
+  private MonitoringInfo distributionUpdateToMonitoringInfo(
+      MetricUpdate<DistributionData> metricUpdate) {
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+    MetricName metricName = metricUpdate.getKey().metricName();
+    if (metricName instanceof MonitoringInfoMetricName) {
+      MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
+      // Represents a specific MonitoringInfo for a specific URN.
+      builder.setUrn(monitoringInfoName.getUrn());
+      for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
+        builder.setLabel(e.getKey(), e.getValue());
+      }
+    } else { // Note: (metricName instanceof MetricName) is always True.
+      // Represents a user counter.
+      builder.setUrnForUserDistribution(
+          metricUpdate.getKey().metricName().getNamespace(),
+          metricUpdate.getKey().metricName().getName());
+      // Drop if the stepname is not set. All user counters must be
+      // defined for a PTransform. They must be defined on a container bound to a step.
+      if (this.stepName == null) { // TODO rethink this/rm this check.
+        return null;
+      }
+      builder.setPTransformLabel(metricUpdate.getKey().stepName());
+    }
+    builder.setInt64DistributionValue(metricUpdate.getUpdate());
+    builder.setTimestampToNow();
+    return builder.build();
+  }
+
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
   public Iterable<MonitoringInfo> getMonitoringInfos() {
     // Extract user metrics and store as MonitoringInfos.
@@ -191,7 +224,14 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
       MonitoringInfo mi = counterUpdateToMonitoringInfo(metricUpdate);
       if (mi != null) {
-        monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
+        monitoringInfos.add(mi);
+      }
+    }
+
+    for (MetricUpdate<DistributionData> metricUpdate : metricUpdates.distributionUpdates()) {
+      MonitoringInfo mi = distributionUpdateToMonitoringInfo(metricUpdate);
+      if (mi != null) {
+        monitoringInfos.add(mi);
       }
     }
     return monitoringInfos;

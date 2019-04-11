@@ -47,11 +47,19 @@ public class SpecMonitoringInfoValidatorTest {
   }
 
   @Test
-  public void validateReturnsNoErrorOnValidMonitoringInfo() {
+  public void validateReturnsNoErrorOnValidUserCounterMonitoringInfo() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
             .setUrn(Urns.USER_COUNTER_PREFIX + "someCounter")
             .setType(TypeUrns.SUM_INT64)
+            .putLabels("dummy", "value")
+            .build();
+    assertFalse(testObject.validate(testInput).isPresent());
+
+    testInput =
+        MonitoringInfo.newBuilder()
+            .setUrn(Urns.USER_DISTRIBUTION_PREFIX + "someDistribution")
+            .setType(TypeUrns.DISTRIBUTION_INT64)
             .putLabels("dummy", "value")
             .build();
     assertFalse(testObject.validate(testInput).isPresent());

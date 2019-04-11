@@ -140,7 +140,7 @@ public class FlinkMetricContainerTest {
     when(metricGroup.counter("beam.metric:element_count:v1")).thenReturn(elemCounter);
 
     SimpleMonitoringInfoBuilder userCountBuilder = new SimpleMonitoringInfoBuilder();
-    userCountBuilder.setUrnForUserMetric("ns1", "metric1");
+    userCountBuilder.setUrnForUserCounter("ns1", "metric1");
     userCountBuilder.setInt64Value(111);
     MonitoringInfo userCountMonitoringInfo = userCountBuilder.build();
     assertNotNull(userCountMonitoringInfo);

@@ -41,7 +41,7 @@ public final class MonitoringInfoConstants {
     public static final String TOTAL_MSECS = extractUrn(MonitoringInfoSpecs.Enum.TOTAL_MSECS);
     public static final String USER_COUNTER_PREFIX =
         extractUrn(MonitoringInfoSpecs.Enum.USER_COUNTER);
-    public static final String USER_DISTRIBUTION_COUNTER_PREFIX =
+    public static final String USER_DISTRIBUTION_PREFIX =
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_COUNTER);
   }
 

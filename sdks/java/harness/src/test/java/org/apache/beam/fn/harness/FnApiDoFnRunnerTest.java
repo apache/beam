@@ -677,7 +677,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric(
+    builder.setUrnForUserCounter(
         TestSideInputIsAccessibleForDownstreamCallersDoFn.class.getName(),
         TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
     builder.setPTransformLabel(TEST_PTRANSFORM_ID);

@@ -56,7 +56,7 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
   }
 
   static final String BEAM_METRICS_USER_DISTRIBUTION_PREFIX =
-      MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER_PREFIX;
+      MonitoringInfoConstants.Urns.USER_DISTRIBUTION_PREFIX;
 
   private Optional<String> validate(MonitoringInfo monitoringInfo) {
     Optional<String> validatorResult = specValidator.validate(monitoringInfo);

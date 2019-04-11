@@ -208,7 +208,7 @@ public class MetricsContainerStepMapTest {
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("ns", "name1");
+    builder.setUrnForUserCounter("ns", "name1");
     builder.setPTransformLabel(STEP1);
     builder.setInt64Value(7);
     expected.add(builder.build());

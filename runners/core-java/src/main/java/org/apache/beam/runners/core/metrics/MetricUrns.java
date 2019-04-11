@@ -31,6 +31,9 @@ public class MetricUrns {
     if (urn.startsWith(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX)) {
       urn = urn.substring(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX.length());
     }
+    if (urn.startsWith(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_PREFIX)) {
+      urn = urn.substring(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_PREFIX.length());
+    }
     // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
     String[] pieces = urn.split(":", 2);
     if (pieces.length != 2) {

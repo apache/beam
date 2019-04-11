@@ -54,7 +54,8 @@ public class MonitoringInfoMetricName extends MetricName {
 
   /** Parse the urn field into a name and namespace field. */
   private void parseUrn() {
-    if (this.urn.startsWith(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX)) {
+    if (this.urn.startsWith(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX)
+        || this.urn.startsWith(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_PREFIX)) {
       List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
       this.name = split.get(split.size() - 1);
       this.namespace = split.get(split.size() - 2);
