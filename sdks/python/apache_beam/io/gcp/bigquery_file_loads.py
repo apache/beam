@@ -583,7 +583,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
       if not bucket:
         raise ValueError(
-          'Unable to create default bucket for BigQuery File Loads.')
+            'Unable to create default bucket for BigQuery File Loads.')
 
     if int(bucket.projectNumber) != int(project_number):
       raise ValueError(
