@@ -680,7 +680,8 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
     Args:
       accumulator: the final accumulator value computed by this CombineFn
-        for the entire input key or PCollection.
+        for the entire input key or PCollection. Can be modified for
+        efficiency.
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
