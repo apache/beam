@@ -274,16 +274,7 @@ class EvaluationContext(object):
                                    result.logical_metric_updates)
 
       # If the result is for a view, update side inputs container.
-      if (result.uncommitted_output_bundles
-          and result.uncommitted_output_bundles[0].pcollection
-          in self._pcollection_to_views):
-        for view in self._pcollection_to_views[
-            result.uncommitted_output_bundles[0].pcollection]:
-          for committed_bundle in committed_bundles:
-            # side_input must be materialized.
-            self._side_inputs_container.add_values(
-                view,
-                committed_bundle.get_elements_iterable(make_copy=True))
+      self._update_side_inputs_container(committed_bundles, result)
 
       # Tasks generated from unblocked side inputs as the watermark progresses.
       tasks = self._watermark_manager.update_watermarks(
@@ -303,6 +294,23 @@ class EvaluationContext(object):
       for k, v in result.partial_keyed_state.items():
         existing_keyed_state[k] = v
       return committed_bundles
+
+  def _update_side_inputs_container(self, committed_bundles, result):
+    """Update the side inputs container if we are outputting into a side input.
+
+    Look at the result, and if it's outputing into a PCollection that we have
+    registered as a PCollectionView, we add the result to the PCollectionView.
+    """
+    if (result.uncommitted_output_bundles
+        and result.uncommitted_output_bundles[0].pcollection
+        in self._pcollection_to_views):
+      for view in self._pcollection_to_views[
+          result.uncommitted_output_bundles[0].pcollection]:
+        for committed_bundle in committed_bundles:
+          # side_input must be materialized.
+          self._side_inputs_container.add_values(
+              view,
+              committed_bundle.get_elements_iterable(make_copy=True))
 
   def get_aggregator_values(self, aggregator_or_name):
     return self._counter_factory.get_aggregator_values(aggregator_or_name)
