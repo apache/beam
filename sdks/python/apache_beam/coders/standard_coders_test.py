@@ -58,6 +58,7 @@ class StandardCodersTest(unittest.TestCase):
 
   _urn_to_json_value_parser = {
       'beam:coder:bytes:v1': lambda x: x.encode('utf-8'),
+      'beam:coder:string_utf8:v1': lambda x: x,
       'beam:coder:varint:v1': lambda x: x,
       'beam:coder:kv:v1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
