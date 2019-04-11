@@ -42,7 +42,6 @@ import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp import gcsio
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -566,6 +565,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     bucket_name = DEFAULT_BUCKET_NAME % (region, project_number)
 
+    from apache_beam.io.gcp import gcsio
     gcs = gcsio.GcsIO()
     bucket = gcs.get_bucket(bucket_name)
 
