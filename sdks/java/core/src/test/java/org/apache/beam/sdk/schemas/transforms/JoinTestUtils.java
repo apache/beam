@@ -24,7 +24,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
-public class JoinTestUtils {
+class JoinTestUtils {
   static List<Row> innerJoin(
       List<Row> inputs1, List<Row> inputs2, String[] keys1, String[] keys2, Schema expectedSchema) {
     List<Row> joined = Lists.newArrayList();

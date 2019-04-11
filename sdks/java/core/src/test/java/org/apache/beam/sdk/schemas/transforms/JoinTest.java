@@ -34,6 +34,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+/** Tests for {@link org.apache.beam.sdk.schemas.transforms.Join}. */
 public class JoinTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
