@@ -47,6 +47,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -112,6 +113,7 @@ public class ProcessBundleHandlerTest {
             pTransformId,
             pTransform,
             processBundleInstructionId,
+            rehydratedComponents,
             pCollections,
             coders,
             windowingStrategies,
@@ -183,6 +185,7 @@ public class ProcessBundleHandlerTest {
                     pTransformId,
                     pTransform,
                     processBundleInstructionId,
+                    rehydratedComponents,
                     pCollections,
                     coders,
                     windowingStrategies,
@@ -229,6 +232,7 @@ public class ProcessBundleHandlerTest {
                         pTransformId,
                         pTransform,
                         processBundleInstructionId,
+                        rehydratedComponents,
                         pCollections,
                         coders,
                         windowingStrategies,
@@ -277,6 +281,7 @@ public class ProcessBundleHandlerTest {
                         pTransformId,
                         pTransform,
                         processBundleInstructionId,
+                        rehydratedComponents,
                         pCollections,
                         coders,
                         windowingStrategies,
@@ -363,6 +368,7 @@ public class ProcessBundleHandlerTest {
                       String pTransformId,
                       PTransform pTransform,
                       Supplier<String> processBundleInstructionId,
+                      RehydratedComponents rehydratedComponents,
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
@@ -425,6 +431,7 @@ public class ProcessBundleHandlerTest {
                       String pTransformId,
                       PTransform pTransform,
                       Supplier<String> processBundleInstructionId,
+                      RehydratedComponents rehydratedComponents,
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -51,6 +52,25 @@ public class MonitoringInfoMatchers {
             return false;
           }
         }
+
+        if (mi.getMetric().hasDistributionData()) {
+          MetricsApi.IntDistributionData matchDistributionData =
+              mi.getMetric().getDistributionData().getIntDistributionData();
+          MetricsApi.IntDistributionData itemDistributionData =
+              item.getMetric().getDistributionData().getIntDistributionData();
+          if (matchDistributionData.getCount() != itemDistributionData.getCount()) {
+            return false;
+          }
+          if (matchDistributionData.getSum() != itemDistributionData.getSum()) {
+            return false;
+          }
+          if (matchDistributionData.getMin() != itemDistributionData.getMin()) {
+            return false;
+          }
+          if (matchDistributionData.getMax() != itemDistributionData.getMax()) {
+            return false;
+          }
+        }
         return true;
       }
 
@@ -76,7 +96,7 @@ public class MonitoringInfoMatchers {
    * Matches a {@link MonitoringInfo} with that has the set fields in the provide MonitoringInfo.
    *
    * <p>This is useful for tests which do not want to match the specific value (execution times).
-   * Currently this will only check for URNs, labels, type URNs and int64Values.
+   * This will only check for the int64 value. Please use with allOf matchers to express more.
    */
   public static TypeSafeMatcher<MonitoringInfo> valueGreaterThan(final long value) {
     return new TypeSafeMatcher<MonitoringInfo>() {
@@ -92,6 +112,46 @@ public class MonitoringInfoMatchers {
       @Override
       public void describeTo(Description description) {
         description.appendText("value=").appendValue(value);
+      }
+    };
+  }
+
+  /**
+   * Matches a {@link MonitoringInfo} with that has the set fields in the provide MonitoringInfo.
+   *
+   * <p>This is useful for tests which do not want to match the specific value (mean byte count).
+   * This will only check for the distribution value fields. Please use with allOf matchers to
+   * express more.
+   */
+  public static TypeSafeMatcher<MonitoringInfo> distributionGreaterThan(
+      final long sum, final long count, final long min, final long max) {
+    return new TypeSafeMatcher<MonitoringInfo>() {
+
+      @Override
+      protected boolean matchesSafely(MonitoringInfo item) {
+        MetricsApi.IntDistributionData itemDistributionData =
+            item.getMetric().getDistributionData().getIntDistributionData();
+        if (itemDistributionData.getSum() < sum) {
+          return false;
+        }
+        if (itemDistributionData.getCount() < count) {
+          return false;
+        }
+        if (itemDistributionData.getMin() < min) {
+          return false;
+        }
+        if (itemDistributionData.getMax() < max) {
+          return false;
+        }
+        return true;
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText(" sum=").appendValue(sum);
+        description.appendText(" count=").appendValue(count);
+        description.appendText(" min=").appendValue(min);
+        description.appendText(" max=").appendValue(max);
       }
     };
   }

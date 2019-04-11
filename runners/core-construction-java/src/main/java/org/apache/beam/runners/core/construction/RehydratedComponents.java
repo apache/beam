@@ -113,6 +113,16 @@ public class RehydratedComponents {
     return new RehydratedComponents(components, null);
   }
 
+  /** Create a new {@link RehydratedComponents} from a Runner API {@link Components}. */
+  public static RehydratedComponents forPipelineProto(RunnerApi.Pipeline pProto) {
+    return RehydratedComponents.forComponents(
+        RunnerApi.Components.newBuilder()
+            .putAllCoders(pProto.getComponents().getCodersMap())
+            .putAllPcollections(pProto.getComponents().getPcollectionsMap())
+            .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+            .build());
+  }
+
   /** Create a new {@link RehydratedComponents} with a pipeline attached. */
   public RehydratedComponents withPipeline(Pipeline pipeline) {
     return new RehydratedComponents(components, pipeline);

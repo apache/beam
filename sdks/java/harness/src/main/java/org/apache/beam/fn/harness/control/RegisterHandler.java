@@ -65,6 +65,13 @@ public class RegisterHandler {
     }
   }
 
+  /**
+   * Register the InstructionRequest, storing ProcessBundleDescriptors and Coders by id for fast
+   * lookup later.
+   *
+   * @param request
+   * @return an appropriate InstructionResponse.
+   */
   public BeamFnApi.InstructionResponse.Builder register(BeamFnApi.InstructionRequest request) {
     BeamFnApi.InstructionResponse.Builder response =
         BeamFnApi.InstructionResponse.newBuilder()
@@ -73,11 +80,34 @@ public class RegisterHandler {
     BeamFnApi.RegisterRequest registerRequest = request.getRegister();
     for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor :
         registerRequest.getProcessBundleDescriptorList()) {
+      BeamFnApi.ProcessBundleDescriptor.Builder processBundleDescriptorFixed =
+          BeamFnApi.ProcessBundleDescriptor.newBuilder(processBundleDescriptor);
+
       LOG.debug(
           "Registering {} with type {}",
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
-      computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
+
+      // TODO(BEAM-6623): Remove force setting the IsBounded field once all the
+      // runner harnesses are updated to properly set the IsBounded enum.
+      for (Map.Entry<String, RunnerApi.PCollection> entry :
+          processBundleDescriptor.getPcollectionsMap().entrySet()) {
+        switch (entry.getValue().getIsBounded()) {
+          case BOUNDED:
+          case UNBOUNDED:
+            continue;
+          case UNRECOGNIZED:
+          default:
+            RunnerApi.PCollection.Builder pcollectionBuilder =
+                RunnerApi.PCollection.newBuilder(entry.getValue());
+            pcollectionBuilder.setIsBounded(RunnerApi.IsBounded.Enum.BOUNDED);
+            processBundleDescriptorFixed.putPcollections(
+                entry.getKey(), pcollectionBuilder.build());
+        }
+      }
+
+      computeIfAbsent(processBundleDescriptor.getId())
+          .complete(processBundleDescriptorFixed.build());
       for (Map.Entry<String, RunnerApi.Coder> entry :
           processBundleDescriptor.getCodersMap().entrySet()) {
         LOG.debug("Registering {} with type {}", entry.getKey(), entry.getValue().getClass());
