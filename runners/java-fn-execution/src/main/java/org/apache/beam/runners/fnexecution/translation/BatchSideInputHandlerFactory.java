@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.translation;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
@@ -43,24 +43,25 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
-import org.apache.flink.api.common.functions.RuntimeContext;
 
-/**
- * {@link StateRequestHandler} that uses a Flink {@link RuntimeContext} to access Flink broadcast
- * variable that represent side inputs.
- */
-class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
+/** {@link StateRequestHandler} that uses a {@link SideInputGetter} to access side inputs. */
+public class BatchSideInputHandlerFactory implements SideInputHandlerFactory {
 
   // Map from side input id to global PCollection id.
   private final Map<SideInputId, PCollectionNode> sideInputToCollection;
-  private final RuntimeContext runtimeContext;
+  private final SideInputGetter sideInputGetter;
+
+  /** Returns the value for the side input with the given PCollection id from the runner. */
+  public interface SideInputGetter {
+    <T> List<T> getSideInput(String pCollectionId);
+  }
 
   /**
    * Creates a new state handler for the given stage. Note that this requires a traversal of the
    * stage itself, so this should only be called once per stage rather than once per bundle.
    */
-  static FlinkBatchSideInputHandlerFactory forStage(
-      ExecutableStage stage, RuntimeContext runtimeContext) {
+  public static BatchSideInputHandlerFactory forStage(
+      ExecutableStage stage, SideInputGetter sideInputGetter) {
     ImmutableMap.Builder<SideInputId, PCollectionNode> sideInputBuilder = ImmutableMap.builder();
     for (SideInputReference sideInput : stage.getSideInputs()) {
       sideInputBuilder.put(
@@ -70,13 +71,13 @@ class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
               .build(),
           sideInput.collection());
     }
-    return new FlinkBatchSideInputHandlerFactory(sideInputBuilder.build(), runtimeContext);
+    return new BatchSideInputHandlerFactory(sideInputBuilder.build(), sideInputGetter);
   }
 
-  private FlinkBatchSideInputHandlerFactory(
-      Map<SideInputId, PCollectionNode> sideInputToCollection, RuntimeContext runtimeContext) {
+  private BatchSideInputHandlerFactory(
+      Map<SideInputId, PCollectionNode> sideInputToCollection, SideInputGetter sideInputGetter) {
     this.sideInputToCollection = sideInputToCollection;
-    this.runtimeContext = runtimeContext;
+    this.sideInputGetter = sideInputGetter;
   }
 
   @Override
@@ -96,7 +97,7 @@ class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
       @SuppressWarnings("unchecked") // T == V
       Coder<V> outputCoder = (Coder<V>) elementCoder;
       return forIterableSideInput(
-          runtimeContext.getBroadcastVariable(collectionNode.getId()), outputCoder, windowCoder);
+          sideInputGetter.getSideInput(collectionNode.getId()), outputCoder, windowCoder);
     } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())
         || Materializations.MULTIMAP_MATERIALIZATION_URN.equals(accessPattern.getUrn())) {
       // TODO: Remove non standard URN.
@@ -104,7 +105,7 @@ class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
       @SuppressWarnings("unchecked") // T == KV<?, V>
       KvCoder<?, V> kvCoder = (KvCoder<?, V>) elementCoder;
       return forMultimapSideInput(
-          runtimeContext.getBroadcastVariable(collectionNode.getId()),
+          sideInputGetter.getSideInput(collectionNode.getId()),
           kvCoder.getKeyCoder(),
           kvCoder.getValueCoder(),
           windowCoder);
@@ -202,7 +203,7 @@ class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
   @AutoValue
   abstract static class SideInputKey {
     static SideInputKey of(Object key, Object window) {
-      return new AutoValue_FlinkBatchSideInputHandlerFactory_SideInputKey(key, window);
+      return new AutoValue_BatchSideInputHandlerFactory_SideInputKey(key, window);
     }
 
     @Nullable
