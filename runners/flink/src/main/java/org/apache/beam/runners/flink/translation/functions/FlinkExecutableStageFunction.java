@@ -54,6 +54,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
+import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.FileSystems;
@@ -167,7 +168,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       RuntimeContext runtimeContext) {
     final StateRequestHandler sideInputHandler;
     StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
-        FlinkBatchSideInputHandlerFactory.forStage(executableStage, runtimeContext);
+        BatchSideInputHandlerFactory.forStage(
+            executableStage, runtimeContext::getBroadcastVariable);
     try {
       sideInputHandler =
           StateRequestHandlers.forSideInputHandlerFactory(
