@@ -103,7 +103,7 @@ public class BoundedDataset<T> implements Dataset {
   @SuppressWarnings("unchecked")
   public void cache(String storageLevel, Coder<?> coder) {
     StorageLevel level = StorageLevel.fromString(storageLevel);
-    if (TranslationUtils.avoidRddSerialization(level)) {
+    if (TranslationUtils.canAvoidRddSerialization(level)) {
       // if it is memory only reduce the overhead of moving to bytes
       this.rdd = getRDD().persist(level);
     } else {
@@ -112,9 +112,9 @@ public class BoundedDataset<T> implements Dataset {
       Coder<WindowedValue<T>> windowedValueCoder = (Coder<WindowedValue<T>>) coder;
       this.rdd =
           getRDD()
-              .map(CoderHelpers.toByteFunction(windowedValueCoder))
+              .map(v -> ValueAndCoderLazySerializable.of(v, windowedValueCoder))
               .persist(level)
-              .map(CoderHelpers.fromByteFunction(windowedValueCoder));
+              .map(v -> v.getOrDecode(windowedValueCoder));
     }
   }
 

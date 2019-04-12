@@ -35,7 +35,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 
 /** Testing of beam registrar. */
-public class BeamSparkRunnerRegistratorTest {
+public class SparkRunnerKryoRegistratorTest {
 
   @Test
   public void testKryoRegistration() {
@@ -73,10 +73,10 @@ public class BeamSparkRunnerRegistratorTest {
   }
 
   /**
-   * A {@link BeamSparkRunnerRegistrator} that fails if called. Use only for test purposes. Needs to
+   * A {@link SparkRunnerKryoRegistrator} that fails if called. Use only for test purposes. Needs to
    * be public for serialization.
    */
-  public static class KryoRegistratorIsNotCalled extends BeamSparkRunnerRegistrator {
+  public static class KryoRegistratorIsNotCalled extends SparkRunnerKryoRegistrator {
 
     @Override
     public void registerClasses(Kryo kryo) {
@@ -87,10 +87,10 @@ public class BeamSparkRunnerRegistratorTest {
   }
 
   /**
-   * A {@link BeamSparkRunnerRegistrator} that registers an internal class to validate
+   * A {@link SparkRunnerKryoRegistrator} that registers an internal class to validate
    * KryoSerialization resolution. Use only for test purposes. Needs to be public for serialization.
    */
-  public static class WrapperKryoRegistrator extends BeamSparkRunnerRegistrator {
+  public static class WrapperKryoRegistrator extends SparkRunnerKryoRegistrator {
 
     static boolean wasInitiated = false;
 
