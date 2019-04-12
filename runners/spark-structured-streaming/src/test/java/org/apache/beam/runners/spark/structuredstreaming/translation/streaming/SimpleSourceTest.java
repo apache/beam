@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -44,6 +45,7 @@ public class SimpleSourceTest implements Serializable {
     pipeline = Pipeline.create(options);
   }
 
+  @Ignore
   @Test
   public void testUnboundedSource() {
     // produces an unbounded PCollection of longs from 0 to Long.MAX_VALUE which elements
