@@ -117,7 +117,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
 
 
 class PipelineOptions(HasDisplayData):
-  """Subclasses of this class are used as containers for command line options.
+  """This class and subclasses are used as containers for command line options.
 
   These classes are wrappers over the standard argparse Python module
   (see https://docs.python.org/3/library/argparse.html).  To define one option
@@ -160,7 +160,7 @@ class PipelineOptions(HasDisplayData):
     arguments and then parse the command line specified by flags or by default
     the one obtained from sys.argv.
 
-    The subclasses of PipelineOptions should not redefine __init__.
+    The subclasses of PipelineOptions do not need to redefine __init__.
 
     Args:
       flags: An iterable of command line arguments to be used. If not specified

@@ -120,6 +120,16 @@ class PipelineOptionsTest(unittest.TestCase):
           '--mock_multi_option', action='append', help='mock multi option')
       parser.add_argument('--option with space', help='mock option with space')
 
+  # Use with MockOptions in test cases where multiple option classes are needed.
+  class FakeOptions(PipelineOptions):
+
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--fake_flag', action='store_true', help='fake flag')
+      parser.add_argument('--fake_option', help='fake option')
+      parser.add_argument(
+          '--fake_multi_option', action='append', help='fake multi option')
+
   def test_display_data(self):
     for case in PipelineOptionsTest.TEST_CASES:
       options = PipelineOptions(flags=case['flags'])
@@ -164,13 +174,10 @@ class PipelineOptionsTest(unittest.TestCase):
       self.assertEqual(mock_options.mock_multi_option,
                        case['expected']['mock_multi_option'])
 
-  def test_views_can_be_constructed_from_pipeline_option_sublcasses(self):
-    class EmptyOptions(PipelineOptions):
-      pass
-
+  def test_views_can_be_constructed_from_pipeline_option_subclasses(self):
     for case in PipelineOptionsTest.TEST_CASES:
-      empty_options = EmptyOptions(flags=case['flags'])
-      mock_options = empty_options.view_as(PipelineOptionsTest.MockOptions)
+      fake_options = PipelineOptionsTest.FakeOptions(flags=case['flags'])
+      mock_options = fake_options.view_as(PipelineOptionsTest.MockOptions)
 
       self.assertEqual(mock_options.mock_flag,
                        case['expected']['mock_flag'])
@@ -178,6 +185,27 @@ class PipelineOptionsTest(unittest.TestCase):
                        case['expected']['mock_option'])
       self.assertEqual(mock_options.mock_multi_option,
                        case['expected']['mock_multi_option'])
+
+  def test_views_do_not_expose_options_defined_by_other_views(self):
+    flags = ['--mock_option=mock_value', '--fake_option=fake_value']
+
+    options = PipelineOptions(flags)
+    assert options.view_as(
+        PipelineOptionsTest.MockOptions).mock_option == 'mock_value'
+    assert options.view_as(
+        PipelineOptionsTest.FakeOptions).fake_option == 'fake_value'
+    assert options.view_as(
+        PipelineOptionsTest.MockOptions).view_as(
+            PipelineOptionsTest.FakeOptions).fake_option == 'fake_value'
+
+    self.assertRaises(
+        AttributeError,
+        lambda: options.view_as(PipelineOptionsTest.MockOptions).fake_option)
+    self.assertRaises(
+        AttributeError,
+        lambda: options.view_as(PipelineOptionsTest.MockOptions).view_as(
+            PipelineOptionsTest.FakeOptions).view_as(
+                PipelineOptionsTest.MockOptions).fake_option)
 
   def test_from_dictionary(self):
     for case in PipelineOptionsTest.TEST_CASES:
