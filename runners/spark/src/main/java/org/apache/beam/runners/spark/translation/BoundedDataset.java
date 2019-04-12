@@ -103,7 +103,7 @@ public class BoundedDataset<T> implements Dataset {
   @SuppressWarnings("unchecked")
   public void cache(String storageLevel, Coder<?> coder) {
     StorageLevel level = StorageLevel.fromString(storageLevel);
-    if (TranslationUtils.avoidRddSerialization(level)) {
+    if (TranslationUtils.canAvoidRddSerialization(level)) {
       // if it is memory only reduce the overhead of moving to bytes
       this.rdd = getRDD().persist(level);
     } else {

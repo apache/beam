@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.runners.spark.translation.TranslationUtils.avoidRddSerialization;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.canAvoidRddSerialization;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
@@ -398,7 +398,7 @@ public final class TransformTranslator {
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
           StorageLevel level = StorageLevel.fromString(context.storageLevel());
-          if (avoidRddSerialization(level)) {
+          if (canAvoidRddSerialization(level)) {
             // if it is memory only reduce the overhead of moving to bytes
             all = all.persist(level);
           } else {

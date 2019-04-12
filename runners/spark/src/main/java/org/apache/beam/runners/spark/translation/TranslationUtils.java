@@ -382,15 +382,17 @@ public final class TranslationUtils {
   }
 
   /**
-   * checking if we can avoid Serialization - relevant to RDDs. DStreams are memory ser in spark.
+   * Check if we can avoid Serialization. It is only relevant to RDDs. DStreams are memory ser in
+   * spark.
    *
-   * <p>See https://spark.apache.org/docs/latest/rdd-programming-guide.html#rdd-persistence for
-   * details.
+   * <p>See <a
+   * href="https://spark.apache.org/docs/latest/rdd-programming-guide.html#rdd-persistence">Spark
+   * RDD programming guide</a> for more details.
    *
    * @param level StorageLevel required
    * @return true if the level is memory only
    */
-  public static boolean avoidRddSerialization(StorageLevel level) {
+  static boolean canAvoidRddSerialization(StorageLevel level) {
     return level.equals(StorageLevel.MEMORY_ONLY());
   }
 }
