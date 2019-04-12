@@ -23,11 +23,13 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * {@code BigQueryTable} represent a BigQuery table as a target. This provider does not currently
@@ -35,10 +37,12 @@ import org.apache.beam.sdk.values.Row;
  */
 @Experimental
 class BigQueryTable extends BaseBeamTable implements Serializable {
-  String bqLocation;
+  @VisibleForTesting final String bqLocation;
+  private final ConversionOptions conversionOptions;
 
-  BigQueryTable(Table table) {
+  BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
     super(table.getSchema());
+    this.conversionOptions = options;
     this.bqLocation = table.getLocation();
   }
 
@@ -52,7 +56,9 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
     return begin
         .apply(
             "Read Input BQ Rows",
-            BigQueryIO.read(record -> BigQueryUtils.toBeamRow(record.getRecord(), getSchema()))
+            BigQueryIO.read(
+                    record ->
+                        BigQueryUtils.toBeamRow(record.getRecord(), getSchema(), conversionOptions))
                 .from(bqLocation)
                 .withCoder(SchemaCoder.of(getSchema())))
         .setRowSchema(getSchema());
