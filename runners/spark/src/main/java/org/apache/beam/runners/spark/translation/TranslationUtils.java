@@ -136,11 +136,7 @@ public final class TranslationUtils {
 
   /** {@link KV} to pair flatmap function. */
   public static <K, V> PairFlatMapFunction<Iterator<KV<K, V>>, K, V> toPairFlatMapFunction() {
-    return itr -> {
-      final Iterator<Tuple2<K, V>> outputItr =
-          Iterators.transform(itr, kv -> new Tuple2<>(kv.getKey(), kv.getValue()));
-      return outputItr;
-    };
+    return itr -> Iterators.transform(itr, kv -> new Tuple2<>(kv.getKey(), kv.getValue()));
   }
 
   /** A pair to {@link KV} function . */
@@ -276,19 +272,16 @@ public final class TranslationUtils {
    */
   public static <T, K, V> PairFlatMapFunction<Iterator<T>, K, V> pairFunctionToPairFlatMapFunction(
       final PairFunction<T, K, V> pairFunction) {
-    return itr -> {
-      final Iterator<Tuple2<K, V>> outputItr =
-          Iterators.transform(
-              itr,
-              t -> {
-                try {
-                  return pairFunction.call(t);
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                }
-              });
-      return outputItr;
-    };
+    return itr ->
+        Iterators.transform(
+            itr,
+            t -> {
+              try {
+                return pairFunction.call(t);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
   }
 
   /**
@@ -305,19 +298,16 @@ public final class TranslationUtils {
   public static <InputT, OutputT>
       FlatMapFunction<Iterator<InputT>, OutputT> functionToFlatMapFunction(
           final Function<InputT, OutputT> func) {
-    return itr -> {
-      final Iterator<OutputT> outputItr =
-          Iterators.transform(
-              itr,
-              t -> {
-                try {
-                  return func.call(t);
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                }
-              });
-      return outputItr;
-    };
+    return itr ->
+        Iterators.transform(
+            itr,
+            t -> {
+              try {
+                return func.call(t);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
   }
 
   /**
