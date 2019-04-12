@@ -273,7 +273,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
     @Override
     public OutputStream get() {
       try {
-        String filename = filepath + "." + formatter.format(new Date());
+        String filename = filepath + "." + formatter.format(new Date()) + ".log";
         return new BufferedOutputStream(
             new FileOutputStream(new File(filename), true /* append */));
       } catch (IOException e) {
