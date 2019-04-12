@@ -74,7 +74,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -406,10 +405,8 @@ public class DataflowPipelineTranslator {
       if (options.getServiceAccount() != null) {
         environment.setServiceAccountEmail(options.getServiceAccount());
       }
-      // TODO(BEAM-6664): Remove once Dataflow supports --dataflowKmsKey.
       if (options.getDataflowKmsKey() != null) {
-        ExperimentalOptions.addExperiment(
-            options, String.format("service_default_cmek_config=%s", options.getDataflowKmsKey()));
+        environment.setServiceKmsKeyName(options.getDataflowKmsKey());
       }
 
       pipeline.traverseTopologically(this);
