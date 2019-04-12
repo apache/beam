@@ -26,22 +26,11 @@ public final class KVHelpers {
 
   /** A Spark {@link MapFunction} for extracting the key out of a {@link KV} for GBK for example. */
   public static <K, V> MapFunction<KV<K, V>, K> extractKey() {
-    return new MapFunction<KV<K, V>, K>() {
-
-      @Override
-      public K call(KV<K, V> kv) throws Exception {
-        return kv.getKey();
-      }
-    };
+    return (MapFunction<KV<K, V>, K>) KV::getKey;
   }
 
   /** A Spark {@link MapFunction} for making a KV out of a {@link scala.Tuple2}. */
   public static <K, V> MapFunction<Tuple2<K, V>, KV<K, V>> tuple2ToKV() {
-    return new MapFunction<Tuple2<K, V>, KV<K, V>>() {
-      @Override
-      public KV<K, V> call(Tuple2<K, V> tuple2) throws Exception {
-        return KV.of(tuple2._1, tuple2._2);
-      }
-    };
+    return (MapFunction<Tuple2<K, V>, KV<K, V>>) tuple2 -> KV.of(tuple2._1, tuple2._2);
   }
 }

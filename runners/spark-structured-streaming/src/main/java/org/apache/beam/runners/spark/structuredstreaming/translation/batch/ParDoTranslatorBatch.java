@@ -194,7 +194,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
     private final TupleTag<?> key;
 
-    public DoFnFilterFunction(TupleTag<?> key) {
+    DoFnFilterFunction(TupleTag<?> key) {
       this.key = key;
     }
 

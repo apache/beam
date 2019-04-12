@@ -54,8 +54,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /** Options used in this pipeline runner. */
   private final SparkPipelineOptions options;
 
-  private TranslationContext translationContext;
-
   /**
    * Creates and returns a new SparkRunner with default options. In particular, against a spark
    * instance running in local mode.
@@ -112,7 +110,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @Override
   public SparkPipelineResult run(final Pipeline pipeline) {
-    translationContext = translatePipeline(pipeline);
+    TranslationContext translationContext = translatePipeline(pipeline);
     //TODO initialise other services: checkpointing, metrics system, listeners, ...
     //TODO pass testMode using pipelineOptions
     translationContext.startPipeline(true);

@@ -132,7 +132,6 @@ public class DoFnFunction<InputT, OutputT>
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public synchronized <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       outputs.put(tag, output);
     }

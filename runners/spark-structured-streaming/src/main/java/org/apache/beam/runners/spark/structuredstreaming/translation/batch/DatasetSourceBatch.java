@@ -51,7 +51,6 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
   static final String DEFAULT_PARALLELISM = "default-parallelism";
   static final String PIPELINE_OPTIONS = "pipeline-options";
 
-  @SuppressWarnings("unchecked")
   @Override
   public DataSourceReader createReader(DataSourceOptions options) {
     return new DatasetReader<>(options);
@@ -104,13 +103,8 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
             source.split(desiredSizeBytes, sparkPipelineOptions);
         for (BoundedSource<T> split : splits) {
           result.add(
-              new InputPartition<InternalRow>() {
-
-                @Override
-                public InputPartitionReader<InternalRow> createPartitionReader() {
-                  return new DatasetPartitionReader<>(split, serializablePipelineOptions);
-                }
-              });
+              (InputPartition<InternalRow>)
+                  () -> new DatasetPartitionReader<>(split, serializablePipelineOptions));
         }
         return result;
 
@@ -125,7 +119,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
   private static class DatasetPartitionReader<T> implements InputPartitionReader<InternalRow> {
     private boolean started;
     private boolean closed;
-    private BoundedSource<T> source;
+    private final BoundedSource<T> source;
     private BoundedReader<T> reader;
 
     DatasetPartitionReader(

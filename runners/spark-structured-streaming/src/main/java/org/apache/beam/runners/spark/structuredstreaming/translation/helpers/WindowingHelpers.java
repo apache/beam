@@ -41,13 +41,7 @@ public final class WindowingHelpers {
    * @return A {@link MapFunction} that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> MapFunction<T, WindowedValue<T>> windowMapFunction() {
-    return new MapFunction<T, WindowedValue<T>>() {
-
-      @Override
-      public WindowedValue<T> call(T t) {
-        return WindowedValue.valueInGlobalWindow(t);
-      }
-    };
+    return (MapFunction<T, WindowedValue<T>>) WindowedValue::valueInGlobalWindow;
   }
 
   /**
@@ -57,13 +51,7 @@ public final class WindowingHelpers {
    * @return A {@link MapFunction} that accepts a {@link WindowedValue} and returns its value.
    */
   public static <T> MapFunction<WindowedValue<T>, T> unwindowMapFunction() {
-    return new MapFunction<WindowedValue<T>, T>() {
-
-      @Override
-      public T call(WindowedValue<T> t) {
-        return t.getValue();
-      }
-    };
+    return (MapFunction<WindowedValue<T>, T>) WindowedValue::getValue;
   }
 
   /**
@@ -86,34 +74,31 @@ public final class WindowingHelpers {
   public static <T, W extends BoundedWindow>
       MapFunction<WindowedValue<T>, WindowedValue<T>> assignWindowsMapFunction(
           WindowFn<T, W> windowFn) {
-    return new MapFunction<WindowedValue<T>, WindowedValue<T>>() {
+    return (MapFunction<WindowedValue<T>, WindowedValue<T>>)
+        windowedValue -> {
+          final BoundedWindow boundedWindow = Iterables.getOnlyElement(windowedValue.getWindows());
+          final T element = windowedValue.getValue();
+          final Instant timestamp = windowedValue.getTimestamp();
+          Collection<W> windows =
+              windowFn.assignWindows(
+                  windowFn.new AssignContext() {
 
-      @Override
-      public WindowedValue<T> call(WindowedValue<T> windowedValue) throws Exception {
-        final BoundedWindow boundedWindow = Iterables.getOnlyElement(windowedValue.getWindows());
-        final T element = windowedValue.getValue();
-        final Instant timestamp = windowedValue.getTimestamp();
-        Collection<W> windows =
-            windowFn.assignWindows(
-                windowFn.new AssignContext() {
+                    @Override
+                    public T element() {
+                      return element;
+                    }
 
-                  @Override
-                  public T element() {
-                    return element;
-                  }
+                    @Override
+                    public Instant timestamp() {
+                      return timestamp;
+                    }
 
-                  @Override
-                  public Instant timestamp() {
-                    return timestamp;
-                  }
-
-                  @Override
-                  public BoundedWindow window() {
-                    return boundedWindow;
-                  }
-                });
-        return WindowedValue.of(element, timestamp, windows, windowedValue.getPane());
-      }
-    };
+                    @Override
+                    public BoundedWindow window() {
+                      return boundedWindow;
+                    }
+                  });
+          return WindowedValue.of(element, timestamp, windows, windowedValue.getPane());
+        };
   }
 }

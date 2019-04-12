@@ -167,23 +167,20 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
             source.split(numPartitions, sparkPipelineOptions);
         for (UnboundedSource<T, CheckpointMarkT> split : splits) {
           result.add(
-              new InputPartition<InternalRow>() {
-
-                @Override
-                public InputPartitionReader<InternalRow> createPartitionReader() {
-                  DatasetPartitionReader<T, CheckpointMarkT> datasetPartitionReader;
-                  long nbOffsetsForReader =
-                      !splits.iterator().hasNext() && offsetRange != -1
-                          ? nbOffsetsPerReader
-                              + (offsetRange - (numPartitions * nbOffsetsPerReader))
-                          : nbOffsetsPerReader;
-                  datasetPartitionReader =
-                      new DatasetPartitionReader<>(
-                          split, serializablePipelineOptions, nbOffsetsForReader);
-                  partitionReaders.add(datasetPartitionReader);
-                  return datasetPartitionReader;
-                }
-              });
+              (InputPartition<InternalRow>)
+                  () -> {
+                    DatasetPartitionReader<T, CheckpointMarkT> datasetPartitionReader;
+                    long nbOffsetsForReader =
+                        !splits.iterator().hasNext() && offsetRange != -1
+                            ? nbOffsetsPerReader
+                                + (offsetRange - (numPartitions * nbOffsetsPerReader))
+                            : nbOffsetsPerReader;
+                    datasetPartitionReader =
+                        new DatasetPartitionReader<>(
+                            split, serializablePipelineOptions, nbOffsetsForReader);
+                    partitionReaders.add(datasetPartitionReader);
+                    return datasetPartitionReader;
+                  });
         }
         return result;
 
@@ -195,13 +192,13 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
   }
 
   private static class SourceOffset extends Offset implements Serializable {
-    Long offset;
+    final Long offset;
 
     private SourceOffset(Long offset) {
       this.offset = offset;
     }
 
-    public Long get() {
+    Long get() {
       return offset;
     }
 
@@ -220,7 +217,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
       implements InputPartitionReader<InternalRow> {
     private boolean started;
     private boolean closed;
-    private UnboundedSource<T, CheckpointMarkT> source;
+    private final UnboundedSource<T, CheckpointMarkT> source;
     private UnboundedSource.UnboundedReader<T> reader;
     private long nbOffsetsToRead;
 

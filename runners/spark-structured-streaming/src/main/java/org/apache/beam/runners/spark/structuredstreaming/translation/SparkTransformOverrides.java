@@ -28,7 +28,7 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /** {@link PTransform} overrides for Spark runner. */
-public class SparkTransformOverrides {
+class SparkTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     // TODO: [BEAM-5358] Support @RequiresStableInput on Spark runner
