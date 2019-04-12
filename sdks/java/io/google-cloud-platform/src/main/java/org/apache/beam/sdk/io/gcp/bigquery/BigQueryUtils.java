@@ -24,6 +24,8 @@ import static org.apache.beam.sdk.values.Row.toRow;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -46,12 +48,46 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.joda.time.ReadableInstant;
 import org.joda.time.chrono.ISOChronology;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
 
 /** Utility methods for BigQuery related operations. */
 public class BigQueryUtils {
+
+  /** Options for how to convert BigQuery data to Beam data. */
+  @AutoValue
+  public abstract static class ConversionOptions implements Serializable {
+
+    /**
+     * Controls whether to truncate timestamps to millisecond precision lossily, or to crash when
+     * truncation would result.
+     */
+    public enum TruncateTimestamps {
+      /** Reject timestamps with greater-than-millisecond precision. */
+      REJECT,
+
+      /** Truncate timestamps to millisecond precision. */
+      TRUNCATE;
+    }
+
+    public abstract TruncateTimestamps getTruncateTimestamps();
+
+    public static Builder builder() {
+      return new AutoValue_BigQueryUtils_ConversionOptions.Builder()
+          .setTruncateTimestamps(TruncateTimestamps.REJECT);
+    }
+
+    /** Builder for {@link ConversionOptions}. */
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setTruncateTimestamps(TruncateTimestamps truncateTimestamps);
+
+      public abstract ConversionOptions build();
+    }
+  }
+
   private static final Map<TypeName, StandardSQLTypeName> BEAM_TO_BIGQUERY_TYPE_MAPPING =
       ImmutableMap.<TypeName, StandardSQLTypeName>builder()
           .put(TypeName.BYTE, StandardSQLTypeName.INT64)
@@ -180,10 +216,10 @@ public class BigQueryUtils {
     }
   }
 
-  public static Row toBeamRow(GenericRecord record, Schema schema) {
+  public static Row toBeamRow(GenericRecord record, Schema schema, ConversionOptions options) {
     List<Object> valuesInOrder =
         schema.getFields().stream()
-            .map(field -> convertAvroFormat(field, record.get(field.getName())))
+            .map(field -> convertAvroFormat(field, record.get(field.getName()), options))
             .collect(toList());
 
     return Row.withSchema(schema).addValues(valuesInOrder).build();
@@ -303,9 +339,12 @@ public class BigQueryUtils {
           "SqlDateType", "SqlTimeType", "SqlTimeWithLocalTzType", "SqlTimestampWithLocalTzType");
   private static final Set<String> SQL_STRING_TYPES = ImmutableSet.of("SqlCharType");
 
-  /** Tries to convert an Avro field to Beam field based on the target type of the Beam field. */
-  public static Object convertAvroFormat(Field beamField, Object value) {
-    Object ret;
+  /**
+   * Tries to convert an Avro decoded value to a Beam field value based on the target type of the
+   * Beam field.
+   */
+  public static Object convertAvroFormat(
+      Field beamField, Object avroValue, BigQueryUtils.ConversionOptions options) {
     TypeName beamFieldTypeName = beamField.getType().getTypeName();
     switch (beamFieldTypeName) {
       case INT16:
@@ -315,24 +354,38 @@ public class BigQueryUtils {
       case DOUBLE:
       case BYTE:
       case BOOLEAN:
-        ret = convertAvroPrimitiveTypes(beamFieldTypeName, value);
-        break;
+        return convertAvroPrimitiveTypes(beamFieldTypeName, avroValue);
       case DATETIME:
         // Expecting value in microseconds.
-        ret = new Instant().withMillis(((long) value) / 1000);
-        break;
+        switch (options.getTruncateTimestamps()) {
+          case TRUNCATE:
+            return truncateToMillis(avroValue);
+          case REJECT:
+            return safeToMillis(avroValue);
+          default:
+            throw new IllegalArgumentException(
+                String.format(
+                    "Unknown timestamp truncation option: %s", options.getTruncateTimestamps()));
+        }
       case STRING:
-        ret = convertAvroPrimitiveTypes(beamFieldTypeName, value);
-        break;
+        return convertAvroPrimitiveTypes(beamFieldTypeName, avroValue);
       case ARRAY:
-        ret = convertAvroArray(beamField, value);
-        break;
+        return convertAvroArray(beamField, avroValue);
       case LOGICAL_TYPE:
         String identifier = beamField.getType().getLogicalType().getIdentifier();
         if (SQL_DATE_TIME_TYPES.contains(identifier)) {
-          return new Instant().withMillis(((long) value) / 1000);
+          switch (options.getTruncateTimestamps()) {
+            case TRUNCATE:
+              return truncateToMillis(avroValue);
+            case REJECT:
+              return safeToMillis(avroValue);
+            default:
+              throw new IllegalArgumentException(
+                  String.format(
+                      "Unknown timestamp truncation option: %s", options.getTruncateTimestamps()));
+          }
         } else if (SQL_STRING_TYPES.contains(identifier)) {
-          return convertAvroPrimitiveTypes(TypeName.STRING, value);
+          return convertAvroPrimitiveTypes(TypeName.STRING, avroValue);
         } else {
           throw new RuntimeException("Unknown logical type " + identifier);
         }
@@ -343,8 +396,25 @@ public class BigQueryUtils {
       default:
         throw new RuntimeException("Does not support converting unknown type value");
     }
+  }
 
-    return ret;
+  private static ReadableInstant safeToMillis(Object value) {
+    long subMilliPrecision = ((long) value) % 1000;
+    if (subMilliPrecision != 0) {
+      throw new IllegalArgumentException(
+          String.format(
+              "BigQuery data contained value %s with sub-millisecond precision, which Beam does"
+                  + " not currently support."
+                  + " You can enable truncating timestamps to millisecond precision"
+                  + " by using BigQueryIO.withTruncatedTimestamps",
+              value));
+    } else {
+      return truncateToMillis(value);
+    }
+  }
+
+  private static ReadableInstant truncateToMillis(Object value) {
+    return new Instant((long) value / 1000);
   }
 
   private static Object convertAvroArray(Field beamField, Object value) {
