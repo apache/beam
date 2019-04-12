@@ -42,7 +42,7 @@ import scala.collection.mutable.WrappedArray;
  * {@code org.apache.spark.serializer.KryoSerializer} and register this class via Spark {@code
  * spark.kryo.registrator} configuration.
  */
-public class BeamSparkRunnerRegistrator implements KryoRegistrator {
+public class SparkRunnerKryoRegistrator implements KryoRegistrator {
 
   @Override
   public void registerClasses(Kryo kryo) {
@@ -50,24 +50,24 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
     kryo.register(MicrobatchSource.class, new StatelessJavaSerializer());
     kryo.register(ValueAndCoderLazySerializable.class, new ValueAndCoderKryoSerializer());
 
-    kryo.register(WrappedArray.ofRef.class);
-    kryo.register(Object[].class);
-    kryo.register(ByteArray.class);
-    kryo.register(StateAndTimers.class);
-    kryo.register(TupleTag.class);
     kryo.register(ArrayList.class);
-    kryo.register(LinkedHashMap.class);
+    kryo.register(ByteArray.class);
     kryo.register(HashBasedTable.class);
     kryo.register(KV.class);
+    kryo.register(LinkedHashMap.class);
+    kryo.register(Object[].class);
     kryo.register(PaneInfo.class);
+    kryo.register(StateAndTimers.class);
+    kryo.register(TupleTag.class);
     kryo.register(WindowedKey.class);
+    kryo.register(WrappedArray.ofRef.class);
 
     try {
       kryo.register(
+          Class.forName("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInGlobalWindow"));
+      kryo.register(
           Class.forName(
               "org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable$Factory"));
-      kryo.register(
-          Class.forName("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInGlobalWindow"));
     } catch (ClassNotFoundException e) {
       throw new IllegalStateException("Unable to register classes with kryo.", e);
     }
