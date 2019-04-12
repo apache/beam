@@ -63,7 +63,8 @@ public final class RowHelpers {
    * Serialize a windowedValue to bytes using windowed {@link WindowedValue.FullWindowedValueCoder}
    * and stores it an InternalRow.
    */
-  public static <T> InternalRow storeWindowedValueInRow(WindowedValue<T> windowedValue, Coder<T> coder) {
+  public static <T> InternalRow storeWindowedValueInRow(
+      WindowedValue<T> windowedValue, Coder<T> coder) {
     List<Object> list = new ArrayList<>();
     //serialize the windowedValue to bytes array to comply with dataset binary schema
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
@@ -95,22 +96,17 @@ public final class RowHelpers {
     };
   }
 
-  /**
-   * Extracts an Object from a Row was serialized to bytes using
-   * kryo.
-   *
-   */
-
+  /** Extracts an Object from a Row was serialized to bytes using kryo. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public static <T> T extractObjectFromRow(Row value) {
-        //there is only one value put in each Row by the InputPartitionReader
-        byte[] bytes = (byte[]) value.get(0);
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
-        Kryo kryo = new Kryo();
-        Input input = new Input(inputStream);
-        @SuppressWarnings("unchecked")
-        T object = (T) kryo.readClassAndObject(input);
-        input.close();
-        return object;
-      }
+    //there is only one value put in each Row by the InputPartitionReader
+    byte[] bytes = (byte[]) value.get(0);
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+    Kryo kryo = new Kryo();
+    Input input = new Input(inputStream);
+    @SuppressWarnings("unchecked")
+    T object = (T) kryo.readClassAndObject(input);
+    input.close();
+    return object;
   }
+}

@@ -109,8 +109,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
             mainOutputTag,
             inputCoder,
             outputCoderMap,
-            broadcastStateData
-        );
+            broadcastStateData);
 
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs =
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.tuple2Encoder());

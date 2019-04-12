@@ -30,15 +30,16 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
 /**
- * By default Combine.globally is translated as a composite transform that does a Pardo (to key the input PCollection with Void keys and then a Combine.PerKey transform.
- * The problem is that Combine.PerKey uses spark GroupByKey which is not very performant due to shuffle. So we add a special
- * CombineGloballyTranslator that does not need GroupByKey
+ * By default Combine.globally is translated as a composite transform that does a Pardo (to key the
+ * input PCollection with Void keys and then a Combine.PerKey transform. The problem is that
+ * Combine.PerKey uses spark GroupByKey which is not very performant due to shuffle. So we add a
+ * special CombineGloballyTranslator that does not need GroupByKey
  */
 class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
-    implements TransformTranslator<
-        PTransform<PCollection<InputT>, PCollection<OutputT>>> {
+    implements TransformTranslator<PTransform<PCollection<InputT>, PCollection<OutputT>>> {
 
-  @Override public void translateTransform(
+  @Override
+  public void translateTransform(
       PTransform<PCollection<InputT>, PCollection<OutputT>> transform, TranslationContext context) {
 
     Combine.Globally combineTransform = (Combine.Globally) transform;
@@ -53,18 +54,19 @@ class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
     Dataset<WindowedValue<InputT>> inputDataset = context.getDataset(input);
 
     Dataset<InputT> unWindowedDataset =
-        inputDataset.map(
-            WindowingHelpers.unwindowMapFunction(), EncoderHelpers.genericEncoder());
+        inputDataset.map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.genericEncoder());
 
-    Dataset<Row> combinedRowDataset = unWindowedDataset
-        .agg(new AggregatorCombinerGlobally<>(combineFn).toColumn());
+    Dataset<Row> combinedRowDataset =
+        unWindowedDataset.agg(new AggregatorCombinerGlobally<>(combineFn).toColumn());
 
-    Dataset<OutputT> combinedDataset = combinedRowDataset
-        .map(RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.genericEncoder());
+    Dataset<OutputT> combinedDataset =
+        combinedRowDataset.map(
+            RowHelpers.extractObjectFromRowMapFunction(), EncoderHelpers.genericEncoder());
 
     // Window the result into global window.
-    Dataset<WindowedValue<OutputT>> outputDataset = combinedDataset
-        .map(WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
+    Dataset<WindowedValue<OutputT>> outputDataset =
+        combinedDataset.map(
+            WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
 
     context.putDataset(output, outputDataset);
   }
