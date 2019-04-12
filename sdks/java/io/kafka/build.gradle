@@ -33,6 +33,8 @@ dependencies {
   shadow "org.springframework:spring-expression:4.3.18.RELEASE"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  // For testing Cross-language transforms
+  testCompile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit

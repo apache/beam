@@ -84,6 +84,8 @@ dependencies {
   compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   compile library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
+  // For resolving external transform requests
+  compile project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run

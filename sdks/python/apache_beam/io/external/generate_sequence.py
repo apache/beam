@@ -32,7 +32,7 @@ class GenerateSequence(ptransform.PTransform):
 
   def __init__(self, start, stop=None,
                elements_per_period=None, max_read_time=None,
-               expansion_service=None):
+               expansion_service='localhost:8097'):
     super(GenerateSequence, self).__init__()
     self._urn = 'beam:external:java:generate_sequence:v1'
     self.start = start
