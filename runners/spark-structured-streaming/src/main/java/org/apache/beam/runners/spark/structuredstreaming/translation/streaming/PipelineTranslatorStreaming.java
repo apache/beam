@@ -31,8 +31,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in streaming mode. This
- * contains only the components specific to streaming: registry of streaming {@link TransformTranslator}
- * and registry lookup code.
+ * contains only the components specific to streaming: registry of streaming {@link
+ * TransformTranslator} and registry lookup code.
  */
 public class PipelineTranslatorStreaming extends PipelineTranslator {
   // --------------------------------------------------------------------------------------------
@@ -40,7 +40,8 @@ public class PipelineTranslatorStreaming extends PipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @SuppressWarnings("rawtypes")
-  private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSFORM_TRANSLATORS = new HashMap<>();
+  private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSFORM_TRANSLATORS =
+      new HashMap<>();
 
   //TODO the ability to have more than one TransformTranslator per URN
   // that could be dynamically chosen by a predicated that evaluates based on PCollection
@@ -49,23 +50,23 @@ public class PipelineTranslatorStreaming extends PipelineTranslator {
   // And https://github.com/seznam/euphoria/blob/master/euphoria-spark/src/main/java/cz/seznam/euphoria/spark/SparkFlowTranslator.java#L106
 
   static {
-//    TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
-//    TRANSFORM_TRANSLATORS.put(Combine.Globally.class, new CombineGloballyTranslatorBatch());
-//    TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
+    //    TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
+    //    TRANSFORM_TRANSLATORS.put(Combine.Globally.class, new CombineGloballyTranslatorBatch());
+    //    TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
 
     // TODO: Do we need to have a dedicated translator for {@code Reshuffle} if it's deprecated?
     //TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch());
 
-//    TRANSFORM_TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslatorBatch());
-//
-//    TRANSFORM_TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch());
-//
-//    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
+    //    TRANSFORM_TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslatorBatch());
+    //
+    //    TRANSFORM_TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch());
+    //
+    //    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
 
     TRANSFORM_TRANSLATORS.put(Read.Unbounded.class, new ReadSourceTranslatorStreaming());
 
-//    TRANSFORM_TRANSLATORS
-//        .put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());
+    //    TRANSFORM_TRANSLATORS
+    //        .put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());
   }
 
   public PipelineTranslatorStreaming(SparkPipelineOptions options) {

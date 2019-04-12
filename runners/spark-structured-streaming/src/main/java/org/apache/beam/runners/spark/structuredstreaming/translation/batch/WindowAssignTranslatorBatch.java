@@ -44,8 +44,9 @@ class WindowAssignTranslatorBatch<T>
     if (WindowingHelpers.skipAssignWindows(assignTransform, context)) {
       context.putDataset(output, inputDataset);
     } else {
-      Dataset<WindowedValue<T>> outputDataset = inputDataset
-          .map(WindowingHelpers.assignWindowsMapFunction(assignTransform.getWindowFn()),
+      Dataset<WindowedValue<T>> outputDataset =
+          inputDataset.map(
+              WindowingHelpers.assignWindowsMapFunction(assignTransform.getWindowFn()),
               EncoderHelpers.windowedValueEncoder());
       context.putDataset(output, outputDataset);
     }

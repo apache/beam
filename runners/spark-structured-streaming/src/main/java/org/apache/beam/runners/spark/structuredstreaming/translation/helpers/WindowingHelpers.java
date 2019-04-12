@@ -43,7 +43,8 @@ public final class WindowingHelpers {
   public static <T> MapFunction<T, WindowedValue<T>> windowMapFunction() {
     return new MapFunction<T, WindowedValue<T>>() {
 
-      @Override public WindowedValue<T> call(T t) {
+      @Override
+      public WindowedValue<T> call(T t) {
         return WindowedValue.valueInGlobalWindow(t);
       }
     };
@@ -58,7 +59,8 @@ public final class WindowingHelpers {
   public static <T> MapFunction<WindowedValue<T>, T> unwindowMapFunction() {
     return new MapFunction<WindowedValue<T>, T>() {
 
-      @Override public T call(WindowedValue<T> t) {
+      @Override
+      public T call(WindowedValue<T> t) {
         return t.getValue();
       }
     };
@@ -70,42 +72,48 @@ public final class WindowingHelpers {
    * <p>Avoid running assign windows if both source and destination are global window or if the user
    * has not specified the WindowFn (meaning they are just messing with triggering or allowed
    * lateness).
-   *
    */
-  @SuppressWarnings("unchecked") public static <T, W extends BoundedWindow> boolean skipAssignWindows(
+  @SuppressWarnings("unchecked")
+  public static <T, W extends BoundedWindow> boolean skipAssignWindows(
       Window.Assign<T> transform, TranslationContext context) {
     WindowFn<? super T, W> windowFnToApply = (WindowFn<? super T, W>) transform.getWindowFn();
     PCollection<T> input = (PCollection<T>) context.getInput();
     WindowFn<?, ?> windowFnOfInput = input.getWindowingStrategy().getWindowFn();
-    return windowFnToApply == null || (windowFnOfInput instanceof GlobalWindows
-        && windowFnToApply instanceof GlobalWindows);
+    return windowFnToApply == null
+        || (windowFnOfInput instanceof GlobalWindows && windowFnToApply instanceof GlobalWindows);
   }
 
-  public static <T, W extends BoundedWindow> MapFunction<WindowedValue<T>, WindowedValue<T>> assignWindowsMapFunction(
-      WindowFn<T, W> windowFn) {
+  public static <T, W extends BoundedWindow>
+      MapFunction<WindowedValue<T>, WindowedValue<T>> assignWindowsMapFunction(
+          WindowFn<T, W> windowFn) {
     return new MapFunction<WindowedValue<T>, WindowedValue<T>>() {
 
-      @Override public WindowedValue<T> call(WindowedValue<T> windowedValue) throws Exception {
+      @Override
+      public WindowedValue<T> call(WindowedValue<T> windowedValue) throws Exception {
         final BoundedWindow boundedWindow = Iterables.getOnlyElement(windowedValue.getWindows());
         final T element = windowedValue.getValue();
         final Instant timestamp = windowedValue.getTimestamp();
-        Collection<W> windows = windowFn.assignWindows(windowFn.new AssignContext() {
+        Collection<W> windows =
+            windowFn.assignWindows(
+                windowFn.new AssignContext() {
 
-          @Override public T element() {
-            return element;
-          }
+                  @Override
+                  public T element() {
+                    return element;
+                  }
 
-          @Override public Instant timestamp() {
-            return timestamp;
-          }
+                  @Override
+                  public Instant timestamp() {
+                    return timestamp;
+                  }
 
-          @Override public BoundedWindow window() {
-            return boundedWindow;
-          }
-        });
+                  @Override
+                  public BoundedWindow window() {
+                    return boundedWindow;
+                  }
+                });
         return WindowedValue.of(element, timestamp, windows, windowedValue.getPane());
       }
     };
   }
 }
-
