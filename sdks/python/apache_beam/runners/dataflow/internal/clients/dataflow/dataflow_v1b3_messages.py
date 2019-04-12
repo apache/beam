@@ -1625,6 +1625,10 @@ class Environment(_messages.Message):
       and platform independent way.
     serviceAccountEmail: Identity to run virtual machines as. Defaults to the
       default account.
+    serviceKmsKeyName: If set, contains the Cloud KMS key identifier used to
+      encrypt data at rest, AKA a Customer Managed Encryption Key (CMEK).
+      Format:
+      projects/PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY
     tempStoragePrefix: The prefix of the resources the system should use for
       temporary storage.  The system will append the suffix "/temp-{JOBNAME}
       to this resource prefix, where {JOBNAME} is the value of the job_name
@@ -1763,10 +1767,11 @@ class Environment(_messages.Message):
   internalExperiments = _messages.MessageField('InternalExperimentsValue', 5)
   sdkPipelineOptions = _messages.MessageField('SdkPipelineOptionsValue', 6)
   serviceAccountEmail = _messages.StringField(7)
-  tempStoragePrefix = _messages.StringField(8)
-  userAgent = _messages.MessageField('UserAgentValue', 9)
-  version = _messages.MessageField('VersionValue', 10)
-  workerPools = _messages.MessageField('WorkerPool', 11, repeated=True)
+  serviceKmsKeyName = _messages.StringField(8)
+  tempStoragePrefix = _messages.StringField(9)
+  userAgent = _messages.MessageField('UserAgentValue', 10)
+  version = _messages.MessageField('VersionValue', 11)
+  workerPools = _messages.MessageField('WorkerPool', 12, repeated=True)
 
 
 class ExecutionStageState(_messages.Message):
