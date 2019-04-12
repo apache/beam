@@ -33,7 +33,7 @@ class ProcessContext<FnInputT, FnOutputT, OutputT> {
   private final DoFn<FnInputT, FnOutputT> doFn;
   private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
   private final ProcessOutputManager<OutputT> outputManager;
-  private Iterator<TimerInternals.TimerData> timerDataIterator;
+  private final Iterator<TimerInternals.TimerData> timerDataIterator;
 
   ProcessContext(
       DoFn<FnInputT, FnOutputT> doFn,
@@ -47,7 +47,7 @@ class ProcessContext<FnInputT, FnOutputT, OutputT> {
     this.timerDataIterator = timerDataIterator;
   }
 
-  Iterable<OutputT> processPartition(Iterator<WindowedValue<FnInputT>> partition) throws Exception {
+  Iterable<OutputT> processPartition(Iterator<WindowedValue<FnInputT>> partition) {
 
     // skip if partition is empty.
     if (!partition.hasNext()) {

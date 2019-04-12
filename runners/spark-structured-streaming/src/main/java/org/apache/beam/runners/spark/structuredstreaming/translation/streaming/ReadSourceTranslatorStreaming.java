@@ -37,7 +37,7 @@ import org.apache.spark.sql.SparkSession;
 class ReadSourceTranslatorStreaming<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
-  private static String sourceProviderClass = DatasetSourceStreaming.class.getCanonicalName();
+  private static final String sourceProviderClass = DatasetSourceStreaming.class.getCanonicalName();
 
   @SuppressWarnings("unchecked")
   @Override

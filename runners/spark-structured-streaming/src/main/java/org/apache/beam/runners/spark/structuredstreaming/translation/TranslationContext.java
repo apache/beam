@@ -57,11 +57,11 @@ public class TranslationContext {
 
   private final SerializablePipelineOptions serializablePipelineOptions;
 
-  @SuppressFBWarnings("URF_UNREAD_FIELD") // make findbug happy
+  @SuppressFBWarnings("URF_UNREAD_FIELD") // make spotbugs happy
   private AppliedPTransform<?, ?, ?> currentTransform;
 
-  @SuppressFBWarnings("URF_UNREAD_FIELD") // make findbug happy
-  private SparkSession sparkSession;
+  @SuppressFBWarnings("URF_UNREAD_FIELD") // make spotbugs happy
+  private final SparkSession sparkSession;
 
   private final Map<PCollectionView<?>, Dataset<?>> broadcastDataSets;
 
@@ -148,22 +148,18 @@ public class TranslationContext {
   // --------------------------------------------------------------------------------------------
   //  PCollections methods
   // --------------------------------------------------------------------------------------------
-  @SuppressWarnings("unchecked")
   public PValue getInput() {
     return Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
   }
 
-  @SuppressWarnings("unchecked")
   public Map<TupleTag<?>, PValue> getInputs() {
     return currentTransform.getInputs();
   }
 
-  @SuppressWarnings("unchecked")
   public PValue getOutput() {
     return Iterables.getOnlyElement(currentTransform.getOutputs().values());
   }
 
-  @SuppressWarnings("unchecked")
   public Map<TupleTag<?>, PValue> getOutputs() {
     return currentTransform.getOutputs();
   }
@@ -175,7 +171,7 @@ public class TranslationContext {
         .entrySet()
         .stream()
         .filter(e -> e.getValue() instanceof PCollection)
-        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
   }
 
   // --------------------------------------------------------------------------------------------
@@ -205,7 +201,7 @@ public class TranslationContext {
               System.out.println(windowedValue);
             }
           } else {
-            // apply a dummy fn just to apply forech action that will trigger the pipeline run in spark
+            // apply a dummy fn just to apply for each action that will trigger the pipeline run in spark
             dataset.foreachPartition(t -> {});
           }
         }

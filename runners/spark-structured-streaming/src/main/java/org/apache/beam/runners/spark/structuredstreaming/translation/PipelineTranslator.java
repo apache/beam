@@ -50,7 +50,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
    * staging only when using remote cluster (passing the master address explicitly).
    */
   public static void prepareFilesToStageForRemoteClusterExecution(SparkPipelineOptions options) {
-    if (!options.getSparkMaster().matches("local\\[?\\d*\\]?")) {
+    if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
       options.setFilesToStage(
           PipelineResources.prepareFilesForStaging(
               options.getFilesToStage(), options.getTempLocation()));
@@ -132,12 +132,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     return builder.toString();
   }
 
-  /**
-   * Get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}.
-   *
-   * @param node
-   * @return
-   */
+  /** Get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}. */
   protected abstract TransformTranslator<?> getTransformTranslator(TransformHierarchy.Node node);
 
   /** Apply the given TransformTranslator to the given node. */
