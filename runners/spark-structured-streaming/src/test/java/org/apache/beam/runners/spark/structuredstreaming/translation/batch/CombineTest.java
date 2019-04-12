@@ -49,13 +49,12 @@ public class CombineTest implements Serializable {
   @Test
   public void testCombineGlobally() {
     PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    input.apply(
-        Combine.globally(new IntegerCombineFn()));
+    input.apply(Combine.globally(new IntegerCombineFn()));
     pipeline.run();
   }
 
   @Test
-  public void testCombinePerKey(){
+  public void testCombinePerKey() {
     List<KV<Integer, Integer>> elems = new ArrayList<>();
     elems.add(KV.of(1, 1));
     elems.add(KV.of(1, 3));
@@ -72,10 +71,14 @@ public class CombineTest implements Serializable {
   private static class IntegerCombineFn extends Combine.CombineFn<Integer, Long, Long> {
 
     @Override
-    public Long createAccumulator() { return 0L; }
+    public Long createAccumulator() {
+      return 0L;
+    }
 
     @Override
-    public Long addInput(Long accumulator, Integer input) { return accumulator + input; }
+    public Long addInput(Long accumulator, Integer input) {
+      return accumulator + input;
+    }
 
     @Override
     public Long mergeAccumulators(Iterable<Long> accumulators) {

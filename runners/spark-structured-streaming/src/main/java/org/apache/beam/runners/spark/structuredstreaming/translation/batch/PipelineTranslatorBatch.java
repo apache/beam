@@ -47,7 +47,8 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @SuppressWarnings("rawtypes")
-  private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSFORM_TRANSLATORS = new HashMap<>();
+  private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSFORM_TRANSLATORS =
+      new HashMap<>();
 
   //TODO the ability to have more than one TransformTranslator per URN
   // that could be dynamically chosen by a predicated that evaluates based on PCollection
@@ -71,8 +72,8 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
 
     TRANSFORM_TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS
-        .put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(
+        View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());
   }
 
   public PipelineTranslatorBatch(SparkPipelineOptions options) {

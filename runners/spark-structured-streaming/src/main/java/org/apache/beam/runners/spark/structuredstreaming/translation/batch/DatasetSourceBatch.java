@@ -69,7 +69,8 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
       if (!options.get(BEAM_SOURCE_OPTION).isPresent()) {
         throw new RuntimeException("Beam source was not set in DataSource options");
       }
-      this.source = Base64Serializer.deserializeUnchecked(
+      this.source =
+          Base64Serializer.deserializeUnchecked(
               options.get(BEAM_SOURCE_OPTION).get(), BoundedSource.class);
 
       if (!options.get(DEFAULT_PARALLELISM).isPresent()) {

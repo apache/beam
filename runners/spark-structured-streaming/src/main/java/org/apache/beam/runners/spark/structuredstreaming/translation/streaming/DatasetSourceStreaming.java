@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -47,22 +48,25 @@ import org.apache.spark.sql.types.StructType;
 
 /**
  * This is a spark structured streaming {@link DataSourceV2} implementation. As Continuous streaming
- * is tagged experimental in spark (no aggregation support + no exactly once guaranty), this class does no implement {@link ContinuousReadSupport}.
+ * is tagged experimental in spark (no aggregation support + no exactly once guaranty), this class
+ * does no implement {@link ContinuousReadSupport}.
  */
-public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
+@SuppressFBWarnings("SE_BAD_FIELD") // make spotbugs happy
+class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
 
   static final String BEAM_SOURCE_OPTION = "beam-source";
   static final String DEFAULT_PARALLELISM = "default-parallelism";
   static final String PIPELINE_OPTIONS = "pipeline-options";
 
   @Override
-  public MicroBatchReader createMicroBatchReader(Optional<StructType> schema,
-      String checkpointLocation, DataSourceOptions options) {
+  public MicroBatchReader createMicroBatchReader(
+      Optional<StructType> schema, String checkpointLocation, DataSourceOptions options) {
     return new DatasetMicroBatchReader(checkpointLocation, options);
   }
 
   /** This class is mapped to Beam {@link UnboundedSource}. */
-  private static class DatasetMicroBatchReader<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+  private static class DatasetMicroBatchReader<
+          T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       implements MicroBatchReader, Serializable {
 
     private int numPartitions;
@@ -71,18 +75,18 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
 
     private SourceOffset startOffset;
     private SourceOffset endOffset;
-    private List<DatasetPartitionReader> partitionReaders = new ArrayList<>();
+    private final List<DatasetPartitionReader> partitionReaders = new ArrayList<>();
     private long offsetRange = -1L;
     private long nbOffsetsPerReader = -1L;
 
     @SuppressWarnings("unchecked")
-    private DatasetMicroBatchReader(
-        String checkpointLocation, DataSourceOptions options) {
+    private DatasetMicroBatchReader(String checkpointLocation, DataSourceOptions options) {
       if (!options.get(BEAM_SOURCE_OPTION).isPresent()) {
         throw new RuntimeException("Beam source was not set in DataSource options");
       }
-      this.source = Base64Serializer
-          .deserializeUnchecked(options.get(BEAM_SOURCE_OPTION).get(), UnboundedSource.class);
+      this.source =
+          Base64Serializer.deserializeUnchecked(
+              options.get(BEAM_SOURCE_OPTION).get(), UnboundedSource.class);
 
       if (!options.get(DEFAULT_PARALLELISM).isPresent()) {
         throw new RuntimeException("Spark default parallelism was not set in DataSource options");
@@ -97,24 +101,28 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
           new SerializablePipelineOptions(options.get(PIPELINE_OPTIONS).get());
     }
 
-    @Override public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
+    @Override
+    public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
       startOffset = (SourceOffset) start.orElse(new SourceOffset(-1L));
       endOffset = (SourceOffset) end.orElse(new SourceOffset(-1L));
       if (start.isPresent() && end.isPresent()) {
         offsetRange = endOffset.get() - startOffset.get();
-        nbOffsetsPerReader =  (long) Math.ceil((float) (offsetRange / numPartitions));
+        nbOffsetsPerReader = (long) Math.ceil(offsetRange / (float) numPartitions);
       }
     }
 
-    @Override public Offset getStartOffset() {
+    @Override
+    public Offset getStartOffset() {
       return startOffset;
     }
 
-    @Override public Offset getEndOffset() {
+    @Override
+    public Offset getEndOffset() {
       return endOffset;
     }
 
-    @Override public Offset deserializeOffset(String json) {
+    @Override
+    public Offset deserializeOffset(String json) {
       try {
         Long offset = new ObjectMapper().readValue(json, Long.class);
         return new SourceOffset(offset);
@@ -123,49 +131,59 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
       }
     }
 
-    @Override public void commit(Offset end) {
+    @Override
+    public void commit(Offset end) {
       //TODO deal with end Offset
       for (DatasetPartitionReader partitionReader : partitionReaders) {
         try {
           partitionReader.reader.getCheckpointMark().finalizeCheckpoint();
         } catch (IOException e) {
-          throw new RuntimeException(String
-              .format("Commit of Offset %s failed, checkpointMark %s finalizeCheckpoint() failed",
+          throw new RuntimeException(
+              String.format(
+                  "Commit of Offset %s failed, checkpointMark %s finalizeCheckpoint() failed",
                   end, partitionReader.reader.getCheckpointMark()));
         }
       }
     }
 
-    @Override public void stop() {
+    @Override
+    public void stop() {
       // nothing to clean up
     }
 
-    @Override public StructType readSchema() {
+    @Override
+    public StructType readSchema() {
       // TODO: find a way to extend schema with a WindowedValue schema
       return SchemaHelpers.binarySchema();
     }
 
-    @Override public List<InputPartition<InternalRow>> planInputPartitions() {
-      SparkPipelineOptions sparkPipelineOptions = serializablePipelineOptions.get()
-          .as(SparkPipelineOptions.class);
+    @Override
+    public List<InputPartition<InternalRow>> planInputPartitions() {
+      SparkPipelineOptions sparkPipelineOptions =
+          serializablePipelineOptions.get().as(SparkPipelineOptions.class);
       List<InputPartition<InternalRow>> result = new ArrayList<>();
       try {
-        List<? extends UnboundedSource<T, CheckpointMarkT>> splits = source
-            .split(numPartitions, sparkPipelineOptions);
+        List<? extends UnboundedSource<T, CheckpointMarkT>> splits =
+            source.split(numPartitions, sparkPipelineOptions);
         for (UnboundedSource<T, CheckpointMarkT> split : splits) {
-          result.add(new InputPartition<InternalRow>() {
+          result.add(
+              new InputPartition<InternalRow>() {
 
-            @Override public InputPartitionReader<InternalRow> createPartitionReader() {
-              DatasetPartitionReader<T, CheckpointMarkT> datasetPartitionReader;
-              long nbOffsetsForReader = !splits.iterator().hasNext() && offsetRange != -1 ?
-                  nbOffsetsPerReader + (offsetRange - (numPartitions * nbOffsetsPerReader)) :
-                  nbOffsetsPerReader;
-              datasetPartitionReader = new DatasetPartitionReader<>(split,
-                    serializablePipelineOptions, nbOffsetsForReader);
-              partitionReaders.add(datasetPartitionReader);
-              return datasetPartitionReader;
-            }
-          });
+                @Override
+                public InputPartitionReader<InternalRow> createPartitionReader() {
+                  DatasetPartitionReader<T, CheckpointMarkT> datasetPartitionReader;
+                  long nbOffsetsForReader =
+                      !splits.iterator().hasNext() && offsetRange != -1
+                          ? nbOffsetsPerReader
+                              + (offsetRange - (numPartitions * nbOffsetsPerReader))
+                          : nbOffsetsPerReader;
+                  datasetPartitionReader =
+                      new DatasetPartitionReader<>(
+                          split, serializablePipelineOptions, nbOffsetsForReader);
+                  partitionReaders.add(datasetPartitionReader);
+                  return datasetPartitionReader;
+                }
+              });
         }
         return result;
 
@@ -197,7 +215,9 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
     }
   }
   /** This class can be mapped to Beam {@link BoundedSource.BoundedReader}. */
-  private static class DatasetPartitionReader<T, CheckpointMarkT extends UnboundedSource.CheckpointMark> implements InputPartitionReader<InternalRow> {
+  private static class DatasetPartitionReader<
+          T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+      implements InputPartitionReader<InternalRow> {
     private boolean started;
     private boolean closed;
     private UnboundedSource<T, CheckpointMarkT> source;
@@ -205,7 +225,9 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
     private long nbOffsetsToRead;
 
     DatasetPartitionReader(
-        UnboundedSource<T, CheckpointMarkT> source, SerializablePipelineOptions serializablePipelineOptions, long nbOffsetsToRead) {
+        UnboundedSource<T, CheckpointMarkT> source,
+        SerializablePipelineOptions serializablePipelineOptions,
+        long nbOffsetsToRead) {
       this.nbOffsetsToRead = nbOffsetsToRead;
       this.started = false;
       this.closed = false;
@@ -215,7 +237,8 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
         reader =
             // In https://blog.yuvalitzchakov.com/exploring-stateful-streaming-with-spark-structured-streaming/
             // "Structured Streaming stores and retrieves the offsets on our behalf when re-running the application meaning we no longer have to store them externally."
-            source.createReader(serializablePipelineOptions.get().as(SparkPipelineOptions.class), null);
+            source.createReader(
+                serializablePipelineOptions.get().as(SparkPipelineOptions.class), null);
       } catch (IOException e) {
         throw new RuntimeException("Error creating UnboundedReader ", e);
       }
@@ -252,5 +275,4 @@ public class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSuppo
       reader.close();
     }
   }
-
 }
