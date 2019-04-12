@@ -15,25 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.examples.kotlin.common
 
-import PrecommitJobBuilder
+import org.apache.beam.sdk.options.Default
+import org.apache.beam.sdk.options.Description
+import org.apache.beam.sdk.options.PipelineOptions
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'JavaPortabilityApi',
-    gradleTask: ':javaPreCommitPortabilityApi',
-    gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^sdks/java/.*$',
-      '^runners/google-cloud-dataflow-java/worker.*$',
-      '^examples/java/.*$',
-      '^examples/kotlin/.*$',
-      '^release/.*$',
-    ]
-)
-builder.build {
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+/** Options that can be used to configure the Beam examples.  */
+interface ExampleOptions : PipelineOptions {
+    @get:Description("Whether to keep jobs running after local process exit")
+    @get:Default.Boolean(false)
+    var keepJobsRunning: Boolean
+
+    @get:Description("Number of workers to use when executing the injector pipeline")
+    @get:Default.Integer(1)
+    var injectorNumWorkers: Int
 }
