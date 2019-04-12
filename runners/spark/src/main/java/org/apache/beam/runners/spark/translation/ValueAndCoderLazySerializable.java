@@ -70,7 +70,7 @@ public final class ValueAndCoderLazySerializable<T> implements Serializable {
     if (!(coderOrBytes instanceof Coder)) {
       ByteArrayInputStream bais = new ByteArrayInputStream((byte[]) this.coderOrBytes);
       try {
-        value = coder.decode(bais, Coder.Context.OUTER);
+        value = coder.decode(bais);
       } catch (IOException e) {
         throw new IllegalStateException("Error decoding bytes for coder: " + coder, e);
       }
@@ -98,7 +98,6 @@ public final class ValueAndCoderLazySerializable<T> implements Serializable {
       @SuppressWarnings("unchecked")
       Coder<T> coder = (Coder<T>) coderOrBytes;
       int bufferSize = 1024;
-
       if (coder.isRegisterByteSizeObserverCheap(value)) {
         try {
           ByteSizeObserver observer = new ByteSizeObserver();
@@ -111,10 +110,8 @@ public final class ValueAndCoderLazySerializable<T> implements Serializable {
       }
 
       ByteArrayOutputStream bytes = new ByteArrayOutputStream(bufferSize);
-
       try {
-        coder.encode(value, bytes, Coder.Context.OUTER);
-
+        coder.encode(value, bytes);
         VarInt.encode(bytes.size(), out);
         bytes.writeTo(out);
       } catch (IOException e) {
