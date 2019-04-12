@@ -59,6 +59,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
   private GrpcFnServer<GrpcDataService> fnDataServer;
   private GrpcFnServer<GrpcStateService> fnStateServer;
   private ControlClientPool controlClientPool;
+  private ExecutorService dataExecutor;
   private IdGenerator idGenerator = IdGenerators.incrementingLongs();
 
   public SamzaExecutionContext(SamzaPipelineOptions options) {
@@ -92,7 +93,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
     if (SamzaRunnerOverrideConfigs.isPortableMode(options)) {
       try {
         controlClientPool = MapControlClientPool.create();
-        final ExecutorService dataExecutor = Executors.newCachedThreadPool();
+        dataExecutor = Executors.newCachedThreadPool();
 
         fnControlServer =
             GrpcFnServer.allocatePortAndCreateFor(
@@ -100,18 +101,23 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
                     controlClientPool.getSink(), () -> SAMZA_WORKER_ID),
                 ServerFactory.createWithPortSupplier(
                     () -> SamzaRunnerOverrideConfigs.getFnControlPort(options)));
+        LOG.info("Started control server on port {}", fnControlServer.getServer().getPort());
 
         fnDataServer =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcDataService.create(dataExecutor, OutboundObserverFactory.serverDirect()),
                 ServerFactory.createDefault());
+        LOG.info("Started data server on port {}", fnDataServer.getServer().getPort());
 
         fnStateServer =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcStateService.create(), ServerFactory.createDefault());
+        LOG.info("Started state server on port {}", fnStateServer.getServer().getPort());
 
         final long waitTimeoutMs =
             SamzaRunnerOverrideConfigs.getControlClientWaitTimeoutMs(options);
+        LOG.info("Control client wait timeout config: " + waitTimeoutMs);
+
         final InstructionRequestHandler instructionHandler =
             controlClientPool.getSource().take(SAMZA_WORKER_ID, Duration.ofMillis(waitTimeoutMs));
         final EnvironmentFactory environmentFactory =
@@ -120,6 +126,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
         jobBundleFactory =
             SingleEnvironmentInstanceJobBundleFactory.create(
                 environmentFactory, fnDataServer, fnStateServer, idGenerator);
+        LOG.info("Started job bundle factory");
       } catch (Exception e) {
         throw new RuntimeException(
             "Running samza in Beam portable mode but failed to create job bundle factory", e);
@@ -131,19 +138,29 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
 
   @Override
   public void stop() {
-    closeFnServer(fnControlServer);
+    closeAutoClosable(fnControlServer, "controlServer");
     fnControlServer = null;
-    closeFnServer(fnDataServer);
+    closeAutoClosable(fnDataServer, "dataServer");
     fnDataServer = null;
-    closeFnServer(fnStateServer);
+    closeAutoClosable(fnStateServer, "stateServer");
     fnStateServer = null;
+    if (dataExecutor != null) {
+      dataExecutor.shutdown();
+      dataExecutor = null;
+    }
+    controlClientPool = null;
+    closeAutoClosable(jobBundleFactory, "jobBundle");
+    jobBundleFactory = null;
   }
 
-  private void closeFnServer(GrpcFnServer<?> fnServer) {
-    try (AutoCloseable closer = fnServer) {
-      // do nothing
+  private static void closeAutoClosable(AutoCloseable closeable, String name) {
+    try (AutoCloseable closer = closeable) {
+      LOG.info("Closed {}", name);
     } catch (Exception e) {
-      LOG.error("Failed to close fn api servers. Ignore since this is shutdown process...", e);
+      LOG.error(
+          "Failed to close {}. Ignore since this is shutdown process...",
+          closeable.getClass().getSimpleName(),
+          e);
     }
   }
 
