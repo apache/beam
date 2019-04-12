@@ -59,7 +59,7 @@ public class SerializationDebugger {
      */
     boolean broken = false;
 
-    public DebuggingObjectOutputStream(OutputStream out) throws IOException {
+    DebuggingObjectOutputStream(OutputStream out) throws IOException {
       super(out);
       enableReplaceObject(true);
     }
@@ -108,7 +108,7 @@ public class SerializationDebugger {
      * Returns the path to the last object serialized. If an exception occurred, this should be the
      * path to the non-serializable object.
      */
-    public List<Object> getStack() {
+    List<Object> getStack() {
       return stack;
     }
   }

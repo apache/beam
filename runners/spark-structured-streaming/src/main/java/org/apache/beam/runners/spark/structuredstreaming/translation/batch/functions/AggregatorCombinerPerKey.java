@@ -28,7 +28,7 @@ import org.apache.spark.sql.expressions.Aggregator;
 public class AggregatorCombinerPerKey<K, InputT, AccumT, OutputT>
     extends Aggregator<KV<K, InputT>, AccumT, OutputT> {
 
-  Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
+  private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
 
   public AggregatorCombinerPerKey(Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
     this.combineFn = combineFn;

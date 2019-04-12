@@ -45,7 +45,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 /** A {@link SideInputReader} for the Spark Batch Runner. */
 public class SparkSideInputReader implements SideInputReader {
   /** A {@link Materializations.MultimapView} which always returns an empty iterable. */
-  private static final Materializations.MultimapView EMPTY_MULTMAP_VIEW =
+  private static final Materializations.MultimapView EMPTY_MULTIMAP_VIEW =
       o -> Collections.EMPTY_LIST;
 
   private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
@@ -92,7 +92,7 @@ public class SparkSideInputReader implements SideInputReader {
     if (result == null) {
       ViewFn<Materializations.MultimapView, T> viewFn =
           (ViewFn<Materializations.MultimapView, T>) view.getViewFn();
-      result = viewFn.apply(EMPTY_MULTMAP_VIEW);
+      result = viewFn.apply(EMPTY_MULTIMAP_VIEW);
     }
     return result;
   }
@@ -107,7 +107,7 @@ public class SparkSideInputReader implements SideInputReader {
     return sideInputs.isEmpty();
   }
 
-  public <T> Map<BoundedWindow, T> initializeBroadcastVariable(
+  private <T> Map<BoundedWindow, T> initializeBroadcastVariable(
       Iterable<WindowedValue<?>> inputValues, PCollectionView<T> view) {
 
     // first partition into windows

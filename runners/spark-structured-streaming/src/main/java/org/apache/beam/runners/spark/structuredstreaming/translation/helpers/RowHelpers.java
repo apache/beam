@@ -46,17 +46,14 @@ public final class RowHelpers {
    */
   public static <T> MapFunction<Row, WindowedValue<T>> extractWindowedValueFromRowMapFunction(
       Coder<T> coder) {
-    return new MapFunction<Row, WindowedValue<T>>() {
-      @Override
-      public WindowedValue<T> call(Row value) throws Exception {
-        //there is only one value put in each Row by the InputPartitionReader
-        byte[] bytes = (byte[]) value.get(0);
-        WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
-        WindowedValue<T> windowedValue = windowedValueCoder.decode(new ByteArrayInputStream(bytes));
-        return windowedValue;
-      }
-    };
+    return (MapFunction<Row, WindowedValue<T>>)
+        value -> {
+          //there is only one value put in each Row by the InputPartitionReader
+          byte[] bytes = (byte[]) value.get(0);
+          WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
+              WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
+          return windowedValueCoder.decode(new ByteArrayInputStream(bytes));
+        };
   }
 
   /**
@@ -88,12 +85,7 @@ public final class RowHelpers {
    * @return A {@link MapFunction} that accepts a {@link Row} and returns its {@link WindowedValue}.
    */
   public static <T> MapFunction<Row, T> extractObjectFromRowMapFunction() {
-    return new MapFunction<Row, T>() {
-      @Override
-      public T call(Row value) throws Exception {
-        return extractObjectFromRow(value);
-      }
-    };
+    return (MapFunction<Row, T>) RowHelpers::extractObjectFromRow;
   }
 
   /** Extracts an Object from a Row was serialized to bytes using kryo. */

@@ -26,8 +26,8 @@ import org.apache.spark.broadcast.Broadcast;
 /** Broadcast helper for side inputs. */
 public class SideInputBroadcast implements Serializable {
 
-  private Map<String, Broadcast<?>> bcast = new HashMap<>();
-  private Map<String, Coder<?>> coder = new HashMap<>();
+  private final Map<String, Broadcast<?>> bcast = new HashMap<>();
+  private final Map<String, Coder<?>> coder = new HashMap<>();
 
   public SideInputBroadcast() {}
 

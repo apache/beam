@@ -26,10 +26,10 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.expressions.Aggregator;
 
 /** An {@link Aggregator} for the Spark Batch Runner. */
-public class AggregatorCombinerGlobally<InputT, AccumT, OutputT>
+class AggregatorCombinerGlobally<InputT, AccumT, OutputT>
     extends Aggregator<InputT, AccumT, OutputT> {
 
-  Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
+  private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
 
   public AggregatorCombinerGlobally(Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
     this.combineFn = combineFn;
