@@ -29,6 +29,7 @@ import mock
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
@@ -387,6 +388,32 @@ class DataflowRunnerTest(unittest.TestCase):
       self.assertEqual(
           common_urns.side_inputs.MULTIMAP.urn,
           side_input._side_input_data().access_pattern)
+
+  def test_min_cpu_platform_flag_is_propagated_to_experiments(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--min_cpu_platform=Intel Haswell')
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+    self.assertIn('min_cpu_platform=Intel Haswell',
+                  remote_runner.job.options.view_as(DebugOptions).experiments)
+
+  def test_streaming_engine_flag_adds_windmill_experiments(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--streaming')
+    self.default_properties.append('--enable_streaming_engine')
+    self.default_properties.append('--experiment=some_other_experiment')
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+
+    experiments_for_job = (
+        remote_runner.job.options.view_as(DebugOptions).experiments)
+    self.assertIn('enable_streaming_engine', experiments_for_job)
+    self.assertIn('enable_windmill_service', experiments_for_job)
+    self.assertIn('some_other_experiment', experiments_for_job)
 
 
 if __name__ == '__main__':
