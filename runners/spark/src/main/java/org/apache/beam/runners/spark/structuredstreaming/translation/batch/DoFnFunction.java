@@ -30,6 +30,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.Sid
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.CachedSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -52,18 +53,16 @@ import scala.Tuple2;
 public class DoFnFunction<InputT, OutputT>
     implements MapPartitionsFunction<WindowedValue<InputT>, Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
-  private final SerializablePipelineOptions serializableOptions;
-
   private final DoFn<InputT, OutputT> doFn;
-  private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
-
   private final WindowingStrategy<?, ?> windowingStrategy;
-
+  private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
+  private final SerializablePipelineOptions serializableOptions;
   private final List<TupleTag<?>> additionalOutputTags;
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<InputT> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
   private final SideInputBroadcast broadcastStateData;
+  private DoFnSchemaInformation doFnSchemaInformation;
 
   public DoFnFunction(
       DoFn<InputT, OutputT> doFn,
@@ -74,17 +73,18 @@ public class DoFnFunction<InputT, OutputT>
       TupleTag<OutputT> mainOutputTag,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoderMap,
-      SideInputBroadcast broadcastStateData) {
-
+      SideInputBroadcast broadcastStateData,
+      DoFnSchemaInformation doFnSchemaInformation) {
     this.doFn = doFn;
+    this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
     this.serializableOptions = serializableOptions;
-    this.windowingStrategy = windowingStrategy;
     this.additionalOutputTags = additionalOutputTags;
     this.mainOutputTag = mainOutputTag;
     this.inputCoder = inputCoder;
     this.outputCoderMap = outputCoderMap;
     this.broadcastStateData = broadcastStateData;
+    this.doFnSchemaInformation = doFnSchemaInformation;
   }
 
   @Override
@@ -104,7 +104,8 @@ public class DoFnFunction<InputT, OutputT>
             new NoOpStepContext(),
             inputCoder,
             outputCoderMap,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation);
 
     return new ProcessContext<>(doFn, doFnRunner, outputManager, Collections.emptyIterator())
         .processPartition(iter)

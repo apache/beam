@@ -133,7 +133,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
 
     @Override
     public void commit(Offset end) {
-      //TODO deal with end Offset
+      // TODO deal with end Offset
       for (DatasetPartitionReader partitionReader : partitionReaders) {
         try {
           partitionReader.reader.getCheckpointMark().finalizeCheckpoint();
@@ -232,8 +232,10 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
       // reader is not serializable so lazy initialize it
       try {
         reader =
-            // In https://blog.yuvalitzchakov.com/exploring-stateful-streaming-with-spark-structured-streaming/
-            // "Structured Streaming stores and retrieves the offsets on our behalf when re-running the application meaning we no longer have to store them externally."
+            // In
+            // https://blog.yuvalitzchakov.com/exploring-stateful-streaming-with-spark-structured-streaming/
+            // "Structured Streaming stores and retrieves the offsets on our behalf when re-running
+            // the application meaning we no longer have to store them externally."
             source.createReader(
                 serializablePipelineOptions.get().as(SparkPipelineOptions.class), null);
       } catch (IOException e) {
@@ -243,7 +245,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
 
     @Override
     public boolean next() throws IOException {
-      //TODO deal with watermark
+      // TODO deal with watermark
       if (!started) {
         started = true;
         return reader.start();

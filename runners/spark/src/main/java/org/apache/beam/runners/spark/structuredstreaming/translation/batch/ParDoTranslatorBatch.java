@@ -32,6 +32,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.Enc
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -108,7 +109,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
             mainOutputTag,
             inputCoder,
             outputCoderMap,
-            broadcastStateData);
+            broadcastStateData,
+            DoFnSchemaInformation.create());
 
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs =
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.tuple2Encoder());
