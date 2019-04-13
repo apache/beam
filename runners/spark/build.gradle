@@ -67,6 +67,7 @@ dependencies {
   shadow "io.dropwizard.metrics:metrics-core:3.1.2"
   shadow library.java.jackson_module_scala
   provided library.java.spark_core
+  provided library.java.spark_sql
   provided library.java.spark_streaming
   provided library.java.spark_network_common
   provided library.java.hadoop_common

@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
@@ -32,10 +33,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The SparkRunner translate operations defined on a pipeline to a representation executable by
- * Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam pipeline
- * with the default options of a single threaded spark instance in local mode, we would do the
- * following:
+ * The SparkStructuredStreamingRunner translate operations defined on a pipeline to a representation
+ * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run a
+ * Beam pipeline with the default options of a single threaded spark instance in local mode, we
+ * would do the following:
  *
  * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineResult result =
  * (SparkPipelineResult) p.run(); }
@@ -47,48 +48,48 @@ import org.slf4j.LoggerFactory;
  * SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
  * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
  */
-public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
+public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPipelineResult> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SparkRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkStructuredStreamingRunner.class);
 
   /** Options used in this pipeline runner. */
   private final SparkPipelineOptions options;
 
   /**
-   * Creates and returns a new SparkRunner with default options. In particular, against a spark
-   * instance running in local mode.
+   * Creates and returns a new SparkStructuredStreamingRunner with default options. In particular,
+   * against a spark instance running in local mode.
    *
    * @return A pipeline runner with default options.
    */
-  public static SparkRunner create() {
+  public static SparkStructuredStreamingRunner create() {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    return new SparkRunner(options);
+    options.setRunner(SparkStructuredStreamingRunner.class);
+    return new SparkStructuredStreamingRunner(options);
   }
 
   /**
-   * Creates and returns a new SparkRunner with specified options.
+   * Creates and returns a new SparkStructuredStreamingRunner with specified options.
    *
    * @param options The SparkPipelineOptions to use when executing the job.
    * @return A pipeline runner that will execute with specified options.
    */
-  public static SparkRunner create(SparkPipelineOptions options) {
-    return new SparkRunner(options);
+  public static SparkStructuredStreamingRunner create(SparkPipelineOptions options) {
+    return new SparkStructuredStreamingRunner(options);
   }
 
   /**
-   * Creates and returns a new SparkRunner with specified options.
+   * Creates and returns a new SparkStructuredStreamingRunner with specified options.
    *
    * @param options The PipelineOptions to use when executing the job.
    * @return A pipeline runner that will execute with specified options.
    */
-  public static SparkRunner fromOptions(PipelineOptions options) {
+  public static SparkStructuredStreamingRunner fromOptions(PipelineOptions options) {
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
 
     if (sparkOptions.getFilesToStage() == null) {
       sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(SparkStructuredStreamingRunner.class.getClassLoader()));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
@@ -97,14 +98,14 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.debug("Classpath elements: {}", sparkOptions.getFilesToStage());
     }
 
-    return new SparkRunner(sparkOptions);
+    return new SparkStructuredStreamingRunner(sparkOptions);
   }
 
   /**
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
    * thread.
    */
-  private SparkRunner(SparkPipelineOptions options) {
+  private SparkStructuredStreamingRunner(SparkPipelineOptions options) {
     this.options = options;
   }
 

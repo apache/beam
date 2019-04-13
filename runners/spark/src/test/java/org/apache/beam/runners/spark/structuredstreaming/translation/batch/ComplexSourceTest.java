@@ -17,39 +17,56 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.Serializable;
-import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.SparkRunner;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test class for beam to spark flatten translation. */
+/** Test class for beam to spark source translation. */
 @RunWith(JUnit4.class)
-public class FlattenTest implements Serializable {
+public class ComplexSourceTest implements Serializable {
+
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  private static File file;
   private static Pipeline pipeline;
 
   @BeforeClass
-  public static void beforeClass() {
+  public static void beforeClass() throws IOException {
     PipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
+    options.setRunner(SparkStructuredStreamingRunner.class);
     pipeline = Pipeline.create(options);
+    file = TEMPORARY_FOLDER.newFile();
+    OutputStream outputStream = new FileOutputStream(file);
+    List<String> lines = new ArrayList<>();
+    for (int i = 0; i < 30; ++i) {
+      lines.add("word" + i);
+    }
+    try (PrintStream writer = new PrintStream(outputStream)) {
+      for (String line : lines) {
+        writer.println(line);
+      }
+    }
   }
 
   @Test
-  public void testFlatten() {
-    PCollection<Integer> input1 = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    PCollection<Integer> input2 = pipeline.apply(Create.of(11, 12, 13, 14, 15, 16, 17, 18, 19, 20));
-    PCollectionList<Integer> pcs = PCollectionList.of(input1).and(input2);
-    pcs.apply(Flatten.pCollections());
+  public void testBoundedSource() {
+    pipeline.apply(TextIO.read().from(file.getPath()));
     pipeline.run();
   }
 }

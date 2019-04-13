@@ -37,23 +37,18 @@ def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
 for (String runner : preCommitRunners) {
   configurations.create(runner + "PreCommit")
 }
+configurations.sparkRunnerPreCommit {
+  // Ban certain dependencies to prevent a StackOverflow within Spark
+  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+  exclude group: "org.slf4j", module: "jul-to-slf4j"
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
 dependencies {
   shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":beam-runners-spark-structured-streaming", configuration: "shadow")
-  shadow library.java.guava
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  provided library.java.spark_sql
-  provided library.java.commons_compress
-  provided library.java.commons_lang3
-  provided library.java.commons_io_2x
-  provided library.java.hamcrest_core
-  provided library.java.hamcrest_library
-  shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.9.8"
-
   shadow library.java.google_api_client
   shadow library.java.google_api_services_bigquery
   shadow library.java.google_http_client
@@ -84,7 +79,13 @@ dependencies {
   // apexRunnerPreCommit project(path: ":beam-runners-apex", configuration: "shadow")
   directRunnerPreCommit project(path: ":beam-runners-direct-java", configuration: "shadow")
   flinkRunnerPreCommit project(path: ":beam-runners-flink_2.11", configuration: "shadow")
-  sparkRunnerPreCommit project(path: ":beam-runners-spark-structured-streaming", configuration: "shadow")
+  // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
+  // before 4.1.8.Final defined by Apache Beam
+  sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
+  sparkRunnerPreCommit project(path: ":beam-runners-spark", configuration: "shadow")
+  sparkRunnerPreCommit project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  sparkRunnerPreCommit library.java.spark_streaming
+  sparkRunnerPreCommit library.java.spark_core
 }
 
 /*
@@ -95,7 +96,7 @@ def preCommitRunnerClass = [
   apexRunner: "org.apache.beam.runners.apex.TestApexRunner",
   directRunner: "org.apache.beam.runners.direct.DirectRunner",
   flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
-  sparkRunner: "org.apache.beam.runners.spark.structuredstreaming.SparkRunner",
+  sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
@@ -122,15 +123,6 @@ for (String runner : preCommitRunners) {
 task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
-  }
-
-  configurations.all {
-    // Ban certain dependencies to prevent a StackOverflow within Spark
-    // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
-    exclude group: "org.slf4j", module: "slf4j-jdk14"
-    resolutionStrategy {
-      forcedModules = []
-    }
   }
 }
 

@@ -20,14 +20,13 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.SparkRunner;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.BeforeClass;
@@ -35,20 +34,27 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test class for beam to spark {@link ParDo} translation. */
+/** Test class for beam to spark {@link org.apache.beam.sdk.transforms.Combine} translation. */
 @RunWith(JUnit4.class)
-public class GroupByKeyTest implements Serializable {
+public class CombineTest implements Serializable {
   private static Pipeline pipeline;
 
   @BeforeClass
   public static void beforeClass() {
     PipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
+    options.setRunner(SparkStructuredStreamingRunner.class);
     pipeline = Pipeline.create(options);
   }
 
   @Test
-  public void testGroupByKey() {
+  public void testCombineGlobally() {
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+    input.apply(Combine.globally(new IntegerCombineFn()));
+    pipeline.run();
+  }
+
+  @Test
+  public void testCombinePerKey() {
     List<KV<Integer, Integer>> elems = new ArrayList<>();
     elems.add(KV.of(1, 1));
     elems.add(KV.of(1, 3));
@@ -58,7 +64,34 @@ public class GroupByKeyTest implements Serializable {
     elems.add(KV.of(2, 6));
 
     PCollection<KV<Integer, Integer>> input = pipeline.apply(Create.of(elems));
-    input.apply(GroupByKey.create());
+    input.apply(Combine.perKey(new IntegerCombineFn()));
     pipeline.run();
+  }
+
+  private static class IntegerCombineFn extends Combine.CombineFn<Integer, Long, Long> {
+
+    @Override
+    public Long createAccumulator() {
+      return 0L;
+    }
+
+    @Override
+    public Long addInput(Long accumulator, Integer input) {
+      return accumulator + input;
+    }
+
+    @Override
+    public Long mergeAccumulators(Iterable<Long> accumulators) {
+      Long result = 0L;
+      for (Long value : accumulators) {
+        result += value;
+      }
+      return result;
+    }
+
+    @Override
+    public Long extractOutput(Long accumulator) {
+      return accumulator;
+    }
   }
 }

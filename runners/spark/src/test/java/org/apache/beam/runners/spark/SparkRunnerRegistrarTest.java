@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.util.ServiceLoader;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
@@ -42,7 +43,8 @@ public class SparkRunnerRegistrarTest {
   @Test
   public void testRunners() {
     assertEquals(
-        ImmutableList.of(SparkRunner.class, TestSparkRunner.class),
+        ImmutableList.of(
+            SparkRunner.class, TestSparkRunner.class, SparkStructuredStreamingRunner.class),
         new SparkRunnerRegistrar.Runner().getPipelineRunners());
   }
 
