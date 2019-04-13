@@ -17,10 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Multimap;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -38,6 +34,10 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.LinkedListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import scala.Tuple2;
 

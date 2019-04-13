@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -81,7 +80,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     Dataset<WindowedValue<InputT>> inputDataSet = context.getDataset(context.getInput());
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     TupleTag<?> mainOutputTag = getTupleTag(context);
-    List<TupleTag<?>> outputTags = Lists.newArrayList(outputs.keySet());
+    List<TupleTag<?>> outputTags = new ArrayList<>(outputs.keySet());
     WindowingStrategy<?, ?> windowingStrategy =
         ((PCollection<InputT>) context.getInput()).getWindowingStrategy();
 

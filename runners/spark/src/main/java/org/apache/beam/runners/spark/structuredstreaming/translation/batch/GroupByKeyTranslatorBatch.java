@@ -17,8 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
@@ -57,7 +57,7 @@ class GroupByKeyTranslatorBatch<K, V>
                 // TODO: We need to improve this part and avoid creating of new List (potential OOM)
                 // (key, iterator) -> KV.of(key, () -> Iterators.transform(iterator, KV::getValue)),
                 (key, iterator) -> {
-                  List<V> values = Lists.newArrayList();
+                  List<V> values = new ArrayList<>();
                   while (iterator.hasNext()) {
                     values.add(iterator.next().getValue());
                   }

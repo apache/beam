@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
@@ -166,10 +166,7 @@ public class TranslationContext {
 
   @SuppressWarnings("unchecked")
   public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
-    return currentTransform
-        .getOutputs()
-        .entrySet()
-        .stream()
+    return currentTransform.getOutputs().entrySet().stream()
         .filter(e -> e.getValue() instanceof PCollection)
         .collect(Collectors.toMap(Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
   }
@@ -184,7 +181,7 @@ public class TranslationContext {
           serializablePipelineOptions.get().as(SparkPipelineOptions.class);
       for (Dataset<?> dataset : leaves) {
         if (options.isStreaming()) {
-          //TODO: deal with Beam Discarding, Accumulating and Accumulating & Retracting	outputmodes
+          // TODO: deal with Beam Discarding, Accumulating and Accumulating & Retracting	outputmodes
           // with DatastreamWriter.outputMode
           DataStreamWriter<?> dataStreamWriter = dataset.writeStream();
           // spark sets a default checkpoint dir if not set.
@@ -195,13 +192,15 @@ public class TranslationContext {
           dataStreamWriter.foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
           if (testMode) {
-            // cannot use dataset.show because dataset schema is binary so it will print binary code.
+            // cannot use dataset.show because dataset schema is binary so it will print binary
+            // code.
             List<WindowedValue> windowedValues = ((Dataset<WindowedValue>) dataset).collectAsList();
             for (WindowedValue windowedValue : windowedValues) {
               System.out.println(windowedValue);
             }
           } else {
-            // apply a dummy fn just to apply for each action that will trigger the pipeline run in spark
+            // apply a dummy fn just to apply for each action that will trigger the pipeline run in
+            // spark
             dataset.foreachPartition(t -> {});
           }
         }

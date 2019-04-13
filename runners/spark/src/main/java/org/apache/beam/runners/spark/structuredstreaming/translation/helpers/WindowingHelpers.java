@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -26,6 +25,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.function.MapFunction;
 import org.joda.time.Instant;
 

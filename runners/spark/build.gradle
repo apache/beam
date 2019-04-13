@@ -59,7 +59,7 @@ dependencies {
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  shadow library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
   shadow library.java.joda_time

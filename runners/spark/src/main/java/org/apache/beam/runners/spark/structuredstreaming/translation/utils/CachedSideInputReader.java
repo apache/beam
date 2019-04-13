@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.utils;
 
-import com.google.common.cache.Cache;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
@@ -25,6 +24,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.utils.SideI
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.SideInputStorage.Value;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
 import org.apache.spark.util.SizeEstimator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
