@@ -18,38 +18,47 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.SparkRunner;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.windowing.Sessions;
-import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test class for beam to spark window assign translation. */
+/** Test class for beam to spark {@link ParDo} translation. */
 @RunWith(JUnit4.class)
-public class WindowAssignTest implements Serializable {
+public class GroupByKeyTest implements Serializable {
   private static Pipeline pipeline;
 
   @BeforeClass
   public static void beforeClass() {
     PipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
+    options.setRunner(SparkStructuredStreamingRunner.class);
     pipeline = Pipeline.create(options);
   }
 
   @Test
-  public void testWindowAssign() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    // test with a merging window because more complicated
-    input.apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(10L))));
+  public void testGroupByKey() {
+    List<KV<Integer, Integer>> elems = new ArrayList<>();
+    elems.add(KV.of(1, 1));
+    elems.add(KV.of(1, 3));
+    elems.add(KV.of(1, 5));
+    elems.add(KV.of(2, 2));
+    elems.add(KV.of(2, 4));
+    elems.add(KV.of(2, 6));
+
+    PCollection<KV<Integer, Integer>> input = pipeline.apply(Create.of(elems));
+    input.apply(GroupByKey.create());
     pipeline.run();
   }
 }
