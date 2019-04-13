@@ -136,9 +136,7 @@ public class SparkSideInputReader implements SideInputReader {
                   InMemoryMultimapSideInputView.fromIterable(
                       keyCoder,
                       (Iterable)
-                          elements
-                              .getValue()
-                              .stream()
+                          elements.getValue().stream()
                               .map(WindowedValue::getValue)
                               .collect(Collectors.toList()))));
     }
