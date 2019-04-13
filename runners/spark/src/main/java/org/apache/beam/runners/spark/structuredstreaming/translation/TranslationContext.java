@@ -175,6 +175,7 @@ public class TranslationContext {
   //  Pipeline methods
   // --------------------------------------------------------------------------------------------
 
+  /** Starts a new pipeline. */
   public void startPipeline(boolean testMode) {
     try {
       SparkPipelineOptions options =
