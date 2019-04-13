@@ -138,7 +138,6 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
       for (Map.Entry<String, Instant> en : messages.entrySet()) {
         kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
       }
-      kafkaProducer.close();
     }
   }
 
@@ -254,7 +253,6 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     return run(Optional.absent(), expectedAssertions);
   }
 
-  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private SparkPipelineResult run(Optional<Instant> stopWatermarkOption, int expectedAssertions) {
     KafkaIO.Read<String, Instant> read =
         KafkaIO.<String, Instant>read()
@@ -331,7 +329,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     final PCollectionView<List<String>> view;
     private final Counter aggregator =
         Metrics.counter(ResumeFromCheckpointStreamingTest.class, "processedMessages");
-    Counter counter = Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
+    final Counter counter = Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
 
     private EOFShallNotPassFn(PCollectionView<List<String>> view) {
       this.view = view;
@@ -358,6 +356,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
       extends PTransform<PCollection<Iterable<T>>, PDone> {
     private final T[] expected;
 
+    @SafeVarargs
     private PAssertWithoutFlatten(T... expected) {
       this.expected = expected;
     }

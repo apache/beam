@@ -63,7 +63,7 @@ import scala.Tuple2;
  * The resulting data set should be further processed by a {@link
  * SparkExecutableStageExtractionFunction}.
  */
-public class SparkExecutableStageFunction<InputT, SideInputT>
+class SparkExecutableStageFunction<InputT, SideInputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>, RawUnionValue> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkExecutableStageFunction.class);

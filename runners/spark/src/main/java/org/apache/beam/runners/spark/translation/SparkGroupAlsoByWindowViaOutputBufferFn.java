@@ -46,7 +46,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.joda.time.Instant;
 
 /** An implementation of {@link GroupAlsoByWindow} for the Spark runner. */
-public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow>
+class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow>
     implements FlatMapFunction<
         WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>,
         WindowedValue<KV<K, Iterable<InputT>>>> {
