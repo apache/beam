@@ -82,7 +82,8 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
-        BundleSplitListener splitListener) throws IOException {
+        BundleSplitListener splitListener)
+        throws IOException {
       ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
         consumers.add(pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId));

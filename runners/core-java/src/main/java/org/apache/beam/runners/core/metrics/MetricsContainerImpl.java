@@ -188,7 +188,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    */
   @Nullable
   private MonitoringInfo distributionUpdateToMonitoringInfo(
-      MetricUpdate<DistributionData> metricUpdate) {
+      MetricUpdate<org.apache.beam.runners.core.metrics.DistributionData> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
     MetricName metricName = metricUpdate.getKey().metricName();
     if (metricName instanceof MonitoringInfoMetricName) {
@@ -205,7 +205,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           metricUpdate.getKey().metricName().getName());
       // Drop if the stepname is not set. All user counters must be
       // defined for a PTransform. They must be defined on a container bound to a step.
-      if (this.stepName == null) { // TODO rethink this/rm this check.
+      if (this.stepName == null) {
         return null;
       }
       builder.setPTransformLabel(metricUpdate.getKey().stepName());
@@ -228,7 +228,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       }
     }
 
-    for (MetricUpdate<DistributionData> metricUpdate : metricUpdates.distributionUpdates()) {
+    for (MetricUpdate<org.apache.beam.runners.core.metrics.DistributionData> metricUpdate :
+        metricUpdates.distributionUpdates()) {
       MonitoringInfo mi = distributionUpdateToMonitoringInfo(metricUpdate);
       if (mi != null) {
         monitoringInfos.add(mi);

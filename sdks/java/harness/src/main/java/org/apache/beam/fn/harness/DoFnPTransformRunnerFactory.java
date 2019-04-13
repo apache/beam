@@ -36,7 +36,6 @@ import org.apache.beam.runners.core.construction.PCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -93,7 +92,8 @@ abstract class DoFnPTransformRunnerFactory<
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
-      BundleSplitListener splitListener) throws IOException {
+      BundleSplitListener splitListener)
+      throws IOException {
     Context<FnInputT, OutputT> context =
         new Context<>(
             pipelineOptions,
@@ -179,7 +179,8 @@ abstract class DoFnPTransformRunnerFactory<
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        BundleSplitListener splitListener) throws IOException {
+        BundleSplitListener splitListener)
+        throws IOException {
       this.pipelineOptions = pipelineOptions;
       this.beamFnStateClient = beamFnStateClient;
       this.ptransformId = ptransformId;

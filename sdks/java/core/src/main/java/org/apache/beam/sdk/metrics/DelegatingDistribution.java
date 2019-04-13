@@ -23,31 +23,30 @@ import java.io.Serializable;
  * Implementation of {@link Distribution} that delegates to the instance for the current context.
  */
 public class DelegatingDistribution implements Metric, Distribution, Serializable {
-    private final MetricName name;
+  private final MetricName name;
 
-    public DelegatingDistribution(MetricName name) {
-        this.name = name;
-    }
+  public DelegatingDistribution(MetricName name) {
+    this.name = name;
+  }
 
-    @Override
-    public void update(long value) {
-        MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-        if (container != null) {
-            container.getDistribution(name).update(value);
-        }
+  @Override
+  public void update(long value) {
+    MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+    if (container != null) {
+      container.getDistribution(name).update(value);
     }
+  }
 
-    @Override
-    public void update(long sum, long count, long min, long max) {
-        MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-        if (container != null) {
-            container.getDistribution(name).update(sum, count, min, max);
-        }
+  @Override
+  public void update(long sum, long count, long min, long max) {
+    MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+    if (container != null) {
+      container.getDistribution(name).update(sum, count, min, max);
     }
+  }
 
-    @Override
-    public MetricName getName() {
-        return name;
-    }
+  @Override
+  public MetricName getName() {
+    return name;
+  }
 }
-

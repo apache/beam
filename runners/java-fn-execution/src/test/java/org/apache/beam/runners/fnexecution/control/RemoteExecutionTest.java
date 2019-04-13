@@ -729,9 +729,9 @@ public class RemoteExecutionTest implements Serializable {
             builder.setPCollectionLabel("create/ParMultiDo(Anonymous).output");
             builder.setInt64DistributionTypeUrn();
             matchers.add(
-                    allOf(
-                        MonitoringInfoMatchers.matchSetFields(builder.build()),
-                        MonitoringInfoMatchers.distributionGreaterThan(1, 1, 0, 1)));
+                allOf(
+                    MonitoringInfoMatchers.matchSetFields(builder.build()),
+                    MonitoringInfoMatchers.distributionGreaterThan(1, 1, 0, 1)));
 
             // Verify that the element count is not double counted if two PCollections consume it.
             builder = new SimpleMonitoringInfoBuilder();
@@ -739,18 +739,18 @@ public class RemoteExecutionTest implements Serializable {
             builder.setPCollectionLabel("processA/ParMultiDo(Anonymous).output");
             builder.setInt64DistributionTypeUrn();
             matchers.add(
-                    allOf(
-                        MonitoringInfoMatchers.matchSetFields(builder.build()),
-                        MonitoringInfoMatchers.distributionGreaterThan(1, 1, 1, 1)));
+                allOf(
+                    MonitoringInfoMatchers.matchSetFields(builder.build()),
+                    MonitoringInfoMatchers.distributionGreaterThan(1, 1, 1, 1)));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE);
             builder.setPCollectionLabel("processB/ParMultiDo(Anonymous).output");
             builder.setInt64DistributionTypeUrn();
             matchers.add(
-                    allOf(
-                        MonitoringInfoMatchers.matchSetFields(builder.build()),
-                        MonitoringInfoMatchers.distributionGreaterThan(1, 1, 1, 1)));
+                allOf(
+                    MonitoringInfoMatchers.matchSetFields(builder.build()),
+                    MonitoringInfoMatchers.distributionGreaterThan(1, 1, 1, 1)));
 
             // Check for execution time metrics for the testPTransformId
             builder = new SimpleMonitoringInfoBuilder();

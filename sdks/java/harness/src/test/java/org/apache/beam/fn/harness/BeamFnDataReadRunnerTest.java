@@ -133,7 +133,9 @@ public class BeamFnDataReadRunnerTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     String localOutputId = "outputPC";
     String pTransformId = "pTransformId";
     consumers.register(

@@ -32,7 +32,8 @@ public final class MonitoringInfoConstants {
   /** Supported MonitoringInfo Urns. */
   public static final class Urns {
     public static final String ELEMENT_COUNT = extractUrn(MonitoringInfoSpecs.Enum.ELEMENT_COUNT);
-    public static final String SAMPLED_BYTE_SIZE = extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
+    public static final String SAMPLED_BYTE_SIZE =
+        extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
     public static final String START_BUNDLE_MSECS =
         extractUrn(MonitoringInfoSpecs.Enum.START_BUNDLE_MSECS);
     public static final String PROCESS_BUNDLE_MSECS =

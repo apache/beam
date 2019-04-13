@@ -131,7 +131,9 @@ public class BoundedSourceRunnerTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     consumers.register(
         "outputPC",
         "pTransformId",

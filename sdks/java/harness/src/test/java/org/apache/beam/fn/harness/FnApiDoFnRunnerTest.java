@@ -204,7 +204,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -371,7 +373,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -512,7 +516,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,
@@ -621,7 +627,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,
@@ -792,7 +800,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,

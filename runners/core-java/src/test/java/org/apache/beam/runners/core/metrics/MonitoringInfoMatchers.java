@@ -120,7 +120,8 @@ public class MonitoringInfoMatchers {
    * Matches a {@link MonitoringInfo} with that has the set fields in the provide MonitoringInfo.
    *
    * <p>This is useful for tests which do not want to match the specific value (mean byte count).
-   * This will only check for the distribution value fields. Please use with allOf matchers to express more.
+   * This will only check for the distribution value fields. Please use with allOf matchers to
+   * express more.
    */
   public static TypeSafeMatcher<MonitoringInfo> distributionGreaterThan(
       final long sum, final long count, final long min, final long max) {
@@ -129,8 +130,8 @@ public class MonitoringInfoMatchers {
       @Override
       protected boolean matchesSafely(MonitoringInfo item) {
         MetricsApi.IntDistributionData itemDistributionData =
-                item.getMetric().getDistributionData().getIntDistributionData();
-        if (itemDistributionData.getSum() < sum ) {
+            item.getMetric().getDistributionData().getIntDistributionData();
+        if (itemDistributionData.getSum() < sum) {
           return false;
         }
         if (itemDistributionData.getCount() < count) {

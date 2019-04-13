@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -56,8 +55,9 @@ public class PCollectionConsumerRegistry {
   private RehydratedComponents rehydratedComponents;
 
   public PCollectionConsumerRegistry(
-          MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker,
-          RehydratedComponents rehydratedComponents) {
+      MetricsContainerStepMap metricsContainerRegistry,
+      ExecutionStateTracker stateTracker,
+      RehydratedComponents rehydratedComponents) {
     this.metricsContainerRegistry = metricsContainerRegistry;
     this.stateTracker = stateTracker;
     this.pCollectionIdsToConsumers = ArrayListMultimap.create();
@@ -134,7 +134,8 @@ public class PCollectionConsumerRegistry {
    *
    * @return A single ElementCountFnDataReceiver which directly wraps all the registered consumers.
    */
-  public FnDataReceiver<WindowedValue<?>> getMultiplexingConsumer(String pCollectionId) throws IOException {
+  public FnDataReceiver<WindowedValue<?>> getMultiplexingConsumer(String pCollectionId)
+      throws IOException {
     ElementCountFnDataReceiver wrappedConsumer =
         pCollectionIdsToWrappedConsumer.getOrDefault(pCollectionId, null);
     if (wrappedConsumer == null) {
@@ -145,7 +146,9 @@ public class PCollectionConsumerRegistry {
 
       wrappedConsumer =
           new ElementCountFnDataReceiver(
-              consumer, pCollectionId, metricsContainerRegistry,
+              consumer,
+              pCollectionId,
+              metricsContainerRegistry,
               this.rehydratedComponents.getPCollection(pCollectionId));
       pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
     }

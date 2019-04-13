@@ -120,7 +120,9 @@ public class BeamFnDataWriteRunnerTest {
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            mock(MetricsContainerStepMap.class),
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");

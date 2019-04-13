@@ -57,7 +57,9 @@ public class PCollectionConsumerRegistryTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
@@ -88,7 +90,9 @@ public class PCollectionConsumerRegistryTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
@@ -108,7 +112,9 @@ public class PCollectionConsumerRegistryTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 

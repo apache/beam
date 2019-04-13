@@ -237,14 +237,15 @@ public class ProcessBundleHandler {
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(
                 RunnerApi.Components.newBuilder()
-                        .putAllCoders(bundleDescriptor.getCodersMap())
-                        .putAllPcollections(bundleDescriptor.getPcollectionsMap())
-                        .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
-                        .build())
-                .withPipeline(Pipeline.create());
+                    .putAllCoders(bundleDescriptor.getCodersMap())
+                    .putAllPcollections(bundleDescriptor.getPcollectionsMap())
+                    .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
+                    .build())
+            .withPipeline(Pipeline.create());
 
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
-        new PCollectionConsumerRegistry(metricsContainerRegistry, stateTracker, rehydratedComponents);
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, stateTracker, rehydratedComponents);
     pCollectionConsumerRegistry.SetCoderMap(bundleDescriptor.getCodersMap());
     HashSet<String> processedPTransformIds = new HashSet<>();
 

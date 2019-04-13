@@ -127,7 +127,9 @@ public class CombineRunnersTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -201,7 +203,9 @@ public class CombineRunnersTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -263,7 +267,9 @@ public class CombineRunnersTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -325,7 +331,9 @@ public class CombineRunnersTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
+            metricsContainerRegistry,
+            mock(ExecutionStateTracker.class),
+            mock(RehydratedComponents.class));
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),

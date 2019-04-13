@@ -17,16 +17,9 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.HashMap;
-import java.util.Observable;
 import java.util.Random;
-
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -40,8 +33,6 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A wrapping {@code FnDataReceiver<WindowedValue<T>>} which counts the number of elements consumed
@@ -83,13 +74,13 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
     // of a pTransform context.
     this.unboundMetricContainer = metricContainerRegistry.getUnboundContainer();
 
-    this.observer = new ElementByteSizeObserver() {
-
-      @Override
-      protected void reportElementSize(long elementByteSize) {
-        sampledByteSizeDistribution.update(elementByteSize);
-      }
-    };
+    this.observer =
+        new ElementByteSizeObserver() {
+          @Override
+          protected void reportElementSize(long elementByteSize) {
+            sampledByteSizeDistribution.update(elementByteSize);
+          }
+        };
     this.elementCoder = (org.apache.beam.sdk.coders.Coder<T>) pColl.getCoder();
   }
 
@@ -99,7 +90,9 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
       // Increment the counter for each window the element occurs in.
       this.elementCounter.inc(input.getWindows().size());
 
-      boolean sample = this.elementCoder.isRegisterByteSizeObserverCheap(input.getValue()) || shouldSampleElement();
+      boolean sample =
+          this.elementCoder.isRegisterByteSizeObserverCheap(input.getValue())
+              || shouldSampleElement();
       if (sample) {
         this.elementCoder.registerByteSizeObserver(input.getValue(), this.observer);
       }
