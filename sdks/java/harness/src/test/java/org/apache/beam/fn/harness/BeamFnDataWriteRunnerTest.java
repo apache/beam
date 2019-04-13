@@ -47,6 +47,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.Coder;
@@ -119,7 +120,7 @@ public class BeamFnDataWriteRunnerTest {
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class));
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");

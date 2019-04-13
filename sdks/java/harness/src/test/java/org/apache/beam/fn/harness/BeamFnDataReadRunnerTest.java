@@ -48,6 +48,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.Coder;
@@ -132,7 +133,7 @@ public class BeamFnDataReadRunnerTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     String localOutputId = "outputPC";
     String pTransformId = "pTransformId";
     consumers.register(

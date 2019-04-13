@@ -26,16 +26,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -540,9 +532,11 @@ public class RemoteExecutionTest implements Serializable {
                         // TODO(BEAM-6467): Impulse is producing two elements instead of one.
                         // So add this check to only emit these three elemenets.
                         if (!emitted) {
-                          ctxt.output("zero");
-                          ctxt.output("one");
-                          ctxt.output("two");
+                          Thread.sleep(1000);
+                          emitted = true;
+                          for (Integer i = 0; i < 1000; i++) {
+                            ctxt.output(i.toString());
+                          }
                           Thread.sleep(1000);
                           Metrics.counter(RemoteExecutionTest.class, processUserCounterName).inc();
                           Metrics.distribution(
@@ -700,21 +694,63 @@ public class RemoteExecutionTest implements Serializable {
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setPCollectionLabel("create/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(3);
+            builder.setInt64Value(1000);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // Verify that the element count is not double counted if two PCollections consume it.
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setPCollectionLabel("processA/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(6);
+            builder.setInt64Value(2000);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setPCollectionLabel("processB/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(6);
+            builder.setInt64Value(2000);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            // Sampled Byte Size
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
+            builder.setPCollectionLabel("impulse.out");
+            builder.setInt64Value(2);
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE);
+            builder.setPCollectionLabel("impulse.out");
+            // Impulse uses a "cheap" byte size observer, so its guaranteed to be the same value.
+            builder.setInt64DistributionValue(DistributionData.create(4, 2, 2, 2));
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE);
+            builder.setPCollectionLabel("create/ParMultiDo(Anonymous).output");
+            builder.setInt64DistributionTypeUrn();
+            matchers.add(
+                    allOf(
+                        MonitoringInfoMatchers.matchSetFields(builder.build()),
+                        MonitoringInfoMatchers.distributionGreaterThan(1, 1, 0, 1)));
+
+            // Verify that the element count is not double counted if two PCollections consume it.
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE);
+            builder.setPCollectionLabel("processA/ParMultiDo(Anonymous).output");
+            builder.setInt64DistributionTypeUrn();
+            matchers.add(
+                    allOf(
+                        MonitoringInfoMatchers.matchSetFields(builder.build()),
+                        MonitoringInfoMatchers.distributionGreaterThan(1, 1, 1, 1)));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE);
+            builder.setPCollectionLabel("processB/ParMultiDo(Anonymous).output");
+            builder.setInt64DistributionTypeUrn();
+            matchers.add(
+                    allOf(
+                        MonitoringInfoMatchers.matchSetFields(builder.build()),
+                        MonitoringInfoMatchers.distributionGreaterThan(1, 1, 1, 1)));
 
             // Check for execution time metrics for the testPTransformId
             builder = new SimpleMonitoringInfoBuilder();

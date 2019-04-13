@@ -96,38 +96,6 @@ public class Metrics {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
 
-  /**
-   * Implementation of {@link Distribution} that delegates to the instance for the current context.
-   */
-  private static class DelegatingDistribution implements Metric, Distribution, Serializable {
-    private final MetricName name;
-
-    private DelegatingDistribution(MetricName name) {
-      this.name = name;
-    }
-
-    @Override
-    public void update(long value) {
-      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-      if (container != null) {
-        container.getDistribution(name).update(value);
-      }
-    }
-
-    @Override
-    public void update(long sum, long count, long min, long max) {
-      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-      if (container != null) {
-        container.getDistribution(name).update(sum, count, min, max);
-      }
-    }
-
-    @Override
-    public MetricName getName() {
-      return name;
-    }
-  }
-
   /** Implementation of {@link Gauge} that delegates to the instance for the current context. */
   private static class DelegatingGauge implements Metric, Gauge, Serializable {
     private final MetricName name;

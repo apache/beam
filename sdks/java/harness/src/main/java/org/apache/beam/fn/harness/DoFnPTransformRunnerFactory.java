@@ -86,13 +86,14 @@ abstract class DoFnPTransformRunnerFactory<
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      RehydratedComponents rehydratedComponents,
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
-      BundleSplitListener splitListener) {
+      BundleSplitListener splitListener) throws IOException {
     Context<FnInputT, OutputT> context =
         new Context<>(
             pipelineOptions,
@@ -100,6 +101,7 @@ abstract class DoFnPTransformRunnerFactory<
             pTransformId,
             pTransform,
             processBundleInstructionId,
+            rehydratedComponents,
             pCollections,
             coders,
             windowingStrategies,
@@ -172,27 +174,21 @@ abstract class DoFnPTransformRunnerFactory<
         String ptransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
+        RehydratedComponents rehydratedComponents,
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        BundleSplitListener splitListener) {
+        BundleSplitListener splitListener) throws IOException {
       this.pipelineOptions = pipelineOptions;
       this.beamFnStateClient = beamFnStateClient;
       this.ptransformId = ptransformId;
       this.pTransform = pTransform;
+      this.rehydratedComponents = rehydratedComponents;
       this.processBundleInstructionId = processBundleInstructionId;
       ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
           ImmutableMap.builder();
       try {
-        rehydratedComponents =
-            RehydratedComponents.forComponents(
-                    RunnerApi.Components.newBuilder()
-                        .putAllCoders(coders)
-                        .putAllPcollections(pCollections)
-                        .putAllWindowingStrategies(windowingStrategies)
-                        .build())
-                .withPipeline(Pipeline.create());
         parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
         doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
         doFnSignature = DoFnSignatures.signatureForDoFn(doFn);

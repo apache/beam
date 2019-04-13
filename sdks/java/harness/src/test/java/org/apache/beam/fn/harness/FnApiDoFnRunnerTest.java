@@ -43,6 +43,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -203,7 +204,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -370,7 +371,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,
@@ -511,7 +512,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,
@@ -620,7 +621,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,
@@ -791,7 +792,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     consumers.register(
         outputPCollectionId,
         TEST_PTRANSFORM_ID,

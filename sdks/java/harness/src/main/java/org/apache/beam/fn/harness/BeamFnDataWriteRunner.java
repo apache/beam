@@ -80,6 +80,7 @@ public class BeamFnDataWriteRunner<InputT> {
         String pTransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
+        RehydratedComponents rehydratedComponents,
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,

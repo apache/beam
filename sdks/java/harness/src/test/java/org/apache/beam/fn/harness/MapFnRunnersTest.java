@@ -33,6 +33,7 @@ import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.function.ThrowingFunction;
@@ -65,7 +66,7 @@ public class MapFnRunnersTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -108,7 +109,7 @@ public class MapFnRunnersTest {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -149,7 +150,7 @@ public class MapFnRunnersTest {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class));
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), mock(RehydratedComponents.class));
     consumers.register("outputPC", "pTransformId", outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =

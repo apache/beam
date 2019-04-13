@@ -18,11 +18,15 @@
 package org.apache.beam.fn.harness.data;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -48,13 +52,22 @@ public class PCollectionConsumerRegistry {
   private MetricsContainerStepMap metricsContainerRegistry;
   private ExecutionStateTracker stateTracker;
   private SimpleStateRegistry executionStates = new SimpleStateRegistry();
+  private Map<String, RunnerApi.Coder> coderMap = null;
+  private RehydratedComponents rehydratedComponents;
 
   public PCollectionConsumerRegistry(
-      MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker) {
+          MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker,
+          RehydratedComponents rehydratedComponents) {
     this.metricsContainerRegistry = metricsContainerRegistry;
     this.stateTracker = stateTracker;
     this.pCollectionIdsToConsumers = ArrayListMultimap.create();
     this.pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
+    this.rehydratedComponents = rehydratedComponents;
+  }
+
+  // TODO make it a parameter to the ctor and update all refs.
+  public void SetCoderMap(Map<String, RunnerApi.Coder> coderMap) {
+    this.coderMap = coderMap;
   }
 
   /**
@@ -121,7 +134,7 @@ public class PCollectionConsumerRegistry {
    *
    * @return A single ElementCountFnDataReceiver which directly wraps all the registered consumers.
    */
-  public FnDataReceiver<WindowedValue<?>> getMultiplexingConsumer(String pCollectionId) {
+  public FnDataReceiver<WindowedValue<?>> getMultiplexingConsumer(String pCollectionId) throws IOException {
     ElementCountFnDataReceiver wrappedConsumer =
         pCollectionIdsToWrappedConsumer.getOrDefault(pCollectionId, null);
     if (wrappedConsumer == null) {
@@ -129,8 +142,11 @@ public class PCollectionConsumerRegistry {
           pCollectionIdsToConsumers.get(pCollectionId);
       FnDataReceiver<WindowedValue<?>> consumer =
           MultiplexingFnDataReceiver.forConsumers(consumers);
+
       wrappedConsumer =
-          new ElementCountFnDataReceiver(consumer, pCollectionId, metricsContainerRegistry);
+          new ElementCountFnDataReceiver(
+              consumer, pCollectionId, metricsContainerRegistry,
+              this.rehydratedComponents.getPCollection(pCollectionId));
       pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
     }
     return wrappedConsumer;
