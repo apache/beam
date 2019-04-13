@@ -358,34 +358,22 @@ class DataflowRunner(PipelineRunner):
     debug_options = options.view_as(DebugOptions)
     worker_options = options.view_as(WorkerOptions)
     if worker_options.min_cpu_platform:
-      experiments = ["min_cpu_platform=%s" % worker_options.min_cpu_platform]
-      if debug_options.experiments is not None:
-        experiments = list(set(experiments + debug_options.experiments))
-      debug_options.experiments = experiments
+      debug_options.add_experiment('min_cpu_platform=' +
+                                   worker_options.min_cpu_platform)
 
     # Elevate "enable_streaming_engine" to pipeline option, but using the
     # existing experiment.
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.enable_streaming_engine:
-      if debug_options.experiments is None:
-        debug_options.experiments = []
-      if "enable_windmill_service" not in debug_options.experiments:
-        debug_options.experiments.append("enable_windmill_service")
-      if "enable_streaming_engine" not in debug_options.experiments:
-        debug_options.experiments.append("enable_streaming_engine")
+      debug_options.add_experiment("enable_windmill_service")
+      debug_options.add_experiment("enable_streaming_engine")
     else:
-      if debug_options.experiments is not None:
-        if ("enable_windmill_service" in debug_options.experiments
-            or "enable_streaming_engine" in debug_options.experiments):
-          raise ValueError("""Streaming engine both disabled and enabled:
-          enable_streaming_engine flag is not set, but enable_windmill_service
-          and/or enable_streaming_engine are present. It is recommended you
-          only set the enable_streaming_engine flag.""")
-
-    # TODO(BEAM-6664): Remove once Dataflow supports --dataflow_kms_key.
-    if google_cloud_options.dataflow_kms_key is not None:
-      debug_options.add_experiment('service_default_cmek_config=' +
-                                   google_cloud_options.dataflow_kms_key)
+      if (debug_options.lookup_experiment("enable_windmill_service") or
+          debug_options.lookup_experiment("enable_streaming_engine")):
+        raise ValueError("""Streaming engine both disabled and enabled:
+        enable_streaming_engine flag is not set, but enable_windmill_service
+        and/or enable_streaming_engine experiments are present.
+        It is recommended you only set the enable_streaming_engine flag.""")
 
     self.job = apiclient.Job(options, self.proto_pipeline)
 
