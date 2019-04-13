@@ -282,7 +282,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * staging only when using remote cluster (passing the master address explicitly).
    */
   private static void prepareFilesToStageForRemoteClusterExecution(SparkPipelineOptions options) {
-    if (!options.getSparkMaster().matches("local\\[?\\d*\\]?")) {
+    if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
       options.setFilesToStage(
           PipelineResources.prepareFilesForStaging(
               options.getFilesToStage(), options.getTempLocation()));
@@ -338,8 +338,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /** Traverses the pipeline to populate the candidates for caching. */
   static class CacheVisitor extends Evaluator {
 
-    protected CacheVisitor(
-        SparkPipelineTranslator translator, EvaluationContext evaluationContext) {
+    CacheVisitor(SparkPipelineTranslator translator, EvaluationContext evaluationContext) {
       super(translator, evaluationContext);
     }
 
@@ -432,7 +431,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         TransformHierarchy.Node node) {
       @SuppressWarnings("unchecked")
       TransformT transform = (TransformT) node.getTransform();
-      @SuppressWarnings("unchecked")
       TransformEvaluator<TransformT> evaluator = translate(node, transform);
       LOG.info("Evaluating {}", transform);
       AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());

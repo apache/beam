@@ -42,7 +42,7 @@ import org.joda.time.Instant;
  * A {@link org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn} with a {@link
  * CombineWithContext.Context} for the SparkRunner.
  */
-public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstractCombineFn {
+class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstractCombineFn {
   private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
 
   public SparkGlobalCombineFn(
@@ -167,7 +167,6 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
     // sort accumulators, no need to explode since inputs were exploded.
     Iterable<WindowedValue<AccumT>> sortedAccumulators = sortByWindows(accumulators);
 
-    @SuppressWarnings("unchecked")
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
 
     // --- accumulators iterator, by window order.

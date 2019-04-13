@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.aggregators;
 import org.apache.spark.AccumulatorParam;
 
 /** Aggregator accumulator param. */
-public class AggAccumParam implements AccumulatorParam<NamedAggregators> {
+class AggAccumParam implements AccumulatorParam<NamedAggregators> {
 
   @Override
   public NamedAggregators addAccumulator(NamedAggregators current, NamedAggregators added) {

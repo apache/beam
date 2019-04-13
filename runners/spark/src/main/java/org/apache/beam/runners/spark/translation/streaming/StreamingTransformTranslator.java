@@ -291,7 +291,6 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
         List<Integer> streamSources = inputDataset.getStreamSources();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
-        @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
@@ -481,7 +480,6 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
         List<Integer> streamSources = inputDataset.getStreamSources();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
-        @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
