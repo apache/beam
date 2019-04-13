@@ -112,8 +112,8 @@ public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPi
   @Override
   public SparkPipelineResult run(final Pipeline pipeline) {
     TranslationContext translationContext = translatePipeline(pipeline);
-    //TODO initialise other services: checkpointing, metrics system, listeners, ...
-    //TODO pass testMode using pipelineOptions
+    // TODO initialise other services: checkpointing, metrics system, listeners, ...
+    // TODO pass testMode using pipelineOptions
     translationContext.startPipeline(true);
     return new SparkPipelineResult();
   }
