@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -25,8 +26,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -136,7 +135,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-
 
   /** Construct a {@link DirectRunner} from the provided options. */
   public static DirectRunner fromOptions(PipelineOptions options) {
