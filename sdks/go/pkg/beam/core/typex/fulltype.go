@@ -298,7 +298,7 @@ func IsBound(t FullType) bool {
 // produce {"T" -> string}.
 func Bind(types, models []FullType) (map[string]reflect.Type, error) {
 	if len(types) != len(models) {
-		return nil, fmt.Errorf("invalid number of modes: %v, want %v", len(models), len(types))
+		return nil, fmt.Errorf("typex.Bind: invalid number of models: %v, want %v", len(models), len(types))
 	}
 
 	m := make(map[string]reflect.Type)
@@ -307,7 +307,7 @@ func Bind(types, models []FullType) (map[string]reflect.Type, error) {
 		model := models[i]
 
 		if !IsStructurallyAssignable(model, t) {
-			return nil, fmt.Errorf("%v is not assignable to %v", model, t)
+			return nil, fmt.Errorf("typex.Bind: %v is not assignable to %v", model, t)
 		}
 		if err := walk(t, model, m); err != nil {
 			return nil, err
@@ -363,7 +363,7 @@ func substitute(t FullType, m map[string]reflect.Type) (FullType, error) {
 		name := t.Type().Name()
 		repl, ok := m[name]
 		if !ok {
-			return nil, fmt.Errorf("type variable not bound: %v", name)
+			return nil, fmt.Errorf("substituting type %v: type not bound", name)
 		}
 		return New(repl), nil
 	case Container:
@@ -374,7 +374,7 @@ func substitute(t FullType, m map[string]reflect.Type) (FullType, error) {
 		if IsList(t.Type()) {
 			return New(reflect.SliceOf(comp[0].Type()), comp...), nil
 		}
-		panic(fmt.Sprintf("Unexpected aggregate: %v", t))
+		return nil, fmt.Errorf("unexpected aggregate %v, only slices allowed", t)
 	case Composite:
 		comp, err := substituteList(t.Components(), m)
 		if err != nil {
