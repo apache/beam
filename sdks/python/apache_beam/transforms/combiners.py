@@ -46,6 +46,8 @@ from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.decorators import _check_instance_type
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
 
 __all__ = [
     'Count',
@@ -61,6 +63,7 @@ __all__ = [
 T = TypeVariable('T')
 K = TypeVariable('K')
 V = TypeVariable('V')
+TimestampType = Union[int, long, float, Timestamp, Duration]
 
 
 class Mean(object):
@@ -876,6 +879,7 @@ class Latest(object):
     def expand(self, pcoll):
       return (pcoll
               | core.ParDo(self.add_timestamp)
+              .with_output_types(Tuple[T, TimestampType])
               | core.CombineGlobally(LatestCombineFn()))
 
   class PerKey(ptransform.PTransform):
@@ -884,17 +888,18 @@ class Latest(object):
 
     @staticmethod
     def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
-      _check_instance_type(KV[T, T], element)
+      _check_instance_type(Tuple[T, T], element)
       key, value = element
       return [(key, (value, timestamp))]
 
     def expand(self, pcoll):
       return (pcoll
               | core.ParDo(self.add_timestamp)
+              .with_output_types(Tuple[T, Tuple[T, TimestampType]])
               | core.CombinePerKey(LatestCombineFn()))
 
 
-@with_input_types(KV[T, T])
+@with_input_types(Tuple[T, TimestampType])
 @with_output_types(T)
 class LatestCombineFn(core.CombineFn):
   """CombineFn to get the element with the latest timestamp
