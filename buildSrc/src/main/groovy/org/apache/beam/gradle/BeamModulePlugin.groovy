@@ -354,7 +354,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def grpc_version = "1.17.1"
     def guava_version = "20.0"
     def hadoop_version = "2.7.3"
-    def hamcrest_version = "1.3"
+    def hamcrest_version = "2.1"
     def jackson_version = "2.9.8"
     def jaxb_api_version = "2.2.12"
     def kafka_version = "1.0.0"
