@@ -885,8 +885,8 @@ class Latest(object):
     @staticmethod
     def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
       _check_instance_type(KV[T, T], element)
-      (K, V) = element
-      return [(K, (V, timestamp))]
+      key, value = element
+      return [(key, (value, timestamp))]
 
     def expand(self, pcoll):
       return (pcoll
