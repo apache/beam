@@ -146,7 +146,9 @@ public class SampleTest {
       CombineFnTester.testCombineFn(
           Sample.combineFn(limit),
           lines,
-          allOf(Matchers.iterableWithSize(Math.min(lines.size(), limit)), everyItem(is(in(lines)))));
+          allOf(
+              Matchers.<String>iterableWithSize(Math.min(lines.size(), limit)),
+              everyItem(is(in(lines)))));
     }
   }
 
