@@ -278,6 +278,34 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+
+    class TimerDoFn(beam.DoFn):
+      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
+        unused_key, ts = element
+        timer.set(ts)
+        timer.set(2 * ts)
+
+      @userstate.on_timer(timer_spec)
+      def process_timer(self):
+        yield 'fired'
+
+    with self.create_pipeline() as p:
+      actual = (
+          p
+          | beam.Create([('k1', 10), ('k2', 100)])
+          | beam.ParDo(TimerDoFn())
+          | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
+
+      expected = [('fired', ts) for ts in (20, 200)]
+      assert_that(actual, equal_to(expected))
+
+  def test_pardo_timers_clear(self):
+    if type(self).__name__ != 'FlinkRunnerTest':
+      # FnApiRunner fails to wire multiple timer collections
+      # this method can replace test_pardo_timers when the issue is fixed
+      self.skipTest('BEAM-7074: Multiple timer definitions not supported.')
+
+    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
     clear_timer_spec = userstate.TimerSpec('clear_timer',
                                            userstate.TimeDomain.WATERMARK)
 
