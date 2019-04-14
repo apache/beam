@@ -278,16 +278,25 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+    clear_timer_spec = userstate.TimerSpec('clear_timer',
+                                           userstate.TimeDomain.WATERMARK)
 
     class TimerDoFn(beam.DoFn):
-      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
+      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec),
+                  clear_timer=beam.DoFn.TimerParam(clear_timer_spec)):
         unused_key, ts = element
         timer.set(ts)
         timer.set(2 * ts)
+        clear_timer.set(ts)
+        clear_timer.clear()
 
       @userstate.on_timer(timer_spec)
       def process_timer(self):
         yield 'fired'
+
+      @userstate.on_timer(clear_timer_spec)
+      def process_clear_timer(self):
+        yield 'should not fire'
 
     with self.create_pipeline() as p:
       actual = (
