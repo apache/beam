@@ -387,7 +387,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         stateBackendLock.lock();
         getKeyedStateBackend().setCurrentKey(encodedKey);
         if (timerData.getTimestamp().isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-          // TODO: "Canceling of a timer by ID is not yet supported."
           timerInternals.deleteTimer(
               timerData.getNamespace(), timerData.getTimerId(), timerData.getDomain());
         } else {
