@@ -32,5 +32,5 @@ dependencies {
   shadow "org.apache.httpcomponents:httpcore-nio:4.4.10"
   shadow "org.apache.httpcomponents:httpcore:4.4.10"
   shadow "org.apache.httpcomponents:httpclient:4.5.6"
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
 }

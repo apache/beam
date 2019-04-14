@@ -23,7 +23,6 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -76,11 +76,8 @@ public class JdbcIOTest implements Serializable {
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(JdbcIO.class);
 
   @BeforeClass
-  public static void startDatabase() throws Exception {
-    ServerSocket socket = new ServerSocket(0);
-    port = socket.getLocalPort();
-    socket.close();
-
+  public static void beforeClass() throws Exception {
+    port = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting Derby database on {}", port);
 
     // by default, derby uses a lock timeout of 60 seconds. In order to speed up the test
@@ -126,7 +123,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @AfterClass
-  public static void shutDownDatabase() throws Exception {
+  public static void afterClass() throws Exception {
     try {
       DatabaseTestHelper.deleteTable(dataSource, readTableName);
     } finally {
