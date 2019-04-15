@@ -28,7 +28,8 @@ public class EncoderHelpers {
 
   // 1. use actual class and not object to avoid Spark fallback to GenericRowWithSchema.
   // 2. use raw class because only raw classes can be used with kryo. Cast to Class<T> to allow
-  // the type inference mechanism to infer for ex Encoder<WindowedValue<T>> to get back the type checking
+  // the type inference mechanism to infer for ex Encoder<WindowedValue<T>> to get back the type
+  // checking
 
   /*
    --------- Encoders for internal spark runner objects
