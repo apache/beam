@@ -55,10 +55,13 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
+@RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
