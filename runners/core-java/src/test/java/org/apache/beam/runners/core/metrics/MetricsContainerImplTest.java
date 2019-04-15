@@ -159,20 +159,22 @@ public class MetricsContainerImplTest {
     c1.inc(3L);
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrnForUserMetric("ns", "name1");
-    builder1.setInt64Value(5);
-    builder1.setPTransformLabel("step1");
-    builder1.build();
+    builder1.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
+        .setInt64Value(5)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
 
     SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
-    builder2.setUrnForUserMetric("ns", "name2");
-    builder2.setInt64Value(4);
-    builder2.setPTransformLabel("step1");
-    builder2.build();
+    builder2.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
+        .setInt64Value(4)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.initWithClearTimestamp(mi));
     }
 
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
@@ -190,13 +192,12 @@ public class MetricsContainerImplTest {
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
     builder1.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-    builder1.setPCollectionLabel("pcollection");
+    builder1.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcollection");
     builder1.setInt64Value(2);
-    builder1.build();
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.initWithClearTimestamp(mi));
     }
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
   }

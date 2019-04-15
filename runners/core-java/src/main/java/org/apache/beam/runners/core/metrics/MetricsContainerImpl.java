@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.MetricUrns.parseUrn;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
@@ -26,6 +25,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.DistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.ExtremaData;
@@ -59,9 +59,11 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
+
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
 
-  @Nullable private final String stepName;
+  @Nullable
+  private final String stepName;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
@@ -70,7 +72,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
-  /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
+  /**
+   * Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}.
+   */
   public MetricsContainerImpl(@Nullable String stepName) {
     this.stepName = stepName;
   }
@@ -129,7 +133,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   private <UpdateT, CellT extends MetricCell<UpdateT>>
-      ImmutableList<MetricUpdate<UpdateT>> extractUpdates(MetricsMap<MetricName, CellT> cells) {
+  ImmutableList<MetricUpdate<UpdateT>> extractUpdates(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       if (cell.getValue().getDirty().beforeCommit()) {
@@ -151,12 +155,12 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /**
-   * @param metricUpdate
    * @return The MonitoringInfo generated from the metricUpdate.
    */
   @Nullable
   private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+
     MetricName metricName = metricUpdate.getKey().metricName();
     if (metricName instanceof MonitoringInfoMetricName) {
       MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
@@ -165,24 +169,31 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
         builder.setLabel(e.getKey(), e.getValue());
       }
-    } else { // Note: (metricName instanceof MetricName) is always True.
-      // Represents a user counter.
-      builder.setUrnForUserMetric(
-          metricUpdate.getKey().metricName().getNamespace(),
-          metricUpdate.getKey().metricName().getName());
+    } else { // Represents a user counter.
       // Drop if the stepname is not set. All user counters must be
       // defined for a PTransform. They must be defined on a container bound to a step.
       if (this.stepName == null) {
         return null;
       }
-      builder.setPTransformLabel(metricUpdate.getKey().stepName());
+
+      builder.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+          .setLabel(MonitoringInfoConstants.Labels.NAMESPACE,
+              metricUpdate.getKey().metricName().getNamespace())
+          .setLabel(MonitoringInfoConstants.Labels.NAMESPACE,
+              metricUpdate.getKey().metricName().getName())
+          .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM,
+              metricUpdate.getKey().stepName());
     }
+
     builder.setInt64Value(metricUpdate.getUpdate());
     builder.setTimestampToNow();
+
     return builder.build();
   }
 
-  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  /**
+   * Return the cumulative values for any metrics in this container as MonitoringInfos.
+   */
   public Iterable<MonitoringInfo> getMonitoringInfos() {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
@@ -214,7 +225,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   private <UserT extends Metric, UpdateT, CellT extends MetricCell<UpdateT>>
-      ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(MetricsMap<MetricName, CellT> cells) {
+  ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       UpdateT update = checkNotNull(cell.getValue().getCumulative());
@@ -234,46 +245,52 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractCumulatives(gauges));
   }
 
-  /** Update values of this {@link MetricsContainerImpl} by merging the value of another cell. */
+  /**
+   * Update values of this {@link MetricsContainerImpl} by merging the value of another cell.
+   */
   public void update(MetricsContainerImpl other) {
     updateCounters(counters, other.counters);
     updateDistributions(distributions, other.distributions);
     updateGauges(gauges, other.gauges);
   }
 
-  /** Update values of this {@link MetricsContainerImpl} by reading from {@code monitoringInfos}. */
+  /**
+   * Update values of this {@link MetricsContainerImpl} by reading from {@code monitoringInfos}.
+   */
   public void update(Iterable<MonitoringInfo> monitoringInfos) {
     monitoringInfos.forEach(
         monitoringInfo -> {
-          if (monitoringInfo.hasMetric()) {
-            String urn = monitoringInfo.getUrn();
-            MetricName metricName = parseUrn(urn);
-            org.apache.beam.model.pipeline.v1.MetricsApi.Metric metric = monitoringInfo.getMetric();
-            if (metric.hasCounterData()) {
-              CounterData counterData = metric.getCounterData();
-              if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
-                Counter counter = getCounter(metricName);
-                counter.inc(counterData.getInt64Value());
-              } else {
-                LOG.warn("Unsupported CounterData type: {}", counterData);
-              }
-            } else if (metric.hasDistributionData()) {
-              DistributionData distributionData = metric.getDistributionData();
-              if (distributionData.hasIntDistributionData()) {
-                Distribution distribution = getDistribution(metricName);
-                IntDistributionData intDistributionData = distributionData.getIntDistributionData();
-                distribution.update(
-                    intDistributionData.getSum(),
-                    intDistributionData.getCount(),
-                    intDistributionData.getMin(),
-                    intDistributionData.getMax());
-              } else {
-                LOG.warn("Unsupported DistributionData type: {}", distributionData);
-              }
-            } else if (metric.hasExtremaData()) {
-              ExtremaData extremaData = metric.getExtremaData();
-              LOG.warn("Extrema metric unsupported: {}", extremaData);
+          if (!monitoringInfo.hasMetric()) {
+            return;
+          }
+
+          MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
+
+          MetricsApi.Metric metric = monitoringInfo.getMetric();
+          if (metric.hasCounterData()) {
+            CounterData counterData = metric.getCounterData();
+            if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
+              Counter counter = getCounter(metricName);
+              counter.inc(counterData.getInt64Value());
+            } else {
+              LOG.warn("Unsupported CounterData type: {}", counterData);
             }
+          } else if (metric.hasDistributionData()) {
+            DistributionData distributionData = metric.getDistributionData();
+            if (distributionData.hasIntDistributionData()) {
+              Distribution distribution = getDistribution(metricName);
+              IntDistributionData intDistributionData = distributionData.getIntDistributionData();
+              distribution.update(
+                  intDistributionData.getSum(),
+                  intDistributionData.getCount(),
+                  intDistributionData.getMin(),
+                  intDistributionData.getMax());
+            } else {
+              LOG.warn("Unsupported DistributionData type: {}", distributionData);
+            }
+          } else if (metric.hasExtremaData()) {
+            ExtremaData extremaData = metric.getExtremaData();
+            LOG.warn("Extrema metric unsupported: {}", extremaData);
           }
         });
   }
