@@ -274,7 +274,7 @@ public class SourceRDD {
       return 41 * (41 + rddId) + index;
     }
 
-    public Source<T> getSource() {
+    Source<T> getSource() {
       return source;
     }
   }

@@ -108,7 +108,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       this.serTimers = timers;
     }
 
-    public Table<String, String, byte[]> getState() {
+    Table<String, String, byte[]> getState() {
       return state;
     }
 
