@@ -36,10 +36,13 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import redis.clients.jedis.Jedis;
 import redis.embedded.RedisServer;
 
 /** Test on the Redis IO. */
+@RunWith(JUnit4.class)
 public class RedisIOTest {
 
   private static final String REDIS_HOST = "localhost";

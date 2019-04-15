@@ -59,6 +59,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.postgresql.ds.PGSimpleDataSource;
 
 /**
@@ -84,6 +86,7 @@ import org.postgresql.ds.PGSimpleDataSource;
  * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
  * performance testing framework.
  */
+@RunWith(JUnit4.class)
 public class HadoopInputFormatIOIT {
 
   private static final String NAMESPACE = HadoopInputFormatIOIT.class.getName();

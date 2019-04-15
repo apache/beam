@@ -33,9 +33,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /** Tests functionality of {@link HDFSSynchronization} class. */
+@RunWith(JUnit4.class)
 public class HDFSSynchronizationTest {
 
   public static final String DEFAULT_JOB_ID = String.valueOf(1);

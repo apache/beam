@@ -35,8 +35,11 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link HCatalogBeamSchema}. */
+@RunWith(JUnit4.class)
 public class HCatalogBeamSchemaTest implements Serializable {
 
   private static final String TEST_TABLE_PARTITIONED = TEST_TABLE + "_partitioned";

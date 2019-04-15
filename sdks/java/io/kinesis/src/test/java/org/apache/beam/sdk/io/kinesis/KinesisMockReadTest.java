@@ -30,8 +30,11 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests {@link AmazonKinesisMock}. */
+@RunWith(JUnit4.class)
 public class KinesisMockReadTest {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
