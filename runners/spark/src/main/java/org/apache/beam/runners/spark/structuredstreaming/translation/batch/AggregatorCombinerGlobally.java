@@ -65,13 +65,13 @@ class AggregatorCombinerGlobally<InputT, AccumT, OutputT>
 
   @Override
   public Encoder<AccumT> bufferEncoder() {
-    //TODO replace with accumulatorCoder if possible
+    // TODO replace with accumulatorCoder if possible
     return EncoderHelpers.genericEncoder();
   }
 
   @Override
   public Encoder<OutputT> outputEncoder() {
-    //TODO replace with outputCoder if possible
+    // TODO replace with outputCoder if possible
     return EncoderHelpers.genericEncoder();
   }
 }

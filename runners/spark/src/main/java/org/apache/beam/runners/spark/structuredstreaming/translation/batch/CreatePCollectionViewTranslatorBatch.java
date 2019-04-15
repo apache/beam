@@ -39,11 +39,13 @@ class CreatePCollectionViewTranslatorBatch<ElemT, ViewT>
 
     @SuppressWarnings("unchecked")
     AppliedPTransform<
-            PCollection<ElemT>, PCollection<ElemT>,
+            PCollection<ElemT>,
+            PCollection<ElemT>,
             PTransform<PCollection<ElemT>, PCollection<ElemT>>>
         application =
             (AppliedPTransform<
-                    PCollection<ElemT>, PCollection<ElemT>,
+                    PCollection<ElemT>,
+                    PCollection<ElemT>,
                     PTransform<PCollection<ElemT>, PCollection<ElemT>>>)
                 context.getCurrentTransform();
     PCollectionView<ViewT> input;
