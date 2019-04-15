@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.sdk.values.Row.toRow;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -165,11 +164,6 @@ public class BigQueryUtils {
     return new ToTableRow<>(toRow);
   }
 
-  /** Convert {@link SchemaAndRecord} to a Beam {@link Row}. */
-  public static SerializableFunction<SchemaAndRecord, Row> toBeamRow(Schema schema) {
-    return new ToBeamRow(schema);
-  }
-
   /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   private static class ToTableRow<T> implements SerializableFunction<T, TableRow> {
     private final SerializableFunction<T, Row> toRow;
@@ -181,24 +175,6 @@ public class BigQueryUtils {
     @Override
     public TableRow apply(T input) {
       return toTableRow(toRow.apply(input));
-    }
-  }
-
-  /** Convert {@link SchemaAndRecord} to a Beam {@link Row}. */
-  private static class ToBeamRow implements SerializableFunction<SchemaAndRecord, Row> {
-    private Schema schema;
-
-    public ToBeamRow(Schema schema) {
-      this.schema = schema;
-    }
-
-    @Override
-    public Row apply(SchemaAndRecord input) {
-      GenericRecord record = input.getRecord();
-      checkState(
-          schema.getFields().size() == record.getSchema().getFields().size(),
-          "Schema sizes are different.");
-      return toBeamRow(record, schema);
     }
   }
 
