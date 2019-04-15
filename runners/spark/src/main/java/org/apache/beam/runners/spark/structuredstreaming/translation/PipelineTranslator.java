@@ -29,6 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 /**
  * {@link Pipeline.PipelineVisitor} that translates the Beam operators to their Spark counterparts.
  * It also does the pipeline preparation: mode detection, transforms replacement, classpath
