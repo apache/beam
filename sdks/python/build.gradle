@@ -182,6 +182,12 @@ def portableWordCountTask(name, streaming) {
         options += ["--environment_cache_millis=10000"]
       if (project.hasProperty("jobEndpoint"))
         options += ["--job_endpoint=${project.property('jobEndpoint')}"]
+      if (project.hasProperty("environmentType")) {
+        options += ["--environment_type=${project.property('environmentType')}"]
+      }
+      if (project.hasProperty("environmentConfig")) {
+        options += ["--environment_config=${project.property('environmentConfig')}"]
+      }
       exec {
         executable 'sh'
         args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
