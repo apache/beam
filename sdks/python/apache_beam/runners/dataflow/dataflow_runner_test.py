@@ -418,11 +418,9 @@ class DataflowRunnerTest(unittest.TestCase):
 
   def test_dataflow_worker_jar_flag_non_fnapi_noop(self):
     remote_runner = DataflowRunner()
-    print self.default_properties
     self.default_properties.append('--experiment=some_other_experiment')
     self.default_properties.append('--dataflow_worker_jar=test.jar')
 
-    print '' % PipelineOptions(self.default_properties).view_as(DebugOptions).experiments
     p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
     p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     p.run()
