@@ -375,6 +375,15 @@ class DataflowRunner(PipelineRunner):
         and/or enable_streaming_engine experiments are present.
         It is recommended you only set the enable_streaming_engine flag.""")
 
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
+      if not apiclient._use_fnapi(options):
+        logging.warn(
+            'Typical end users should not use this worker jar feature. '
+            'It can only be used when FnAPI is enabled.')
+      else:
+        debug_options.add_experiment('use_staged_dataflow_worker_jar')
+
     self.job = apiclient.Job(options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
@@ -395,18 +404,6 @@ class DataflowRunner(PipelineRunner):
 
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(options)
-
-    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
-    if dataflow_worker_jar is not None:
-      if not apiclient._use_fnapi(options):
-        logging.fatal(
-            'Typical end users should not use this worker jar feature. '
-            'It can only be used when fnapi is enabled.')
-
-      experiments = ["use_staged_dataflow_worker_jar"]
-      if debug_options.experiments is not None:
-        experiments = list(set(experiments + debug_options.experiments))
-      debug_options.experiments = experiments
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
