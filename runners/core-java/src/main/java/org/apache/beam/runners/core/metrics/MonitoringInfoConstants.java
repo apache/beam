@@ -39,8 +39,7 @@ public final class MonitoringInfoConstants {
     public static final String FINISH_BUNDLE_MSECS =
         extractUrn(MonitoringInfoSpecs.Enum.FINISH_BUNDLE_MSECS);
     public static final String TOTAL_MSECS = extractUrn(MonitoringInfoSpecs.Enum.TOTAL_MSECS);
-    public static final String USER_COUNTER =
-        extractUrn(MonitoringInfoSpecs.Enum.USER_COUNTER);
+    public static final String USER_COUNTER = extractUrn(MonitoringInfoSpecs.Enum.USER_COUNTER);
     public static final String USER_DISTRIBUTION_COUNTER =
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_COUNTER);
   }
@@ -55,7 +54,6 @@ public final class MonitoringInfoConstants {
     public static final String ENVIRONMENT = extractLabel(MonitoringInfoLabels.ENVIRONMENT);
     public static final String NAMESPACE = extractLabel(MonitoringInfoLabels.NAMESPACE);
     public static final String NAME = extractLabel(MonitoringInfoLabels.NAME);
-
   }
 
   /** MonitoringInfo type Urns. */

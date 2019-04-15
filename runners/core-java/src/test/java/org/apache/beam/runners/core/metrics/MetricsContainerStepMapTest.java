@@ -208,7 +208,10 @@ public class MetricsContainerStepMapTest {
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER).setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns").setLabel(MonitoringInfoConstants.Labels.NAME, "name1");
+    builder
+        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1");
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, STEP1);
     builder.setInt64Value(7);
     expected.add(builder.build());

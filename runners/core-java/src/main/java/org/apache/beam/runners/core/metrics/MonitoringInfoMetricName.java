@@ -68,7 +68,6 @@ public class MonitoringInfoMetricName extends MetricName {
     return this.labels;
   }
 
-
   public static MonitoringInfoMetricName of(MetricsApi.MonitoringInfo mi) {
     return new MonitoringInfoMetricName(mi.getUrn(), mi.getLabelsMap());
   }

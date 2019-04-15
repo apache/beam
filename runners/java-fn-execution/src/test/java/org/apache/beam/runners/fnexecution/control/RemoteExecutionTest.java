@@ -637,20 +637,35 @@ public class RemoteExecutionTest implements Serializable {
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
 
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER).setLabel(MonitoringInfoConstants.Labels.NAMESPACE,  RemoteExecutionTest.class.getName()).setLabel(MonitoringInfoConstants.Labels.NAME, processUserCounterName);
-            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, processUserCounterName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
             builder.setInt64Value(1);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER).setLabel(MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName()).setLabel(MonitoringInfoConstants.Labels.NAME, startUserCounterName);
-            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, startUserCounterName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
             builder.setInt64Value(10);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER).setLabel(MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName()).setLabel(MonitoringInfoConstants.Labels.NAME, finishUserCounterName);
-            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserCounterName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
             builder.setInt64Value(100);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -664,20 +679,25 @@ public class RemoteExecutionTest implements Serializable {
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-            builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "create/ParMultiDo(Anonymous).output");
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PCOLLECTION, "create/ParMultiDo(Anonymous).output");
             builder.setInt64Value(3);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // Verify that the element count is not double counted if two PCollections consume it.
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-            builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "processA/ParMultiDo(Anonymous).output");
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PCOLLECTION,
+                "processA/ParMultiDo(Anonymous).output");
             builder.setInt64Value(6);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-            builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "processB/ParMultiDo(Anonymous).output");
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PCOLLECTION,
+                "processB/ParMultiDo(Anonymous).output");
             builder.setInt64Value(6);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 

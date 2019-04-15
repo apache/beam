@@ -56,8 +56,8 @@ public class SimpleMonitoringInfoBuilderTest {
     assertEquals(MonitoringInfoConstants.Urns.ELEMENT_COUNT, monitoringInfo.getUrn());
     assertEquals(MonitoringInfoConstants.TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
-    assertEquals("myPcollection",
+    assertEquals(
+        "myPcollection",
         monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION));
-
   }
 }

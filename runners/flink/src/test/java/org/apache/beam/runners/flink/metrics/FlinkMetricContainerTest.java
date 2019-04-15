@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlinkMetricNameString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNotNull;
@@ -35,7 +34,6 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.DoubleDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.Metric;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.DistributionCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
@@ -131,20 +129,22 @@ public class FlinkMetricContainerTest {
     SimpleCounter elemCounter = new SimpleCounter();
     when(metricGroup.counter("beam.metric:element_count:v1")).thenReturn(elemCounter);
 
-    MonitoringInfo userCountMonitoringInfo = new SimpleMonitoringInfoBuilder()
-        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns1")
-        .setLabel(MonitoringInfoConstants.Labels.NAME, "metric1")
-        .setInt64Value(111)
-        .build();
+    MonitoringInfo userCountMonitoringInfo =
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+            .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns1")
+            .setLabel(MonitoringInfoConstants.Labels.NAME, "metric1")
+            .setInt64Value(111)
+            .build();
     assertNotNull(userCountMonitoringInfo);
 
-    MonitoringInfo elemCountMonitoringInfo = new SimpleMonitoringInfoBuilder()
-        .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
-        .setInt64Value(222)
-        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
-        .setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll")
-        .build();
+    MonitoringInfo elemCountMonitoringInfo =
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
+            .setInt64Value(222)
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
+            .setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll")
+            .build();
     assertNotNull(elemCountMonitoringInfo);
 
     assertThat(userCounter.getCount(), is(0L));

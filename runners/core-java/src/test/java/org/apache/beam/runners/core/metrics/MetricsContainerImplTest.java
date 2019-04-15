@@ -159,14 +159,16 @@ public class MetricsContainerImplTest {
     c1.inc(3L);
 
     SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
-    builder1.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
         .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
         .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
         .setInt64Value(5)
         .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
 
     SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
-    builder2.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+    builder2
+        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
         .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
         .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
         .setInt64Value(4)

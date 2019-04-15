@@ -224,8 +224,7 @@ def is_gauge(monitoring_info_proto):
 
 
 def _is_user_monitoring_info(monitoring_info_proto):
-  return monitoring_info_proto.urn.startswith(
-      USER_COUNTER_URN_PREFIX)
+  return monitoring_info_proto.urn.startswith(USER_COUNTER_URN_PREFIX)
 
 
 def _is_user_distribution_monitoring_info(monitoring_info_proto):

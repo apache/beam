@@ -671,16 +671,20 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION,
+    builder.setLabel(
+        MonitoringInfoConstants.Labels.PCOLLECTION,
         "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
     builder.setInt64Value(2);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE,
+    builder
+        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setLabel(
+            MonitoringInfoConstants.Labels.NAMESPACE,
             TestSideInputIsAccessibleForDownstreamCallersDoFn.class.getName())
-        .setLabel(MonitoringInfoConstants.Labels.NAME,
+        .setLabel(
+            MonitoringInfoConstants.Labels.NAME,
             TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_PTRANSFORM_ID);
     builder.setInt64Value(2);
