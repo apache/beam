@@ -49,7 +49,7 @@ public class EmbeddedKafkaCluster {
   private final List<KafkaServerStartable> brokers;
   private final List<File> logDirs;
 
-  public EmbeddedKafkaCluster(String zkConnection) {
+  private EmbeddedKafkaCluster(String zkConnection) {
     this(zkConnection, new Properties());
   }
 
@@ -57,7 +57,8 @@ public class EmbeddedKafkaCluster {
     this(zkConnection, baseProperties, Collections.singletonList(-1));
   }
 
-  public EmbeddedKafkaCluster(String zkConnection, Properties baseProperties, List<Integer> ports) {
+  private EmbeddedKafkaCluster(
+      String zkConnection, Properties baseProperties, List<Integer> ports) {
     this.zkConnection = zkConnection;
     this.ports = resolvePorts(ports);
     this.baseProperties = baseProperties;
@@ -179,11 +180,11 @@ public class EmbeddedKafkaCluster {
       this(-1);
     }
 
-    public EmbeddedZookeeper(int port) {
+    EmbeddedZookeeper(int port) {
       this(port, 500);
     }
 
-    public EmbeddedZookeeper(int port, int tickTime) {
+    EmbeddedZookeeper(int port, int tickTime) {
       this.port = resolvePort(port);
       this.tickTime = tickTime;
     }

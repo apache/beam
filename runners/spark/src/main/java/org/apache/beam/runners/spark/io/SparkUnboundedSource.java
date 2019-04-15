@@ -285,7 +285,7 @@ public class SparkUnboundedSource {
       return highWatermark;
     }
 
-    public long getReadDurationMillis() {
+    long getReadDurationMillis() {
       return readDurationMillis;
     }
 

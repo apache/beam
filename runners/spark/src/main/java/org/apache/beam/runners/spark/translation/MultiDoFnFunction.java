@@ -182,7 +182,7 @@ public class MultiDoFnFunction<InputT, OutputT>
 
   private static class TimerDataIterator implements Iterator<TimerInternals.TimerData> {
 
-    private InMemoryTimerInternals timerInternals;
+    private final InMemoryTimerInternals timerInternals;
     private boolean hasAdvance;
     private TimerInternals.TimerData timerData;
 
@@ -249,7 +249,6 @@ public class MultiDoFnFunction<InputT, OutputT>
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public synchronized <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       outputs.put(tag, output);
     }

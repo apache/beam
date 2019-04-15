@@ -38,7 +38,7 @@ public class SparkPCollectionView implements Serializable {
   private transient volatile Map<PCollectionView<?>, SideInputBroadcast> broadcastHelperMap = null;
 
   // Holds the Actual data of the views in serialize form
-  private Map<PCollectionView<?>, Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>> pviews =
+  private final Map<PCollectionView<?>, Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>> pviews =
       new LinkedHashMap<>();
 
   // Driver only - during evaluation stage
