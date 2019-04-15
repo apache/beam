@@ -132,50 +132,6 @@ def loadTestConfigurations = [
                         autoscaling_algorithm: "NONE"
                 ]
         ],
-        [
-                title        : 'GroupByKey Python Load test: reiterate 4 times 10kB values',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
-                        job_name             : 'load-tests-python-dataflow-batch-gbk-6-' + now,
-                        project              : 'apache-beam-testing',
-                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
-                        metrics_table        : 'python_dataflow_batch_gbk_6',
-                        input_options        : '\'{"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90}\'',
-                        iterations           : 4,
-                        fanout               : 1,
-                        max_num_workers      : 5,
-                        num_workers          : 5,
-                        autoscaling_algorithm: "NONE"
-                ]
-        ],
-        [
-                title        : 'GroupByKey Python Load test: reiterate 4 times 2MB values',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
-                        job_name             : 'load-tests-python-dataflow-batch-gbk-7-' + now,
-                        project              : 'apache-beam-testing',
-                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query: true,
-                        metrics_dataset      : 'load_test',
-                        metrics_table        : 'python_dataflow_batch_gbk_7',
-                        input_options        : '\'{"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90}\'',
-                        iterations           : 4,
-                        fanout               : 1,
-                        max_num_workers      : 5,
-                        num_workers          : 5,
-                        autoscaling_algorithm: "NONE"
-                ]
-        ],
 ]
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

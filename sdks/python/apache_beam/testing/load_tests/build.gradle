@@ -29,16 +29,12 @@ def loadTestArgsProperty = "loadTest.args"
 
 def runnerProperty = "runner"
 
-task run(type: Exec) {
-    dependsOn 'setupVirtualenv'
-    dependsOn 'installGcpTest'
-
+task run(type: Exec, dependsOn: 'installGcpTest') {
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
-        dependsOn 'sdist'
-        loadTestArgs +=" --sdk_location=${project.buildDir}/apache-beam.tar.gz"
+        loadTestArgs +=" --sdk_location=${project.rootDir}/sdks/python/build/apache-beam.tar.gz"
     }
 
     environment "LOAD_TEST_ENABLED", 'true'

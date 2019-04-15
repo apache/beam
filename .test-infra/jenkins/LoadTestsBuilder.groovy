@@ -26,6 +26,11 @@ class LoadTestsBuilder {
     scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+    if (sdk == SDK.PYTHON) {
+        def isDataflowJob = testConfigurations.collect{ it.runner == Runner.DATAFLOW }.contains(true)
+        runPythonPreTasks(scope, isDataflowJob)
+
+    }
 
     for (testConfiguration in testConfigurations) {
         loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
@@ -34,7 +39,6 @@ class LoadTestsBuilder {
 
 
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass, TriggeringContext triggeringContext) {
-
     options.put('runner', runner.option)
 
     String datasetKey = 'bigQueryDataset'
@@ -78,6 +82,17 @@ class LoadTestsBuilder {
       return baseName + '_PRs'
     } else {
       return baseName
+    }
+  }
+
+  private static void runPythonPreTasks(scope, boolean isDataflowJob) {
+    if(isDataflowJob){
+      scope.steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks( ':beam-sdks-python:sdist')
+        }
+      }
     }
   }
 }
