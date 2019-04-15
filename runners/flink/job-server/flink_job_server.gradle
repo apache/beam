@@ -98,7 +98,7 @@ runShadow {
   if (project.hasProperty('artifactsDir'))
     args += ["--artifacts-dir=${project.property('artifactsDir')}"]
   if (project.hasProperty('cleanArtifactsPerJob'))
-    args += ["--clean-artifacts-per-job"]
+    args += ["--clean-artifacts-per-job=${project.property('cleanArtifactsPerJob')}"]
   if (project.hasProperty('flinkMasterUrl'))
     args += ["--flink-master-url=${project.property('flinkMasterUrl')}"]
   if (project.hasProperty('flinkConfDir'))
@@ -122,7 +122,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
     jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-    jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0",
     testClasspathConfiguration: configurations.validatesPortableRunner,
     numParallelTests: 1,
     pipelineOpts: pipelineOptions,
