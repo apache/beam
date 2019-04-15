@@ -49,6 +49,10 @@ fi
 
 svn co ${BEAM_SVN_DIR}/${VERSION}
 cd ${VERSION}/${PYTHON_ARTIFACTS_DIR}
+
+echo "Fetch wheels artifacts"
+gsutil cp -r gs://beam-wheels-staging/apache_beam-${VERSION}\*.whl .
+
 echo "Start signing and hashing python wheels artifacts"
 rm *.whl.asc || true
 rm *.whl.sha512 ||true
@@ -56,7 +60,7 @@ for artifact in *.whl; do
   gpg --local-user ${SIGNING_KEY} --armor --detach-sig $artifact
   sha512sum $artifact > ${artifact}.sha512
 done
-svn add --force *
+svn add --force .
 svn commit --no-auth-cache
 
 rm -rf ~/${VERSION}
