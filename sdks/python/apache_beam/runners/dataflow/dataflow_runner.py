@@ -1100,6 +1100,9 @@ class DataflowRunner(PipelineRunner):
 class _DataflowSideInput(beam.pvalue.AsSideInput):
   """Wraps a side input as a dataflow-compatible side input."""
 
+  # Dataflow does not yet accept the shared urn definition for access.
+  DATAFLOW_MULTIMAP_URN = 'urn:beam:sideinput:materialization:multimap:0.1'
+
   def _view_options(self):
     return {
         'data': self._data,
@@ -1119,7 +1122,7 @@ class _DataflowIterableSideInput(_DataflowSideInput):
         side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn)
     iterable_view_fn = side_input_data.view_fn
     self._data = beam.pvalue.SideInputData(
-        common_urns.side_inputs.MULTIMAP.urn,
+        self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
         lambda multimap: iterable_view_fn(multimap['']))
 
@@ -1134,7 +1137,7 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
     assert (
         side_input_data.access_pattern == common_urns.side_inputs.MULTIMAP.urn)
     self._data = beam.pvalue.SideInputData(
-        common_urns.side_inputs.MULTIMAP.urn,
+        self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
         side_input_data.view_fn)
 
