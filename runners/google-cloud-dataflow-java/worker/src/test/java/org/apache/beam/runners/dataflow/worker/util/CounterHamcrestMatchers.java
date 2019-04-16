@@ -33,7 +33,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.hamcrest.Description;
-import org.hamcrest.Factory;
 import org.hamcrest.TypeSafeMatcher;
 
 /** Matchers for {@link Counter} and {@link CounterUpdate}. */
@@ -59,7 +58,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterName " + name);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasName(String name) {
       return new CounterNameMatcher(name);
     }
@@ -137,12 +135,10 @@ public final class CounterHamcrestMatchers {
           .appendValue(kind);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasStructuredName() {
       return new CounterStructuredNameMatcher(null, null);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasStructuredName(CounterName name, String kind) {
       checkArgument(name.isStructured(), "Expected CounterName must be structured");
       return new CounterStructuredNameMatcher(name, kind);
@@ -167,7 +163,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterKind " + kind);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasKind(String kind) {
       return new CounterKindMatcher(kind);
     }
@@ -195,7 +190,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterIntegerValue " + value);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasIntegerValue(Integer value) {
       return new CounterUpdateIntegerValueMatcher(value);
     }
@@ -219,7 +213,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterDoubleValue " + value);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasDoubleValue(Double value) {
       return new CounterUpdateDoubleValueMatcher(value);
     }
@@ -243,7 +236,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterBooleanValue " + value);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasBooleanValue(Boolean value) {
       return new CounterUpdateBooleanValueMatcher(value);
     }
@@ -267,7 +259,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterIntegerMeanSumValue " + value);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasIntegerSum(Integer value) {
       return new CounterUpdateIntegerSumMatcher(value);
     }
@@ -291,7 +282,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterIntegerMeanSumValue " + value);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasIntegerCount(Integer value) {
       return new CounterUpdateIntegerCountMatcher(value);
     }
@@ -315,7 +305,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterDoubleMeanSum " + value);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasDoubleSum(Double value) {
       return new CounterUpdateDoubleSumMatcher(value);
     }
@@ -339,7 +328,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterDoubleMeanSumValue " + value);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasDoubleCount(Integer value) {
       return new CounterUpdateDoubleCountMatcher(value);
     }
@@ -385,7 +373,6 @@ public final class CounterHamcrestMatchers {
       description.appendText("CounterDistribution " + value);
     }
 
-    @Factory
     public static TypeSafeMatcher<CounterUpdate> hasDistribution(
         CounterFactory.CounterDistribution value) {
       return new CounterUpdateDistributionMatcher(value);
