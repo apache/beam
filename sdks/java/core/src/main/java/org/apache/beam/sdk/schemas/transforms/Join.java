@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -49,76 +50,75 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>Full outer joins, left outer joins, and right outer joins are also supported.
  */
+@Experimental(Experimental.Kind.SCHEMAS)
 public class Join {
   public static final String LHS_TAG = "lhs";
   public static final String RHS_TAG = "rhs";
 
   /** Predicate object to specify fields to compare when doing an equi-join. */
   public static class FieldsEqual {
-    public static Inner left(String... fieldNames) {
-      return new Inner(
+    public static Impl left(String... fieldNames) {
+      return new Impl(
           FieldAccessDescriptor.withFieldNames(fieldNames), FieldAccessDescriptor.create());
     }
 
-    public static Inner left(Integer... fieldIds) {
-      return new Inner(
-          FieldAccessDescriptor.withFieldIds(fieldIds), FieldAccessDescriptor.create());
+    public static Impl left(Integer... fieldIds) {
+      return new Impl(FieldAccessDescriptor.withFieldIds(fieldIds), FieldAccessDescriptor.create());
     }
 
-    public static Inner left(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Inner(fieldAccessDescriptor, FieldAccessDescriptor.create());
+    public static Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new Impl(fieldAccessDescriptor, FieldAccessDescriptor.create());
     }
 
-    public Inner right(String... fieldNames) {
-      return new Inner(
+    public Impl right(String... fieldNames) {
+      return new Impl(
           FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldNames(fieldNames));
     }
 
-    public Inner right(Integer... fieldIds) {
-      return new Inner(
-          FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldIds(fieldIds));
+    public Impl right(Integer... fieldIds) {
+      return new Impl(FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldIds(fieldIds));
     }
 
-    public Inner right(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Inner(FieldAccessDescriptor.create(), fieldAccessDescriptor);
+    public Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new Impl(FieldAccessDescriptor.create(), fieldAccessDescriptor);
     }
 
     /** Implementation class for FieldsEqual. */
-    public static class Inner {
+    public static class Impl {
       private FieldAccessDescriptor lhs;
       private FieldAccessDescriptor rhs;
 
-      private Inner(FieldAccessDescriptor lhs, FieldAccessDescriptor rhs) {
+      private Impl(FieldAccessDescriptor lhs, FieldAccessDescriptor rhs) {
         this.lhs = lhs;
         this.rhs = rhs;
       }
 
-      public Inner left(String... fieldNames) {
-        return new Inner(FieldAccessDescriptor.withFieldNames(fieldNames), rhs);
+      public Impl left(String... fieldNames) {
+        return new Impl(FieldAccessDescriptor.withFieldNames(fieldNames), rhs);
       }
 
-      public Inner left(Integer... fieldIds) {
-        return new Inner(FieldAccessDescriptor.withFieldIds(fieldIds), rhs);
+      public Impl left(Integer... fieldIds) {
+        return new Impl(FieldAccessDescriptor.withFieldIds(fieldIds), rhs);
       }
 
-      public Inner left(FieldAccessDescriptor fieldAccessDescriptor) {
-        return new Inner(fieldAccessDescriptor, rhs);
+      public Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
+        return new Impl(fieldAccessDescriptor, rhs);
       }
 
-      public Inner right(String... fieldNames) {
-        return new Inner(lhs, FieldAccessDescriptor.withFieldNames(fieldNames));
+      public Impl right(String... fieldNames) {
+        return new Impl(lhs, FieldAccessDescriptor.withFieldNames(fieldNames));
       }
 
-      public Inner right(Integer... fieldIds) {
-        return new Inner(lhs, FieldAccessDescriptor.withFieldIds(fieldIds));
+      public Impl right(Integer... fieldIds) {
+        return new Impl(lhs, FieldAccessDescriptor.withFieldIds(fieldIds));
       }
 
-      public Inner right(FieldAccessDescriptor fieldAccessDescriptor) {
-        return new Inner(lhs, fieldAccessDescriptor);
+      public Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
+        return new Impl(lhs, fieldAccessDescriptor);
       }
 
-      private Inner resolve(Schema lhsSchema, Schema rhsSchema) {
-        return new Inner(lhs.resolve(lhsSchema), rhs.resolve(rhsSchema));
+      private Impl resolve(Schema lhsSchema, Schema rhsSchema) {
+        return new Impl(lhs.resolve(lhsSchema), rhs.resolve(rhsSchema));
       }
     }
   }
@@ -154,13 +154,13 @@ public class Join {
   public static class Inner<LhsT, RhsT> extends PTransform<PCollection<LhsT>, PCollection<Row>> {
     private final JoinType joinType;
     private final PCollection<RhsT> rhs;
-    @Nullable private final FieldsEqual.Inner predicate;
+    @Nullable private final FieldsEqual.Impl predicate;
 
     private Inner(JoinType joinType, PCollection<RhsT> rhs) {
       this(joinType, rhs, null);
     }
 
-    private Inner(JoinType joinType, PCollection<RhsT> rhs, FieldsEqual.Inner predicate) {
+    private Inner(JoinType joinType, PCollection<RhsT> rhs, FieldsEqual.Impl predicate) {
       this.joinType = joinType;
       this.rhs = rhs;
       this.predicate = predicate;
@@ -192,13 +192,13 @@ public class Join {
     }
 
     /** Join the PCollections using the provided predicate. */
-    public Inner<LhsT, RhsT> on(FieldsEqual.Inner predicate) {
+    public Inner<LhsT, RhsT> on(FieldsEqual.Impl predicate) {
       return new Inner<>(joinType, rhs, predicate);
     }
 
     @Override
     public PCollection<Row> expand(PCollection lhs) {
-      FieldsEqual.Inner resolvedPredicate = predicate.resolve(lhs.getSchema(), rhs.getSchema());
+      FieldsEqual.Impl resolvedPredicate = predicate.resolve(lhs.getSchema(), rhs.getSchema());
       PCollectionTuple tuple = PCollectionTuple.of(LHS_TAG, lhs).and(RHS_TAG, rhs);
       switch (joinType) {
         case INNER:

@@ -279,7 +279,7 @@ public class JoinTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testLeftOuterJoin() {
+  public void testLeftOuterJoinSameKeys() {
     List<Row> pc1Rows =
         Lists.newArrayList(
             Row.withSchema(CG_SCHEMA_1).addValues("user1", 1, "us").build(),
@@ -334,7 +334,7 @@ public class JoinTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testRightOuterJoin() {
+  public void testRightOuterJoinSameKeys() {
     List<Row> pc1Rows =
         Lists.newArrayList(
             Row.withSchema(CG_SCHEMA_1).addValues("user1", 1, "us").build(),
