@@ -143,7 +143,8 @@ def int64_user_counter(namespace, name, metric, ptransform='', tag=''):
             int64_value=metric
         )
     )
-  return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
+  return create_monitoring_info(USER_COUNTER_URN, SUM_INT64_TYPE, metric,
+                                labels)
 
 
 def int64_counter(urn, metric, ptransform='', tag=''):
