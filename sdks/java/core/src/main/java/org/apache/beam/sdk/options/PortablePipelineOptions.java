@@ -41,13 +41,6 @@ public interface PortablePipelineOptions extends PipelineOptions {
   void setFilesToStage(List<String> value);
 
   @Description(
-      "Set the default environment for running user code. "
-          + "Currently only docker image URL are supported.")
-  String getDefaultJavaEnvironmentUrl();
-
-  void setDefaultJavaEnvironmentUrl(String url);
-
-  @Description(
       "Job service endpoint to use. Should be in the form of address and port, e.g. localhost:3000")
   @Required
   String getJobEndpoint();
