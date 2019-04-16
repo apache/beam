@@ -43,9 +43,9 @@ PROCESS_BUNDLE_MSECS_URN = (
 FINISH_BUNDLE_MSECS_URN = (
     common_urns.monitoring_info_specs.FINISH_BUNDLE_MSECS.spec.urn)
 TOTAL_MSECS_URN = common_urns.monitoring_info_specs.TOTAL_MSECS.spec.urn
-USER_COUNTER_URN_PREFIX = (
+USER_COUNTER_URN = (
     common_urns.monitoring_info_specs.USER_COUNTER.spec.urn)
-USER_DISTRIBUTION_COUNTER_URN_PREFIX = (
+USER_DISTRIBUTION_COUNTER_URN = (
     common_urns.monitoring_info_specs.USER_DISTRIBUTION_COUNTER.spec.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
@@ -63,6 +63,8 @@ GAUGE_TYPES = set([LATEST_INT64_TYPE])
 # TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
 PCOLLECTION_LABEL = 'PCOLLECTION'
 PTRANSFORM_LABEL = 'PTRANSFORM'
+NAMESPACE_LABEL = 'PTRANSFORM'
+NAME_LABEL = 'PTRANSFORM'
 TAG_LABEL = 'TAG'
 
 
@@ -187,27 +189,6 @@ def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
   )
 
 
-def user_metric_urn(namespace, name):
-  """Returns the metric URN for a user metric, with a proper URN prefix.
-
-  Args:
-    namespace: The namespace of the metric.
-    name: The name of the metric.
-  """
-  return '%s%s:%s' % (USER_COUNTER_URN_PREFIX, namespace, name)
-
-
-def user_distribution_metric_urn(namespace, name):
-  """Returns the metric URN for a user distribution metric,
-  with a proper URN prefix.
-
-  Args:
-    namespace: The namespace of the metric.
-    name: The name of the metric.
-  """
-  return '%s%s:%s' % (USER_DISTRIBUTION_COUNTER_URN_PREFIX, namespace, name)
-
-
 def is_counter(monitoring_info_proto):
   """Returns true if the monitoring info is a coutner metric."""
   return monitoring_info_proto.type in COUNTER_TYPES
@@ -224,12 +205,11 @@ def is_gauge(monitoring_info_proto):
 
 
 def _is_user_monitoring_info(monitoring_info_proto):
-  return monitoring_info_proto.urn.startswith(USER_COUNTER_URN_PREFIX)
+  return monitoring_info_proto.urn == USER_COUNTER_URN
 
 
 def _is_user_distribution_monitoring_info(monitoring_info_proto):
-  return monitoring_info_proto.urn.startswith(
-      USER_DISTRIBUTION_COUNTER_URN_PREFIX)
+  return monitoring_info_proto.urn == USER_DISTRIBUTION_COUNTER_URN
 
 
 def is_user_monitoring_info(monitoring_info_proto):
@@ -262,19 +242,16 @@ def extract_metric_result_map_value(monitoring_info_proto):
 
 def parse_namespace_and_name(monitoring_info_proto):
   """Returns the (namespace, name) tuple of the URN in the monitoring info."""
-  to_split = monitoring_info_proto.urn
-
   # Remove the URN prefix which indicates that it is a user counter.
-  prefix_len = 0
-  if _is_user_distribution_monitoring_info(monitoring_info_proto):
-    prefix_len = len(USER_DISTRIBUTION_COUNTER_URN_PREFIX)
-  elif _is_user_monitoring_info(monitoring_info_proto):
-    prefix_len = len(USER_COUNTER_URN_PREFIX)
-  to_split = monitoring_info_proto.urn[prefix_len:]
+  if (_is_user_distribution_monitoring_info(monitoring_info_proto)
+      or _is_user_monitoring_info(monitoring_info_proto)):
+     labels = monitoring_info_proto.getLabelsMap()
+     return labels[NAMESPACE_LABEL], labels[NAME_LABEL]
+
 
   # If it is not a user counter, just use the first part of the URN, i.e. 'beam'
-  split = to_split.split(':')
-  return split[0], ':'.join(split[1:])
+  split = monitoring_info_proto.urn.split(':', 2)
+  return split[0], split[1]
 
 
 def to_key(monitoring_info_proto):
