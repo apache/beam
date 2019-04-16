@@ -45,7 +45,6 @@ class ExternalTransform(ptransform.PTransform):
 
   _namespace_counter = 0
   _namespace = threading.local()
-  _namespace.value = 'external'
 
   _EXPANDED_TRANSFORM_UNIQUE_NAME = 'root'
   _IMPULSE_PREFIX = 'impulse'
@@ -63,9 +62,13 @@ class ExternalTransform(ptransform.PTransform):
     return '%s(%s)' % (self.__class__.__name__, self._urn)
 
   @classmethod
+  def get_local_namespace(cls):
+    return getattr(cls._namespace, 'value', 'external')
+
+  @classmethod
   @contextlib.contextmanager
   def outer_namespace(cls, namespace):
-    prev = cls._namespace.value
+    prev = cls.get_local_namespace()
     cls._namespace.value = namespace
     yield
     cls._namespace.value = prev
@@ -73,7 +76,7 @@ class ExternalTransform(ptransform.PTransform):
   @classmethod
   def _fresh_namespace(cls):
     ExternalTransform._namespace_counter += 1
-    return '%s_%d' % (cls._namespace.value, cls._namespace_counter)
+    return '%s_%d' % (cls.get_local_namespace(), cls._namespace_counter)
 
   def expand(self, pvalueish):
     if isinstance(pvalueish, pvalue.PBegin):
@@ -115,7 +118,7 @@ class ExternalTransform(ptransform.PTransform):
         response = beam_expansion_api_pb2_grpc.ExpansionServiceStub(
             channel).Expand(request)
     else:
-      response = self._endpoint.Expand(request)
+      response = self._endpoint.Expand(request, None)
 
     if response.error:
       raise RuntimeError(response.error)

@@ -51,7 +51,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
@@ -244,10 +244,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    * Provides a mapping of {@link RunnerApi.FunctionSpec} to a {@link PTransform}, together with
    * mappings of its inputs and outputs to maps of PCollections.
    *
-   * @param <InputT> input {@link PValue} type of the transform
-   * @param <OutputT> output {@link PValue} type of the transform
+   * @param <InputT> input {@link PInput} type of the transform
+   * @param <OutputT> output {@link POutput} type of the transform
    */
-  public interface TransformProvider<InputT extends PInput, OutputT extends PValue> {
+  public interface TransformProvider<InputT extends PInput, OutputT extends POutput> {
 
     default InputT createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
       if (inputs.size() == 0) {
