@@ -24,12 +24,16 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkTranslationContext;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +60,10 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
     AggregatorsAccumulator.init(pipelineOptions, jsc);
+
+    MetricsEnvironment.setMetricsSupported(false);
+    MetricsAccumulator.init(pipelineOptions, jsc);
+
     final SparkTranslationContext context =
         new SparkTranslationContext(jsc, pipelineOptions, jobInfo);
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -72,6 +80,13 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             });
 
     SparkPipelineResult result = new SparkPipelineResult.BatchMode(submissionFuture, jsc);
+    MetricsPusher metricsPusher =
+        new MetricsPusher(
+            MetricsAccumulator.getInstance().value(),
+            pipelineOptions.as(MetricsOptions.class),
+            result);
+    metricsPusher.start();
+
     result.waitUntilFinish();
     executorService.shutdown();
     return result;
