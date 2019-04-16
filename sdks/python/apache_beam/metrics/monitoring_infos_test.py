@@ -50,5 +50,6 @@ class MonitoringInfosTest(unittest.TestCase):
     self.assertEqual(namespace, "counternamespace")
     self.assertEqual(name, "countername")
 
+
 if __name__ == '__main__':
   unittest.main()

@@ -61,9 +61,12 @@ DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
 
 # TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
-PCOLLECTION_LABEL = (common_urns.monitoring_info_labels.PCOLLECTION.label_props.name)
-PTRANSFORM_LABEL = (common_urns.monitoring_info_labels.TRANSFORM.label_props.name)
-NAMESPACE_LABEL = (common_urns.monitoring_info_labels.NAMESPACE.label_props.name)
+PCOLLECTION_LABEL = (
+    common_urns.monitoring_info_labels.PCOLLECTION.label_props.name)
+PTRANSFORM_LABEL = (
+    common_urns.monitoring_info_labels.TRANSFORM.label_props.name)
+NAMESPACE_LABEL = (
+    common_urns.monitoring_info_labels.NAMESPACE.label_props.name)
 NAME_LABEL = (common_urns.monitoring_info_labels.NAME.label_props.name)
 TAG_LABEL = "TAG"
 
@@ -276,9 +279,8 @@ def parse_namespace_and_name(monitoring_info_proto):
   # Remove the URN prefix which indicates that it is a user counter.
   if (_is_user_distribution_monitoring_info(monitoring_info_proto)
       or _is_user_monitoring_info(monitoring_info_proto)):
-     labels = monitoring_info_proto.getLabelsMap()
-     return labels[NAMESPACE_LABEL], labels[NAME_LABEL]
-
+    labels = monitoring_info_proto.getLabelsMap()
+    return labels[NAMESPACE_LABEL], labels[NAME_LABEL]
 
   # If it is not a user counter, just use the first part of the URN, i.e. 'beam'
   split = monitoring_info_proto.urn.split(':', 2)

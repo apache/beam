@@ -35,7 +35,7 @@ class PropertiesFromEnumValue(object):
     self.spec = (value_descriptor.GetOptions().Extensions[
         metrics_pb2.monitoring_info_spec])
     self.label_props = (value_descriptor.GetOptions().Extensions[
-      metrics_pb2.label_props])
+        metrics_pb2.label_props])
 
 
 class PropertiesFromEnumType(object):
@@ -86,4 +86,3 @@ monitoring_info_types = PropertiesFromEnumType(
     metrics_pb2.MonitoringInfoTypeUrns.Enum)
 monitoring_info_labels = PropertiesFromEnumType(
     metrics_pb2.MonitoringInfo.MonitoringInfoLabels)
-

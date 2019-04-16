@@ -40,8 +40,6 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
-from apache_beam.metrics.monitoring_infos import USER_DISTRIBUTION_COUNTER_URN
-from apache_beam.metrics.monitoring_infos import USER_COUNTER_URN
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import statesampler
 
