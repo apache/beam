@@ -50,12 +50,20 @@ public class MonitoringInfoMetricName extends MetricName {
 
   @Override
   public String getNamespace() {
-    return labels.getOrDefault(MonitoringInfoConstants.Labels.NAMESPACE, null);
+    if (labels.containsKey(MonitoringInfoConstants.Labels.NAMESPACE)) {
+      return labels.getOrDefault(MonitoringInfoConstants.Labels.NAMESPACE, null);
+    } else {
+      return urn.split(":", 2)[0];
+    }
   }
 
   @Override
   public String getName() {
-    return labels.getOrDefault(MonitoringInfoConstants.Labels.NAME, null);
+    if (labels.containsKey(MonitoringInfoConstants.Labels.NAME)) {
+      return labels.getOrDefault(MonitoringInfoConstants.Labels.NAME, null);
+    } else {
+      return urn.split(":", 2)[1];
+    }
   }
 
   /** @return the urn of this MonitoringInfo metric. */

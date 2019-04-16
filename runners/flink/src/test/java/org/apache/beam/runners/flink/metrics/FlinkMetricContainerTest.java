@@ -134,6 +134,7 @@ public class FlinkMetricContainerTest {
             .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
             .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns1")
             .setLabel(MonitoringInfoConstants.Labels.NAME, "metric1")
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
             .setInt64Value(111)
             .build();
     assertNotNull(userCountMonitoringInfo);
@@ -144,6 +145,7 @@ public class FlinkMetricContainerTest {
             .setInt64Value(222)
             .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
             .setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll")
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
             .build();
     assertNotNull(elemCountMonitoringInfo);
 
@@ -151,6 +153,7 @@ public class FlinkMetricContainerTest {
     assertThat(elemCounter.getCount(), is(0L));
     container.updateMetrics(
         "step", ImmutableList.of(userCountMonitoringInfo, elemCountMonitoringInfo));
+    new org.mockito.internal.debugging.MockitoDebuggerImpl().printInvocations(metricGroup);
     assertThat(userCounter.getCount(), is(111L));
     assertThat(elemCounter.getCount(), is(222L));
   }

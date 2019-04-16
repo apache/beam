@@ -67,7 +67,7 @@ message MonitoringInfoSpecs {
       required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
       annotations: [{
         key: "description",
-        value: "URN utilized to report all user counters."
+        value: "URN utilized to report user numeric counters."
       }]
     }];
 
@@ -132,7 +132,7 @@ message MonitoringInfoSpecs {
       required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
       annotations: [{
         key: "description",
-        value: "URN utilized to report all user counters."
+        value: "URN utilized to report user distribution counters."
       }]
     }];
   }
