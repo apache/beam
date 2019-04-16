@@ -139,7 +139,7 @@ task javaPreCommit() {
 
 task javaPreCommitPortabilityApi() {
   dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommitPortabilityApi"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:verifyPortabilityApi"
 }
 
 task javaPostCommit() {
