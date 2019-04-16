@@ -62,10 +62,10 @@ GAUGE_TYPES = set([LATEST_INT64_TYPE])
 
 # TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
 PCOLLECTION_LABEL = (common_urns.monitoring_info_labels.PCOLLECTION.label_props.name)
-PTRANSFORM_LABEL = (common_urns.monitoring_info_labels.PTRANSFORM.label_props.name)
+PTRANSFORM_LABEL = (common_urns.monitoring_info_labels.TRANSFORM.label_props.name)
 NAMESPACE_LABEL = (common_urns.monitoring_info_labels.NAMESPACE.label_props.name)
 NAME_LABEL = (common_urns.monitoring_info_labels.NAME.label_props.name)
-TAG_LABEL = (common_urns.monitoring_info_labels.TAG.label_props.name)
+TAG_LABEL = "TAG"
 
 
 def to_timestamp_proto(timestamp_secs):
@@ -106,7 +106,7 @@ def extract_distribution(monitoring_info_proto):
   return None
 
 
-def create_labels(ptransform='', tag=''):
+def create_labels(ptransform='', tag='', namespace='', name=''):
   """Create the label dictionary based on the provided tags.
 
   Args:
@@ -118,7 +118,32 @@ def create_labels(ptransform='', tag=''):
     labels[TAG_LABEL] = tag
   if ptransform:
     labels[PTRANSFORM_LABEL] = ptransform
+  if namespace:
+    labels[NAMESPACE_LABEL] = namespace
+  if name:
+    labels[NAME_LABEL] = name
   return labels
+
+
+def int64_user_counter(namespace, name, ptransform='', tag=''):
+  """Return the counter monitoring info for the specifed URN, metric and labels.
+
+  Args:
+    urn: The URN of the monitoring info/metric.
+    metric: The metric proto field to use in the monitoring info.
+        Or an int value.
+    ptransform: The ptransform/step name used as a label.
+    tag: The output tag name, used as a label.
+  """
+  labels = create_labels(ptransform=ptransform, tag=tag, namespace=namespace,
+                         name=name)
+  if isinstance(metric, int):
+    metric = Metric(
+        counter_data=CounterData(
+            int64_value=metric
+        )
+    )
+  return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
 
 def int64_counter(urn, metric, ptransform='', tag=''):
@@ -141,7 +166,7 @@ def int64_counter(urn, metric, ptransform='', tag=''):
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_distribution(urn, metric, ptransform='', tag=''):
+def int64_user_distribution(namespace, name, metric, ptransform='', tag=''):
   """Return the distribution monitoring info for the URN, metric and labels.
 
   Args:
@@ -151,22 +176,27 @@ def int64_distribution(urn, metric, ptransform='', tag=''):
     ptransform: The ptransform/step name used as a label.
     tag: The output tag name, used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag)
-  return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, metric, labels)
+  labels = create_labels(ptransform=ptransform, tag=tag, namespace=namespace,
+                         name=name)
+  return create_monitoring_info(USER_DISTRIBUTION_COUNTER_URN,
+                                DISTRIBUTION_INT64_TYPE, metric, labels)
 
 
-def int64_gauge(urn, metric, ptransform='', tag=''):
+def int64_user_gauge(namespace, name, metric, ptransform='', tag=''):
   """Return the gauge monitoring info for the URN, metric and labels.
 
   Args:
-    urn: The URN of the monitoring info/metric.
+    namespace: User-defined namespace of counter.
+    name: Name of counter.
     metric: The metric proto field to use in the monitoring info.
         Or an int value.
     ptransform: The ptransform/step name used as a label.
     tag: The output tag name, used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag)
-  return create_monitoring_info(urn, LATEST_INT64_TYPE, metric, labels)
+  labels = create_labels(ptransform=ptransform, tag=tag, namespace=namespace,
+                         name=name)
+  return create_monitoring_info(USER_COUNTER_URN, LATEST_INT64_TYPE, metric,
+                                labels)
 
 
 def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
