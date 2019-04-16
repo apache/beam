@@ -22,29 +22,31 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
 import com.couchbase.client.java.query.N1qlQuery;
 import com.couchbase.client.java.query.N1qlQueryResult;
-import com.couchbase.client.java.query.N1qlQueryRow;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import rx.Observable;
+import rx.functions.Func1;
 
 /**
  * IO to read and write data on Couchbase.
@@ -58,12 +60,13 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline.apply(
- *            CouchbaseIO.read()
+ *            CouchbaseIO.<JsonDocument>read()
  *                .withHosts(Arrays.asList("host1", "host2"))
  *                .withHttpPort(8091) // Optional
  *                .withCarrierPort(11210) // Optional
  *                .withBucket("bucket1")
  *                .withPassword("pwd")) // Bucket-level password
+ *                .withCoder(SerializableCoder.of(JsonDocument.class)));
  *
  *
  * }</pre>
@@ -71,6 +74,7 @@ import org.slf4j.LoggerFactory;
 public class CouchbaseIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CouchbaseIO.class);
+  private static final int DEFAULT_BATCH_SIZE = 100;
 
   private CouchbaseIO() {}
 
@@ -80,13 +84,13 @@ public class CouchbaseIO {
    *
    * @return a {@link PTransform} reading data from Couchbase
    */
-  public static Read read() {
-    return new AutoValue_CouchbaseIO_Read.Builder().build();
+  public static <T> Read<T> read() {
+    return new AutoValue_CouchbaseIO_Read.Builder<T>().setBatchSize(DEFAULT_BATCH_SIZE).build();
   }
 
   /** A {@link PTransform} to read data from Couchbase. */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<JsonDocument>> {
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<Document>> {
     @Nullable
     abstract List<String> hosts();
 
@@ -102,21 +106,30 @@ public class CouchbaseIO {
     @Nullable
     abstract String password();
 
-    abstract Builder builder();
+    abstract Integer batchSize();
+
+    @Nullable
+    abstract Coder<T> coder();
+
+    abstract Builder<T> builder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setHosts(List<String> hosts);
+    abstract static class Builder<T> {
+      abstract Builder<T> setHosts(List<String> hosts);
 
-      abstract Builder setHttpPort(Integer port);
+      abstract Builder<T> setHttpPort(Integer port);
 
-      abstract Builder setCarrierPort(Integer port);
+      abstract Builder<T> setCarrierPort(Integer port);
 
-      abstract Builder setBucket(String bucket);
+      abstract Builder<T> setBucket(String bucket);
 
-      abstract Builder setPassword(String password);
+      abstract Builder<T> setPassword(String password);
 
-      abstract Read build();
+      abstract Builder<T> setBatchSize(Integer batchSize);
+
+      abstract Builder<T> setCoder(Coder<T> type);
+
+      abstract Read<T> build();
     }
 
     /**
@@ -125,7 +138,7 @@ public class CouchbaseIO {
      * @param hosts list of ip address
      * @return a {@link PTransform} reading data from Couchbase
      */
-    public Read withHosts(List<String> hosts) {
+    public Read<T> withHosts(List<String> hosts) {
       checkArgument(hosts != null, "hosts can not be null");
       checkArgument(!hosts.isEmpty(), "hosts can not be empty");
       return builder().setHosts(hosts).build();
@@ -137,7 +150,7 @@ public class CouchbaseIO {
      * @param port the http port
      * @return a {@link PTransform} reading data from Couchbase
      */
-    public Read withHttpPort(int port) {
+    public Read<T> withHttpPort(int port) {
       checkArgument(port > 0, "httpPort must be > 0, but was: %s", port);
       return builder().setHttpPort(port).build();
     }
@@ -148,7 +161,7 @@ public class CouchbaseIO {
      * @param port the carrier port
      * @return a {@link PTransform} reading data from Couchbase
      */
-    public Read withCarrierPort(int port) {
+    public Read<T> withCarrierPort(int port) {
       checkArgument(port > 0, "carrierPort must be > 0, but was: %s", port);
       return builder().setCarrierPort(port).build();
     }
@@ -159,7 +172,7 @@ public class CouchbaseIO {
      * @param bucket the bucket name
      * @return a {@link PTransform} reading data from Couchbase
      */
-    public Read withBucket(String bucket) {
+    public Read<T> withBucket(String bucket) {
       checkArgument(bucket != null, "bucket can not be null");
       return builder().setBucket(bucket).build();
     }
@@ -170,190 +183,192 @@ public class CouchbaseIO {
      * @param password password
      * @return a {@link PTransform} reading data from Couchbase
      */
-    public Read withPassword(String password) {
+    public Read<T> withPassword(String password) {
       checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
-    @Override
-    public PCollection<JsonDocument> expand(PBegin input) {
-      checkArgument((hosts() != null), "WithHosts()is required");
-      checkArgument(bucket() != null, "withBucket() is required");
-
-      CouchbaseSource source = new CouchbaseSource(this);
-      PCollection<JsonDocument> result = input.apply(org.apache.beam.sdk.io.Read.from(source));
-      // Disconnect the client from Couchbase
-      source.close();
-      return result;
-    }
-  }
-
-  @VisibleForTesting
-  static class CouchbaseSource extends BoundedSource<JsonDocument> {
-
-    private final Read spec;
-    private int itemCount;
-    private final int lowerBound; // Lower bound of key range (included)
-    private final int upperBound; // Upper bound of key range (excluded)
-    private Cluster cluster;
-    private Bucket bucket;
-
-    CouchbaseSource(Read spec) {
-      this(spec, null, null, 0, 0);
-    }
-
-    CouchbaseSource(Read spec, Cluster cluster, Bucket bucket, int lb, int ub) {
-      this.spec = spec;
-      this.cluster = cluster;
-      this.bucket = bucket;
-      this.lowerBound = lb;
-      this.upperBound = ub;
-    }
-
-    private Bucket getBucket() {
-      if (cluster == null) {
-        DefaultCouchbaseEnvironment.Builder builder = DefaultCouchbaseEnvironment.builder();
-        if (spec.httpPort() != null) {
-          builder.bootstrapHttpDirectPort(spec.httpPort());
-        }
-        if (spec.carrierPort() != null) {
-          builder.bootstrapCarrierDirectPort(spec.carrierPort());
-        }
-        cluster = CouchbaseCluster.create(builder.build(), spec.hosts());
-      }
-      if (bucket == null) {
-        // For Couchbase Server, in the previous version than 5.0, the passwordless bucket can be
-        // supported.
-        // But after version 5.0, the newly created user should have a username equal to bucket name
-        // and a password.
-        // For more information, please go to
-        // https://docs.couchbase.com/java-sdk/2.7/sdk-authentication-overview.html#legacy-connection-code
-        bucket =
-            spec.password() == null
-                ? cluster.openBucket(spec.bucket())
-                : cluster.openBucket(spec.bucket(), spec.password());
-      }
-      return bucket;
-    }
-
-    @Override
-    public Coder<JsonDocument> getOutputCoder() {
-      return SerializableCoder.of(JsonDocument.class);
-    }
-
-    @Override
-    public List<? extends BoundedSource<JsonDocument>> split(
-        long desiredBundleSize, PipelineOptions options) {
-      // If the desiredBundleSize equals to 0, it means that there will be only one bundle of data
-      // to be read.
-      int totalBundle =
-          desiredBundleSize == 0 ? 1 : (int) Math.ceil((double) itemCount / desiredBundleSize);
-      List<CouchbaseSource> sources = new ArrayList<>(totalBundle);
-      for (int i = 0, offset = 0; i < totalBundle; i++) {
-        int lowerBound = offset;
-        int upperBound = offset += (int) desiredBundleSize;
-        if (i == totalBundle - 1) {
-          upperBound = itemCount;
-        }
-        sources.add(new CouchbaseSource(spec, cluster, bucket, lowerBound, upperBound));
-      }
-      LOG.debug(String.format("The original source is split to %d sources.", sources.size()));
-      return sources;
+    /**
+     * Define the batch size that the reader will fetch each time.
+     *
+     * @param batchSize batchSize
+     * @return a {@link PTransform} reading data from Couchbase
+     */
+    public Read<T> withBatchSize(Integer batchSize) {
+      checkArgument(batchSize != null, "batchSize can not be null");
+      return builder().setBatchSize(batchSize).build();
     }
 
     /**
-     * Attention: The idea is to divide the {@link BoundedSource} by the number of documents. So we
-     * do not estimate the total data size in bytes. In fact, we just fetch the total number of keys
-     * to the target bucket.
+     * Define the coder to document.
      *
-     * @param options Pipeline options
-     * @return the number of keys to the bucket
-     * @throws Exception throw {@link CouchbaseIOException} when querying Couchbase
+     * @param coder coder
+     * @return a {@link PTransform} reading data from Couchbase
      */
+    public Read<T> withCoder(Coder<T> coder) {
+      checkArgument(coder != null, "documentCoder can not be null");
+      return builder().setCoder(coder).build();
+    }
+
     @Override
-    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-      String query = String.format("SELECT RAW COUNT(META().id) FROM `%s`", getBucket().name());
+    public PCollection<Document> expand(PBegin input) {
+      checkArgument((hosts() != null), "WithHosts() is required");
+      checkArgument(bucket() != null, "withBucket() is required");
+
+      return input
+          .apply(Create.of((Void) null))
+          .apply(ParDo.of(new GenerateOffsetRanges(this))) // 1. Fetch the total number of keys
+          .apply(
+              ParDo.of(
+                  new ReadData(
+                      this))) // 2. Each reader is responsible for fetching a portion of data
+          .setCoder(new DocumentCoder<>(coder())); // 3. Set up the coder of document
+    }
+  }
+
+  /**
+   * Wrap the user defined coder to be able to encode and decode the concrete type in Runtime.
+   *
+   * @param <T>
+   */
+  static class DocumentCoder<T> extends Coder<Document> {
+
+    private Coder<T> coder;
+
+    DocumentCoder(Coder<T> coder) {
+      this.coder = coder;
+    }
+
+    @Override
+    public void encode(Document value, OutputStream outStream) throws IOException {
+      coder.encode((T) value, outStream);
+    }
+
+    @Override
+    public Document decode(InputStream inStream) throws IOException {
+      return (Document) coder.decode(inStream);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return coder.getCoderArguments();
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      coder.verifyDeterministic();
+    }
+  }
+
+  abstract static class CouchbaseDoFn<K, V> extends DoFn<K, V> {
+    Cluster cluster;
+    Bucket bucket;
+    Read spec;
+
+    CouchbaseDoFn(Read spec) {
+      this.spec = spec;
+    }
+
+    @Setup
+    public void connect() {
+      DefaultCouchbaseEnvironment.Builder builder = DefaultCouchbaseEnvironment.builder();
+      if (spec.httpPort() != null) {
+        builder.bootstrapHttpDirectPort(spec.httpPort());
+      }
+      if (spec.carrierPort() != null) {
+        builder.bootstrapCarrierDirectPort(spec.carrierPort());
+      }
+      cluster = CouchbaseCluster.create(builder.build(), spec.hosts());
+      // For Couchbase Server, in the previous version than 5.0, the passwordless bucket can be
+      // supported.
+      // But after version 5.0, the newly created user should have a username equal to bucket name
+      // and a password.
+      // For more information, please go to
+      // https://docs.couchbase.com/java-sdk/2.7/sdk-authentication-overview.html#legacy-connection-code
+      bucket =
+          spec.password() == null
+              ? cluster.openBucket(spec.bucket())
+              : cluster.openBucket(spec.bucket(), spec.password());
+    }
+
+    @Teardown
+    public void teardown() {
+      bucket.close();
+      cluster.disconnect();
+    }
+  }
+
+  static class GenerateOffsetRanges extends CouchbaseDoFn<Void, OffsetRange> {
+
+    GenerateOffsetRanges(Read spec) {
+      super(spec);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      // Get the total size of keys
+      String query = String.format("SELECT RAW COUNT(META().id) FROM `%s`", bucket.name());
       LOG.debug(query);
-      N1qlQueryResult result = getBucket().query(N1qlQuery.simple(query));
+      N1qlQueryResult result = bucket.query(N1qlQuery.simple(query));
       if (!result.finalSuccess()) {
-        throw new CouchbaseIOException(result.errors().get(0).getString("msg"));
+        throw new IOException(result.errors().get(0).getString("msg"));
       }
-      itemCount =
+      int itemCount =
           Integer.parseInt(
-              new String(result.allRows().get(0).byteValue(), Charset.defaultCharset()));
-      return itemCount;
-    }
+              new String(result.allRows().get(0).byteValue(), Charset.forName("UTF-8")));
 
-    @Override
-    public BoundedReader<JsonDocument> createReader(PipelineOptions options) {
-      return new CouchbaseReader(this);
-    }
+      // Calculate the total size of bundles
+      int totalBundle = (int) Math.ceil((double) itemCount / spec.batchSize());
 
-    void close() {
-      if (cluster != null) {
-        cluster.disconnect();
-      }
-      if (bucket != null) {
-        bucket.close();
+      // Create a set of ranges and populate to the output
+      for (int i = 0, offset = 0; i < totalBundle; i++) {
+        int lowerBound = offset;
+        int upperBound = offset += spec.batchSize();
+        if (i == totalBundle - 1) {
+          upperBound = itemCount;
+        }
+        context.output(new OffsetRange(lowerBound, upperBound));
       }
     }
   }
 
-  private static class CouchbaseReader extends BoundedSource.BoundedReader<JsonDocument> {
+  static class ReadData extends CouchbaseDoFn<OffsetRange, Document> {
 
-    private final CouchbaseSource source;
-    private Iterator<N1qlQueryRow> keyIterator;
-    private String currentKey;
-
-    CouchbaseReader(CouchbaseSource source) {
-      this.source = source;
+    ReadData(Read spec) {
+      super(spec);
     }
 
-    @Override
-    public boolean start() throws IOException {
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      OffsetRange range = context.element();
+      int lowerBound = (int) range.getFrom();
+      int upperBound = (int) range.getTo();
+
       // Fetch the keys between the range
       String query =
           String.format(
               "SELECT RAW META().id FROM `%s` OFFSET %d LIMIT %d",
-              source.spec.bucket(), source.lowerBound, source.upperBound - source.lowerBound);
-      LOG.debug(
-          String.format(
-              "Couchbase reader [%d, %d): %s", source.lowerBound, source.upperBound, query));
-      N1qlQueryResult result = source.bucket.query(N1qlQuery.simple(query));
+              spec.bucket(), lowerBound, upperBound - lowerBound);
+      LOG.debug(String.format("Couchbase reader [%d, %d): %s", lowerBound, upperBound, query));
+      N1qlQueryResult result = bucket.query(N1qlQuery.simple(query));
       if (!result.finalSuccess()) {
-        throw new CouchbaseIOException(result.errors().get(0).getString("msg"));
+        throw new IOException(result.errors().get(0).getString("msg"));
       }
-      List<N1qlQueryRow> keys = result.allRows();
-      keyIterator = keys.iterator();
-      return advance();
-    }
+      List<String> keys =
+          result.allRows().stream()
+              .map(r -> new String(r.byteValue(), Charset.forName("UTF-8")))
+              .map(key -> key.substring(1, key.length() - 1)) // Remove the useless double quotas
+              .collect(Collectors.toList());
 
-    @Override
-    public boolean advance() {
-      if (keyIterator.hasNext()) {
-        currentKey = new String(keyIterator.next().byteValue(), Charset.defaultCharset());
-        // Need to remove the replicated quotes around the key (""key"" => "key").
-        // The type of key is limited to String.
-        currentKey = currentKey.substring(1, currentKey.length() - 1);
-        return true;
-      }
-      return false;
-    }
-
-    @Override
-    public JsonDocument getCurrent() throws NoSuchElementException {
-      return source.bucket.get(currentKey);
-    }
-
-    @Override
-    public void close() {
-      // Delegate the disconnection of Couchbase to the method "expand" of CouchbaseSource,
-      // because the Couchbase client instance is shared by all the threads.
-    }
-
-    @Override
-    public BoundedSource<JsonDocument> getCurrentSource() {
-      return source;
+      // Fetch the documents corresponding to the keys and then output them
+      Observable.from(keys)
+          .flatMap(
+              (Func1<String, Observable<Document>>)
+                  id -> bucket.async().get(JsonDocument.create(id)))
+          .toList()
+          .toBlocking()
+          .single()
+          .forEach(context::output);
     }
   }
 }

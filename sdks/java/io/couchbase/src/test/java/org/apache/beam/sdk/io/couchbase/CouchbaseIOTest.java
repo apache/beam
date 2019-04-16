@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.couchbase;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.bucket.BucketType;
 import com.couchbase.client.java.cluster.DefaultBucketSettings;
+import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.query.N1qlParams;
@@ -27,8 +28,7 @@ import com.couchbase.client.java.query.N1qlQuery;
 import com.couchbase.client.java.query.consistency.ScanConsistency;
 import java.io.Serializable;
 import java.util.Arrays;
-import junit.framework.TestCase;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -88,32 +88,18 @@ public class CouchbaseIOTest implements Serializable {
   }
 
   @Test
-  public void testEstimatedKeySize() throws Exception {
-    CouchbaseIO.Read read =
-        CouchbaseIO.read()
-            .withHosts(Arrays.asList(couchbase.getContainerIpAddress()))
-            .withHttpPort(couchbase.getMappedPort(HTTP_PORT))
-            .withCarrierPort(couchbase.getMappedPort(CARRIER_PORT))
-            .withBucket(BUCKET_NAME)
-            .withPassword(BUCKET_PWD);
-    CouchbaseIO.CouchbaseSource source = new CouchbaseIO.CouchbaseSource(read);
-    long resultSize = source.getEstimatedSizeBytes(PipelineOptionsFactory.create());
-    TestCase.assertEquals(SAMPLE_SIZE, resultSize);
-  }
-
-  @Test
   public void testRead() {
-    PCollection<JsonDocument> output =
+    PCollection<Document> output =
         pipeline.apply(
-            CouchbaseIO.read()
+            CouchbaseIO.<JsonDocument>read()
                 .withHosts(Arrays.asList(couchbase.getContainerIpAddress()))
                 .withHttpPort(couchbase.getMappedPort(HTTP_PORT))
                 .withCarrierPort(couchbase.getMappedPort(CARRIER_PORT))
                 .withBucket(BUCKET_NAME)
-                .withPassword(BUCKET_PWD));
+                .withPassword(BUCKET_PWD)
+                .withCoder(SerializableCoder.of(JsonDocument.class)));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally()))
-        .isEqualTo(Long.valueOf(SAMPLE_SIZE));
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo((long) SAMPLE_SIZE);
 
     pipeline.run();
   }
