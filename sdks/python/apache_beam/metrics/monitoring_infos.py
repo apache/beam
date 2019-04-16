@@ -125,7 +125,7 @@ def create_labels(ptransform='', tag='', namespace='', name=''):
   return labels
 
 
-def int64_user_counter(namespace, name, ptransform='', tag=''):
+def int64_user_counter(namespace, name, metric, ptransform='', tag=''):
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
