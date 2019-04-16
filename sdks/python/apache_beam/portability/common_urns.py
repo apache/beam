@@ -82,3 +82,6 @@ monitoring_info_specs = PropertiesFromEnumType(
     metrics_pb2.MonitoringInfoSpecs.Enum)
 monitoring_info_types = PropertiesFromEnumType(
     metrics_pb2.MonitoringInfoTypeUrns.Enum)
+monitoring_info_labels = PropertiesFromEnumType(
+    metrics_pb2.MonitoringInfo.MonitoringInfoLabels)
+

@@ -61,11 +61,11 @@ DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
 
 # TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
-PCOLLECTION_LABEL = 'PCOLLECTION'
-PTRANSFORM_LABEL = 'PTRANSFORM'
-NAMESPACE_LABEL = 'PTRANSFORM'
-NAME_LABEL = 'PTRANSFORM'
-TAG_LABEL = 'TAG'
+PCOLLECTION_LABEL = (common_urns.monitoring_info_labels.PCOLLECTION.spec.name)
+PTRANSFORM_LABEL = (common_urns.monitoring_info_labels.PTRANSFORM.spec.name)
+NAMESPACE_LABEL = (common_urns.monitoring_info_labels.NAMESPACE.spec.name)
+NAME_LABEL = (common_urns.monitoring_info_labels.NAME.spec.name)
+TAG_LABEL = (common_urns.monitoring_info_labels.TAG.spec.name)
 
 
 def to_timestamp_proto(timestamp_secs):
