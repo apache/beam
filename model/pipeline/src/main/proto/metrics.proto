@@ -62,7 +62,7 @@ message MonitoringInfoSpecs {
     // TODO(BEAM-6926): Add the PTRANSFORM name as a required label after
     // upgrading the python SDK.
     USER_COUNTER = 0 [(monitoring_info_spec) = {
-      urn: "beam:metric:user:",
+      urn: "beam:metric:user",
       type_urn: "beam:metrics:sum_int_64",
       required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
       annotations: [{
@@ -127,7 +127,7 @@ message MonitoringInfoSpecs {
     // TODO(BEAM-6926): Add the PTRANSFORM name as a required label after
     // upgrading the python SDK.
     USER_DISTRIBUTION_COUNTER = 6 [(monitoring_info_spec) = {
-      urn: "beam:metric:user_distribution:",
+      urn: "beam:metric:user_distribution",
       type_urn: "beam:metrics:distribution_int_64",
     }];
   }
