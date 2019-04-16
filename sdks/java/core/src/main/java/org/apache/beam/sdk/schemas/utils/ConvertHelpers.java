@@ -95,7 +95,8 @@ public class ConvertHelpers {
       FieldType unboxedType = null;
       // TODO: Properly handle nullable.
       if (outputSchema == null || !outputSchema.assignableToIgnoreNullable(inputSchema)) {
-        // The schema is not convertible directly. Attempt to unbox it and see if the schema matches then.
+        // The schema is not convertible directly. Attempt to unbox it and see if the schema matches
+        // then.
         Schema checkedSchema = inputSchema;
         if (inputSchema.getFieldCount() == 1) {
           unboxedType = inputSchema.getField(0).getType();
