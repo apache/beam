@@ -133,7 +133,7 @@ public class Convert {
                     @ProcessElement
                     public void processElement(@Element Row row, OutputReceiver<OutputT> o) {
                       // Read the row, potentially unboxing if necessary.
-                      Object input = unbox ? row : row.getValue(0);
+                      Object input = unbox ? row.getValue(0) : row;
                       // The output has a schema, so we need to convert to the appropriate type.
                       o.output(converted.outputSchemaCoder.getFromRowFunction().apply((Row) input));
                     }

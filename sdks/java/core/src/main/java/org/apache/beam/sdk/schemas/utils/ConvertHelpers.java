@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import javax.annotation.Nullable;
@@ -50,7 +51,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Primitive
 /** Helper functions for converting between equivalent schema types. */
 public class ConvertHelpers {
   /** Return value after converting a schema. */
-  public static class ConvertedSchemaInformation<T> {
+  public static class ConvertedSchemaInformation<T> implements Serializable {
     // If the output type is a composite type, this is the schema coder.
     @Nullable public final SchemaCoder<T> outputSchemaCoder;
     @Nullable public final FieldType unboxedType;
