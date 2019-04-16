@@ -277,13 +277,12 @@ def extract_metric_result_map_value(monitoring_info_proto):
 def parse_namespace_and_name(monitoring_info_proto):
   """Returns the (namespace, name) tuple of the URN in the monitoring info."""
   # Remove the URN prefix which indicates that it is a user counter.
-  if (_is_user_distribution_monitoring_info(monitoring_info_proto)
-      or _is_user_monitoring_info(monitoring_info_proto)):
+  if (is_user_monitoring_info(monitoring_info_proto)):
     labels = monitoring_info_proto.getLabelsMap()
     return labels[NAMESPACE_LABEL], labels[NAME_LABEL]
 
   # If it is not a user counter, just use the first part of the URN, i.e. 'beam'
-  split = monitoring_info_proto.urn.split(':', 2)
+  split = monitoring_info_proto.urn.split(':', 1)
   return split[0], split[1]
 
 
