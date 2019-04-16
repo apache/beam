@@ -53,8 +53,8 @@ public class SchemaTranslation {
           .build();
 
   public static RunnerApi.Schema toProto(Schema schema) {
-    RunnerApi.Schema.Builder builder =
-        RunnerApi.Schema.newBuilder().setId(schema.getUUID().toString());
+    String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
+    RunnerApi.Schema.Builder builder = RunnerApi.Schema.newBuilder().setId(uuid);
     for (Field field : schema.getFields()) {
       RunnerApi.Schema.Field protoField =
           toProto(
