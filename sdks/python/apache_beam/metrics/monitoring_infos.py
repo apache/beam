@@ -278,7 +278,10 @@ def parse_namespace_and_name(monitoring_info_proto):
   """Returns the (namespace, name) tuple of the URN in the monitoring info."""
   # Remove the URN prefix which indicates that it is a user counter.
   if (is_user_monitoring_info(monitoring_info_proto)):
-    labels = monitoring_info_proto.getLabelsMap()
+    import pprint
+    pp = pprint.PrettyPrinter()
+    pp.pprint(monitoring_info_proto)
+    labels = monitoring_info_proto.labels
     return labels[NAMESPACE_LABEL], labels[NAME_LABEL]
 
   # If it is not a user counter, just use the first part of the URN, i.e. 'beam'
