@@ -1584,6 +1584,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // This is the absolute path for Python 3.6 on linkedin hosts.
       // Python 3.6 is required at Linkedin instead of the 3.5 version supported in open source.
       def python3path = "/export/apps/python/3.6/bin/python3.6"
+      def pythonEnvPath = "${envdir}/bin/python3.6"
 
 
       // This is current supported Python3 version. It should match the one in
@@ -1615,7 +1616,7 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           project.exec {
             executable 'sh'
-            args '-c', ". ${envdir}/bin/activate && ${python3path} setup.py sdist --keep-temp --formats zip,gztar --dist-dir ${project.buildDir}"
+            args '-c', ". ${envdir}/bin/activate && ${pythonEnvPath} setup.py sdist --keep-temp --formats zip,gztar --dist-dir ${project.buildDir}"
           }
         }
       }
@@ -1640,7 +1641,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             executable 'sh'
             args '-c', "if [ -e ${activate} ]; then " +
-                    ". ${activate} && ${python3path} ${pythonRootDir}/setup.py clean; " +
+                    ". ${activate} && ${pythonEnvPath} ${pythonRootDir}/setup.py clean; " +
                     "fi"
           }
           project.delete project.buildDir     // Gradle build directory
