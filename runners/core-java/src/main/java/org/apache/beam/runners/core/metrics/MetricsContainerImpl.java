@@ -134,8 +134,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       if (cell.getValue().getDirty().beforeCommit()) {
-        updates.add(
-            MetricUpdate.create(
+        updates.add(MetricUpdate.create(
                 MetricKey.create(stepName, cell.getKey()), cell.getValue().getCumulative()));
       }
     }
@@ -177,7 +176,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
               MonitoringInfoConstants.Labels.NAMESPACE,
               metricUpdate.getKey().metricName().getNamespace())
           .setLabel(
-              MonitoringInfoConstants.Labels.NAMESPACE,
+              MonitoringInfoConstants.Labels.NAME,
               metricUpdate.getKey().metricName().getName())
           .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
     }
@@ -197,7 +196,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
       MonitoringInfo mi = counterUpdateToMonitoringInfo(metricUpdate);
       if (mi != null) {
-        monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
+        monitoringInfos.add(mi);
       }
     }
     return monitoringInfos;
