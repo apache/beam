@@ -1581,13 +1581,14 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // LI configs for python path
       def envdir = "/export/content/data/tmp/py-beam"
-      def python2path = "/export/apps/python/2.7.13/bin/python2.7"
-      def python3path = "/export/apps/python/3.5/bin/python3.5/"
+      // This is the absolute path for Python 3.6 on linkedin hosts.
+      // Python 3.6 is required at Linkedin instead of the 3.5 version supported in open source.
+      def python3path = "/export/apps/python/3.6/bin/python3.6"
 
 
       // This is current supported Python3 version. It should match the one in
       // sdks/python/container/py3/Dockerfile
-      final PYTHON3_VERSION = '3.5'
+      final PYTHON3_VERSION = '3.6'
 
       project.task('setupVirtualenv')  {
         doLast {
@@ -1595,15 +1596,11 @@ class BeamModulePlugin implements Plugin<Project> {
             'virtualenv',
             "${envdir}"
           ]
-          if (project.hasProperty('python3')) {
-            virtualenvCmd += '--python=' + python3path
-          } else {
-            virtualenvCmd += '--python=' + python2path
-          }
+          virtualenvCmd += '--python=' + python3path
           project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
-            args '-c', ". ${envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+            args '-c', ". ${envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5 dill==0.2.9 future crcmod fastavro oauth2client mock pytz protobuf grpcio pydot PyYAML PyVCF hdfs avro-python3"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -1618,7 +1615,7 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           project.exec {
             executable 'sh'
-            args '-c', ". ${envdir}/bin/activate && python setup.py sdist --keep-temp --formats zip,gztar --dist-dir ${project.buildDir}"
+            args '-c', ". ${envdir}/bin/activate && ${python3path} setup.py sdist --keep-temp --formats zip,gztar --dist-dir ${project.buildDir}"
           }
         }
       }
@@ -1643,7 +1640,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             executable 'sh'
             args '-c', "if [ -e ${activate} ]; then " +
-                    ". ${activate} && python ${pythonRootDir}/setup.py clean; " +
+                    ". ${activate} && ${python3path} ${pythonRootDir}/setup.py clean; " +
                     "fi"
           }
           project.delete project.buildDir     // Gradle build directory
