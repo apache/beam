@@ -464,7 +464,7 @@ public class BeamFnMapTaskExecutorTest {
         MonitoringInfo.newBuilder()
             .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
             .putLabels(MonitoringInfoConstants.Labels.NAME, "ExpectedCounter")
-            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyString")
             .setType(MonitoringInfoConstants.TypeUrns.SUM_INT64)
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "ExpectedPTransform")
             .setMetric(
