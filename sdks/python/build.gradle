@@ -20,6 +20,7 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
+enablePythonPerformanceTest()
 
 
 /*************************************************************************************************/
@@ -193,36 +194,6 @@ def portableWordCountTask(name, streaming) {
         args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
         // TODO: Check that the output file is generated and runs.
       }
-    }
-  }
-}
-
-// Run single or a set of integration tests with provided test options and pipeline options.
-task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
-  doLast {
-    def argMap = [:]
-
-    // Build test options that configures test environment and framework
-    def testOptions = basicTestOpts
-    if (project.hasProperty('testOptions'))
-      // Customize test options by adding more nose flags to -Ptest_opt in commandline
-      testOptions = project.property('testOptions')
-    if (project.hasProperty('attr'))
-      testOptions += ["--attr=${project.property('attr')}"]
-    if (project.hasProperty('tests'))
-      testOptions += ["--tests=${project.property('tests')}"]
-    argMap["test_opts"] = testOptions
-
-    // Build pipeline options that configures pipeline job
-    if (project.hasProperty('pipelineOptions'))
-      argMap["pipeline_opts"] = project.property('pipelineOptions')
-    if (project.hasProperty('kmsKeyName'))
-      argMap["kms_key_name"] = project.property('kmsKeyName')
-
-    def cmdArgs = project.mapToArgString(argMap)
-    exec {
-      executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
     }
   }
 }
