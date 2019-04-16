@@ -35,7 +35,8 @@ class MonitoringInfosTest(unittest.TestCase):
     labels = {}
     labels[monitoring_infos.NAMESPACE_LABEL] = "counternamespace"
     labels[monitoring_infos.NAME_LABEL] = "countername"
-    input = monitoring_infos.create_monitoring_info(urn, "typeurn", labels)
+    input = monitoring_infos.create_monitoring_info(urn, "typeurn", None,
+                                                    labels)
     namespace, name = monitoring_infos.parse_namespace_and_name(input)
     self.assertEqual(namespace, "counternamespace")
     self.assertEqual(name, "countername")
@@ -45,7 +46,8 @@ class MonitoringInfosTest(unittest.TestCase):
     labels = {}
     labels[monitoring_infos.NAMESPACE_LABEL] = "counternamespace"
     labels[monitoring_infos.NAME_LABEL] = "countername"
-    input = monitoring_infos.create_monitoring_info(urn, "typeurn", labels)
+    input = monitoring_infos.create_monitoring_info(urn, "typeurn", None,
+                                                    labels)
     namespace, name = monitoring_infos.parse_namespace_and_name(input)
     self.assertEqual(namespace, "counternamespace")
     self.assertEqual(name, "countername")
