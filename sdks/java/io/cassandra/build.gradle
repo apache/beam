@@ -51,7 +51,6 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.cassandra_driver_core
   shadow library.java.cassandra_driver_mapping
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
@@ -62,4 +61,5 @@ dependencies {
   // for embedded cassandra
   testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
   testCompile library.java.jackson_jaxb_annotations
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }
