@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -84,7 +85,7 @@ public class Join {
     }
 
     /** Implementation class for FieldsEqual. */
-    public static class Impl {
+    public static class Impl implements Serializable {
       private FieldAccessDescriptor lhs;
       private FieldAccessDescriptor rhs;
 
@@ -124,23 +125,23 @@ public class Join {
   }
 
   /** Perform an inner join. */
-  public static <LhsT, RhsT> Inner<LhsT, RhsT> innerJoin(PCollection<RhsT> rhs) {
-    return new Inner<>(JoinType.INNER, rhs);
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> innerJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.INNER, rhs);
   }
 
   /** Perform a full outer join. */
-  public static <LhsT, RhsT> Inner<LhsT, RhsT> fullOuterJoin(PCollection<RhsT> rhs) {
-    return new Inner<>(JoinType.OUTER, rhs);
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> fullOuterJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.OUTER, rhs);
   }
 
   /** Perform a left outer join. */
-  public static <LhsT, RhsT> Inner<LhsT, RhsT> leftOuterJoin(PCollection<RhsT> rhs) {
-    return new Inner<>(JoinType.LEFT_OUTER, rhs);
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> leftOuterJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.LEFT_OUTER, rhs);
   }
 
   /** Perform a right outer join. */
-  public static <LhsT, RhsT> Inner<LhsT, RhsT> rightOuterJoin(PCollection<RhsT> rhs) {
-    return new Inner<>(JoinType.RIGHT_OUTER, rhs);
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> rightOuterJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.RIGHT_OUTER, rhs);
   };
 
   private enum JoinType {
@@ -151,16 +152,16 @@ public class Join {
   };
 
   /** Implementation class . */
-  public static class Inner<LhsT, RhsT> extends PTransform<PCollection<LhsT>, PCollection<Row>> {
+  public static class Impl<LhsT, RhsT> extends PTransform<PCollection<LhsT>, PCollection<Row>> {
     private final JoinType joinType;
-    private final PCollection<RhsT> rhs;
+    private final transient PCollection<RhsT> rhs;
     @Nullable private final FieldsEqual.Impl predicate;
 
-    private Inner(JoinType joinType, PCollection<RhsT> rhs) {
+    private Impl(JoinType joinType, PCollection<RhsT> rhs) {
       this(joinType, rhs, null);
     }
 
-    private Inner(JoinType joinType, PCollection<RhsT> rhs, FieldsEqual.Impl predicate) {
+    private Impl(JoinType joinType, PCollection<RhsT> rhs, FieldsEqual.Impl predicate) {
       this.joinType = joinType;
       this.rhs = rhs;
       this.predicate = predicate;
@@ -170,30 +171,30 @@ public class Join {
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Inner<LhsT, RhsT> using(String... fieldNames) {
-      return new Inner<>(joinType, rhs, FieldsEqual.left(fieldNames).right(fieldNames));
+    public Impl<LhsT, RhsT> using(String... fieldNames) {
+      return new Impl<>(joinType, rhs, FieldsEqual.left(fieldNames).right(fieldNames));
     }
 
     /**
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Inner<LhsT, RhsT> using(Integer... fieldIds) {
-      return new Inner<>(joinType, rhs, FieldsEqual.left(fieldIds).right(fieldIds));
+    public Impl<LhsT, RhsT> using(Integer... fieldIds) {
+      return new Impl<>(joinType, rhs, FieldsEqual.left(fieldIds).right(fieldIds));
     }
 
     /**
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Inner<LhsT, RhsT> using(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Inner<>(
+    public Impl<LhsT, RhsT> using(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new Impl<>(
           joinType, rhs, FieldsEqual.left(fieldAccessDescriptor).right(fieldAccessDescriptor));
     }
 
     /** Join the PCollections using the provided predicate. */
-    public Inner<LhsT, RhsT> on(FieldsEqual.Impl predicate) {
-      return new Inner<>(joinType, rhs, predicate);
+    public Impl<LhsT, RhsT> on(FieldsEqual.Impl predicate) {
+      return new Impl<>(joinType, rhs, predicate);
     }
 
     @Override
@@ -203,31 +204,35 @@ public class Join {
       switch (joinType) {
         case INNER:
           return tuple.apply(
-              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(predicate.lhs))
-                  .join(RHS_TAG, CoGroup.By.fieldAccessDescriptor(predicate.rhs))
+              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
+                  .join(RHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs))
                   .crossProductJoin());
         case OUTER:
           return tuple.apply(
               CoGroup.join(
                       LHS_TAG,
-                      CoGroup.By.fieldAccessDescriptor(predicate.lhs).withOptionalParticipation())
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs)
+                          .withOptionalParticipation())
                   .join(
                       RHS_TAG,
-                      CoGroup.By.fieldAccessDescriptor(predicate.rhs).withOptionalParticipation())
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs)
+                          .withOptionalParticipation())
                   .crossProductJoin());
         case LEFT_OUTER:
           return tuple.apply(
-              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(predicate.lhs))
+              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
                   .join(
                       RHS_TAG,
-                      CoGroup.By.fieldAccessDescriptor(predicate.rhs).withOptionalParticipation())
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs)
+                          .withOptionalParticipation())
                   .crossProductJoin());
         case RIGHT_OUTER:
           return tuple.apply(
               CoGroup.join(
                       LHS_TAG,
-                      CoGroup.By.fieldAccessDescriptor(predicate.lhs).withOptionalParticipation())
-                  .join(RHS_TAG, CoGroup.By.fieldAccessDescriptor(predicate.rhs))
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs)
+                          .withOptionalParticipation())
+                  .join(RHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs))
                   .crossProductJoin());
         default:
           throw new RuntimeException("Unexpected join type");
