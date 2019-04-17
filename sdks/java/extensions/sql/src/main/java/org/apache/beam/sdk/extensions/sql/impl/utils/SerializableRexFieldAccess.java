@@ -17,27 +17,39 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.apache.calcite.rex.RexFieldAccess;
+import org.apache.calcite.rex.RexInputRef;
 
 /** SerializableRexFieldAccess. */
 public class SerializableRexFieldAccess extends SerializableRexNode {
-  private int index;
-
-  private SerializableRexNode serializableRexNode;
+  private List<Integer> indexes = new ArrayList<>();
 
   public SerializableRexFieldAccess(RexFieldAccess rexFieldAccess) {
-    index = rexFieldAccess.getField().getIndex();
+    indexes.add(rexFieldAccess.getField().getIndex());
+    RexFieldAccess curr = rexFieldAccess;
+    while (curr.getReferenceExpr() instanceof RexFieldAccess) {
+      curr = (RexFieldAccess) curr.getReferenceExpr();
+      indexes.add(rexFieldAccess.getField().getIndex());
+    }
 
-    serializableRexNode = SerializableRexNode.builder(rexFieldAccess.getReferenceExpr()).build();
+    // curr.getReferenceExpr() is not a RexFieldAccess. Check if it is RexInputRef, which is only
+    // allowed RexNode type in RexFieldAccess.
+    if (!(curr.getReferenceExpr() instanceof RexInputRef)) {
+      throw new UnsupportedOperationException(
+          "Does not support " + curr.getReferenceExpr().getType());
+    }
+
+    // curr.getReferenceExpr() is a RexInputRef.
+    RexInputRef inputRef = (RexInputRef) curr.getReferenceExpr();
+    indexes.add(inputRef.getIndex());
+
+    Collections.reverse(indexes);
   }
 
-  @Override
-  public int getIndex() {
-    return index;
-  }
-
-  @Override
-  public SerializableRexNode getReferenceNode() {
-    return serializableRexNode;
+  public List<Integer> getIndexes() {
+    return indexes;
   }
 }

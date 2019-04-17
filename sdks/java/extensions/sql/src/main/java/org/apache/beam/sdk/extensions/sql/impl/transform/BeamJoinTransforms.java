@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
+import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexFieldAccess;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexInputRef;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexNode;
 import org.apache.beam.sdk.schemas.Schema;
@@ -81,11 +82,16 @@ public class BeamJoinTransforms {
     private Object getValue(
         SerializableRexNode serializableRexNode, Row input, int leftRowColumnCount) {
       if (serializableRexNode instanceof SerializableRexInputRef) {
-        return input.getValue(serializableRexNode.getIndex() - leftRowColumnCount);
-      } else {
-        // It can only be SerializableFieldAccess.
-        Row rowField = input.getValue(serializableRexNode.getReferenceNode().getIndex());
-        return rowField.getValue(serializableRexNode.getIndex());
+        return input.getValue(
+            ((SerializableRexInputRef) serializableRexNode).getIndex() - leftRowColumnCount);
+      } else { // It can only be SerializableFieldAccess.
+        List<Integer> indexes = ((SerializableRexFieldAccess) serializableRexNode).getIndexes();
+        // retrieve row based on the first column reference.
+        Row rowField = input.getValue(indexes.get(0) - leftRowColumnCount);
+        for (int i = 1; i < indexes.size() - 1; i++) {
+          rowField = rowField.getRow(indexes.get(i));
+        }
+        return rowField.getValue(indexes.get(indexes.size() - 1));
       }
     }
   }
