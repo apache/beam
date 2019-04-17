@@ -43,12 +43,16 @@ import org.apache.spark.sql.ForeachWriter;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.streaming.DataStreamWriter;
 import org.apache.spark.sql.streaming.StreamingQueryException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class that gives a context for {@link PTransform} translation: keeping track of the
  * datasets, the {@link SparkSession}, the current transform being translated.
  */
 public class TranslationContext {
+
+  private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
 
   /** All the datasets of the DAG. */
   private final Map<PValue, Dataset<?>> datasets;
@@ -197,7 +201,7 @@ public class TranslationContext {
             // code.
             List<WindowedValue> windowedValues = ((Dataset<WindowedValue>) dataset).collectAsList();
             for (WindowedValue windowedValue : windowedValues) {
-              System.out.println(windowedValue);
+              LOG.debug(windowedValue.toString());
             }
           } else {
             // apply a dummy fn just to apply for each action that will trigger the pipeline run in

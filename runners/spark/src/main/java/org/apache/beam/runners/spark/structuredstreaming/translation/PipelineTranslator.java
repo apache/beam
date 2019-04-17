@@ -162,7 +162,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
    * @param pipeline The pipeline to be translated
    */
   public void translate(Pipeline pipeline) {
-    LOG.info("starting translation of the pipeline using {}", getClass().getName());
+    LOG.debug("starting translation of the pipeline using {}", getClass().getName());
     pipeline.traverseTopologically(this);
   }
 
@@ -172,14 +172,14 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-    LOG.info("{} enterCompositeTransform- {}", genSpaces(depth), node.getFullName());
+    LOG.debug("{} enterCompositeTransform- {}", genSpaces(depth), node.getFullName());
     depth++;
 
     TransformTranslator<?> transformTranslator = getTransformTranslator(node);
 
     if (transformTranslator != null) {
       applyTransformTranslator(node, transformTranslator);
-      LOG.info("{} translated- {}", genSpaces(depth), node.getFullName());
+      LOG.debug("{} translated- {}", genSpaces(depth), node.getFullName());
       return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
     } else {
       return CompositeBehavior.ENTER_TRANSFORM;
@@ -189,12 +189,12 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
   @Override
   public void leaveCompositeTransform(TransformHierarchy.Node node) {
     depth--;
-    LOG.info("{} leaveCompositeTransform- {}", genSpaces(depth), node.getFullName());
+    LOG.debug("{} leaveCompositeTransform- {}", genSpaces(depth), node.getFullName());
   }
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    LOG.info("{} visitPrimitiveTransform- {}", genSpaces(depth), node.getFullName());
+    LOG.debug("{} visitPrimitiveTransform- {}", genSpaces(depth), node.getFullName());
 
     // get the transformation corresponding to the node we are
     // currently visiting and translate it into its Spark alternative.
