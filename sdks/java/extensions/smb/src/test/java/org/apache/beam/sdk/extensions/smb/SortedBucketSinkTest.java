@@ -1,10 +1,7 @@
 package org.apache.beam.sdk.extensions.smb;
 
-import java.io.PrintWriter;
-import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileSystems;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
@@ -13,6 +10,8 @@ import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.junit.Test;
 
 // Just an example usage...
@@ -26,7 +25,7 @@ public class SortedBucketSinkTest {
   class UserBeanBucketingMetadata extends BucketingMetadata<String, UserBean> {
 
     @Override
-    public Coder<BucketingMetadata<String, UserBean>> getCoder() {
+    public Coder<BucketingMetadata> getCoder() {
       return null;
     }
 
@@ -64,28 +63,27 @@ public class SortedBucketSinkTest {
     public TestSortedBucketSinkImpl(
         BucketingMetadata<String, UserBean> bucketingMetadata,
         FilenamePolicy filenamePolicy,
-        OutputFileHints outputFileHints) {
-      super(bucketingMetadata, filenamePolicy, outputFileHints);
+        OutputFileHints outputFileHints,
+        ValueProvider<ResourceId> tempDirectoryProvider) {
+      super(bucketingMetadata, filenamePolicy, outputFileHints, tempDirectoryProvider);
     }
 
     @Override
-    WriteFn<UserBean> createWriteFn() {
-      return new WriteFn<UserBean>() {
-        PrintWriter printWriter;
-
+    Writer<UserBean> createWriter() {
+      return new Writer<UserBean>() {
         @Override
-        void openWriter(WritableByteChannel channel) throws Exception {
-          printWriter = new PrintWriter(Channels.newOutputStream(channel));
+        void open(WritableByteChannel channel) throws Exception {
+
         }
 
         @Override
-        void writeValue(UserBean value) throws Exception {
-          printWriter.append(value.toString());
+        void append(UserBean value) throws Exception {
+
         }
 
         @Override
-        void closeWriter() throws Exception {
-          printWriter.close();
+        void close() throws Exception {
+
         }
       };
     }
@@ -98,20 +96,19 @@ public class SortedBucketSinkTest {
         new UserBeanBucketingMetadata(),
         DefaultFilenamePolicy.fromParams(new Params()),
         new OutputFileHints() {
-          @Nullable
           @Override
           public String getMimeType() {
             return "application/json";
           }
 
-          @Nullable
           @Override
           public String getSuggestedFilenameSuffix() {
             return ".json";
           }
-        }
+        },
+        StaticValueProvider.of(null)
     );
 
-     // @Todo...
+    // @Todo...
   }
 }
