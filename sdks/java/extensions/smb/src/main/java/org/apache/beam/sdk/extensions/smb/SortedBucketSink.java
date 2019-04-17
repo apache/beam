@@ -1,25 +1,34 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import java.io.IOException;
-import java.nio.channels.Channels;
+import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
-import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
 
 /**
  * Writes a PCollection representing sorted, bucketized data to files, where the # of files is
@@ -27,130 +36,160 @@ import org.apache.beam.sdk.values.PDone;
  *
  * This must be implemented for different file-based IO types i.e. Avro.
  */
-public abstract class SortedBucketSink<SortingKeyT, ValueT> extends PTransform<PCollection<ValueT>, PDone> {
+public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
+    PTransform<PCollection<ValueT>, WriteResult> {
 
   private final BucketingMetadata<SortingKeyT, ValueT> bucketingMetadata;
-
-  // @todo: custom SMB FilenamePolicy impl with bucketed shard name template?
-  private final FilenamePolicy filenamePolicy;
+  private final FilenamePolicy filenamePolicy; // @Todo: custom SMB FilenamePolicy impl?
   private final OutputFileHints outputFileHints;
+  private final ValueProvider<ResourceId> tempDirectoryProvider;
 
   public SortedBucketSink(
       BucketingMetadata<SortingKeyT, ValueT> bucketingMetadata,
       FilenamePolicy filenamePolicy,
-      OutputFileHints outputFileHints) {
+      OutputFileHints outputFileHints,
+      ValueProvider<ResourceId> tempDirectoryProvider) {
     this.bucketingMetadata = bucketingMetadata;
+    this.tempDirectoryProvider = tempDirectoryProvider;
     this.filenamePolicy = filenamePolicy;
     this.outputFileHints = outputFileHints;
   }
 
-  abstract WriteFn<ValueT> createWriteFn();
+  abstract Writer<ValueT> createWriter();
+
+  /**
+   * Must be implemented per Sink. Handles the actual writes of the underlying value type V.
+   */
+  abstract static class Writer<V> implements Serializable {
+    abstract void open(WritableByteChannel channel) throws Exception;
+    abstract void append(V value) throws Exception;
+    abstract void close() throws Exception;
+  }
 
   // @Todo: This assumes all buckets will fit in memory and write to a single file...
   // @Todo: improved sorting
   @Override
-  public PDone expand(PCollection<ValueT> input) {
+  public WriteResult expand(PCollection<ValueT> input) {
+    final Coder<KV<Integer, KV<SortingKeyT, ValueT>>> bucketedCoder = KvCoder.of(
+        VarIntCoder.of(),
+        KvCoder.of(this.bucketingMetadata.getSortingKeyCoder(), input.getCoder())
+    );  // @Todo Verify deterministic? Maybe metadata class can validate SortingKeyCoder
+
     return input
-        .apply("Assign buckets", MapElements.via(new SimpleFunction<ValueT, KV<Integer, KV<SortingKeyT, ValueT>>>() {
-          @Override
-          public KV<Integer, KV<SortingKeyT, ValueT>> apply(ValueT record) {
-            return KV.of(
+        .apply("Assign buckets", ParDo.of(new DoFn<ValueT, KV<Integer, KV<SortingKeyT, ValueT>>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws Exception {
+            ValueT record = c.element();
+
+            c.output(KV.of(
                 bucketingMetadata.assignBucket(record),
                 KV.of(bucketingMetadata.extractSortingKey(record), record)
-            );
-          }
-        }))
-        .setCoder(
-            KvCoder.of(
-                VarIntCoder.of(),
-                KvCoder.of(this.bucketingMetadata.getSortingKeyCoder(), input.getCoder())
-            )
-        )
-        // @Todo: Hopefully the group by + sort steps fuse? Verify this?
-        .apply("Group per bucket", GroupByKey.create())
+            ));
+          }})).setCoder(bucketedCoder)
+        .apply("Group per bucket", GroupByKey.create()) // @Todo: Verify fusion of these steps
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
-        .apply("Write bucket data", new WriteOperation(createWriteFn()));
+        .apply("Write bucket data", new WriteOperation());
   }
 
-  // @Todo: Retry policy, atomicity guarantees, sharding per bucket, etc...
-  public class WriteOperation extends PTransform<PCollection<KV<Integer,
-      Iterable<KV<SortingKeyT, ValueT>>>>, PDone> { // @Todo: Do we want some kind of SortedBucket wrapper class?
-    private final WriteFn<ValueT> writeFn;
+  /**
+   * Represents a successful write to temp directory that was moved to its final output destination.
+   */
+  static class WriteResult implements POutput, Serializable {
+    private final Pipeline pipeline;
+    private final PCollection<KV<Integer, ResourceId>> writtenBuckets;
 
-    WriteOperation(WriteFn<ValueT> writeFn) {
-      this.writeFn = writeFn;
+    WriteResult(
+        Pipeline pipeline,
+        PCollection<KV<Integer, ResourceId>> writtenBuckets) {
+      this.pipeline = pipeline;
+      this.writtenBuckets = writtenBuckets;
     }
 
     @Override
-    public PDone expand(PCollection<KV<Integer, Iterable<KV<SortingKeyT, ValueT>>>> input) {
+    public Pipeline getPipeline() {
+      return pipeline;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> expand() {
+      return ImmutableMap.of(new TupleTag<>("SMBWriteResult"), writtenBuckets);
+    }
+
+    @Override
+    public void finishSpecifyingOutput(String transformName, PInput input,
+        PTransform<?, ?> transform) { }
+  }
+
+  /**
+   * Handles writing bucket data and SMB metadata to a uniquely named temp directory.
+   * @Todo: Retry policy, sharding per bucket, etc...
+   */
+  public class WriteOperation extends
+      PTransform<PCollection<KV<Integer, Iterable<KV<SortingKeyT, ValueT>>>>, WriteResult> {
+
+    // Based off of FileBasedSink's temp directory resolution; not completely in parity yet
+    private final String TEMPDIR_TIMESTAMP = "yyyy-MM-dd_HH-mm-ss";
+    private final String BEAM_TEMPDIR_PATTERN = ".temp-beam-%s";
+    private final ResourceId tempDirectory;
+
+    WriteOperation() {
+      tempDirectory = tempDirectoryProvider.get()
+          .resolve(String.format(BEAM_TEMPDIR_PATTERN, Instant.now().toString(DateTimeFormat.forPattern(TEMPDIR_TIMESTAMP))),
+              StandardResolveOptions.RESOLVE_DIRECTORY);
+    }
+
+    @Override
+    public WriteResult expand(PCollection<KV<Integer, Iterable<KV<SortingKeyT, ValueT>>>> input) {
+      // Try writing metadata first.
+      // @Todo verify the call site where this is actually getting executed. Maybe it should be
+      //       its own ptransform
+      final ResourceId metadataResource;
+
+      try {
+        metadataResource = writeSMBMetadata();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to write SMB metadata to temp directory: {}", e);
+      }
+
       return input
-          .apply("Write all buckets", ParDo.of(writeFn))
-          .apply("Write SMB metadata file", PTransform.compose((PCollection<Void> in) -> {
-            WritableByteChannel writableByteChannel = null;
-            try {
-              writableByteChannel = FileSystems.create(
-                  bucketingMetadata.getMetadataResource(),
-                  MimeTypes.BINARY // @todo: allow customizable mime type? depends on metadata impl
-              );
+          .apply("Write buckets to temp directory", ParDo.of(new WriteTempFiles()))
+          .apply("Finalize temp file destinations", new FinalizeTempFiles());
+    }
 
-              bucketingMetadata
-                  .getCoder()
-                  .encode(bucketingMetadata, Channels.newOutputStream(writableByteChannel));
-            } catch (IOException e) {
-              throw new RuntimeException(String.format("Failed to write SMB metadata: %s", e));
-            } finally {
-              try {
-                if (writableByteChannel != null) {
-                  writableByteChannel.close();
-                }
-              } catch (Exception e) {
-                throw new RuntimeException(
-                    String.format("Failed to close writableByteChannel: %s", e));
-              }
-            }
-
-            // @Todo maybe return TupleTags for buckets
-            return PDone.in(input.getPipeline());
-          }));
+    private ResourceId writeSMBMetadata() throws IOException {
+      // @Todo
+      return null;
     }
   }
 
-  abstract class WriteFn<V> extends DoFn<KV<Integer, Iterable<KV<SortingKeyT, V>>>, Void> {
-    abstract void openWriter(WritableByteChannel channel) throws Exception;
-    abstract void writeValue(V value) throws Exception;
-    abstract void closeWriter() throws Exception;
+  class WriteTempFiles extends DoFn<KV<Integer, Iterable<KV<SortingKeyT, ValueT>>>, KV<Integer, ResourceId>> {
+    WriteTempFiles() {
+    }
 
     @ProcessElement
-    public final Void processElement(ProcessContext context) throws Exception {
-      final Iterable<KV<SortingKeyT, V>> values = context.element().getValue();
-      final Integer bucket = context.element().getKey();
+    public void processElement(ProcessContext c) throws Exception {
+      final Iterable<KV<SortingKeyT, ValueT>> values = c.element().getValue();
+      final Integer bucket = c.element().getKey();
 
-      if (values == null) {
-        throw new IOException(
-            String.format("Write failed: bucket %s is empty", context.element().getKey()));
-      }
+      // @Todo write temp files per bucket
+    }
+  }
 
-      openWriter(FileSystems.create(
-          filenamePolicy.unwindowedFilename(bucket, bucketingMetadata.getNumBuckets(), outputFileHints),
-          outputFileHints.getMimeType())
-      );
+  /**
+   * Moves written temp files to their final destinations. Input is a map of bucket -> temp path
+   */
+  class FinalizeTempFiles extends PTransform<PCollection<KV<Integer, ResourceId>>, WriteResult> {
+    FinalizeTempFiles() {
+    }
 
-      try {
-        values.forEach(kv -> {
-          try {
-            writeValue(kv.getValue());
-          } catch (Exception e) {
-            throw new RuntimeException(
-                String.format("Failed to write element %s: %s", kv.getValue(), e));
-          }
-        });
-      } finally {
-        closeWriter();
-      }
+    @Override
+    public WriteResult expand(PCollection<KV<Integer, ResourceId>> input) {
+      return input
+          .apply("Move to final destinations", PTransform.compose((writtenTempFiles) -> {
+            // @Todo move temp buckets + metadata to final destination
 
-      // @Todo: this could return the bucketing key if we want to make some assertions later on
-      //        successfully written buckets?
-      return null;
+            return new WriteResult(input.getPipeline(), writtenTempFiles);
+          }));
     }
   }
 }
