@@ -219,6 +219,8 @@ include "beam-sdks-python-test-suites-tox-py37"
 project(":beam-sdks-python-test-suites-tox-py37").dir = file("sdks/python/test-suites/tox/py37")
 include "beam-sdks-python-load-tests"
 project(":beam-sdks-python-load-tests").dir = file("sdks/python/apache_beam/testing/load_tests")
+include "beam-vendor-bytebuddy-1_9_3"
+project(":beam-vendor-bytebuddy-1_9_3").dir = file("vendor/bytebuddy-1_9_3")
 include "beam-vendor-grpc-1_13_1"
 project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
 include "beam-sdks-java-test-utils"
