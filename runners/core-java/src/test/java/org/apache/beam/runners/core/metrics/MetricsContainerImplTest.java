@@ -176,7 +176,7 @@ public class MetricsContainerImplTest {
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.initWithClearTimestamp(mi));
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
 
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
@@ -199,7 +199,7 @@ public class MetricsContainerImplTest {
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.initWithClearTimestamp(mi));
+      actualMonitoringInfos.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
   }

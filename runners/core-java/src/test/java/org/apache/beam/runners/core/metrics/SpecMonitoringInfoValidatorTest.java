@@ -51,7 +51,7 @@ public class SpecMonitoringInfoValidatorTest {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
             .setUrn(Urns.USER_COUNTER)
-            .putLabels(MonitoringInfoConstants.Labels.NAME, "someCounter")
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyCounter")
             .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "")
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyString")
             .setType(TypeUrns.SUM_INT64)

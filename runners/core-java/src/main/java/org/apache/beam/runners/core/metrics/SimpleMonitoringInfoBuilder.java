@@ -124,7 +124,7 @@ public class SimpleMonitoringInfoBuilder {
    *     MonitoringInfos.
    */
   @VisibleForTesting
-  public static MonitoringInfo initWithClearTimestamp(MonitoringInfo input) {
+  public static MonitoringInfo copyAndClearTimestamp(MonitoringInfo input) {
     MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
     builder.mergeFrom(input);
     builder.clearTimestamp();

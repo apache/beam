@@ -71,7 +71,7 @@ public class ElementCountFnDataReceiverTest {
 
     // Clear the timestamp before comparison.
     MonitoringInfo first = metricsContainerRegistry.getMonitoringInfos().iterator().next();
-    MonitoringInfo result = SimpleMonitoringInfoBuilder.initWithClearTimestamp(first);
+    MonitoringInfo result = SimpleMonitoringInfoBuilder.copyAndClearTimestamp(first);
     assertEquals(expected, result);
   }
 

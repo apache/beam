@@ -221,7 +221,7 @@ public class MetricsContainerStepMapTest {
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actual.add(SimpleMonitoringInfoBuilder.initWithClearTimestamp(mi));
+      actual.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }

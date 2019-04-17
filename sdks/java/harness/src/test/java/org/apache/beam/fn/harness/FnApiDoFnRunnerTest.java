@@ -693,7 +693,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     closeable.close();
     List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
-      result.add(SimpleMonitoringInfoBuilder.initWithClearTimestamp(mi));
+      result.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
     assertThat(result, containsInAnyOrder(expected.toArray()));
   }

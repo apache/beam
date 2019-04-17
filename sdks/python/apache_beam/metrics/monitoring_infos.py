@@ -109,7 +109,7 @@ def extract_distribution(monitoring_info_proto):
   return None
 
 
-def create_labels(ptransform='', tag='', namespace='', name=''):
+def create_labels(ptransform=None, tag=None, namespace=None, name=None):
   """Create the label dictionary based on the provided tags.
 
   Args:
@@ -128,7 +128,7 @@ def create_labels(ptransform='', tag='', namespace='', name=''):
   return labels
 
 
-def int64_user_counter(namespace, name, metric, ptransform='', tag=''):
+def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
@@ -150,7 +150,7 @@ def int64_user_counter(namespace, name, metric, ptransform='', tag=''):
                                 labels)
 
 
-def int64_counter(urn, metric, ptransform='', tag=''):
+def int64_counter(urn, metric, ptransform=None, tag=None):
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
@@ -170,7 +170,7 @@ def int64_counter(urn, metric, ptransform='', tag=''):
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_user_distribution(namespace, name, metric, ptransform='', tag=''):
+def int64_user_distribution(namespace, name, metric, ptransform=None, tag=None):
   """Return the distribution monitoring info for the URN, metric and labels.
 
   Args:
@@ -186,7 +186,7 @@ def int64_user_distribution(namespace, name, metric, ptransform='', tag=''):
                                 DISTRIBUTION_INT64_TYPE, metric, labels)
 
 
-def int64_user_gauge(namespace, name, metric, ptransform='', tag=''):
+def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
   """Return the gauge monitoring info for the URN, metric and labels.
 
   Args:
