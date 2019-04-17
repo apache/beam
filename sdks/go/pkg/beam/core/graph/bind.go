@@ -62,27 +62,27 @@ import (
 func Bind(fn *funcx.Fn, typedefs map[string]reflect.Type, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
 	inbound, kinds, err := findInbound(fn, in...)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, fmt.Errorf("binding fn %v: %v", fn.Fn.Name(), err)
 	}
 	outbound, err := findOutbound(fn)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, fmt.Errorf("binding fn %v: %v", fn.Fn.Name(), err)
 	}
 
 	subst, err := typex.Bind(inbound, in)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, fmt.Errorf("binding fn %v: %v", fn.Fn.Name(), err)
 	}
 	for k, v := range typedefs {
-		if _, exists := subst[k]; exists {
-			return nil, nil, nil, nil, fmt.Errorf("type %v already defined by fn", k)
+		if substK, exists := subst[k]; exists {
+			return nil, nil, nil, nil, fmt.Errorf("binding fn %v: cannot substitute type %v with %v, already defined as %v", fn.Fn.Name(), k, v, substK)
 		}
 		subst[k] = v
 	}
 
 	out, err := typex.Substitute(outbound, subst)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, fmt.Errorf("binding fn %v: %v", fn.Fn.Name(), err)
 	}
 	return inbound, kinds, outbound, out, nil
 }
@@ -133,31 +133,33 @@ func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputK
 	params := funcx.SubParams(fn.Param, fn.Params(funcx.FnValue|funcx.FnIter|funcx.FnReIter)...)
 	index := 0
 	for _, input := range in {
-		elm, kind, err := tryBindInbound(input, params[index:], index == 0)
+		arity, err := inboundArity(input, index == 0)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to bind %v to input %v: %v", fn, in, err)
+			return nil, nil, fmt.Errorf("binding params %v to input %v: %v", params, input, err)
+		}
+		if len(params)-index < arity {
+			return nil, nil, fmt.Errorf("binding params %v to input %v: too few params", params[index:], input)
+		}
+
+		paramsToBind := params[index : index+arity]
+		elm, kind, err := tryBindInbound(input, paramsToBind, index == 0)
+		if err != nil {
+			return nil, nil, fmt.Errorf("binding params %v to input %v: %v", paramsToBind, input, err)
 		}
 		inbound = append(inbound, elm)
 		kinds = append(kinds, kind)
-		index += inboundArity(input, index == 0)
+		index += arity
 	}
 	if index < len(params) {
-		return nil, nil, fmt.Errorf("found too few input to bind to %v: %v. Forgot an input or to annotate options?", params, in)
+		return nil, nil, fmt.Errorf("binding params %v to inputs %v: too few inputs. Forgot an input or to annotate options?", params, in)
 	}
 	if index > len(params) {
-		return nil, nil, fmt.Errorf("found too many input to bind to %v: %v", params, in)
+		return nil, nil, fmt.Errorf("binding params %v to inputs %v: too many inputs", params, in)
 	}
 	return inbound, kinds, nil
 }
 
 func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.FullType, InputKind, error) {
-	arity := inboundArity(t, isMain)
-	if len(args) < arity {
-		return nil, Main, fmt.Errorf("too few parameters to bind %v", t)
-	}
-
-	// log.Printf("Bind inbound %v to %v (main: %v)", candidate, args, isMain)
-
 	kind := Main
 	var other typex.FullType
 
@@ -203,7 +205,7 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 				other = typex.New(trimmed[0])
 
 			default:
-				panic(fmt.Sprintf("Unexpected param kind: %v", arg))
+				return nil, kind, fmt.Errorf("unexpected param kind: %v", arg)
 			}
 		}
 	case typex.Composite:
@@ -253,7 +255,7 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 
 			components := []typex.FullType{typex.New(args[0].T)}
 
-			for i := 1; i < arity; i++ {
+			for i := 1; i < len(args); i++ {
 				switch args[i].Kind {
 				case funcx.FnIter:
 					values, _ := funcx.UnfoldIter(args[i].T)
@@ -277,11 +279,11 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 			other = typex.NewCoGBK(components...)
 
 		default:
-			panic("Unexpected inbound type")
+			return nil, kind, fmt.Errorf("unexpected inbound type: %v", t.Type())
 		}
 
 	default:
-		return nil, kind, fmt.Errorf("unexpected inbound type %v", t)
+		return nil, kind, fmt.Errorf("unexpected inbound class: %v", t.Class())
 	}
 
 	if !typex.IsStructurallyAssignable(t, other) {
@@ -290,22 +292,22 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 	return other, kind, nil
 }
 
-func inboundArity(t typex.FullType, isMain bool) int {
+func inboundArity(t typex.FullType, isMain bool) (int, error) {
 	if t.Class() == typex.Composite {
 		switch t.Type() {
 		case typex.KVType:
 			if isMain {
-				return 2
+				return 2, nil
 			}
 			// A KV side input must be a single iterator/map.
-			return 1
+			return 1, nil
 		case typex.CoGBKType:
-			return len(t.Components())
+			return len(t.Components()), nil
 		default:
-			panic("Unexpected inbound type")
+			return 0, fmt.Errorf("unexpected composite inbound type: %v", t.Type())
 		}
 	}
-	return 1
+	return 1, nil
 }
 
 func trimIllegal(list []reflect.Type) []reflect.Type {
