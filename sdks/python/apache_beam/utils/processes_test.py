@@ -106,13 +106,13 @@ class Exec(unittest.TestCase):
 
 class TestErrorHandlingCheckCall(unittest.TestCase):
   @classmethod
-  def setup_class(cls):
+  def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\
       'apache_beam.utils.processes.subprocess.check_call')
     cls.mock_get = cls.mock_get_patcher.start()
 
   @classmethod
-  def teardown_class(cls):
+  def tearDownClass(cls):
     cls.mock_get_patcher.stop()
 
   def test_oserror_check_call(self):
@@ -153,7 +153,7 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
 
 class TestErrorHandlingCheckOutput(unittest.TestCase):
   @classmethod
-  def setup_class(cls):
+  def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\
         'apache_beam.utils.processes.subprocess.check_output')
     cls.mock_get = cls.mock_get_patcher.start()
@@ -189,7 +189,7 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
 
 class TestErrorHandlingCall(unittest.TestCase):
   @classmethod
-  def setup_class(cls):
+  def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\
       'apache_beam.utils.processes.subprocess.call')
     cls.mock_get = cls.mock_get_patcher.start()
