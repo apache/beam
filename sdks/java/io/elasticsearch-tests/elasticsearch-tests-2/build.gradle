@@ -33,7 +33,6 @@ dependencies {
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile "net.java.dev.jna:jna:$jna_version"
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
@@ -46,4 +45,5 @@ dependencies {
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
   shadowTest library.java.vendored_guava_20_0
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }
