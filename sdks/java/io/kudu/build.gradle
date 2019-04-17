@@ -32,7 +32,7 @@ test {
   }
 }
 
-def kudu_version = "1.4.0"
+def kudu_version = "1.9.0"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
