@@ -24,12 +24,6 @@ import org.apache.calcite.rex.RexNode;
 
 /** SerializableRexNode. */
 public abstract class SerializableRexNode implements Serializable {
-  public abstract int getIndex();
-
-  public SerializableRexNode getReferenceNode() {
-    throw new UnsupportedOperationException("No reference node in SerializableRexNode.");
-  }
-
   public static SerializableRexNode.Builder builder(RexNode rexNode) {
     return new SerializableRexNode.Builder(rexNode);
   }

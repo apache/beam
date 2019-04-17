@@ -27,7 +27,6 @@ public class SerializableRexInputRef extends SerializableRexNode {
     index = rexInputRef.getIndex();
   }
 
-  @Override
   public int getIndex() {
     return index;
   }
