@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -434,9 +435,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void dispose() throws Exception {
     try {
-      checkFinishBundleTimer.cancel(true);
+      Optional.ofNullable(checkFinishBundleTimer).ifPresent(timer -> timer.cancel(true));
       FlinkClassloading.deleteStaticCaches();
-      doFnInvoker.invokeTeardown();
+      Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
     } finally {
       // This releases all task's resources. We need to call this last
       // to ensure that state, timers, or output buffers can still be
