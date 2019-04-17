@@ -136,6 +136,7 @@ def main(unused_argv):
     service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
+    _load_avro_generic_coder(sdk_pipeline_options)
     # TODO(robertwb): Support credentials.
     assert not service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
@@ -195,6 +196,19 @@ def _get_worker_count(pipeline_options):
                    experiment).group('worker_threads'))
 
   return 12
+
+
+def _load_avro_generic_coder(pipeline_options):
+  experiments = pipeline_options.view_as(DebugOptions).experiments
+
+  experiments = experiments if experiments else []
+
+  for experiment in experiments:
+    # There should only be 1 match so returning from the loop
+    if re.match(r'xlang_test', experiment):
+      # pylint: disable=unused-variable
+      from apache_beam.coders.avro_generic_coder import AvroGenericCoder
+      return
 
 
 def _load_main_session(semi_persistent_directory):

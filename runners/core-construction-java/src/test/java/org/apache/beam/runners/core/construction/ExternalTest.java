@@ -32,11 +32,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ConnectivityState;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
@@ -61,14 +61,12 @@ public class ExternalTest implements Serializable {
   private static final String TEST_URN_LE = "le";
   private static final String TEST_URN_MULTI = "multi";
 
-  private static String pythonServerCommand;
   private static Integer expansionPort;
   private static String localExpansionAddr;
   private static Server localExpansionServer;
 
   @BeforeClass
   public static void setUp() throws IOException {
-    pythonServerCommand = System.getProperty("pythonTestExpansionCommand");
     expansionPort = Integer.valueOf(System.getProperty("expansionPort"));
     int localExpansionPort = expansionPort + 100;
     localExpansionAddr = String.format("localhost:%s", localExpansionPort);
@@ -86,26 +84,27 @@ public class ExternalTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void expandSingleTest() {
-    PCollection<Integer> col =
+    PCollection<String> col =
         testPipeline
-            .apply(Create.of(1, 2, 3))
+            .apply(Create.of("1", "2", "3"))
             .apply(External.of(TEST_URN_SIMPLE, new byte[] {}, localExpansionAddr));
-    PAssert.that(col).containsInAnyOrder(2, 3, 4);
+    PAssert.that(col).containsInAnyOrder("Simple(1)", "Simple(2)", "Simple(3)");
     testPipeline.run();
   }
 
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void expandMultipleTest() {
-    PCollection<Integer> pcol =
+    PCollection<String> pcol =
         testPipeline
-            .apply(Create.of(1, 2, 3))
-            .apply("add one", External.of(TEST_URN_SIMPLE, new byte[] {}, localExpansionAddr))
+            .apply(Create.of(1, 2, 3, 4, 5, 6))
             .apply(
                 "filter <=3",
-                External.of(TEST_URN_LE, "3".getBytes(StandardCharsets.UTF_8), localExpansionAddr));
+                External.of(TEST_URN_LE, "3".getBytes(StandardCharsets.UTF_8), localExpansionAddr))
+            .apply(MapElements.into(TypeDescriptors.strings()).via(Object::toString))
+            .apply("put simple", External.of(TEST_URN_SIMPLE, new byte[] {}, localExpansionAddr));
 
-    PAssert.that(pcol).containsInAnyOrder(2, 3);
+    PAssert.that(pcol).containsInAnyOrder("Simple(1)", "Simple(2)", "Simple(3)");
     testPipeline.run();
   }
 
@@ -123,20 +122,10 @@ public class ExternalTest implements Serializable {
     testPipeline.run();
   }
 
-  private Process runCommandline(String command) {
-    ProcessBuilder builder = new ProcessBuilder("sh", "-c", command);
-    try {
-      return builder.start();
-    } catch (IOException e) {
-      throw new AssertionError("process launch failed.");
-    }
-  }
-
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void expandPythonTest() {
     String target = String.format("localhost:%s", expansionPort);
-    Process p = runCommandline(String.format("%s -p %s", pythonServerCommand, expansionPort));
     try {
       ManagedChannel channel = ManagedChannelBuilder.forTarget(target).build();
       ConnectivityState state = channel.getState(true);
@@ -150,17 +139,17 @@ public class ExternalTest implements Serializable {
           testPipeline
               .apply(Create.of("1", "2", "2", "3", "3", "3"))
               .apply(
-                  "toBytes",
-                  MapElements.into(new TypeDescriptor<byte[]>() {}).via(String::getBytes))
-              .apply(External.<byte[]>of("count_per_element_bytes", new byte[] {}, target))
-              .apply("toString", MapElements.into(TypeDescriptors.strings()).via(String::new));
+                  External.<KV<String, Integer>>of(
+                      "beam:transforms:xlang:count", new byte[] {}, target))
+              .apply(
+                  "toString",
+                  MapElements.into(TypeDescriptors.strings())
+                      .via(x -> String.format("%s->%s", x.getKey(), x.getValue())));
 
       PAssert.that(pCol).containsInAnyOrder("1->1", "2->2", "3->3");
       testPipeline.run();
     } catch (InterruptedException e) {
       throw new RuntimeException("interrupted.");
-    } finally {
-      p.destroyForcibly();
     }
   }
 
@@ -175,7 +164,9 @@ public class ExternalTest implements Serializable {
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(
           TEST_URN_SIMPLE,
-              spec -> MapElements.into(TypeDescriptors.integers()).via((Integer x) -> x + 1),
+              spec ->
+                  MapElements.into(TypeDescriptors.strings())
+                      .via((String x) -> String.format("Simple(%s)", x)),
           TEST_URN_LE,
               spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
           TEST_URN_MULTI,

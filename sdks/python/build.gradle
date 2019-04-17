@@ -397,10 +397,10 @@ project.task('crossLanguagePythonJavaFlink') {
   dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
   dependsOn ':beam-sdks-python-container:docker'
   dependsOn ':beam-sdks-java-container:docker'
-  dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
+  dependsOn ':beam-sdks-java-test-expansion-service:buildTestExpansionServiceJar'
 
   doLast {
-    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def testServiceExpansionJar = project(":beam-sdks-java-test-expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
             "--runner=PortableRunner",
             "--experiments=worker_threads=100",
@@ -422,10 +422,10 @@ project.task('crossLanguagePortableWordCount') {
   dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
   dependsOn ':beam-sdks-python-container:docker'
   dependsOn ':beam-sdks-java-container:docker'
-  dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
+  dependsOn ':beam-sdks-java-test-expansion-service:buildTestExpansionServiceJar'
 
   doLast {
-    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def testServiceExpansionJar = project(":beam-sdks-java-test-expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
             "--input=/etc/profile",
             "--output=/tmp/py-wordcount-portable",

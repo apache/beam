@@ -56,24 +56,3 @@ task runExpansionService (type: JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
-
-task runTestExpansionService (type: JavaExec) {
-  main = "org.apache.beam.runners.core.construction.expansion.TestExpansionService"
-  classpath = sourceSets.test.runtimeClasspath
-  args = [project.findProperty("constructionService.port") ?: "8097"]
-}
-
-task buildTestExpansionServiceJar(type: Jar) {
-  dependsOn = [shadowJar, shadowTestJar]
-  appendix = "testExpansionService"
-  // Use zip64 mode to avoid "Archive contains more than 65535 entries".
-  zip64 = true
-  manifest {
-    attributes(
-            'Main-Class': 'org.apache.beam.runners.core.construction.expansion.TestExpansionService'
-    )
-  }
-  from { configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
-  from sourceSets.main.output
-  from sourceSets.test.output
-}

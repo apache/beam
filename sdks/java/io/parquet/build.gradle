@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature()
@@ -40,4 +41,16 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
+}
+
+task shadowJarWithDependencies(type: ShadowJar) {
+  configurations = [project.configurations.shadow]
+  appendix = "withDependencies"
+  // Use zip64 mode to avoid "Archive contains more than 65535 entries".
+  zip64 = true
+  mergeServiceFiles()
+  dependencies {
+    exclude(project(path: ":beam-sdks-java-core", configuration: "shadow"))
+  }
+  from sourceSets.main.output
 }

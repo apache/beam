@@ -70,7 +70,7 @@ def run(p, input_file, output_file):
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
                           .with_output_types(bytes))
             | 'count' >> beam.ExternalTransform(
-                'pytest:beam:transforms:count', None, EXPANSION_SERVICE_ADDR))
+                'beam:transforms:xlang:count', None, EXPANSION_SERVICE_ADDR))
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
