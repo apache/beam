@@ -193,13 +193,13 @@ class CodersTest(unittest.TestCase):
 
   def test_timestamp_coder(self):
     self.check_coder(coders.TimestampCoder(),
-                     *[timestamp.Timestamp(micros=x) for x in range(-100, 100)])
+                     *[timestamp.Timestamp(micros=x) for x in (-1000, 0, 1000)])
     self.check_coder(coders.TimestampCoder(),
-                     timestamp.Timestamp(micros=-1234567890),
-                     timestamp.Timestamp(micros=1234567890))
+                     timestamp.Timestamp(micros=-1234567000),
+                     timestamp.Timestamp(micros=1234567000))
     self.check_coder(coders.TimestampCoder(),
-                     timestamp.Timestamp(micros=-1234567890123456789),
-                     timestamp.Timestamp(micros=1234567890123456789))
+                     timestamp.Timestamp(micros=-1234567890123456000),
+                     timestamp.Timestamp(micros=1234567890123456000))
     self.check_coder(
         coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
         (timestamp.Timestamp.of(27), b'abc'))
@@ -208,10 +208,10 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders._TimerCoder(coders.BytesCoder()),
                      *[{'timestamp': timestamp.Timestamp(micros=x),
                         'payload': b'xyz'}
-                       for x in range(-3, 3)])
+                       for x in (-3000, 0, 3000)])
     self.check_coder(
         coders.TupleCoder((coders._TimerCoder(coders.VarIntCoder()),)),
-        ({'timestamp': timestamp.Timestamp.of(37), 'payload': 389},))
+        ({'timestamp': timestamp.Timestamp.of(37000), 'payload': 389},))
 
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
