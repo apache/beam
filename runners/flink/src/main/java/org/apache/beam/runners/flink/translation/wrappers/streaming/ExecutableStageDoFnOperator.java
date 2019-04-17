@@ -378,6 +378,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   private void setTimer(WindowedValue<InputT> timerElement, TimerInternals.TimerData timerData) {
     try {
+      LOG.debug("Setting timer: {} {}", timerElement, timerData);
       // KvToByteBufferKeySelector returns the key encoded
       ByteBuffer encodedKey = (ByteBuffer) keySelector.getKey(timerElement);
       // We have to synchronize to ensure the state backend is not concurrently accessed by the
@@ -385,7 +386,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       try {
         stateBackendLock.lock();
         getKeyedStateBackend().setCurrentKey(encodedKey);
-        timerInternals.setTimer(timerData);
+        if (timerData.getTimestamp().isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          timerInternals.deleteTimer(
+              timerData.getNamespace(), timerData.getTimerId(), timerData.getDomain());
+        } else {
+          timerInternals.setTimer(timerData);
+        }
       } finally {
         stateBackendLock.unlock();
       }

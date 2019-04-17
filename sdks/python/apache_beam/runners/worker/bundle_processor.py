@@ -381,8 +381,12 @@ class OutputTimer(object):
         windowed_value.WindowedValue(
             (self._key, dict(timestamp=ts)), ts, (self._window,)))
 
-  def clear(self, timestamp):
-    self._receiver.receive((self._key, dict(clear=True)))
+  def clear(self):
+    dummy_millis = int(common_urns.constants.MAX_TIMESTAMP_MILLIS.constant) + 1
+    clear_ts = timestamp.Timestamp(micros=dummy_millis * 1000)
+    self._receiver.receive(
+        windowed_value.WindowedValue(
+            (self._key, dict(timestamp=clear_ts)), 0, (self._window,)))
 
 
 class FnApiUserStateContext(userstate.UserStateContext):

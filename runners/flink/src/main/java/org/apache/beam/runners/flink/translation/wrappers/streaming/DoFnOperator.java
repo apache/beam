@@ -1015,7 +1015,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     @Override
     public void setTimer(TimerData timer) {
       try {
-        String contextTimerId = getContextTimerId(timer);
+        String contextTimerId = getContextTimerId(timer.getTimerId(), timer.getNamespace());
         // Only one timer can exist at a time for a given timer id and context.
         // If a timer gets set twice in the same context, the second must
         // override the first. Thus, we must cancel any pending timers
@@ -1052,15 +1052,15 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     void cleanupPendingTimer(TimerData timer) {
       try {
-        pendingTimersById.remove(getContextTimerId(timer));
+        pendingTimersById.remove(getContextTimerId(timer.getTimerId(), timer.getNamespace()));
       } catch (Exception e) {
         throw new RuntimeException("Failed to cleanup state with pending timers", e);
       }
     }
 
     /** Unique contextual id of a timer. Used to look up any existing timers in a context. */
-    private String getContextTimerId(TimerData timer) {
-      return timer.getTimerId() + timer.getNamespace().stringKey();
+    private String getContextTimerId(String timerId, StateNamespace namespace) {
+      return timerId + namespace.stringKey();
     }
 
     /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
@@ -1072,7 +1072,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      throw new UnsupportedOperationException("Canceling of a timer by ID is not yet supported.");
+      try {
+        cancelPendingTimerById(getContextTimerId(timerId, namespace));
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to cancel timer", e);
+      }
     }
 
     /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
