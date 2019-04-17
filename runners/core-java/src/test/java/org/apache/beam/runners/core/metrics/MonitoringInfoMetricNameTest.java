@@ -36,8 +36,6 @@ public class MonitoringInfoMetricNameTest implements Serializable {
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
-    assertEquals(null, name.getName());
-    assertEquals(null, name.getNamespace());
     assertEquals(labels, name.getLabels());
     assertEquals(urn, name.getUrn());
 

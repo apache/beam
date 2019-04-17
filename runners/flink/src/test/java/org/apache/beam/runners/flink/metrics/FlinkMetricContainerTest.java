@@ -37,8 +37,10 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.DistributionCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer.FlinkDistributionGauge;
 import org.apache.beam.sdk.metrics.Counter;
@@ -153,7 +155,6 @@ public class FlinkMetricContainerTest {
     assertThat(elemCounter.getCount(), is(0L));
     container.updateMetrics(
         "step", ImmutableList.of(userCountMonitoringInfo, elemCountMonitoringInfo));
-    new org.mockito.internal.debugging.MockitoDebuggerImpl().printInvocations(metricGroup);
     assertThat(userCounter.getCount(), is(111L));
     assertThat(elemCounter.getCount(), is(222L));
   }
@@ -161,7 +162,7 @@ public class FlinkMetricContainerTest {
   @Test
   public void testDropUnexpectedMonitoringInfoTypes() {
     FlinkMetricContainer flinkContainer = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = flinkContainer.getMetricsContainer("step");
+    MetricsContainerImpl step = flinkContainer.getMetricsContainer("step");
 
     MonitoringInfo intCounter =
         MonitoringInfo.newBuilder()
@@ -236,7 +237,7 @@ public class FlinkMetricContainerTest {
 
     // Verify the counter in the java SDK MetricsContainer
     long count =
-        ((CounterCell) step.getCounter(MetricName.named("ns1", "int_counter"))).getCumulative();
+        ((CounterCell) step.tryGetCounter(MonitoringInfoMetricName.of(intCounter))).getCumulative();
     assertThat(count, is(111L));
 
     // The one Flink distribution that gets created is a FlinkDistributionGauge; here we verify its
@@ -256,7 +257,7 @@ public class FlinkMetricContainerTest {
 
     // Verify that the Java SDK MetricsContainer holds the same information
     DistributionData distributionData =
-        ((DistributionCell) step.getDistribution(MetricName.named("ns3", "int_distribution")))
+        ((DistributionCell) step.getDistribution(MonitoringInfoMetricName.of(intDistribution)))
             .getCumulative();
     assertThat(distributionData, is(DistributionData.create(30, 10, 1, 5)));
   }
