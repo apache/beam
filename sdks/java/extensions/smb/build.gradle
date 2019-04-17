@@ -23,6 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: SMB"
 
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-sorter", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
   testCompile library.java.junit
 }
