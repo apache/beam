@@ -106,6 +106,60 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
   }
 
   @Test
+  public void testLeftOuterJoinWithEmptyTuplesOnRightSide() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " LEFT OUTER JOIN (SELECT * FROM ORDER_DETAILS2 WHERE FALSE) o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addNullableField("order_id0", Schema.FieldType.INT32)
+                        .addNullableField("site_id0", Schema.FieldType.INT32)
+                        .addNullableField("price0", Schema.FieldType.INT32)
+                        .build())
+                .addRows(
+                    1, 2, 3, null, null, null, 2, 3, 3, null, null, null, 3, 4, 5, null, null, null)
+                .getRows());
+    pipeline.run();
+  }
+
+  @Test
+  public void testInnerJoinWithEmptyTuplesOnRightSide() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " INNER JOIN (SELECT * FROM ORDER_DETAILS2 WHERE FALSE) o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addNullableField("order_id0", Schema.FieldType.INT32)
+                        .addNullableField("site_id0", Schema.FieldType.INT32)
+                        .addNullableField("price0", Schema.FieldType.INT32)
+                        .build())
+                .getRows());
+    pipeline.run();
+  }
+
+  @Test
   public void testRightOuterJoin() throws Exception {
     String sql =
         "SELECT *  "
