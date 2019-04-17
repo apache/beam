@@ -115,6 +115,8 @@ include "beam-sdks-java-extensions-protobuf"
 project(":beam-sdks-java-extensions-protobuf").dir = file("sdks/java/extensions/protobuf")
 include "beam-sdks-java-extensions-sketching"
 project(":beam-sdks-java-extensions-sketching").dir = file("sdks/java/extensions/sketching")
+include "beam-sdks-java-extensions-smb"
+project(":beam-sdks-java-extensions-smb").dir = file("sdks/java/extensions/smb")
 include "beam-sdks-java-extensions-sorter"
 project(":beam-sdks-java-extensions-sorter").dir = file("sdks/java/extensions/sorter")
 include "beam-sdks-java-extensions-sql"
