@@ -27,7 +27,7 @@ ext.summary = "IO to read and write on JDBC datasource."
 dependencies {
   shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow "org.apache.commons:commons-dbcp2:2.1.1"
+  shadow "org.apache.commons:commons-dbcp2:2.6.0"
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
