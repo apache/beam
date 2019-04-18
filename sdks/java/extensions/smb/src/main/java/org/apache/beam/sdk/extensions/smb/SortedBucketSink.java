@@ -39,13 +39,13 @@ import org.joda.time.format.DateTimeFormat;
 public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
     PTransform<PCollection<ValueT>, WriteResult> {
 
-  private final BucketingMetadata<SortingKeyT, ValueT> bucketingMetadata;
+  private final BucketMetadata<SortingKeyT, ValueT> bucketingMetadata;
   private final FilenamePolicy filenamePolicy; // @Todo: custom SMB FilenamePolicy impl?
   private final OutputFileHints outputFileHints;
   private final ValueProvider<ResourceId> tempDirectoryProvider;
 
   public SortedBucketSink(
-      BucketingMetadata<SortingKeyT, ValueT> bucketingMetadata,
+      BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
       FilenamePolicy filenamePolicy,
       OutputFileHints outputFileHints,
       ValueProvider<ResourceId> tempDirectoryProvider) {
