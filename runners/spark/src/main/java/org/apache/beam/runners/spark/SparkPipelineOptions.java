@@ -33,8 +33,10 @@ import org.apache.beam.sdk.options.StreamingOptions;
 public interface SparkPipelineOptions
     extends PipelineOptions, StreamingOptions, ApplicationNameOptions {
 
+  String DEFAULT_MASTER_URL = "local[4]";
+
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
-  @Default.String("local[4]")
+  @Default.String(DEFAULT_MASTER_URL)
   String getSparkMaster();
 
   void setSparkMaster(String master);
