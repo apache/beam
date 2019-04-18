@@ -15,30 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kinesis;
+package org.apache.beam.sdk.io.common;
 
-import com.google.common.testing.EqualsTester;
-import java.util.NoSuchElementException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import java.io.IOException;
+import java.net.ServerSocket;
 
-/** Tests {@link CustomOptional}. */
-@RunWith(JUnit4.class)
-public class CustomOptionalTest {
-
-  @Test(expected = NoSuchElementException.class)
-  public void absentThrowsNoSuchElementExceptionOnGet() {
-    CustomOptional.absent().get();
-  }
-
-  @Test
-  public void testEqualsAndHashCode() {
-    new EqualsTester()
-        .addEqualityGroup(CustomOptional.absent(), CustomOptional.absent())
-        .addEqualityGroup(CustomOptional.of(3), CustomOptional.of(3))
-        .addEqualityGroup(CustomOptional.of(11))
-        .addEqualityGroup(CustomOptional.of("3"))
-        .testEquals();
+/** This class contains helper methods for networking related tasks in tests. */
+public class NetworkTestHelper {
+  /** @return Next available port in local interface */
+  public static synchronized int getAvailableLocalPort() throws IOException {
+    try (ServerSocket socket = new ServerSocket(0); ) {
+      return socket.getLocalPort();
+    }
   }
 }

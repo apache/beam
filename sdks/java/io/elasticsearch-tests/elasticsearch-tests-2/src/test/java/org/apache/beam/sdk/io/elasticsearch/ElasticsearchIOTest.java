@@ -25,7 +25,7 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.get
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.ServerSocket;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.common.settings.Settings;
@@ -64,9 +64,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() throws IOException {
-    ServerSocket serverSocket = new ServerSocket(0);
-    esHttpPort = serverSocket.getLocalPort();
-    serverSocket.close();
+    esHttpPort = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
         Settings.settingsBuilder()

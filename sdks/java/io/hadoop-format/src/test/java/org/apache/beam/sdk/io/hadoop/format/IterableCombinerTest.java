@@ -30,8 +30,11 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests Iterable combiner whether works correctly. */
+@RunWith(JUnit4.class)
 public class IterableCombinerTest {
 
   private static final TypeDescriptor<String> STRING_TYPE_DESCRIPTOR = TypeDescriptors.strings();
