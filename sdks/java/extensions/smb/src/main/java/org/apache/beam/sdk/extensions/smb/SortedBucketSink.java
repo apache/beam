@@ -178,7 +178,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
   /**
    * Moves written temp files to their final destinations. Input is a map of bucket -> temp path
    */
-  class FinalizeTempFiles extends PTransform<PCollection<KV<Integer, ResourceId>>, WriteResult> {
+  static class FinalizeTempFiles extends PTransform<PCollection<KV<Integer, ResourceId>>, WriteResult> {
     FinalizeTempFiles() {
     }
 
