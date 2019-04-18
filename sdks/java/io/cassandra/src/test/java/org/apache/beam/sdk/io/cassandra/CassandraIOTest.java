@@ -39,10 +39,8 @@ import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
 import info.archinnov.achilles.embedded.CassandraShutDownHook;
-import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -60,6 +58,7 @@ import javax.management.remote.JMXServiceURL;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.TokenRange;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -110,8 +109,8 @@ public class CassandraIOTest implements Serializable {
   private static CassandraShutDownHook shutdownHook;
 
   @BeforeClass
-  public static void startCassandra() throws Exception {
-    jmxPort = getFreeLocalPort();
+  public static void beforeClass() throws Exception {
+    jmxPort = NetworkTestHelper.getAvailableLocalPort();
     shutdownHook = new CassandraShutDownHook();
     // randomized port at startup
     String data = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "data").getPath();
@@ -134,6 +133,15 @@ public class CassandraIOTest implements Serializable {
     cassandraPort = cluster.getConfiguration().getProtocolOptions().getPort();
     session = CassandraIOTest.cluster.newSession();
 
+    insertData();
+  }
+
+  @AfterClass
+  public static void afterClass() throws InterruptedException {
+    shutdownHook.shutDownNow();
+  }
+
+  private static void insertData() throws Exception {
     LOGGER.info("Create Cassandra tables");
     session.execute(
         String.format(
@@ -145,22 +153,7 @@ public class CassandraIOTest implements Serializable {
             "CREATE TABLE IF NOT EXISTS %s.%s(person_id int, person_name text, PRIMARY KEY"
                 + "(person_id));",
             CASSANDRA_KEYSPACE, CASSANDRA_TABLE_WRITE));
-    insertRecords();
-  }
 
-  private static int getFreeLocalPort() throws IOException {
-    ServerSocket serverSocket = new ServerSocket(0);
-    int port = serverSocket.getLocalPort();
-    serverSocket.close();
-    return port;
-  }
-
-  @AfterClass
-  public static void stopCassandra() throws InterruptedException {
-    shutdownHook.shutDownNow();
-  }
-
-  private static void insertRecords() throws Exception {
     LOGGER.info("Insert records");
     String[] scientists = {
       "Einstein",

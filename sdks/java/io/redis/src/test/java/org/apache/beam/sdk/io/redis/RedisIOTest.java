@@ -19,12 +19,12 @@ package org.apache.beam.sdk.io.redis;
 
 import static org.junit.Assert.assertEquals;
 
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.redis.RedisIO.Write.Method;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -36,10 +36,13 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import redis.clients.jedis.Jedis;
 import redis.embedded.RedisServer;
 
 /** Test on the Redis IO. */
+@RunWith(JUnit4.class)
 public class RedisIOTest {
 
   private static final String REDIS_HOST = "localhost";
@@ -53,9 +56,7 @@ public class RedisIOTest {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    try (ServerSocket serverSocket = new ServerSocket(0)) {
-      port = serverSocket.getLocalPort();
-    }
+    port = NetworkTestHelper.getAvailableLocalPort();
     server = new RedisServer(port);
     server.start();
     client = RedisConnectionConfiguration.create(REDIS_HOST, port).connect();

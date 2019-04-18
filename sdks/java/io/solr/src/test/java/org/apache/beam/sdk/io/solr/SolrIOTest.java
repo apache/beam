@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.solr.SolrIO.RetryConfiguration.DEFAULT_RETR
 import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
 
 import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.ImmutableSet;
+import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -57,12 +58,14 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A test of {@link SolrIO} on an independent Solr instance. */
 @ThreadLeakScope(value = ThreadLeakScope.Scope.NONE)
 @SolrTestCaseJ4.SuppressSSL
+@RunWith(RandomizedRunner.class)
 public class SolrIOTest extends SolrCloudTestCase {
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 

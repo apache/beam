@@ -26,6 +26,7 @@ dependencies {
   shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "redis.clients:jedis:3.0.1"
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core

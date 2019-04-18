@@ -24,14 +24,13 @@ import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
-import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -73,13 +72,6 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
   private static final EmbeddedCassandraService cassandra = new EmbeddedCassandraService();
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
-
-  private static int getFreeLocalPort() throws IOException {
-    ServerSocket serverSocket = new ServerSocket(0);
-    int port = serverSocket.getLocalPort();
-    serverSocket.close();
-    return port;
-  }
 
   /**
    * Test to read data from embedded Cassandra instance and verify whether data is read
@@ -192,8 +184,8 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
 
   @BeforeClass
   public static void startCassandra() throws Exception {
-    cassandraPort = getFreeLocalPort();
-    cassandraNativePort = getFreeLocalPort();
+    cassandraPort = NetworkTestHelper.getAvailableLocalPort();
+    cassandraNativePort = NetworkTestHelper.getAvailableLocalPort();
     replacePortsInConfFile();
     // Start the Embedded Cassandra Service
     cassandra.start();

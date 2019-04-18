@@ -22,8 +22,11 @@ import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests {@link KinesisRecordCoder}. */
+@RunWith(JUnit4.class)
 public class KinesisRecordCoderTest {
 
   @Test

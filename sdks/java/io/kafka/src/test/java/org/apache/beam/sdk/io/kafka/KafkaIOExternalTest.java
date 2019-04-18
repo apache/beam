@@ -42,8 +42,11 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.hamcrest.Matchers;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for building {@link KafkaIO} externally via the ExpansionService. */
+@RunWith(JUnit4.class)
 public class KafkaIOExternalTest {
   @Test
   public void testConstructKafkaIO() throws Exception {
