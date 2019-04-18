@@ -1,30 +1,31 @@
 package org.apache.beam.sdk.extensions.smb;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+    import com.fasterxml.jackson.annotation.JsonIgnore;
+    import com.fasterxml.jackson.annotation.JsonProperty;
+    import com.fasterxml.jackson.annotation.JsonSubTypes;
+    import com.fasterxml.jackson.annotation.JsonTypeInfo;
+    import com.fasterxml.jackson.core.JsonProcessingException;
+    import com.fasterxml.jackson.databind.ObjectMapper;
+    import java.util.Objects;
+    import org.apache.beam.sdk.coders.CannotProvideCoderException;
+    import org.apache.beam.sdk.coders.Coder;
+    import org.apache.beam.sdk.coders.CoderException;
+    import org.apache.beam.sdk.coders.CoderRegistry;
+    import org.apache.beam.sdk.util.CoderUtils;
+    import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
+    import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Serializable;
+    import java.io.IOException;
+    import java.io.InputStream;
+    import java.io.Serializable;
 
 // @Todo = everything. This is just a placeholder for the kind of functionality we need
 @JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = "type")
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = "type")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = AvroBucketMetadata.class)
+    @JsonSubTypes.Type(value = AvroBucketMetadata.class)
 })
 public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializable {
 
@@ -44,8 +45,8 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   private final HashFunction hashFunction;
 
   public BucketMetadata(int numBuckets,
-                        Class<SortingKeyT> sortingKeyClass,
-                        HashType hashType) throws CannotProvideCoderException {
+      Class<SortingKeyT> sortingKeyClass,
+      HashType hashType) throws CannotProvideCoderException {
     this.numBuckets = numBuckets;
     this.sortingKeyClass = sortingKeyClass;
     this.hashType = hashType;
@@ -69,6 +70,28 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
     };
 
     public abstract HashFunction create();
+  }
+
+  // @Todo: more sophisticated comparison rules.
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    BucketMetadata<?, ?> that = (BucketMetadata<?, ?>) o;
+    return numBuckets == that.numBuckets &&
+        Objects.equals(sortingKeyClass, that.sortingKeyClass) &&
+        hashType == that.hashType &&
+        Objects.equals(sortingKeyCoder, that.sortingKeyCoder) &&
+        Objects.equals(hashFunction, that.hashFunction);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(numBuckets, sortingKeyClass, hashType, sortingKeyCoder, hashFunction);
   }
 
   ////////////////////////////////////////

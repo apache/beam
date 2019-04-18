@@ -24,6 +24,13 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: SMB"
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-sorter", configuration: "shadow")
+
+  // Required by sorter module
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.hadoop_common
+
   shadow library.java.vendored_guava_20_0
   testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
 }
