@@ -21,6 +21,8 @@ from __future__ import print_function
 
 import logging
 import math
+import time
+
 import queue
 import sys
 import threading
@@ -46,6 +48,8 @@ class FnApiLogRecordHandler(logging.Handler):
   # Size of the queue used to buffer messages. Once full, messages will be
   # dropped. If the average log size is 1KB this may use up to 10MB of memory.
   _QUEUE_SIZE = 10000
+  # Maximum consecutive failure before abandoning the connection retry.
+  _MAX_CONSECUTIVE_CONNECTION_FAILURE = 3
 
   # Mapping from logging levels to LogEntry levels.
   LOG_LEVEL_MAP = {
@@ -59,6 +63,7 @@ class FnApiLogRecordHandler(logging.Handler):
   def __init__(self, log_service_descriptor):
     super(FnApiLogRecordHandler, self).__init__()
 
+    self._alive = True
     self._dropped_logs = 0
     self._log_entry_queue = queue.Queue(maxsize=self._QUEUE_SIZE)
 
@@ -66,9 +71,6 @@ class FnApiLogRecordHandler(logging.Handler):
     # Make sure the channel is ready to avoid [BEAM-4649]
     grpc.channel_ready_future(ch).result(timeout=60)
     self._log_channel = grpc.intercept_channel(ch, WorkerIdInterceptor())
-    self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
-        self._log_channel)
-
     self._reader = threading.Thread(
         target=lambda: self._read_log_control_messages(),
         name='read_log_control_messages')
@@ -76,6 +78,11 @@ class FnApiLogRecordHandler(logging.Handler):
     self._reader.start()
 
   def connect(self):
+    logging.error('ankur: logging client connect')
+    if hasattr(self, '_logging_stub'):
+      del self._logging_stub
+    self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
+        self._log_channel)
     return self._logging_stub.Logging(self._write_log_entries())
 
   def emit(self, record):
@@ -95,6 +102,7 @@ class FnApiLogRecordHandler(logging.Handler):
       self._dropped_logs += 1
 
   def close(self):
+    self._alive = False
     """Flush out all existing log entries and unregister this handler."""
     # Acquiring the handler lock ensures ``emit`` is not run until the lock is
     # released.
@@ -122,13 +130,22 @@ class FnApiLogRecordHandler(logging.Handler):
         yield beam_fn_api_pb2.LogEntry.List(log_entries=log_entries)
 
   def _read_log_control_messages(self):
-    while True:
+    # Only reconnect when we are alive.
+    # There is an unlikely event when we can drop the logs at termination which
+    # We can drop some logs in the unlikely event of logging connection is
+    # dropped(not closed) during termination when we still have logs to be sent.
+    # This case is unlikely and the chance of reconnection and successful
+    # transmission of logs is also very less as the process is terminating.
+    # I choose not to handle this case to avoid un-necessary code complexity.
+    # Loop for reconnection.
+    while self._alive:
       log_control_iterator = self.connect()
       if self._dropped_logs > 0:
         logging.warn("Dropped %d logs while logging client disconnected",
                      self._dropped_logs)
         self._dropped_logs = 0
       try:
+        # Loop for consuming messages from server.
         for _ in log_control_iterator:
           # TODO(vikasrk): Handle control messages.
           pass
@@ -137,3 +154,5 @@ class FnApiLogRecordHandler(logging.Handler):
       except Exception as ex:
         print("Logging client failed: {}... resetting".format(ex),
               file=sys.stderr)
+        # Wait a bit before trying a reconnect
+        time.sleep(0.5) # 0.5 seconds

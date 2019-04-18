@@ -17,6 +17,7 @@
 """SDK Fn Harness entry point."""
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import http.server
 import json
@@ -82,6 +83,10 @@ class StatusServer(object):
 
     self.httpd = httpd = http.server.HTTPServer(
         ('localhost', status_http_port), StatusHttpHandler)
+    print('Status HTTP server running at %s:%s' % (
+    httpd.server_name, httpd.server_port), file=sys.stderr)
+    print('Status HTTP server running at %s:%s' % (
+    httpd.server_name, httpd.server_port))
     logging.info('Status HTTP server running at %s:%s', httpd.server_name,
                  httpd.server_port)
 

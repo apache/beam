@@ -119,6 +119,7 @@ class SdkHarness(object):
     def get_responses():
       while True:
         response = self._responses.get()
+        logging.error("ankur: response %s"%(response))
         if response is no_more_work:
           return
         yield response
