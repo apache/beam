@@ -765,6 +765,9 @@ message ProcessBundleSplitRequest {
 
     // TODO(SDF): Allow providing weights rather than sizes.
     // TODO(SDF): Allow specifying allowed/preferred split points.
+
+    // A set of allowed indices where the SDK may split.
+    repeated int64 allowed_split_points = 3;
   }
 
   // (Required) Specifies the desired split for each transform.
