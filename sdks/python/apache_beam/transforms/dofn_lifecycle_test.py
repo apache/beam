@@ -33,8 +33,6 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._teardown_called = False
 
   def setup(self):
-    # Use assert instead of unittest.TestCase.assert* methods because
-    # this is not a TestCase
     assert not self._setup_called,'setup should not be called twice'
     assert self._start_bundle_calls == 0, 'setup should be called before start_bundle'
     assert self._finish_bundle_calls == 0, 'setup should be called before finish_bundle'
@@ -42,17 +40,13 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._setup_called = True
 
   def start_bundle(self):
-    # Use assert instead of unittest.TestCase.assert* methods because
-    # this is not a TestCase
     assert self._setup_called, 'setup should have been called'
     assert self._start_bundle_calls == self._finish_bundle_calls , \
       'there should be as many start_bundle calls as finish_bundle calls'
     assert not self._teardown_called, 'teardown should not have been called'
     self._start_bundle_calls += 1
 
-  def process(self, element):
-    # Use assert instead of unittest.TestCase.assert* methods because
-    # this is not a TestCase
+  def process(self, element)
     assert self._setup_called, 'setup should have been called'
     assert self._start_bundle_calls > 0, 'start_bundle should have been called'
     assert self._start_bundle_calls == self._finish_bundle_calls + 1, \
@@ -61,8 +55,6 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     return [element * element]
 
   def finish_bundle(self):
-    # Use assert instead of unittest.TestCase.assert* methods because
-    # this is not a TestCase
     assert self._setup_called, 'setup should have been called'
     assert self._start_bundle_calls > 0, 'start_bundle should have been called'
     assert self._start_bundle_calls == self._finish_bundle_calls + 1, \
@@ -71,8 +63,6 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._finish_bundle_calls += 1
 
   def teardown(self):
-    # Use assert instead of unittest.TestCase.assert* methods because
-    # this is not a TestCase
     assert self._setup_called, 'setup should have been called'
     assert self._start_bundle_calls == self._finish_bundle_calls , \
       'there should be as many start_bundle calls as finish_bundle calls'
