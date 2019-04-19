@@ -11,8 +11,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 public class SortedBucketSource<KeyT>
         extends PTransform<PBegin, PCollection<KV<KeyT, SortedBucketSource.Result>>> {
@@ -69,16 +71,23 @@ public class SortedBucketSource<KeyT>
   // @Todo: this goes in a PCollection, needs Coder, or is SerializableCoder OK?
   // acts like TupleTag<T> in GBK, helps us to regain types of join results
   // also abstracts away file operation and key/value iteration
-  public static abstract class BucketSource<SortingKeyT, ValueT> implements Serializable {
+  public static abstract class BucketSource<KeyT, ValueT> implements Serializable {
 
     // encapsulate file path, Avro schema, etc.
     private String filePrefix;
+    private String fileSuffix;
     private SortedBucketFile<ValueT> file;
 
     // extract the next key and all values as a lazy iterable
-    public abstract KV<SortingKeyT, Iterable<ValueT>> nextKeyValues();
+    public BucketSourceReader<KeyT, ValueT> getReader(int bucketId) throws Exception {
+      String spec = String.format("%s-bucket-%05d.%s", filePrefix, bucketId, fileSuffix);
+      ResourceId resourceId = FileSystems.matchSingleFileSpec(spec).resourceId();
+      SortedBucketFile.Reader<ValueT> reader = file.createReader();
+      reader.prepareRead(FileSystems.open(resourceId));
+      return new BucketSourceReader<>(reader, readMetadata()::extractSortingKey);
+    }
 
-    public BucketMetadata<SortingKeyT, ValueT> readMetadata() {
+    public BucketMetadata<KeyT, ValueT> readMetadata() {
       try {
         ResourceId id = FileSystems.matchSingleFileSpec(filePrefix + "metadata.json").resourceId();
         return BucketMetadata.from(Channels.newInputStream(FileSystems.open(id)));
@@ -88,6 +97,71 @@ public class SortedBucketSource<KeyT>
     }
   }
 
-  public static abstract class Result {
+  public static class BucketSourceReader<KeyT, ValueT> {
+    private final SortedBucketFile.Reader<ValueT> reader;
+    private final Function<ValueT, KeyT> keyFn;
+    private KV<KeyT, ValueT> nextKv;
+
+    public BucketSourceReader(SortedBucketFile.Reader<ValueT> reader,
+                              Function<ValueT, KeyT> keyFn)
+        throws Exception {
+      this.reader = reader;
+      this.keyFn = keyFn;
+
+      ValueT value = reader.read();
+      if (value == null) {
+        nextKv = null;
+      } else {
+        nextKv = KV.of(keyFn.apply(value), value);
+      }
+    }
+
+    // group next continuous values of the same key in an iterator
+    public KV<KeyT, Iterator<ValueT>> nextKeyGroup() {
+      if (nextKv == null) {
+        return null;
+      } else {
+        Iterator<ValueT> iterator = new Iterator<ValueT>() {
+          private KeyT key = nextKv.getKey();
+          private ValueT value = nextKv.getValue();
+
+          @Override
+          public boolean hasNext() {
+            return value != null;
+          }
+
+          @Override
+          public ValueT next() {
+            try {
+              ValueT result = value;
+              ValueT v = reader.read();
+              if (v == null) {
+                // end of file, reset outer
+                value = null;
+                nextKv = null;
+              } else {
+                KeyT k = keyFn.apply(v);
+                if (key.equals(k)) {
+                  // same key, update next value
+                  value = v;
+                } else {
+                  // end of group, advance outer
+                  value = null;
+                  nextKv = KV.of(k, v);
+                }
+              }
+              return result;
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          }
+        };
+
+        return KV.of(nextKv.getKey(), iterator);
+      }
+    }
+  }
+
+  public static class Result {
   }
 }
