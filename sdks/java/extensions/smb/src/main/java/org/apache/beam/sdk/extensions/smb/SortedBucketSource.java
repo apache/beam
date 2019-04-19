@@ -2,10 +2,7 @@ package org.apache.beam.sdk.extensions.smb;
 
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -29,7 +26,11 @@ public class SortedBucketSource<KeyT>
         // wrap List in Optional so the item stays together
         .apply(Create.of(Optional.of(sources)))
         // read all metadata once to prepare buckets
-        .apply(ParDo.of(new PrepareBuckets<>()));
+        .apply(ParDo.of(new PrepareBuckets<>()))
+        // force each (bucketId -> List<BucketSource>) pair to a different core
+        // @Todo: is this guaranteed? Also Reshuffle is deprecated
+        .apply(Reshuffle.viaRandomKey());
+        // @Todo: merge join transform
     return null;
   }
 
@@ -40,7 +41,7 @@ public class SortedBucketSource<KeyT>
     public void processElement(ProcessContext c) {
       List<BucketSource<KeyT, Object>> sources = c.element().get();
 
-      // validation
+      // validate that all sources are compatible
       BucketMetadata<KeyT, Object> first = null;
       for (BucketSource<KeyT, Object> source : sources) {
         BucketMetadata<KeyT, Object> current = source.readMetadata();
@@ -65,6 +66,7 @@ public class SortedBucketSource<KeyT>
   ////////////////////////////////////////
 
   // @Todo: implement
+  // @Todo: this goes in a PCollection, needs Coder, or is SerializableCoder OK?
   // acts like TupleTag<T> in GBK, helps us to regain types of join results
   // also abstracts away file operation and key/value iteration
   public static abstract class BucketSource<SortingKeyT, ValueT> implements Serializable {
