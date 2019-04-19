@@ -1,7 +1,6 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -16,7 +15,6 @@ import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
-import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.transforms.Group;
@@ -51,7 +49,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
   private final SMBFilenamePolicy smbFilenamePolicy;
   private final SerializableFunction<Void, SortedBucketFile.Writer<ValueT>> writerProvider;
 
-  SortedBucketSink(
+  public SortedBucketSink(
       BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
       SMBFilenamePolicy smbFilenamePolicy,
       SerializableFunction<Void, SortedBucketFile.Writer<ValueT>> writerProvider
@@ -71,10 +69,11 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
     return input
         .apply("Assign buckets", ParDo.of(
             new ExtractBucketAndSortKey<SortingKeyT, ValueT>(this.bucketingMetadata))
-        ).setCoder(bucketedCoder)
-        .apply("Group per bucket", GroupByKey.create()) // @Todo: Verify fusion of these steps
+        ).setCoder(bucketedCoder) // @Todo: Verify fusion of these steps
+        .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
-        .apply("Write bucket data", new WriteOperation<>(smbFilenamePolicy, bucketingMetadata, writerProvider));
+        .apply("Write bucket data", new WriteOperation<>(
+            smbFilenamePolicy, bucketingMetadata, writerProvider));
   }
 
   /*
@@ -170,6 +169,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
     private final BucketMetadata bucketMetadata;
     private final SerializableFunction<Void, SortedBucketFile.Writer<V>> writerProvider;
 
+
     WriteTempFiles(
         FileAssignment tempFileAssignment,
         BucketMetadata bucketMetadata,
@@ -199,7 +199,9 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
 
                      final ResourceId tmpDst = tempFileAssignment
                          .forBucketShard(bucketId, bucketMetadata.getNumBuckets(), 1, 1);
+
                      final SortedBucketFile.Writer<V> writer = writerProvider.apply(null);
+
                      writer.prepareWrite(FileSystems.create(tmpDst, writer.getMimeType()));
 
                      try {
@@ -286,16 +288,21 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
                         final List<ResourceId> srcFiles = new ArrayList<>();
                         final List<ResourceId> dstFiles = new ArrayList<>();
 
+                        final List<KV<Integer, ResourceId>> finalBucketLocations = new ArrayList<>();
+
                         c.element().forEach(bucketAndTempLocation -> {
                           srcFiles.add(bucketAndTempLocation.getValue());
+
                           final ResourceId dstFile = finalizedFileAssignment
                               .forBucketShard(bucketAndTempLocation.getKey(), bucketMetadata.getNumBuckets(), 1, 1);
-                          dstFiles.add(dstFile);
 
-                          c.output(KV.of(bucketAndTempLocation.getKey(), dstFile));
+                          dstFiles.add(dstFile);
+                          finalBucketLocations.add(KV.of(bucketAndTempLocation.getKey(), dstFile));
                         });
 
                         FileSystems.rename(srcFiles, dstFiles);
+
+                        finalBucketLocations.forEach(c::output);
                       }
                     }));
 
