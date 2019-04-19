@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.MetricUrns.parseUrn;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
@@ -26,6 +25,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.DistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.ExtremaData;
@@ -59,6 +59,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
+
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
 
   @Nullable private final String stepName;
@@ -150,13 +151,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractUpdates(counters), extractUpdates(distributions), extractUpdates(gauges));
   }
 
-  /**
-   * @param metricUpdate
-   * @return The MonitoringInfo generated from the metricUpdate.
-   */
+  /** @return The MonitoringInfo generated from the metricUpdate. */
   @Nullable
   private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+
     MetricName metricName = metricUpdate.getKey().metricName();
     if (metricName instanceof MonitoringInfoMetricName) {
       MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
@@ -165,20 +164,26 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
         builder.setLabel(e.getKey(), e.getValue());
       }
-    } else { // Note: (metricName instanceof MetricName) is always True.
-      // Represents a user counter.
-      builder.setUrnForUserMetric(
-          metricUpdate.getKey().metricName().getNamespace(),
-          metricUpdate.getKey().metricName().getName());
+    } else { // Represents a user counter.
       // Drop if the stepname is not set. All user counters must be
       // defined for a PTransform. They must be defined on a container bound to a step.
       if (this.stepName == null) {
         return null;
       }
-      builder.setPTransformLabel(metricUpdate.getKey().stepName());
+
+      builder
+          .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+          .setLabel(
+              MonitoringInfoConstants.Labels.NAMESPACE,
+              metricUpdate.getKey().metricName().getNamespace())
+          .setLabel(
+              MonitoringInfoConstants.Labels.NAME, metricUpdate.getKey().metricName().getName())
+          .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
     }
+
     builder.setInt64Value(metricUpdate.getUpdate());
     builder.setTimestampToNow();
+
     return builder.build();
   }
 
@@ -191,7 +196,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
       MonitoringInfo mi = counterUpdateToMonitoringInfo(metricUpdate);
       if (mi != null) {
-        monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
+        monitoringInfos.add(mi);
       }
     }
     return monitoringInfos;
@@ -245,35 +250,37 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   public void update(Iterable<MonitoringInfo> monitoringInfos) {
     monitoringInfos.forEach(
         monitoringInfo -> {
-          if (monitoringInfo.hasMetric()) {
-            String urn = monitoringInfo.getUrn();
-            MetricName metricName = parseUrn(urn);
-            org.apache.beam.model.pipeline.v1.MetricsApi.Metric metric = monitoringInfo.getMetric();
-            if (metric.hasCounterData()) {
-              CounterData counterData = metric.getCounterData();
-              if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
-                Counter counter = getCounter(metricName);
-                counter.inc(counterData.getInt64Value());
-              } else {
-                LOG.warn("Unsupported CounterData type: {}", counterData);
-              }
-            } else if (metric.hasDistributionData()) {
-              DistributionData distributionData = metric.getDistributionData();
-              if (distributionData.hasIntDistributionData()) {
-                Distribution distribution = getDistribution(metricName);
-                IntDistributionData intDistributionData = distributionData.getIntDistributionData();
-                distribution.update(
-                    intDistributionData.getSum(),
-                    intDistributionData.getCount(),
-                    intDistributionData.getMin(),
-                    intDistributionData.getMax());
-              } else {
-                LOG.warn("Unsupported DistributionData type: {}", distributionData);
-              }
-            } else if (metric.hasExtremaData()) {
-              ExtremaData extremaData = metric.getExtremaData();
-              LOG.warn("Extrema metric unsupported: {}", extremaData);
+          if (!monitoringInfo.hasMetric()) {
+            return;
+          }
+
+          MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
+
+          MetricsApi.Metric metric = monitoringInfo.getMetric();
+          if (metric.hasCounterData()) {
+            CounterData counterData = metric.getCounterData();
+            if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
+              Counter counter = getCounter(metricName);
+              counter.inc(counterData.getInt64Value());
+            } else {
+              LOG.warn("Unsupported CounterData type: {}", counterData);
             }
+          } else if (metric.hasDistributionData()) {
+            DistributionData distributionData = metric.getDistributionData();
+            if (distributionData.hasIntDistributionData()) {
+              Distribution distribution = getDistribution(metricName);
+              IntDistributionData intDistributionData = distributionData.getIntDistributionData();
+              distribution.update(
+                  intDistributionData.getSum(),
+                  intDistributionData.getCount(),
+                  intDistributionData.getMin(),
+                  intDistributionData.getMax());
+            } else {
+              LOG.warn("Unsupported DistributionData type: {}", distributionData);
+            }
+          } else if (metric.hasExtremaData()) {
+            ExtremaData extremaData = metric.getExtremaData();
+            LOG.warn("Extrema metric unsupported: {}", extremaData);
           }
         });
   }

@@ -665,29 +665,35 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-    builder.setPCollectionLabel("Window.Into()/Window.Assign.out");
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "Window.Into()/Window.Assign.out");
     builder.setInt64Value(2);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-    builder.setPCollectionLabel(
+    builder.setLabel(
+        MonitoringInfoConstants.Labels.PCOLLECTION,
         "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
     builder.setInt64Value(2);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric(
-        TestSideInputIsAccessibleForDownstreamCallersDoFn.class.getName(),
-        TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
-    builder.setPTransformLabel(TEST_PTRANSFORM_ID);
+    builder
+        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setLabel(
+            MonitoringInfoConstants.Labels.NAMESPACE,
+            TestSideInputIsAccessibleForDownstreamCallersDoFn.class.getName())
+        .setLabel(
+            MonitoringInfoConstants.Labels.NAME,
+            TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_PTRANSFORM_ID);
     builder.setInt64Value(2);
     expected.add(builder.build());
 
     closeable.close();
     List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
-      result.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      result.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
     assertThat(result, containsInAnyOrder(expected.toArray()));
   }

@@ -50,9 +50,11 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsNoErrorOnValidMonitoringInfo() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn(Urns.USER_COUNTER_PREFIX + "someCounter")
+            .setUrn(Urns.USER_COUNTER)
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyCounter")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyString")
             .setType(TypeUrns.SUM_INT64)
-            .putLabels("dummy", "value")
             .build();
     assertFalse(testObject.validate(testInput).isPresent());
 
