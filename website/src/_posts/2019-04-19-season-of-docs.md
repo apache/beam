@@ -22,7 +22,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<img src="{{ "/images/blog/SoD.png" | prepend: site.baseurl }}" alt="Season of Docs 2019 flyer" height="360" width="640" >
+<img src="{{ "/images/blog/SoD.png" | prepend: site.baseurl }}" alt="Season of Docs 2019 flyer" height="455" width="640" >
 
 The Apache Beam community is thrilled to announce its application to the first edition of  Season of Docs 2019! 
 
@@ -37,25 +37,37 @@ The project ideas available in Apache Beam are described bellow. Please take a l
 ### Project ideas
 
 **Deployment of a Flink and Spark Clusters with Portable Beam**
+
 The Apache Beam vision has been to provide a framework for users to write and execute pipelines on the programming language of your choice, and the runner of your choice. As the reality of Beam has evolved towards this vision, the way in which Beam is run on top of runners such as Apache Spark and Apache Flink has changed.
+
 These changes are documented in the wiki and in design documents, and are accessible for Beam contributors; but they are not available in the user-facing documentation. This has been a barrier of adoption for other users of Beam.
+
 This project involves improving the Flink Runner page[1] to include strategies to deploy Beam on a few different environments: A Kubernetes cluster, a Google Cloud Dataproc cluster, and an AWS EMR cluster. There are other places in the documentation that should be updated in this regard[4][5].
+
 After working on the Flink Runner, then similar updates should be made to the Spark Runner page[2], and the getting started documentation[3].
+
 [1] https://beam.apache.org/documentation/runners/flink/ 
+
 [2] https://beam.apache.org/documentation/runners/spark/
+
 [3] https://beam.apache.org/get-started/beam-overview/
+
 [4] https://beam.apache.org/documentation/sdks/python-streaming/
+
 [5] https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features
 
 **The runner comparison page / capability matrix update**
+
 Beam maintains a capability matrix to track which Beam features are supported by which set of language SDKs + Runners[1].
 This project involves a number of corrections and improvements to the capability matrix[2]; followed by a few larger set of changes, involving:
+
 - Plain english summaries for each runner’s support of the Beam model.
 - A paragraph-length description of the production-readiness for each runner.
 - Comparisons for non-model differences between runners.
 - Comparison for support of the portability framework for each runner.
 
 [1] https://beam.apache.org/documentation/runners/capability-matrix/
+
 [2] https://issues.apache.org/jira/browse/BEAM-2888 
 
-
+Thank you, and we are looking forward to hearing from you!
