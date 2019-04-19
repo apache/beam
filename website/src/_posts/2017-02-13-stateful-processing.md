@@ -278,7 +278,7 @@ new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 
   // A state cell holding a single Integer per key+window
   @StateId("index")
-  private final StateSpec<ValueState<Integer>> indexSpec = 
+  private final StateSpec<ValueState<Integer>> indexSpec =
       StateSpecs.value(VarIntCoder.of());
 
   @ProcessElement
@@ -293,8 +293,15 @@ new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 ```
 
 ```py
-# State and timers are not yet supported in Beam's Python SDK.
-# Watch this space!
+class IndexAssigningStatefulDoFn(DoFn):
+  INDEX_STATE = BagStateSpec('index', VarIntCoder())
+
+  def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
+    unused_key, value = element
+    next_index, = list(state.read()) or [0]
+    yield (value, next_index)
+    state.clear()
+    state.add(next_index + 1)
 ```
 
 Let's dissect this:
@@ -371,8 +378,20 @@ class ModelFromEventsFn extends CombineFn<Event, Model, Model> {
 ```
 
 ```py
-# State and timers are not yet supported in Beam's Python SDK.
-# Watch this space!
+class ModelFromEventsFn(apache_beam.core.CombineFn):
+
+  def create_accumulator(self):
+    # Create a new empty model
+    return Model()
+
+  def add_input(self, model, input):
+    return model.update(input)
+
+  def merge_accumulators(self, accumulators):
+    # Custom merging logic
+
+  def extract_output(self, model):
+    return model
 ```
 
 Now you have a way to compute the model of a particular user for a window as
@@ -407,8 +426,24 @@ PCollection<KV<UserId, Prediction>> predictions = events
 ```
 
 ```py
-# State and timers are not yet supported in Beam's Python SDK.
-# Watch this space!
+# Events is a collection of (user, event) pairs.
+events = (p | ReadFromEventSource() | beam.WindowInto(....))
+
+user_models = beam.pvalue.AsDict(
+                  events
+                  | beam.core.CombinePerKey(ModelFromEventsFn()))
+
+def event_prediction(user_event, models):
+  user = user_event[0]
+  event = user_event[1]
+
+  # Retrieve the model calculated for this user
+  model = models[user]
+
+  return (user, model.prediction(event))
+
+# Predictions is a collection of (user, prediction) pairs.
+predictions = events | beam.Map(event_prediction, user_models)
 ```
 
 In this pipeline, there is just one model emitted by the `Combine.perKey(...)`
@@ -441,8 +476,15 @@ PCollectionView<Map<UserId, Model>> userModels = events
 ```
 
 ```py
-# State and timers are not yet supported in Beam's Python SDK.
-# Watch this space!
+events = ...
+
+user_models = beam.pvalue.AsDict(
+                  events
+                  | beam.WindowInto(GlobalWindows(),
+                      trigger=trigger.AfterAll(
+                          trigger.AfterCount(1),
+                          trigger.AfterProcessingTime(1)))
+                  | beam.CombinePerKey(ModelFromEventsFn()))
 ```
 
 This is often a pretty nice tradeoff between latency and cost: If a huge flood
@@ -501,29 +543,60 @@ new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
 ```py
 # State and timers are not yet supported in Beam's Python SDK.
 # Watch this space!
+class ModelStatefulFn(beam.DoFn):
+
+  PREVIOUS_PREDICTION = BagStateSpec('previous_pred_state', PredictionCoder())
+  MODEL_STATE = BagStateSpec('model_state', ModelCoder())
+
+  def process(self,
+              user_event,
+              previous_pred_state=beam.DoFn.StateParam(PREVIOUS_PREDICTION),
+              model_state=beam.DoFn.StateParam(MODEL_STATE)):
+    user = user_event[0]
+    event = user_event[1]
+    model = model_state.read()
+    previous_prediction = previous_pred_state.read()
+
+    new_prediction = model.prediction(event)
+    model.add(event)
+
+    model_state.clear()
+    model_state.add(model)
+
+    if (previous_prediction is None
+        or self.should_output_prediction(
+            previous_prediction, new_prediction)):
+        previous_pred_state.clear()
+        previous_pred_state.add(new_prediction)
+        yield (user, new_prediction)
 ```
 
 Let's walk through it,
 
- - You have two state cells declared, `@StateId("model")` to hold the current
-   state of the model for a user and `@StateId("previousPrediction")` to hold
+ - You have two state cells declared,
+   `@StateId("model")/StateParam(MODEL_STATE)` to hold the current
+   state of the model for a user and
+   `@StateId("previousPrediction")/StateParam(PREVIOUS_PREDICTION)` to hold
    the prediction output previously.
  - Access to the two state cells by annotation in the `@ProcessElement` method
-   is as before.
- - You read the current model via `modelState.read()`. Because state is also
-   per-key-and-window, this is a model just for the UserId of the Event
-   currently being processed.
+   is as before, and in Python by using an argument placeholder.
+ - You read the current model via `modelState.read()/model_state.read()`.
+   Because state is also per-key-and-window, this is a model just for the
+   UserId of the Event currently being processed.
  - You derive a new prediction `model.prediction(event)` and compare it against
-   the last one you output, accessed via `previousPredicationState.read()`.
+   the last one you output, accessed via
+   `previousPredicationState.read() / previous_pred_state.read()`.
  - You then update the model `model.update()` and write it via
-   `modelState.write(...)`. It is perfectly fine to mutate the value you pulled
-   out of state as long as you also remember to write the mutated value, in the
-   same way you are encouraged to mutate `CombineFn` accumulators.
+   `modelState.write(...)`, or via `model_state.clear()` and
+   `model_state.add(model)` in Python. It is perfectly fine to mutate the value
+   you pulled out of state as long as you also remember to write the mutated
+   value, in the same way you are encouraged to mutate `CombineFn` accumulators.
  - If the prediction has changed a significant amount since the last time you
-   output, you emit it via `context.output(...)` and save the prediction using
-   `previousPredictionState.write(...)`. Here the decision is relative to the
-   prior prediction output, not the last one computed - realistically you might
-   have some complex conditions here.
+   output, you emit it via `context.output(...)` or `yield` in Python, and
+   save the prediction using `previousPredictionState.write(...)`, or
+   `previous_pred_state.clear()` and `previous_pred_state.add(...)` in Python.
+   Here the decision is relative to the prior prediction output, not the last
+   one computed - realistically you might have some complex conditions here.
 
 Most of the above is just talking through Java! But before you go out and
 convert all of your pipelines to use stateful processing, I want to go over
