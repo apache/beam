@@ -46,3 +46,19 @@ golang {
     go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/go/test/integration'
   }
 }
+
+task flinkValidatesRunner {
+  dependsOn ":beam-sdks-go-test:build"
+  dependsOn ":beam-runners-flink_2.11-job-server:shadowJar"
+  doLast {
+    def options = [
+            "--runner flink",
+            "--parallel 1", // prevent memory overuse
+            "--flink_job_server_jar ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_integration_tests.sh ${options.join(' ')}"
+    }
+  }
+}
