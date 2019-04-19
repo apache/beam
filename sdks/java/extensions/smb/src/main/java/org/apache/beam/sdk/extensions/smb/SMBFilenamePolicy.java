@@ -14,22 +14,19 @@ public final class SMBFilenamePolicy implements Serializable {
   private final ResourceId filenamePrefix;
   private final ResourceId tempDirectory;
   private final String fileNameSuffix;
-  private final Integer numBuckets;
 
   public SMBFilenamePolicy(
       ResourceId destinationPrefix,
       String fileNameSuffix,
-      ResourceId tempDirectory,
-      Integer numBuckets
+      ResourceId tempDirectory
   ) {
     this.filenamePrefix = destinationPrefix;
     this.fileNameSuffix = fileNameSuffix;
     this.tempDirectory = tempDirectory;
-    this.numBuckets = numBuckets;
   }
 
   public FileAssignment forDestination() {
-    return new FileAssignment(filenamePrefix, fileNameSuffix, numBuckets);
+    return new FileAssignment(filenamePrefix, fileNameSuffix);
   }
 
   public FileAssignment forTempFiles() {
@@ -39,9 +36,7 @@ public final class SMBFilenamePolicy implements Serializable {
               BEAM_TEMPDIR_PATTERN,
               Instant.now().toString(DateTimeFormat.forPattern(TEMPDIR_TIMESTAMP))
           ), StandardResolveOptions.RESOLVE_DIRECTORY),
-        fileNameSuffix,
-        numBuckets
-    );
+        fileNameSuffix);
   }
 
   static class FileAssignment implements Serializable {
@@ -50,15 +45,13 @@ public final class SMBFilenamePolicy implements Serializable {
 
     private final ResourceId filenamePrefix;
     private final String fileNameSuffix;
-    private final Integer numBuckets;
 
-    FileAssignment(ResourceId filenamePrefix, String fileNameSuffix, Integer numBuckets) {
+    FileAssignment(ResourceId filenamePrefix, String fileNameSuffix) {
       this.filenamePrefix = filenamePrefix;
       this.fileNameSuffix = fileNameSuffix;
-      this.numBuckets = numBuckets;
     }
 
-    public ResourceId forBucketShard(int bucketNumber, int shardNumber, int numShards) {
+    public ResourceId forBucketShard(int bucketNumber, int numBuckets, int shardNumber, int numShards) {
       return filenamePrefix.resolve(
           String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets, shardNumber, numShards, fileNameSuffix),
           StandardResolveOptions.RESOLVE_FILE
