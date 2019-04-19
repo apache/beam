@@ -22,9 +22,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<img src="{{ "/images/blog/SoD.png" | prepend: site.baseurl }}" alt="Season of Docs 2019 flyer" height="455" width="640" >
 
 The Apache Beam community is thrilled to announce its application to the first edition of  Season of Docs 2019! 
+
+<!--more-->
+
+<img src="{{ "/images/blog/SoD.png" | prepend: site.baseurl }}" alt="Season of Docs 2019 flyer" height="455" width="640" >
 
 [Season of Docs](https://developers.google.com/season-of-docs/) is a unique program that pairs technical writers with open source mentors to contribute to open source. This creates an opportunity to introduce the technical writer to an open source community and provide guidance while the writer works on a real world open source project. We, in the Apache Beam community, would love to take this chance and invite technical writers to collaborate with us, and help us improve our documentation in many ways.
 
@@ -46,15 +49,11 @@ This project involves improving the Flink Runner page[1] to include strategies t
 
 After working on the Flink Runner, then similar updates should be made to the Spark Runner page[2], and the getting started documentation[3].
 
-[1] https://beam.apache.org/documentation/runners/flink/ 
-
-[2] https://beam.apache.org/documentation/runners/spark/
-
-[3] https://beam.apache.org/get-started/beam-overview/
-
-[4] https://beam.apache.org/documentation/sdks/python-streaming/
-
-[5] https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features
+1. [https://beam.apache.org/documentation/runners/flink/ ](https://beam.apache.org/documentation/runners/flink/ )
+2. [https://beam.apache.org/documentation/runners/spark/](https://beam.apache.org/documentation/runners/spark/)
+3. [https://beam.apache.org/get-started/beam-overview/](https://beam.apache.org/get-started/beam-overview/)
+4. [https://beam.apache.org/documentation/sdks/python-streaming/](https://beam.apache.org/documentation/sdks/python-streaming/)
+5. [https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features](https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features)
 
 **The runner comparison page / capability matrix update**
 
@@ -66,8 +65,7 @@ This project involves a number of corrections and improvements to the capability
 - Comparisons for non-model differences between runners.
 - Comparison for support of the portability framework for each runner.
 
-[1] https://beam.apache.org/documentation/runners/capability-matrix/
-
-[2] https://issues.apache.org/jira/browse/BEAM-2888 
+1. [https://beam.apache.org/documentation/runners/capability-matrix/](https://beam.apache.org/documentation/runners/capability-matrix/)
+2. [https://issues.apache.org/jira/browse/BEAM-2888 ](https://issues.apache.org/jira/browse/BEAM-2888 )
 
 Thank you, and we are looking forward to hearing from you!
