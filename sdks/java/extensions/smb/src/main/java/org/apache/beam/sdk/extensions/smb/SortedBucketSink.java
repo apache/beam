@@ -157,7 +157,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
               "Write buckets to temp directory",
               new WriteTempFiles<>(smbFilenamePolicy.forTempFiles(), bucketMetadata, writerProvider))
           .apply("Finalize temp file destinations",
-              new FinalizeTempFiles(smbFilenamePolicy.forDestination())
+              new FinalizeTempFiles(smbFilenamePolicy.forDestination(), bucketMetadata)
           );
     }
   }
@@ -198,7 +198,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
                      final Iterable<KV<S,V>> records = c.element().getValue();
 
                      final ResourceId tmpDst = tempFileAssignment
-                         .forBucketShard(bucketId, 1, 1);
+                         .forBucketShard(bucketId, bucketMetadata.getNumBuckets(), 1, 1);
                      final SortedBucketFile.Writer<V> writer = writerProvider.apply(null);
                      writer.prepareWrite(FileSystems.create(tmpDst, writer.getMimeType()));
 
@@ -248,9 +248,14 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
    */
   static final class FinalizeTempFiles extends PTransform<PCollectionTuple, WriteResult> {
     private final FileAssignment finalizedFileAssignment;
+    private final BucketMetadata bucketMetadata;
 
-    FinalizeTempFiles(FileAssignment fileAssignment) {
+    FinalizeTempFiles(
+        FileAssignment fileAssignment,
+        BucketMetadata bucketMetadata
+    ) {
       this.finalizedFileAssignment = fileAssignment;
+      this.bucketMetadata = bucketMetadata;
     }
 
     @Override
@@ -284,7 +289,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
                         c.element().forEach(bucketAndTempLocation -> {
                           srcFiles.add(bucketAndTempLocation.getValue());
                           final ResourceId dstFile = finalizedFileAssignment
-                              .forBucketShard(bucketAndTempLocation.getKey(), 1, 1);
+                              .forBucketShard(bucketAndTempLocation.getKey(), bucketMetadata.getNumBuckets(), 1, 1);
                           dstFiles.add(dstFile);
 
                           c.output(KV.of(bucketAndTempLocation.getKey(), dstFile));

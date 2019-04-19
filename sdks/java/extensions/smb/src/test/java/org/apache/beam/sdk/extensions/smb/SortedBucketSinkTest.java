@@ -63,8 +63,7 @@ public class SortedBucketSinkTest {
           new SMBFilenamePolicy(
               LocalResources.fromFile(outputFolder.getRoot(), true),
               ".txt",
-              LocalResources.fromFile(tmpFolder.getRoot(), true),
-              METADATA.getNumBuckets()),
+              LocalResources.fromFile(tmpFolder.getRoot(), true)),
           (Void v) -> new SortedBucketFile.Writer<KV<String, Integer>>() {
             private StringUtf8Coder coder = StringUtf8Coder.of();
             private OutputStream channel;
