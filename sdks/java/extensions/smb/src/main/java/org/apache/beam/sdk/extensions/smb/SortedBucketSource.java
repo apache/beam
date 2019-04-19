@@ -15,15 +15,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
-public class SortedBucketSource<KeyT>
-        extends PTransform<PBegin, PCollection<KV<KeyT, SortedBucketSource.Result>>> {
+public class SortedBucketSource<KeyT, ResultT>
+    extends PTransform<PBegin, PCollection<KV<KeyT, ResultT>>> {
 
   // @Todo: PTransform has dummy ser/de methods, this will not survive closure
   private List<BucketSource<KeyT, Object>> sources;
 
   @Override
-  public PCollection<KV<KeyT, Result>> expand(PBegin input) {
+  public PCollection<KV<KeyT, ResultT>> expand(PBegin input) {
     input
         // wrap List in Optional so the item stays together
         .apply(Create.of(Optional.of(sources)))
@@ -63,6 +64,20 @@ public class SortedBucketSource<KeyT>
     }
   }
 
+  private static class MergeBuckets<KeyT, ResultT>
+      extends DoFn<KV<Integer, List<BucketSource<KeyT, Object>>>, KV<KeyT, ResultT>> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      KV<Integer, List<BucketSource<KeyT, Object>>> input = c.element();
+      int bucketId = input.getKey();
+      List<BucketSource<KeyT, Object>> sources = input.getValue();
+      List<BucketSourceReader<KeyT, Object>> readers = sources.stream()
+          .map(s -> s.getReader(bucketId))
+          .collect(Collectors.toList());
+      // @Todo: align keys from reader::nextKeyGroup and merge
+    }
+  }
+
   ////////////////////////////////////////
   // Helper classes
   ////////////////////////////////////////
@@ -78,20 +93,24 @@ public class SortedBucketSource<KeyT>
     private String fileSuffix;
     private SortedBucketFile<ValueT> file;
 
-    // extract the next key and all values as a lazy iterable
-    public BucketSourceReader<KeyT, ValueT> getReader(int bucketId) throws Exception {
-      String spec = String.format("%s-bucket-%05d.%s", filePrefix, bucketId, fileSuffix);
-      ResourceId resourceId = FileSystems.matchSingleFileSpec(spec).resourceId();
-      SortedBucketFile.Reader<ValueT> reader = file.createReader();
-      reader.prepareRead(FileSystems.open(resourceId));
-      return new BucketSourceReader<>(reader, readMetadata()::extractSortingKey);
-    }
-
     public BucketMetadata<KeyT, ValueT> readMetadata() {
       try {
         ResourceId id = FileSystems.matchSingleFileSpec(filePrefix + "metadata.json").resourceId();
         return BucketMetadata.from(Channels.newInputStream(FileSystems.open(id)));
       } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    // extract the next key and all values as a lazy iterable
+    public BucketSourceReader<KeyT, ValueT> getReader(int bucketId) {
+      String spec = String.format("%s-bucket-%05d.%s", filePrefix, bucketId, fileSuffix);
+      try {
+        ResourceId resourceId = FileSystems.matchSingleFileSpec(spec).resourceId();
+        SortedBucketFile.Reader<ValueT> reader = file.createReader();
+        reader.prepareRead(FileSystems.open(resourceId));
+        return new BucketSourceReader<>(reader, readMetadata()::extractSortingKey);
+      } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
