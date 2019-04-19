@@ -125,6 +125,8 @@ include "beam-sdks-java-extensions-sql-shell"
 project(":beam-sdks-java-extensions-sql-shell").dir = file("sdks/java/extensions/sql/shell")
 include "beam-sdks-java-extensions-sql-hcatalog"
 project(":beam-sdks-java-extensions-sql-hcatalog").dir = file("sdks/java/extensions/sql/hcatalog")
+include "beam-sdks-java-extensions-sql-datacatalog"
+project(":beam-sdks-java-extensions-sql-datacatalog").dir = file("sdks/java/extensions/sql/datacatalog")
 include "beam-sdks-java-fn-execution"
 project(":beam-sdks-java-fn-execution").dir = file("sdks/java/fn-execution")
 include "beam-sdks-java-harness"
