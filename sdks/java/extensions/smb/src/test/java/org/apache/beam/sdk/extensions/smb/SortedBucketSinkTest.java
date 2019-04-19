@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -108,11 +109,13 @@ public class SortedBucketSinkTest {
       final ResourceId metadataFile = m.iterator().next();
       final ObjectMapper objectMapper = new ObjectMapper();
       try {
+        final ReadableByteChannel channel = FileSystems.open(metadataFile);
         final UserBucketingMetadata readMetadata = objectMapper
-            .readValue(Channels.newInputStream(FileSystems.open(metadataFile)),
+            .readValue(Channels.newInputStream(channel),
             UserBucketingMetadata.class);
 
         Assert.assertEquals(readMetadata, METADATA);
+        channel.close();
       } catch (IOException e) {
         Assert.fail(String.format("Failed to read written metadata file: %s", e));
       }
@@ -129,9 +132,11 @@ public class SortedBucketSinkTest {
       Assert.assertTrue(1 == bucketFile.getKey());
 
       try {
-        final InputStream is = Channels.newInputStream(FileSystems.open(bucketFile.getValue()));
+        final ReadableByteChannel channel = FileSystems.open(bucketFile.getValue());
+        final InputStream is = Channels.newInputStream(channel);
         Assert.assertEquals("foo25", StringUtf8Coder.of().decode(is));
         Assert.assertEquals("foo50", StringUtf8Coder.of().decode(is));
+        channel.close();
       } catch (IOException e) {
         Assert.fail(String.format("Failed to read written bucket file: %s", e));
       }
