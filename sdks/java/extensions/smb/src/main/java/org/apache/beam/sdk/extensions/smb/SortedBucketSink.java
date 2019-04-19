@@ -1,6 +1,7 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
+import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.transforms.Group;
@@ -33,6 +35,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Writes a PCollection representing sorted, bucketized data to files, where the # of files is
@@ -58,7 +62,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
   }
 
   @Override
-  public WriteResult expand(PCollection<ValueT> input) {
+  final public WriteResult expand(PCollection<ValueT> input) {
     final Coder<KV<Integer, KV<SortingKeyT, ValueT>>> bucketedCoder = KvCoder.of(
         VarIntCoder.of(),
         KvCoder.of(this.bucketingMetadata.getSortingKeyCoder(), input.getCoder())
@@ -160,6 +164,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
 
   static class WriteTempFiles<S, V> extends PTransform<
       PCollection<KV<Integer, Iterable<KV<S, V>>>>, PCollectionTuple> {
+    private static final Logger LOG = LoggerFactory.getLogger(WriteTempFiles.class);
 
     private final FileAssignment tempFileAssignment;
     private final BucketMetadata bucketMetadata;
@@ -189,12 +194,12 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
                  new DoFn<KV<Integer, Iterable<KV<S, V>>>, KV<Integer, ResourceId>>() {
                    @ProcessElement
                    public void processElement(ProcessContext c) throws Exception {
-                     Integer bucketId = c.element().getKey();
-                     Iterable<KV<S,V>> records = c.element().getValue();
+                     final Integer bucketId = c.element().getKey();
+                     final Iterable<KV<S,V>> records = c.element().getValue();
 
-                     ResourceId tmpDst = tempFileAssignment
+                     final ResourceId tmpDst = tempFileAssignment
                          .forBucketShard(bucketId, 1, 1);
-                     SortedBucketFile.Writer<V> writer = writerProvider.apply(null);
+                     final SortedBucketFile.Writer<V> writer = writerProvider.apply(null);
                      writer.prepareWrite(FileSystems.create(tmpDst, writer.getMimeType()));
 
                      try {
@@ -218,13 +223,23 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
 
     private ResourceId writeMetadataFile() {
       final ResourceId file = tempFileAssignment.forMetadata();
+      WritableByteChannel channel = null;
       try {
-        final WritableByteChannel channel = FileSystems.create(file, "application/json");
+        channel = FileSystems.create(file, "application/json");
         new ObjectMapper().writeValue(Channels.newOutputStream(channel), bucketMetadata);
       } catch (Exception e) {
-        throw new RuntimeException("Metadata write failed: {}", e);
+        closeChannelOrThrow(channel, e);
       }
       return file;
+    }
+
+    private static void closeChannelOrThrow(WritableByteChannel channel, Exception prior) {
+      try {
+        channel.close();
+      } catch (Exception e) {
+        LOG.error("Closing channel failed: {}", e);
+        throw new RuntimeException(prior);
+      }
     }
   }
 
