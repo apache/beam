@@ -24,10 +24,11 @@ group = "org.apache.beam"
 version = "0.1"
 
 vendorJava(
-        dependencies: ["net.bytebuddy:byte-buddy:1.9.3"],
-        relocations: [
-        ],
-        groupId: group,
-        artifactId: "beam-vendor-bytebuddy-1_9_3",
-        version: version,
+  dependencies: ["net.bytebuddy:byte-buddy:1.9.3"],
+  relocations: [
+    "net.bytebuddy": "org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy"
+  ],
+  groupId: group,
+  artifactId: "beam-vendor-bytebuddy-1_9_3",
+  version: version
 )
