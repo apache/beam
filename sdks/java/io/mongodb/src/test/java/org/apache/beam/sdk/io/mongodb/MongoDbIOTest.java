@@ -158,7 +158,6 @@ public class MongoDbIOTest {
     documents.add(new Document("_id", new ObjectId("52cc8f6254c5317943000007")));
     documents.add(new Document("_id", new ObjectId("54242e9e54c531ef8800001f")));
     buckets = MongoDbIO.BoundedMongoDbSource.splitKeysToMatch(documents);
-    System.out.println(buckets);
     assertEquals(4, buckets.size());
     assertEquals(
         "{ \"$match\" : { \"_id\" : { \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
