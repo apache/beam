@@ -110,8 +110,7 @@ class SwitchingDirectRunner(PipelineRunner):
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     use_fnapi_runner = (
-        _FnApiRunnerSupportVisitor().accept(pipeline)
-        and not options.view_as(StandardOptions).streaming)
+        _FnApiRunnerSupportVisitor().accept(pipeline))
 
     # Also ensure grpc is available.
     try:
