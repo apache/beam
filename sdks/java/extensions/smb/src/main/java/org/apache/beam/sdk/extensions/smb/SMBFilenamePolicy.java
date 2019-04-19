@@ -26,7 +26,7 @@ public final class SMBFilenamePolicy implements Serializable {
   }
 
   public FileAssignment forDestination() {
-    return new FileAssignment(filenamePrefix, fileNameSuffix);
+    return new FileAssignment(filenamePrefix, fileNameSuffix, false);
   }
 
   public FileAssignment forTempFiles() {
@@ -36,24 +36,33 @@ public final class SMBFilenamePolicy implements Serializable {
               BEAM_TEMPDIR_PATTERN,
               Instant.now().toString(DateTimeFormat.forPattern(TEMPDIR_TIMESTAMP))
           ), StandardResolveOptions.RESOLVE_DIRECTORY),
-        fileNameSuffix);
+        fileNameSuffix,
+        true);
   }
 
   static class FileAssignment implements Serializable {
     private static final String BUCKET_TEMPLATE = "bucket-%d-of-%d-shard-%d-of-%s.%s";
     private static final String METADATA_FILENAME = "metadata.json";
+    private static final String TIMESTAMP_TEMPLATE = "yyyy-MM-dd_HH-mm-ss-";
 
     private final ResourceId filenamePrefix;
     private final String fileNameSuffix;
+    private final boolean doTimestampFiles;
 
-    FileAssignment(ResourceId filenamePrefix, String fileNameSuffix) {
+    FileAssignment(ResourceId filenamePrefix, String fileNameSuffix, boolean doTimestampFiles) {
       this.filenamePrefix = filenamePrefix;
       this.fileNameSuffix = fileNameSuffix;
+      this.doTimestampFiles = doTimestampFiles;
     }
 
     public ResourceId forBucketShard(int bucketNumber, int numBuckets, int shardNumber, int numShards) {
+      String prefix = "";
+      if (doTimestampFiles) {
+        prefix += Instant.now().toString(DateTimeFormat.forPattern(TIMESTAMP_TEMPLATE));
+      }
+
       return filenamePrefix.resolve(
-          String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets, shardNumber, numShards, fileNameSuffix),
+          prefix + String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets, shardNumber, numShards, fileNameSuffix),
           StandardResolveOptions.RESOLVE_FILE
       );
     }
