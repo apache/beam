@@ -80,14 +80,8 @@ public class BeamValuesRel extends Values implements BeamRelNode {
           BeamValuesRel.class.getSimpleName(),
           pinput);
 
-      if (tuples.isEmpty()) {
-        throw new IllegalStateException("Values with empty tuples!");
-      }
-
       Schema schema = CalciteUtils.toSchema(getRowType());
-
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
-
       return pinput.getPipeline().begin().apply(Create.of(rows)).setRowSchema(schema);
     }
   }
