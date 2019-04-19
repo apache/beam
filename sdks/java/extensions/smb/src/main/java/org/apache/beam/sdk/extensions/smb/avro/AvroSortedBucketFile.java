@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.extensions.smb;
+package org.apache.beam.sdk.extensions.smb.avro;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
@@ -12,6 +12,7 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.beam.sdk.extensions.smb.SortedBucketFile;
 import org.apache.beam.sdk.util.MimeTypes;
 
 import java.io.Serializable;

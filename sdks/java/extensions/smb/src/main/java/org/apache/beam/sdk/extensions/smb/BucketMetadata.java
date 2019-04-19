@@ -11,6 +11,7 @@ package org.apache.beam.sdk.extensions.smb;
     import org.apache.beam.sdk.coders.Coder;
     import org.apache.beam.sdk.coders.CoderException;
     import org.apache.beam.sdk.coders.CoderRegistry;
+    import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
     import org.apache.beam.sdk.util.CoderUtils;
     import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
     import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;

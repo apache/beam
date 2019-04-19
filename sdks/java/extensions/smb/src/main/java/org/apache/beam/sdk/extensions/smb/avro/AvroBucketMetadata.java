@@ -1,10 +1,11 @@
-package org.apache.beam.sdk.extensions.smb;
+package org.apache.beam.sdk.extensions.smb.avro;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
 public class AvroBucketMetadata<SortingKeyT> extends BucketMetadata<SortingKeyT, GenericRecord> {
 

@@ -4,6 +4,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 
 import java.io.IOException;
+import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 
 public class Test {
   public static void main(String[] args) throws IOException, CannotProvideCoderException {
