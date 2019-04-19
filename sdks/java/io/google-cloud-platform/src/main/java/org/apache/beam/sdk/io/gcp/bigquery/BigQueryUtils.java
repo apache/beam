@@ -430,7 +430,9 @@ public class BigQueryUtils {
   }
 
   private static Object convertAvroString(Object value) {
-    if (value instanceof org.apache.avro.util.Utf8) {
+    if (value == null) {
+      return null;
+    } else if (value instanceof org.apache.avro.util.Utf8) {
       return ((org.apache.avro.util.Utf8) value).toString();
     } else if (value instanceof String) {
       return value;
