@@ -31,6 +31,8 @@ import yaml
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct.clock import TestClock
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -417,6 +419,7 @@ class TriggerPipelineTest(unittest.TestCase):
 
   def record_dofn(self):
     class RecordDoFn(beam.DoFn):
+
       def process(self, element):
         TriggerPipelineTest.all_records.append(element)
 
@@ -452,14 +455,16 @@ class TriggerPipelineTest(unittest.TestCase):
     # PCollection will contain elements from 1 to 10.
     elements = [i for i in range(1, 11)]
 
-    ts = TestStream()
+    ts = TestStream().advance_watermark_to(0)
     for i in elements:
-      ts.add_elements([str(i)])
+      ts.add_elements([('key', str(i))])
       if i % 5 == 0:
         ts.advance_watermark_to(i)
         ts.advance_processing_time(5)
 
-    with TestPipeline() as p:
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
       _ = (p
            | ts
            | beam.WindowInto(
@@ -469,6 +474,8 @@ class TriggerPipelineTest(unittest.TestCase):
                    early=AfterAll(
                        AfterCount(1), AfterProcessingTime(5))
                ))
+           | beam.GroupByKey()
+           | beam.FlatMap(lambda x: x[1])
            | beam.ParDo(self.record_dofn()))
 
 
