@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql;
+package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
 
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_DATABASE;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
@@ -26,10 +26,10 @@ import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.insertTes
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog.HCatalogTableProvider;
 import org.apache.beam.sdk.io.hcatalog.test.EmbeddedMetastoreService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
