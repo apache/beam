@@ -156,7 +156,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     this.enabledEnforcements = Enforcement.enabled(options);
   }
 
-  /** For testing purpose only */
+  /** For testing purpose only. */
   @VisibleForTesting
   protected DirectOptions getPipelineOptions() {
     return options;
