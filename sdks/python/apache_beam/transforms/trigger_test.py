@@ -478,7 +478,6 @@ class TriggerPipelineTest(unittest.TestCase):
            | beam.FlatMap(lambda x: x[1])
            | beam.ParDo(self.record_dofn()))
 
-
     # The trigger should fire twice. Once after 5 seconds, and once after 10.
     # The firings should accumulate the output.
     first_firing = [str(i) for i in elements if i <= 5]
