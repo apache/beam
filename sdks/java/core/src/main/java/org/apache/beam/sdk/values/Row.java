@@ -374,7 +374,9 @@ public abstract class Row implements Serializable {
 
   static class Equals {
     static boolean deepEquals(Object a, Object b, Schema.FieldType fieldType) {
-      if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+      if (a == null || b == null) {
+        return a == b;
+      } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
         return deepEquals(a, b, fieldType.getLogicalType().getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
@@ -390,7 +392,9 @@ public abstract class Row implements Serializable {
     }
 
     static int deepHashCode(Object a, Schema.FieldType fieldType) {
-      if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+      if (a == null) {
+        return 0;
+      } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
         return deepHashCode(a, fieldType.getLogicalType().getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.hashCode((byte[]) a);
