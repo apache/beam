@@ -39,33 +39,26 @@ The project ideas available in Apache Beam are described below. Please take a lo
 
 ### Project ideas
 
-**Deployment of a Flink and Spark Clusters with Portable Beam**
+**Deployment of Flink and Spark Clusters for use with Portable Beam**
 
 The Apache Beam vision has been to provide a framework for users to write and execute pipelines on the programming language of your choice, and the runner of your choice. As the reality of Beam has evolved towards this vision, the way in which Beam is run on top of runners such as Apache Spark and Apache Flink has changed.
 
 These changes are documented in the wiki and in design documents, and are accessible for Beam contributors; but they are not available in the user-facing documentation. This has been a barrier of adoption for other users of Beam.
 
-This project involves improving the Flink Runner page[1] to include strategies to deploy Beam on a few different environments: A Kubernetes cluster, a Google Cloud Dataproc cluster, and an AWS EMR cluster. There are other places in the documentation that should be updated in this regard[4][5].
+This project involves improving the [Flink Runner page](https://beam.apache.org/documentation/runners/flink/ ) to include strategies to deploy Beam on a few different environments: A Kubernetes cluster, a Google Cloud Dataproc cluster, and an AWS EMR cluster. There are other places in the documentation that should be updated in this regard, such as the [Python streaming](https://beam.apache.org/documentation/sdks/python-streaming/) section, and the [set of supported features](https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features).
 
-After working on the Flink Runner, then similar updates should be made to the Spark Runner page[2], and the getting started documentation[3].
+After working on the Flink Runner, then similar updates should be made to the [Spark Runner page](https://beam.apache.org/documentation/runners/spark/), and the [getting started documentation](https://beam.apache.org/get-started/beam-overview/).
 
-1. [https://beam.apache.org/documentation/runners/flink/ ](https://beam.apache.org/documentation/runners/flink/ )
-2. [https://beam.apache.org/documentation/runners/spark/](https://beam.apache.org/documentation/runners/spark/)
-3. [https://beam.apache.org/get-started/beam-overview/](https://beam.apache.org/get-started/beam-overview/)
-4. [https://beam.apache.org/documentation/sdks/python-streaming/](https://beam.apache.org/documentation/sdks/python-streaming/)
-5. [https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features](https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features)
 
 **The runner comparison page / capability matrix update**
 
-Beam maintains a capability matrix to track which Beam features are supported by which set of language SDKs + Runners[1].
-This project involves a number of corrections and improvements to the capability matrix[2]; followed by a few larger set of changes, involving:
+Beam maintains a [capability matrix](https://beam.apache.org/documentation/runners/capability-matrix/) to track which Beam features are supported by which set of language SDKs + Runners.
+This project involves a number of [corrections and improvements to the capability matrix](https://issues.apache.org/jira/browse/BEAM-2888 ); followed by a few larger set of changes, involving:
 
 - Plain english summaries for each runner’s support of the Beam model.
 - A paragraph-length description of the production-readiness for each runner.
 - Comparisons for non-model differences between runners.
 - Comparison for support of the portability framework for each runner.
 
-1. [https://beam.apache.org/documentation/runners/capability-matrix/](https://beam.apache.org/documentation/runners/capability-matrix/)
-2. [https://issues.apache.org/jira/browse/BEAM-2888 ](https://issues.apache.org/jira/browse/BEAM-2888 )
 
 Thank you, and we are looking forward to hearing from you!
