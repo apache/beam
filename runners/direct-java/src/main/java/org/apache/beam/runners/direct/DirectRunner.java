@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -132,19 +133,33 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private final DirectOptions options;
   private final Set<Enforcement> enabledEnforcements;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
-  private static final ObjectMapper MAPPER =
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER_WITH_MODULES =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   /** Construct a {@link DirectRunner} from the provided options. */
   public static DirectRunner fromOptions(PipelineOptions options) {
-    options = MAPPER.convertValue(MAPPER.valueToTree(options), DirectOptions.class);
+    try {
+      options =
+          MAPPER.readValue(MAPPER_WITH_MODULES.writeValueAsBytes(options), DirectOptions.class);
+    } catch (IOException e) {
+      throw new IllegalArgumentException(
+          "PipelineOptions specified failed to serialize to JSON.", e);
+    }
+
     return new DirectRunner(options.as(DirectOptions.class));
   }
 
   private DirectRunner(DirectOptions options) {
     this.options = options;
     this.enabledEnforcements = Enforcement.enabled(options);
+  }
+
+  /** For testing purpose only */
+  @VisibleForTesting
+  protected DirectOptions getPipelineOptions() {
+    return options;
   }
 
   Supplier<Clock> getClockSupplier() {

@@ -22,9 +22,11 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -55,6 +57,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -579,6 +582,39 @@ public class DirectRunnerTest implements Serializable {
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
     p.run();
+  }
+
+  /**
+   * Tests that {@link DirectRunner#fromOptions(PipelineOptions)} drops {@link PipelineOptions}
+   * marked with {@link JsonIgnore} fields.
+   */
+  @Test
+  public void testFromOptionsIfIgnoredFieldsGettingDropped() {
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs("--foo=testValue", "--ignoredField=overridden")
+            .as(MyOptions.class);
+
+    assertEquals("testValue", options.as(MyOptions.class).getFoo());
+    assertEquals("overridden", options.as(MyOptions.class).getIgnoredField());
+    options = DirectRunner.fromOptions(options).getPipelineOptions();
+    assertEquals("testValue", options.as(MyOptions.class).getFoo());
+    assertEquals("not overridden", options.as(MyOptions.class).getIgnoredField());
+  }
+
+  /**
+   * Options for testing if {@link DirectRunner} drops {@link PipelineOptions} marked with {@link
+   * JsonIgnore} fields.
+   */
+  private interface MyOptions extends DirectOptions {
+    String getFoo();
+
+    void setFoo(String foo);
+
+    @JsonIgnore
+    @Default.String("not overridden")
+    String getIgnoredField();
+
+    void setIgnoredField(String value);
   }
 
   private static class LongNoDecodeCoder extends AtomicCoder<Long> {
