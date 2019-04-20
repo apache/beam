@@ -24,7 +24,7 @@ limitations under the License.
 
 Nexmark is a suite of pipelines inspired by the 'continuous data stream'
 queries in [Nexmark research
-paper](http://datalab.cs.pdx.edu/niagaraST/NEXMark/)
+paper](https://web.archive.org/web/20100620010601/http://datalab.cs.pdx.edu/niagaraST/NEXMark/)
 
 These are multiple queries over a three entities model representing on online
 auction system:
