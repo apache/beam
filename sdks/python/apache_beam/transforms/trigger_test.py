@@ -29,10 +29,10 @@ from builtins import zip
 import yaml
 
 import apache_beam as beam
-from apache_beam.runners import pipeline_context
-from apache_beam.runners.direct.clock import TestClock
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.runners import pipeline_context
+from apache_beam.runners.direct.clock import TestClock
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
