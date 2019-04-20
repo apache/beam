@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 
 import java.math.BigDecimal;
@@ -173,6 +174,21 @@ public class RowTest {
   }
 
   @Test
+  public void testCreatesAndComparesNullArray() {
+    List<Integer> data = null;
+    Schema type =
+        Stream.of(Schema.Field.nullable("array", Schema.FieldType.array(Schema.FieldType.INT32)))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addArray(data).build();
+    assertEquals(data, row.getArray("array"));
+
+    Row otherNonNull = Row.withSchema(type).addValue(ImmutableList.of(1, 2, 3)).build();
+    Row otherNull = Row.withSchema(type).addValue(null).build();
+    assertNotEquals(otherNonNull, row);
+    assertEquals(otherNull, row);
+  }
+
+  @Test
   public void testCreatesArrayWithNullElement() {
     List<Integer> data = Lists.newArrayList(2, null, 5, null);
     Schema type =
@@ -251,6 +267,21 @@ public class RowTest {
             .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
+  }
+
+  @Test
+  public void testCreateAndCompareNullMap() {
+    List<Integer> data = null;
+    Schema type =
+        Stream.of(Schema.Field.nullable("map", FieldType.map(FieldType.INT32, FieldType.STRING)))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addValue(data).build();
+    assertEquals(data, row.getArray("map"));
+
+    Row otherNonNull = Row.withSchema(type).addValue(ImmutableMap.of(1, "value1")).build();
+    Row otherNull = Row.withSchema(type).addValue(null).build();
+    assertNotEquals(otherNonNull, row);
+    assertEquals(otherNull, row);
   }
 
   @Test
