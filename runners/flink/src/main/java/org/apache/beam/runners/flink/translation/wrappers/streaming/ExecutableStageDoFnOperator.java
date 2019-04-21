@@ -21,6 +21,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -65,7 +66,6 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -75,7 +75,6 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -119,6 +118,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner;
   private transient FlinkMetricContainer flinkMetricContainer;
   private transient long backupWatermarkHold = Long.MIN_VALUE;
+  private transient ArrayDeque<InternalTimer<?, TimerInternals.TimerData>> cleanupTimers;
 
   /** Constructor. */
   public ExecutableStageDoFnOperator(
@@ -189,6 +189,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             flinkMetricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
           }
         };
+    cleanupTimers = new ArrayDeque<>();
 
     // This will call {@code createWrappingDoFnRunner} which needs the above dependencies.
     super.open();
@@ -330,15 +331,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
 
         private void prepareStateBackend(K key, Coder<K> keyCoder) {
-          final ByteBuffer encodedKey;
-          try {
-            // We need to have NESTED context here with the ByteStringCoder.
-            // See StateRequestHandlers.
-            encodedKey =
-                ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key, Coder.Context.NESTED));
-          } catch (CoderException e) {
-            throw new RuntimeException("Couldn't set key for state");
-          }
+          // TODO: use ByteString, eliminate double encoding
+          // https://issues.apache.org/jira/browse/BEAM-7126
+          // We need to have NESTED context here with the ByteStringCoder.
+          // See StateRequestHandlers.
+          final ByteBuffer encodedKey =
+              FlinkKeyUtils.encodeKey(key, keyCoder, Coder.Context.NESTED);
           keyedStateBackend.setCurrentKey(encodedKey);
         }
       };
@@ -400,8 +398,35 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
   }
 
+  @SuppressWarnings("ByteBufferBackingArray")
+  private void fireCleanupTimers() {
+    while (!cleanupTimers.isEmpty()) {
+      InternalTimer<?, TimerInternals.TimerData> timer = cleanupTimers.remove();
+      final ByteBuffer encodedKey = (ByteBuffer) timer.getKey();
+      try {
+        // still need to process as timer, see CleanupTimer
+        stateBackendLock.lock();
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(
+              "State cleanup for {} {}",
+              Arrays.toString(encodedKey.array()),
+              timer.getNamespace().getNamespace());
+        }
+        getKeyedStateBackend().setCurrentKey(encodedKey);
+        super.fireTimer(timer);
+      } finally {
+        stateBackendLock.unlock();
+      }
+    }
+  }
+
   @Override
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
+    if (CleanupTimer.GC_TIMER_ID.equals(timer.getNamespace().getTimerId())) {
+      // hold cleanup until bundle is complete
+      cleanupTimers.add(timer);
+      return;
+    }
     final ByteBuffer encodedKey = (ByteBuffer) timer.getKey();
     // We have to synchronize to ensure the state backend is not concurrently accessed by the state
     // requests
@@ -501,6 +526,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                 // at this point the bundle is finished, allow the watermark to pass
                 // we are restoring the previous hold in case it was already set for side inputs
                 setPushedBackWatermark(backupWatermarkHold);
+                // fire cleanup timers, they can only execute after the bundle is complete
+                // as they remove the state that the timer callback may rely on
+                fireCleanupTimers();
                 super.processWatermark(mark);
               } catch (Exception e) {
                 throw new RuntimeException(
@@ -510,6 +538,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       }
     }
     super.processWatermark(mark);
+    // if this was the final watermark, then no callback was scheduled
+    if (mark.getTimestamp() >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+      fireCleanupTimers();
+    }
   }
 
   private static class SdkHarnessDoFnRunner<InputT, OutputT>
@@ -750,7 +782,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       Preconditions.checkNotNull(input, "Null input passed to CleanupTimer");
       // make sure this fires after any window.maxTimestamp() timers
       Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
-      final ByteBuffer key = FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder);
+      // needs to match the encoding in prepareStateBackend for state request handler
+      final ByteBuffer key =
+          FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder, Coder.Context.NESTED);
       // Ensure the state backend is not concurrently accessed by the state requests
       try {
         stateBackendLock.lock();
