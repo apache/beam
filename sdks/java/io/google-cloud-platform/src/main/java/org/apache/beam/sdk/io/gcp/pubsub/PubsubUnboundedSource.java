@@ -826,9 +826,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * BLOCKING Return {@literal true} if a Pubsub messaage is available, {@literal false} if none
-     * is available at this time or we are over-subscribed. May BLOCK while extending ACKs or
-     * fetching available messages. Will not block waiting for messages.
+     * BLOCKING Return {@literal true} if a Pubsub message is available, {@literal false} if none is
+     * available at this time or we are over-subscribed. May BLOCK while extending ACKs or fetching
+     * available messages. Will not block waiting for messages.
      */
     @Override
     public boolean advance() throws IOException {
@@ -884,7 +884,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new PubsubMessage(current.elementBytes, current.attributes);
+      return new PubsubMessage(current.elementBytes, current.attributes, current.recordId);
     }
 
     @Override

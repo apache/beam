@@ -23,17 +23,25 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * Class representing a Pub/Sub message. Each message contains a single message payload and a map of
- * attached attributes.
+ * Class representing a Pub/Sub message. Each message contains a single message payload, a map of
+ * attached attributes, and a message id.
  */
 public class PubsubMessage {
 
   private byte[] message;
   private Map<String, String> attributes;
+  private String messageId;
 
   public PubsubMessage(byte[] payload, Map<String, String> attributes) {
     this.message = payload;
     this.attributes = attributes;
+    this.messageId = null;
+  }
+
+  public PubsubMessage(byte[] payload, Map<String, String> attributes, String messageId) {
+    this.message = payload;
+    this.attributes = attributes;
+    this.messageId = messageId;
   }
 
   /** Returns the main PubSub message. */
@@ -51,5 +59,10 @@ public class PubsubMessage {
   /** Returns the full map of attributes. This is an unmodifiable map. */
   public Map<String, String> getAttributeMap() {
     return attributes;
+  }
+
+  /** Returns the messageId of the message. */
+  public String getMessageId() {
+    return messageId;
   }
 }

@@ -461,6 +461,20 @@ public class PubsubIO {
 
   /**
    * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will only contain a {@link PubsubMessage#getPayload() payload} with the messageId from
+   * PubSub, but no {@link PubsubMessage#getAttributeMap() attributes}.
+   */
+  public static Read<PubsubMessage> readMessagesWithMessageId() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(PubsubMessageWithMessageIdCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
    * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
@@ -468,6 +482,20 @@ public class PubsubIO {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setPubsubClientFactory(FACTORY)
         .setCoder(PubsubMessageWithAttributesCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(true)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
+   * PubsubMessage#getAttributeMap() attributes}, along with the messageId from PubSub.
+   */
+  public static Read<PubsubMessage> readMessagesWithAttributesAndMessageId() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(PubsubMessageWithAttributesAndMessageIdCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(true)
         .build();

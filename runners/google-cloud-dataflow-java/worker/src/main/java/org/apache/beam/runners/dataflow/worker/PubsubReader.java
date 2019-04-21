@@ -122,7 +122,9 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
         value =
             parseFn.apply(
                 new PubsubMessage(
-                    pubsubMessage.getData().toByteArray(), pubsubMessage.getAttributes()));
+                    pubsubMessage.getData().toByteArray(),
+                    pubsubMessage.getAttributesMap(),
+                    pubsubMessage.getMessageId()));
       } else {
         value = coder.decode(data, Coder.Context.OUTER);
       }

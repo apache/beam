@@ -21,6 +21,7 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -47,6 +48,37 @@ public class PubsubReadIT {
 
     messages.apply(
         "waitForAnyMessage", signal.signalSuccessWhen(messages.getCoder(), anyMessages -> true));
+
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    pipeline.apply(signal.signalStart());
+    PipelineResult job = pipeline.run();
+    start.get();
+
+    signal.waitForSuccess(Duration.standardSeconds(30));
+    // A runner may not support cancel
+    try {
+      job.cancel();
+    } catch (UnsupportedOperationException exc) {
+      // noop
+    }
+  }
+
+  @Test
+  public void testReadPubsubMessageId() throws Exception {
+    // The pipeline will never terminate on its own
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+
+    PCollection<PubsubMessage> messages =
+        pipeline.apply(
+            PubsubIO.readMessagesWithMessageId()
+                .fromTopic("projects/pubsub-public-data/topics/taxirides-realtime"));
+
+    messages.apply(
+        "isMessageIdNonNull",
+        signal.signalSuccessWhen(
+            messages.getCoder(),
+            pubsubMessages ->
+                pubsubMessages.stream().noneMatch(m -> Strings.isNullOrEmpty(m.getMessageId()))));
 
     Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
     pipeline.apply(signal.signalStart());
