@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.runners.spark.translation.ValueAndCoderLazySerializable;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.function.Function;
@@ -104,6 +105,49 @@ public final class CoderHelpers {
   }
 
   /**
+   * A function wrapper for converting an object to a lazy serializable.
+   *
+   * @param coder Coder to (maybe) serialize with.
+   * @param <T> The type of the object being serialized
+   * @return A function that wraps values in {@link ValueAndCoderLazySerializable} with the provided
+   *     coder.
+   */
+  public static <T> Function<T, ValueAndCoderLazySerializable<T>> toLazyValueAndCoderFunction(
+      final Coder<T> coder) {
+    return v -> ValueAndCoderLazySerializable.of(v, coder);
+  }
+
+  /**
+   * A function wrapper for unwrapping a value wrapped with {@link ValueAndCoderLazySerializable}.
+   *
+   * @param coder The coder that was used (needs to be provided in both serialization and
+   *     deserialization).
+   * @param <T> The type of the object being deserialized.
+   * @return A function that accepts {@link ValueAndCoderLazySerializable} and returns the
+   *     deserialized value.
+   */
+  public static <T> Function<ValueAndCoderLazySerializable<T>, T> fromLazyValueAndCoderFunction(
+      final Coder<T> coder) {
+    return v -> v.getOrDecode(coder);
+  }
+
+  /**
+   * Transforms an {@link Iterable} of values to an {@link List} of {@link
+   * ValueAndCoderLazySerializable}.
+   *
+   * @param it The set of intput values.
+   * @param coder The coder to use for each value.
+   * @param <T> The type of the object being serialized.
+   * @return An {@link List} of {@link ValueAndCoderLazySerializable}s holding the values in it.
+   */
+  public static <T> List<ValueAndCoderLazySerializable<T>> toLazyValueAndCoders(
+      final Iterable<T> it, final Coder<T> coder) {
+    return StreamSupport.stream(it.spliterator(), false)
+        .map(v -> ValueAndCoderLazySerializable.of(v, coder))
+        .collect(Collectors.toList());
+  }
+
+  /**
    * A function wrapper for converting an object to a bytearray.
    *
    * @param coder Coder to serialize with.
@@ -123,6 +167,42 @@ public final class CoderHelpers {
    */
   public static <T> Function<byte[], T> fromByteFunction(final Coder<T> coder) {
     return bytes -> fromByteArray(bytes, coder);
+  }
+
+  /**
+   * A function wrapper for converting a key-value pair to a byte array key & lazy serialized value.
+   *
+   * @param keyCoder Coder to serialize keys.
+   * @param valueCoder Coder to serialize values, if necessary.
+   * @param <K> The type of the key being serialized.
+   * @param <V> The type of the value being serialized.
+   * @return A function that accepts a key-value pair the above.
+   */
+  public static <K, V>
+      PairFunction<Tuple2<K, V>, ByteArray, ValueAndCoderLazySerializable<V>>
+          toByteArrayLazyValueFunction(final Coder<K> keyCoder, final Coder<V> valueCoder) {
+    return kv ->
+        new Tuple2<>(
+            new ByteArray(toByteArray(kv._1(), keyCoder)),
+            ValueAndCoderLazySerializable.of(kv._2(), valueCoder));
+  }
+
+  /**
+   * A function wrapper for converting a byte array key & lazy value to a key-value pair.
+   *
+   * @param keyCoder Coder to deserialize keys.
+   * @param valueCoder Coder to deserialize values, if necessary.
+   * @param <K> The type of the key being deserialized.
+   * @param <V> The type of the value being deserialized.
+   * @return A function that accepts a pair of a byte array key and a lazy serialized value and
+   *     returns a key-value pair.
+   */
+  public static <K, V>
+      PairFunction<Tuple2<ByteArray, ValueAndCoderLazySerializable<V>>, K, V>
+          fromByteArrayLazyValueFunction(final Coder<K> keyCoder, final Coder<V> valueCoder) {
+    return tuple ->
+        new Tuple2<>(
+            fromByteArray(tuple._1().getValue(), keyCoder), tuple._2().getOrDecode(valueCoder));
   }
 
   /**
@@ -158,23 +238,24 @@ public final class CoderHelpers {
   }
 
   /**
-   * A function wrapper for converting a byte array pair to a key-value pair, where values are
-   * {@link Iterable}.
+   * A function wrapper for converting a byte array key & lazy value pair to a key-value pair, where
+   * values are {@link Iterable}.
    *
    * @param keyCoder Coder to deserialize keys.
-   * @param valueCoder Coder to deserialize values.
+   * @param valueCoder Coder to deserialize values, if necessary.
    * @param <K> The type of the key being deserialized.
    * @param <V> The type of the value being deserialized.
    * @return A function that accepts a pair of byte arrays and returns a key-value pair.
    */
   public static <K, V>
-      PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>> fromByteFunctionIterable(
-          final Coder<K> keyCoder, final Coder<V> valueCoder) {
+      PairFunction<Tuple2<ByteArray, Iterable<ValueAndCoderLazySerializable<V>>>, K, Iterable<V>>
+          fromByteArrayLazyValuedIterableFunction(
+              final Coder<K> keyCoder, final Coder<V> valueCoder) {
     return tuple ->
         new Tuple2<>(
             fromByteArray(tuple._1().getValue(), keyCoder),
             StreamSupport.stream(tuple._2().spliterator(), false)
-                .map(bytes -> fromByteArray(bytes, valueCoder))
+                .map(v -> v.getOrDecode(valueCoder))
                 .collect(Collectors.toList()));
   }
 }

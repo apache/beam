@@ -26,14 +26,12 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.GroupNonMergingWindowsFunctions.GroupByKeyIterator;
 import org.apache.beam.runners.spark.translation.GroupNonMergingWindowsFunctions.WindowedKey;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
@@ -84,14 +82,13 @@ public class GroupNonMergingWindowsFunctionsTest {
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
     BigEndianIntegerCoder valueCoder = BigEndianIntegerCoder.of();
     WindowingStrategy<Object, GlobalWindow> winStrategy = WindowingStrategy.of(new GlobalWindows());
+    Coder<GlobalWindow> windowCoder = winStrategy.getWindowFn().windowCoder();
 
-    final WindowedValue.FullWindowedValueCoder<byte[]> winValCoder =
-        WindowedValue.getFullCoder(ByteArrayCoder.of(), winStrategy.getWindowFn().windowCoder());
+    final WindowedValue.FullWindowedValueCoder<Integer> winValCoder =
+        WindowedValue.getFullCoder(valueCoder, windowCoder);
 
-    ItemFactory<String, Integer> factory =
-        new ItemFactory<>(
-            keyCoder, valueCoder, winValCoder, winStrategy.getWindowFn().windowCoder());
-    List<Tuple2<WindowedKey, byte[]>> items =
+    ItemFactory<String, Integer> factory = new ItemFactory<>(keyCoder, winValCoder, windowCoder);
+    List<Tuple2<WindowedKey, ValueAndCoderLazySerializable<WindowedValue<Integer>>>> items =
         Arrays.asList(
             factory.create("k1", 1),
             factory.create("k1", 2),
@@ -99,35 +96,31 @@ public class GroupNonMergingWindowsFunctionsTest {
             factory.create("k2", 4),
             factory.create("k2", 5));
     return new GroupByKeyIterator<>(
-        items.iterator(), keyCoder, valueCoder, winStrategy, winValCoder);
+        items.iterator(), keyCoder, winValCoder, windowCoder, winStrategy);
   }
 
   private static class ItemFactory<K, V> {
     private final Coder<K> keyCoder;
-    private final Coder<V> valueCoder;
-    private final WindowedValue.FullWindowedValueCoder<byte[]> winValCoder;
+    private final WindowedValue.FullWindowedValueCoder<V> winValCoder;
     private final byte[] globalWindow;
 
     ItemFactory(
         Coder<K> keyCoder,
-        Coder<V> valueCoder,
-        FullWindowedValueCoder<byte[]> winValCoder,
+        WindowedValue.FullWindowedValueCoder<V> winValCoder,
         Coder<GlobalWindow> winCoder) {
       this.keyCoder = keyCoder;
-      this.valueCoder = valueCoder;
       this.winValCoder = winValCoder;
       this.globalWindow = CoderHelpers.toByteArray(GlobalWindow.INSTANCE, winCoder);
     }
 
-    private Tuple2<WindowedKey, byte[]> create(K key, V value) {
+    private Tuple2<WindowedKey, ValueAndCoderLazySerializable<WindowedValue<V>>> create(
+        K key, V value) {
       WindowedKey kaw = new WindowedKey(CoderHelpers.toByteArray(key, keyCoder), globalWindow);
 
-      byte[] valueInbytes = CoderHelpers.toByteArray(value, valueCoder);
-
-      WindowedValue<byte[]> windowedValue =
+      WindowedValue<V> windowedValue =
           WindowedValue.of(
-              valueInbytes, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING);
-      return new Tuple2<>(kaw, CoderHelpers.toByteArray(windowedValue, winValCoder));
+              value, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING);
+      return new Tuple2<>(kaw, ValueAndCoderLazySerializable.of(windowedValue, winValCoder));
     }
   }
 }

@@ -46,7 +46,7 @@ public class BoundedDataset<T> implements Dataset {
   private Iterable<WindowedValue<T>> windowedValues;
   private Coder<T> coder;
   private JavaRDD<WindowedValue<T>> rdd;
-  private List<byte[]> clientBytes;
+  private List<ValueAndCoderLazySerializable<WindowedValue<T>>> clientBytes;
 
   BoundedDataset(JavaRDD<WindowedValue<T>> rdd) {
     this.rdd = rdd;
@@ -64,15 +64,17 @@ public class BoundedDataset<T> implements Dataset {
       WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
           WindowedValue.getValueOnlyCoder(coder);
       rdd =
-          jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
-              .map(CoderHelpers.fromByteFunction(windowCoder));
+          jsc.parallelize(CoderHelpers.toLazyValueAndCoders(windowedValues, windowCoder))
+              .map(CoderHelpers.fromLazyValueAndCoderFunction(windowCoder));
     }
     return rdd;
   }
 
-  List<byte[]> getBytes(WindowedValue.WindowedValueCoder<T> wvCoder) {
+  List<ValueAndCoderLazySerializable<WindowedValue<T>>> getEncoded(
+      WindowedValue.WindowedValueCoder<T> wvCoder) {
     if (clientBytes == null) {
-      JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(wvCoder));
+      JavaRDDLike<ValueAndCoderLazySerializable<WindowedValue<T>>, ?> bytesRDD =
+          rdd.map(CoderHelpers.toLazyValueAndCoderFunction(wvCoder));
       clientBytes = bytesRDD.collect();
     }
     return clientBytes;
@@ -89,11 +91,12 @@ public class BoundedDataset<T> implements Dataset {
         windowedValueCoder =
             WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
       }
-      JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
-      List<byte[]> clientBytes = bytesRDD.collect();
+      JavaRDDLike<ValueAndCoderLazySerializable<WindowedValue<T>>, ?> bytesRDD =
+          rdd.map(CoderHelpers.toLazyValueAndCoderFunction(windowedValueCoder));
+      List<ValueAndCoderLazySerializable<WindowedValue<T>>> clientBytes = bytesRDD.collect();
       windowedValues =
           clientBytes.stream()
-              .map(bytes -> CoderHelpers.fromByteArray(bytes, windowedValueCoder))
+              .map(encoded -> encoded.getOrDecode(windowedValueCoder))
               .collect(Collectors.toList());
     }
     return windowedValues;
@@ -112,9 +115,9 @@ public class BoundedDataset<T> implements Dataset {
       Coder<WindowedValue<T>> windowedValueCoder = (Coder<WindowedValue<T>>) coder;
       this.rdd =
           getRDD()
-              .map(v -> ValueAndCoderLazySerializable.of(v, windowedValueCoder))
+              .map(CoderHelpers.toLazyValueAndCoderFunction(windowedValueCoder))
               .persist(level)
-              .map(v -> v.getOrDecode(windowedValueCoder));
+              .map(CoderHelpers.fromLazyValueAndCoderFunction(windowedValueCoder));
     }
   }
 

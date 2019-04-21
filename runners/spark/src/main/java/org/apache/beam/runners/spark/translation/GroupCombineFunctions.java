@@ -52,14 +52,14 @@ public class GroupCombineFunctions {
       @Nullable Partitioner partitioner) {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    JavaPairRDD<ByteArray, byte[]> pairRDD =
+    JavaPairRDD<ByteArray, ValueAndCoderLazySerializable<WindowedValue<V>>> pairRDD =
         rdd.map(new ReifyTimestampsAndWindowsFunction<>())
             .map(WindowedValue::getValue)
             .mapToPair(TranslationUtils.toPairFunction())
-            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
+            .mapToPair(CoderHelpers.toByteArrayLazyValueFunction(keyCoder, wvCoder));
 
     // If no partitioner is passed, the default group by key operation is called
-    JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD =
+    JavaPairRDD<ByteArray, Iterable<ValueAndCoderLazySerializable<WindowedValue<V>>>> groupedRDD =
         (partitioner != null) ? pairRDD.groupByKey(partitioner) : pairRDD.groupByKey();
 
     // using mapPartitions allows to preserve the partitioner
@@ -67,7 +67,7 @@ public class GroupCombineFunctions {
     return groupedRDD
         .mapPartitionsToPair(
             TranslationUtils.pairFunctionToPairFlatMapFunction(
-                CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
+                CoderHelpers.fromByteArrayLazyValuedIterableFunction(keyCoder, wvCoder)),
             true)
         .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true)
         .mapPartitions(
@@ -169,9 +169,9 @@ public class GroupCombineFunctions {
     return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
         .map(WindowedValue::getValue)
         .mapToPair(TranslationUtils.toPairFunction())
-        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
+        .mapToPair(CoderHelpers.toByteArrayLazyValueFunction(keyCoder, wvCoder))
         .repartition(rdd.getNumPartitions())
-        .mapToPair(CoderHelpers.fromByteFunction(keyCoder, wvCoder))
+        .mapToPair(CoderHelpers.fromByteArrayLazyValueFunction(keyCoder, wvCoder))
         .map(TranslationUtils.fromPairFunction())
         .map(TranslationUtils.toKVByWindowInValue());
   }

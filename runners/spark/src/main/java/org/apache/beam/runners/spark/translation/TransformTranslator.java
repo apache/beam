@@ -254,8 +254,8 @@ public final class TransformTranslator {
           outRdd =
               context
                   .getSparkContext()
-                  .parallelize(CoderHelpers.toByteArrays(output, wvoCoder))
-                  .map(CoderHelpers.fromByteFunction(wvoCoder));
+                  .parallelize(CoderHelpers.toLazyValueAndCoders(output, wvoCoder))
+                  .map(CoderHelpers.fromLazyValueAndCoderFunction(wvoCoder));
         } else {
           // handle empty input RDD, which will naturally skip the entire execution
           // as Spark will not run on empty RDDs.
@@ -263,8 +263,9 @@ public final class TransformTranslator {
           if (hasDefault) {
             OutputT defaultValue = combineFn.defaultValue();
             outRdd =
-                jsc.parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
-                    .map(CoderHelpers.fromByteFunction(oCoder))
+                jsc.parallelize(
+                        Lists.newArrayList(ValueAndCoderLazySerializable.of(defaultValue, oCoder)))
+                    .map(CoderHelpers.fromLazyValueAndCoderFunction(oCoder))
                     .map(WindowedValue::valueInGlobalWindow);
           } else {
             outRdd = jsc.emptyRDD();

@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Objects;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -49,6 +48,12 @@ public class GroupNonMergingWindowsFunctions {
    *
    * <p>repartitionAndSortWithinPartitions is used because all values are not collected into memory
    * at once, but streamed with iterator unlike GroupByKey (it minimizes memory pressure).
+   *
+   * <p>we defer to Spark's serialization here for serializing values so it can avoid duplicating
+   * the same value multiple times in memory (by reference). Since the values are duplicated for
+   * each window, serializers like Kryo can avoid serializing the same value multiple times while
+   * still minimizing the amount of serialization necessary (e.g. if there's no network round trip
+   * necessary for a partition).
    */
   static <K, V, W extends BoundedWindow>
       JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyAndWindow(
@@ -57,14 +62,16 @@ public class GroupNonMergingWindowsFunctions {
           Coder<V> valueCoder,
           WindowingStrategy<?, W> windowingStrategy) {
     final Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
-    final WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
-        WindowedValue.getFullCoder(ByteArrayCoder.of(), windowCoder);
+    final WindowedValue.FullWindowedValueCoder<V> windowedValueCoder =
+        WindowedValue.getFullCoder(valueCoder, windowCoder);
     return rdd.flatMapToPair(
             (WindowedValue<KV<K, V>> windowedValue) -> {
               final byte[] keyBytes =
                   CoderHelpers.toByteArray(windowedValue.getValue().getKey(), keyCoder);
-              final byte[] valueBytes =
-                  CoderHelpers.toByteArray(windowedValue.getValue().getValue(), valueCoder);
+              final ValueAndCoderLazySerializable<WindowedValue<V>> value =
+                  ValueAndCoderLazySerializable.of(
+                      windowedValue.withValue(windowedValue.getValue().getValue()),
+                      windowedValueCoder);
               return Iterators.transform(
                   windowedValue.explodeWindows().iterator(),
                   item -> {
@@ -72,20 +79,15 @@ public class GroupNonMergingWindowsFunctions {
                     @SuppressWarnings("unchecked")
                     final W window = (W) Iterables.getOnlyElement(item.getWindows());
                     final byte[] windowBytes = CoderHelpers.toByteArray(window, windowCoder);
-                    final byte[] windowValueBytes =
-                        CoderHelpers.toByteArray(
-                            WindowedValue.of(
-                                valueBytes, item.getTimestamp(), window, item.getPane()),
-                            windowedValueCoder);
                     final WindowedKey windowedKey = new WindowedKey(keyBytes, windowBytes);
-                    return new Tuple2<>(windowedKey, windowValueBytes);
+                    return new Tuple2<>(windowedKey, value);
                   });
             })
         .repartitionAndSortWithinPartitions(new HashPartitioner(rdd.getNumPartitions()))
         .mapPartitions(
             it ->
-                new GroupByKeyIterator<>(
-                    it, keyCoder, valueCoder, windowingStrategy, windowedValueCoder))
+                new GroupByKeyIterator<K, V, W>(
+                    it, keyCoder, windowedValueCoder, windowCoder, windowingStrategy))
         .filter(Objects::nonNull); // filter last null element from GroupByKeyIterator
   }
 
@@ -101,26 +103,28 @@ public class GroupNonMergingWindowsFunctions {
   static class GroupByKeyIterator<K, V, W extends BoundedWindow>
       implements Iterator<WindowedValue<KV<K, Iterable<V>>>> {
 
-    private final PeekingIterator<Tuple2<WindowedKey, byte[]>> inner;
+    private final PeekingIterator<
+            Tuple2<WindowedKey, ValueAndCoderLazySerializable<WindowedValue<V>>>>
+        inner;
     private final Coder<K> keyCoder;
-    private final Coder<V> valueCoder;
+    private final FullWindowedValueCoder<V> windowedValueCoder;
     private final WindowingStrategy<?, W> windowingStrategy;
-    private final FullWindowedValueCoder<byte[]> windowedValueCoder;
+    private final Coder<W> windowCoder;
 
     private boolean hasNext = true;
     private WindowedKey currentKey = null;
 
     GroupByKeyIterator(
-        Iterator<Tuple2<WindowedKey, byte[]>> inner,
+        Iterator<Tuple2<WindowedKey, ValueAndCoderLazySerializable<WindowedValue<V>>>> inner,
         Coder<K> keyCoder,
-        Coder<V> valueCoder,
-        WindowingStrategy<?, W> windowingStrategy,
-        WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder) {
+        WindowedValue.FullWindowedValueCoder<V> windowedValueCoder,
+        Coder<W> windowCoder,
+        WindowingStrategy<?, W> windowingStrategy) {
       this.inner = Iterators.peekingIterator(inner);
       this.keyCoder = keyCoder;
-      this.valueCoder = valueCoder;
-      this.windowingStrategy = windowingStrategy;
       this.windowedValueCoder = windowedValueCoder;
+      this.windowCoder = windowCoder;
+      this.windowingStrategy = windowingStrategy;
     }
 
     @Override
@@ -149,10 +153,15 @@ public class GroupNonMergingWindowsFunctions {
     class ValueIterator implements Iterable<V> {
 
       boolean usedAsIterable = false;
-      private final PeekingIterator<Tuple2<WindowedKey, byte[]>> inner;
+      private final PeekingIterator<
+              Tuple2<WindowedKey, ValueAndCoderLazySerializable<WindowedValue<V>>>>
+          inner;
       private final WindowedKey currentKey;
 
-      ValueIterator(PeekingIterator<Tuple2<WindowedKey, byte[]>> inner, WindowedKey currentKey) {
+      ValueIterator(
+          PeekingIterator<Tuple2<WindowedKey, ValueAndCoderLazySerializable<WindowedValue<V>>>>
+              inner,
+          WindowedKey currentKey) {
         this.inner = inner;
         this.currentKey = currentKey;
       }
@@ -177,19 +186,16 @@ public class GroupNonMergingWindowsFunctions {
       }
     }
 
-    private V decodeValue(byte[] windowedValueBytes) {
-      final WindowedValue<byte[]> windowedValue =
-          CoderHelpers.fromByteArray(windowedValueBytes, windowedValueCoder);
-      return CoderHelpers.fromByteArray(windowedValue.getValue(), valueCoder);
+    private V decodeValue(ValueAndCoderLazySerializable<WindowedValue<V>> value) {
+      return value.getOrDecode(windowedValueCoder).getValue();
     }
 
-    private WindowedValue<KV<K, V>> decodeItem(Tuple2<WindowedKey, byte[]> item) {
+    private WindowedValue<KV<K, V>> decodeItem(
+        Tuple2<WindowedKey, ValueAndCoderLazySerializable<WindowedValue<V>>> item) {
       final K key = CoderHelpers.fromByteArray(item._1.getKey(), keyCoder);
-      final WindowedValue<byte[]> windowedValue =
-          CoderHelpers.fromByteArray(item._2, windowedValueCoder);
-      final V value = CoderHelpers.fromByteArray(windowedValue.getValue(), valueCoder);
-      @SuppressWarnings("unchecked")
-      final W window = (W) Iterables.getOnlyElement(windowedValue.getWindows());
+      final WindowedValue<V> windowedValue = item._2.getOrDecode(windowedValueCoder);
+      final V value = windowedValue.getValue();
+      final W window = CoderHelpers.fromByteArray(item._1.getWindow(), windowCoder);
       final Instant timestamp =
           windowingStrategy
               .getTimestampCombiner()

@@ -44,7 +44,6 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -74,7 +73,11 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   private final Map<String, Integer> outputMap;
   private final JobBundleFactoryCreator jobBundleFactoryCreator;
   // map from pCollection id to tuple of serialized bytes and coder to decode the bytes
-  private final Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
+  private final Map<
+          String,
+          Tuple2<
+              Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<SideInputT>>>>,
+              WindowedValueCoder<SideInputT>>>
       sideInputs;
   private final MetricsContainerStepMapAccumulator metricsAccumulator;
 
@@ -82,7 +85,12 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
+      Map<
+              String,
+              Tuple2<
+                  Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<SideInputT>>>>,
+                  WindowedValueCoder<SideInputT>>>
+          sideInputs,
       MetricsContainerStepMapAccumulator metricsAccumulator) {
     this(
         stagePayload,
@@ -96,7 +104,12 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       RunnerApi.ExecutableStagePayload stagePayload,
       Map<String, Integer> outputMap,
       JobBundleFactoryCreator jobBundleFactoryCreator,
-      Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
+      Map<
+              String,
+              Tuple2<
+                  Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<SideInputT>>>>,
+                  WindowedValueCoder<SideInputT>>>
+          sideInputs,
       MetricsContainerStepMapAccumulator metricsAccumulator) {
     this.stagePayload = stagePayload;
     this.outputMap = outputMap;
@@ -157,13 +170,16 @@ class SparkExecutableStageFunction<InputT, SideInputT>
             new BatchSideInputHandlerFactory.SideInputGetter() {
               @Override
               public <T> List<T> getSideInput(String pCollectionId) {
-                Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>> tuple2 =
-                    sideInputs.get(pCollectionId);
-                Broadcast<List<byte[]>> broadcast = tuple2._1;
+                Tuple2<
+                        Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<SideInputT>>>>,
+                        WindowedValueCoder<SideInputT>>
+                    tuple2 = sideInputs.get(pCollectionId);
+                Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<SideInputT>>>>
+                    broadcast = tuple2._1;
                 WindowedValueCoder<SideInputT> coder = tuple2._2;
                 return (List<T>)
                     broadcast.value().stream()
-                        .map(bytes -> CoderHelpers.fromByteArray(bytes, coder))
+                        .map(encoded -> encoded.getOrDecode(coder))
                         .collect(Collectors.toList());
               }
             });

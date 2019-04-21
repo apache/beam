@@ -188,7 +188,11 @@ public class SparkBatchPortablePipelineTranslator {
     Map<String, String> outputs = transformNode.getTransform().getOutputsMap();
     BiMap<String, Integer> outputMap = createOutputMap(outputs.values());
 
-    ImmutableMap.Builder<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
+    ImmutableMap.Builder<
+            String,
+            Tuple2<
+                Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<SideInputT>>>>,
+                WindowedValueCoder<SideInputT>>>
         broadcastVariablesBuilder = ImmutableMap.builder();
     for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
       RunnerApi.Components components = stagePayload.getComponents();
@@ -196,8 +200,10 @@ public class SparkBatchPortablePipelineTranslator {
           components
               .getTransformsOrThrow(sideInputId.getTransformId())
               .getInputsOrThrow(sideInputId.getLocalName());
-      Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>> tuple2 =
-          broadcastSideInput(collectionId, components, context);
+      Tuple2<
+              Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<SideInputT>>>>,
+              WindowedValueCoder<SideInputT>>
+          tuple2 = broadcastSideInput(collectionId, components, context);
       broadcastVariablesBuilder.put(collectionId, tuple2);
     }
 
@@ -231,8 +237,14 @@ public class SparkBatchPortablePipelineTranslator {
    *
    * @return Spark broadcast variable and coder to decode its contents
    */
-  private static <T> Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<T>> broadcastSideInput(
-      String collectionId, RunnerApi.Components components, SparkTranslationContext context) {
+  private static <T>
+      Tuple2<
+              Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<T>>>>,
+              WindowedValueCoder<T>>
+          broadcastSideInput(
+              String collectionId,
+              RunnerApi.Components components,
+              SparkTranslationContext context) {
     PCollection collection = components.getPcollectionsOrThrow(collectionId);
     @SuppressWarnings("unchecked")
     BoundedDataset<T> dataset = (BoundedDataset<T>) context.popDataset(collectionId);
@@ -244,8 +256,9 @@ public class SparkBatchPortablePipelineTranslator {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    List<byte[]> bytes = dataset.getBytes(coder);
-    Broadcast<List<byte[]>> broadcast = context.getSparkContext().broadcast(bytes);
+    List<ValueAndCoderLazySerializable<WindowedValue<T>>> bytes = dataset.getEncoded(coder);
+    Broadcast<List<ValueAndCoderLazySerializable<WindowedValue<T>>>> broadcast =
+        context.getSparkContext().broadcast(bytes);
     return new Tuple2<>(broadcast, coder);
   }
 

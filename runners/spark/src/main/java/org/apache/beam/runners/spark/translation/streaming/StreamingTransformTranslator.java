@@ -182,8 +182,8 @@ public final class StreamingTransformTranslator {
 
           final JavaRDD<WindowedValue<T>> rdd =
               jssc.sparkContext()
-                  .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
-                  .map(CoderHelpers.fromByteFunction(windowCoder));
+                  .parallelize(CoderHelpers.toLazyValueAndCoders(windowedValues, windowCoder))
+                  .map(CoderHelpers.fromLazyValueAndCoderFunction(windowCoder));
 
           rddQueue.offer(rdd);
         }
