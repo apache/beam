@@ -82,10 +82,11 @@ dependencies {
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
   // to not hardcode any runner other than :beam-runners-direct-java
   if (shouldProvideSpark) {
-    gradleRun library.java.spark_streaming
     gradleRun library.java.spark_core, {
       exclude group:"org.slf4j", module:"jul-to-slf4j"
     }
+    gradleRun library.java.spark_sql
+    gradleRun library.java.spark_streaming
   }
 }
 
