@@ -20,6 +20,71 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam is applying to Season of Docs</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;The Apache Beam community is thrilled to announce its application to the first edition of  Season of Docs 2019!&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/blog/SoD.png&quot; alt=&quot;Season of Docs 2019 flyer&quot; height=&quot;455&quot; width=&quot;640&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://developers.google.com/season-of-docs/&quot;&gt;Season of Docs&lt;/a&gt; is a unique program that pairs technical writers with open source mentors to contribute to open source. This creates an opportunity to introduce the technical writer to an open source community and provide guidance while the writer works on a real world open source project. We, in the Apache Beam community, would love to take this chance and invite technical writers to collaborate with us, and help us improve our documentation in many ways.&lt;/p&gt;
+
+&lt;p&gt;Apache Beam does have help from excellent technical writers, but the documentation needs of the project often exceed their bandwidth. This is why we are excited about this program.&lt;/p&gt;
+
+&lt;p&gt;After discussing ideas in the community, we have been able to find mentors, and frame two ideas that we think would be a great fit for an incoming tech writer to tackle. We hope you will find this opportunity interesting - and if you do, please get in touch by emailing the Apache Beam mailing list at &lt;a href=&quot;mailto:dev@beam.apache.org&quot;&gt;dev@beam.apache.org&lt;/a&gt; (you will need to subscribe first by emailing to &lt;a href=&quot;mailto:dev-subscribe@beam.apache.org&quot;&gt;dev-subscribe@beam.apache.org&lt;/a&gt;).&lt;/p&gt;
+
+&lt;p&gt;The project ideas available in Apache Beam are described below. Please take a look and ask any questions that you may have. We will be very happy to help you get onboarded with the project.&lt;/p&gt;
+
+&lt;h3 id=&quot;project-ideas&quot;&gt;Project ideas&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Deployment of Flink and Spark Clusters for use with Portable Beam&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;The Apache Beam vision has been to provide a framework for users to write and execute pipelines on the programming language of your choice, and the runner of your choice. As the reality of Beam has evolved towards this vision, the way in which Beam is run on top of runners such as Apache Spark and Apache Flink has changed.&lt;/p&gt;
+
+&lt;p&gt;These changes are documented in the wiki and in design documents, and are accessible for Beam contributors; but they are not available in the user-facing documentation. This has been a barrier of adoption for other users of Beam.&lt;/p&gt;
+
+&lt;p&gt;This project involves improving the &lt;a href=&quot;https://beam.apache.org/documentation/runners/flink/&quot;&gt;Flink Runner page&lt;/a&gt; to include strategies to deploy Beam on a few different environments: A Kubernetes cluster, a Google Cloud Dataproc cluster, and an AWS EMR cluster. There are other places in the documentation that should be updated in this regard, such as the &lt;a href=&quot;https://beam.apache.org/documentation/sdks/python-streaming/&quot;&gt;Python streaming&lt;/a&gt; section, and the &lt;a href=&quot;https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features&quot;&gt;set of supported features&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;After working on the Flink Runner, then similar updates should be made to the &lt;a href=&quot;https://beam.apache.org/documentation/runners/spark/&quot;&gt;Spark Runner page&lt;/a&gt;, and the &lt;a href=&quot;https://beam.apache.org/get-started/beam-overview/&quot;&gt;getting started documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;The runner comparison page / capability matrix update&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Beam maintains a &lt;a href=&quot;https://beam.apache.org/documentation/runners/capability-matrix/&quot;&gt;capability matrix&lt;/a&gt; to track which Beam features are supported by which set of language SDKs + Runners.
+This project involves a number of &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-2888&quot;&gt;corrections and improvements to the capability matrix&lt;/a&gt;; followed by a few larger set of changes, involving:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Plain english summaries for each runner’s support of the Beam model.&lt;/li&gt;
+  &lt;li&gt;A paragraph-length description of the production-readiness for each runner.&lt;/li&gt;
+  &lt;li&gt;Comparisons for non-model differences between runners.&lt;/li&gt;
+  &lt;li&gt;Comparison for support of the portability framework for each runner.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Thank you, and we are looking forward to hearing from you!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 19 Apr 2019 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2019/04/19/season-of-docs.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/04/19/season-of-docs.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.11.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1047,121 +1112,6 @@ Valentyn Tymofieiev, XuMingmin, and Yifan Zou.&lt;/p&gt;
         <pubDate>Fri, 10 Aug 2018 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2018/08/10/beam-2.6.0.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2018/08/10/beam-2.6.0.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam 2.5.0</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are glad to present the new 2.5.0 release of Beam. This release includes
-multiple fixes and new functionalities. &lt;!--more--&gt; For more information
-please check the detailed release notes.&lt;/p&gt;
-
-&lt;h1 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h1&gt;
-
-&lt;h2 id=&quot;go-sdk-support&quot;&gt;Go SDK support&lt;/h2&gt;
-&lt;p&gt;The Go SDK has been officially accepted into the project, after an incubation period and community effort. Go pipelines run on Dataflow runner. More details are &lt;a href=&quot;/documentation/sdks/go/&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;parquet-support&quot;&gt;Parquet support&lt;/h2&gt;
-&lt;p&gt;Support for Apache Parquet format was added. It uses Parquet 1.10 release which, thanks to AvroParquerWriter’s API changes, allows FileIO.Sink implementation.&lt;/p&gt;
-
-&lt;h2 id=&quot;performanceintegration-tests&quot;&gt;Performance/Integration Tests&lt;/h2&gt;
-&lt;ul&gt;
-  &lt;li&gt;Added new integration tests - HCatalogIOIT (Hive), HBaseIOIT, ParquetIOIT (with the IO itself, local filesystem, HDFS)&lt;/li&gt;
-  &lt;li&gt;Multinode (3 data node) HDFS cluster is used for running tests on HDFS.&lt;/li&gt;
-  &lt;li&gt;Several improvements on performance tests running and results analysis.&lt;/li&gt;
-  &lt;li&gt;Scaled up Kubernetes cluster from 1 to 3 nodes.&lt;/li&gt;
-  &lt;li&gt;Added metrics in Spark streaming.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;internal-build-system-migrated-to-gradle&quot;&gt;Internal Build System: Migrated to Gradle&lt;/h2&gt;
-&lt;p&gt;After a months-long community effort, the internal Beam build has been migrated from Maven to Gradle. The new build system was chosen because of dependency-driven build support, incremental build/test, and support for non-Java languages.&lt;/p&gt;
-
-&lt;h2 id=&quot;nexmark-improvements&quot;&gt;Nexmark Improvements&lt;/h2&gt;
-&lt;ul&gt;
-  &lt;li&gt;Kafka support as a source/sink for events and results.&lt;/li&gt;
-  &lt;li&gt;Translation of some queries to Beam SQL.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;beam-sql&quot;&gt;Beam SQL&lt;/h2&gt;
-&lt;ul&gt;
-  &lt;li&gt;Support for MAP, ROW, ARRAY data types&lt;/li&gt;
-  &lt;li&gt;Support UNNEST on array fields&lt;/li&gt;
-  &lt;li&gt;Improved optimizations&lt;/li&gt;
-  &lt;li&gt;Upgrade Calcite to 1.16&lt;/li&gt;
-  &lt;li&gt;Support SQL on POJOs via automatic conversion&lt;/li&gt;
-  &lt;li&gt;Schema moved into core Beam&lt;/li&gt;
-  &lt;li&gt;UDAFs can be indirect suclasses of CombineFn&lt;/li&gt;
-  &lt;li&gt;Many other small bugfixes&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;portability&quot;&gt;Portability&lt;/h2&gt;
-&lt;ul&gt;
-  &lt;li&gt;Common shared code related to supporting portable execution for runners.&lt;/li&gt;
-  &lt;li&gt;Python SDK supporting side inputs over the portability APIs.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;extract-metrics-in-a-runner-agnostic-way&quot;&gt;Extract metrics in a runner agnostic way&lt;/h2&gt;
-&lt;p&gt;Metrics are pushed by the runners to configurable sinks (Http REST sink available). It is already enabled in Flink and Spark runner, work is in progress for Dataflow.&lt;/p&gt;
-
-&lt;h1 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h1&gt;
-
-&lt;h2 id=&quot;sdks&quot;&gt;SDKs&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Implemented HDFS FileSystem for Python SDK.&lt;/li&gt;
-  &lt;li&gt;Python SDK adds support for side inputs for streaming execution.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;runners&quot;&gt;Runners&lt;/h2&gt;
-&lt;ul&gt;
-  &lt;li&gt;Updated Spark runner to Spark version 2.3.1&lt;/li&gt;
-  &lt;li&gt;Fixed issue with late elements windowed into expired fixed windows get dropped in Directrunner.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;ios&quot;&gt;IOs&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;CassandraIO gained a better split algorithm based on overlapping regions.&lt;/li&gt;
-  &lt;li&gt;ElasticsearchIO supports partial updates.&lt;/li&gt;
-  &lt;li&gt;ElasticsearchIO allows to pass id, type and index per document.&lt;/li&gt;
-  &lt;li&gt;SolrIO supports a more robust retry on write strategy.&lt;/li&gt;
-  &lt;li&gt;S3 FileSystem supports encryption (SSE-S3, SSE-C and SSE-KMS).&lt;/li&gt;
-  &lt;li&gt;Improved connection management in JdbcIO.&lt;/li&gt;
-  &lt;li&gt;Added support the element timestamps while publishing to Kafka.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;other&quot;&gt;Other&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Use Java ErrorProne for static analysis.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h1&gt;
-
-&lt;p&gt;According to git shortlog, the following 84 people contributed to the 2.5.0 release. Thank you to all contributors!&lt;/p&gt;
-
-&lt;p&gt;Ahmet Altay, Alan Myrvold, Alex Amato, Alex Van Boxel, Alexander Dejanovski, Alexey Romanenko, Aljoscha Krettek, ananvay, Andreas Ehrencrona, Andrew Pilloud, Ankur Goenka, Anton Kedin, arkash, Austin Bennett, Axel Magnuson, Ben Chambers, Ben Sidhom, Bill Neubauer, Boyuan Zhang, Braden Bassingthwaite, Cade Markegard, cclauss, Chamikara Jayalath, Charles Chen, Chuan Yu Foo, Cody Schroeder, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, Dawid Wysakowicz, Eric Roshan-Eisner, Etienne Chauchot, Eugene Kirpichov, Flavio Fiszman, Geet Kumar, GlennAmmons, Grzegorz Kołakowski, Henning Rohde, Innocent Djiofack, Ismaël Mejía, Jack Hsueh, Jason Kuster, Javier Antonio Gonzalez Trejo, Jean-Baptiste Onofré, Kai Jiang, Kamil Szewczyk, Katarzyna Kucharczyk, Kenneth Jung, Kenneth Knowles, Kevin Peterson, Lukasz Cwik, Łukasz Gajowy, Mairbek Khadikov, Manu Zhang, Maria Garcia Herrero, Marian Dvorsky, Mark Liu, Matthias Feys, Matthias Wessendorf, mingmxu, Nathan Howell, Pablo Estrada, Paul Gerver, Raghu Angadi, rarokni, Reuven Lax, Rezan Achmad, Robbe Sneyders, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Sam Waggoner, Sam Whittle, Scott Wegner, Stephan Hoyer, Thomas Groh, Thomas Weise, Tim Robertson, Udi Meiri, Valentyn Tymofieiev, XuMingmin, Yifan Zou, Yunqing Zhou&lt;/p&gt;
-</description>
-        <pubDate>Tue, 26 Jun 2018 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2018/06/26/beam-2.5.0.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2018/06/26/beam-2.5.0.html</guid>
         
         
         <category>blog</category>
