@@ -130,8 +130,7 @@ class WriteToBigTable(beam.PTransform):
   A PTransform that write a list of `DirectRow` into the Bigtable Table
 
   """
-  def __init__(self, project_id=None, instance_id=None,
-               table_id=None):
+  def __init__(self, project_id=None, instance_id=None, table_id=None):
     """ The PTransform to access the Bigtable Write connector
     Args:
       project_id(str): GCP Project of to write the Rows
