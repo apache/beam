@@ -100,11 +100,11 @@ class DeterministicProtoCoderTest(unittest.TestCase):
 
   def test_deterministic_proto_coder_determinism(self):
     mm = test_message.MessageWithMap()
-    for i in xrange(10):
+    for i in range(10):
       mm.field1['key_%s' % i].field1 = 'Hello world %s' % i
     coder = coders.DeterministicProtoCoder(mm.__class__)
     expected_encoded = coder.encode(mm)
-    for _ in xrange(10):
+    for _ in range(5):
       self.assertEqual(expected_encoded, coder.encode(mm))
 
 
