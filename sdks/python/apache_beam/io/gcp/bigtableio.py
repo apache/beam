@@ -98,7 +98,7 @@ class _BigTableWriteFn(beam.DoFn):
       self.table = instance.table(self.beam_options['table_id'])
     self.batcher = self.table.mutations_batcher()
 
-  def process(self, row):
+  def process(self, row, *args, **kwargs):
     self.written.inc()
     # You need to set the timestamp in the cells in this row object,
     # when we do a retry we will mutating the same object, but, with this
@@ -269,6 +269,6 @@ class BigtableSource(iobase.BoundedSource):
                                        key='filter_')
             }
 
-  def to_runner_api_parameter(self, unused_context):
-    return 'simple', None
+  # def to_runner_api_parameter(self, unused_context):
+  #   return 'simple', None
 
