@@ -771,16 +771,12 @@ class ProtoCoder(FastCoder):
 
 
 class DeterministicProtoCoder(ProtoCoder):
-  """A Coder for Google Protocol Buffers.
+  """A deterministic Coder for Google Protocol Buffers.
 
   It supports both Protocol Buffers syntax versions 2 and 3. However,
   the runtime version of the python protobuf library must exactly match the
   version of the protoc compiler what was used to generate the protobuf
   messages.
-
-  ProtoCoder is registered in the global CoderRegistry as the default coder for
-  any protobuf Message object.
-
   """
 
   def _create_impl(self):
