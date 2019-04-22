@@ -48,7 +48,7 @@ def _default_crc32c_fn(value):
       # https://github.com/andrix/python-snappy/pull/53
       if getattr(snappy, '_crc32c', None):
         _default_crc32c_fn.fn = snappy._crc32c  # pylint: disable=protected-access
-      elif getattr(snappy, '_snappy', None)::
+      elif getattr(snappy, '_snappy', None):
         _default_crc32c_fn.fn = snappy._snappy._crc32c  # pylint: disable=protected-access
     except ImportError:
       pass
