@@ -1,9 +1,10 @@
 ---
 layout: section
-title: "Beam SQL: CREATE EXTERNAL TABLE Statement"
+title: "Beam SQL extension: CREATE EXTERNAL TABLE Statement"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/create-external-table/
+permalink: /documentation/dsls/sql/extensions/create-external-table/
 redirect_from:
+  - /documentation/dsls/sql/create-external-table/
   - /documentation/dsls/sql/statements/create-table/
   - /documentation/dsls/sql/create-table/
 ---
@@ -21,7 +22,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# CREATE EXTERNAL TABLE
+# Beam SQL extensions: CREATE EXTERNAL TABLE
 
 Beam SQL's `CREATE EXTERNAL TABLE` statement registers a virtual table that maps to an
 [external storage system]({{ site.baseurl }}/documentation/io/built-in/).
@@ -50,7 +51,7 @@ tableElement: columnName fieldType [ NOT NULL ]
     ignores the statement instead of returning an error.
 *   `tableName`: The case sensitive name of the table to create and register,
     specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical#identifiers).
     The table name does not need to match the name in the underlying data
     storage system.
 *   `tableElement`: `columnName` `fieldType` `[ NOT NULL ]`
@@ -65,7 +66,7 @@ tableElement: columnName fieldType [ NOT NULL ]
         *   `ROW<tableElement [, tableElement ]*>`
     *   `NOT NULL`: Optional. Indicates that the column is not nullable.
 *   `type`: The I/O transform that backs the virtual table, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers)
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#identifiers)
     with one of the following values:
     *   `bigquery`
     *   `pubsub`
@@ -73,11 +74,11 @@ tableElement: columnName fieldType [ NOT NULL ]
     *   `text`
 *   `location`: The I/O specific location of the underlying table, specified as
     a [String
-    Literal]({{ site.baseurl }}/documentation/dsls/sql/lexical/#string-literals).
+    Literal]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#string-literals).
     See the I/O specific sections for `location` format requirements.
 *   `tblProperties`: The I/O specific quoted key value JSON object with extra
     configuration, specified as a [String
-    Literal]({{ site.baseurl }}/documentation/dsls/sql/lexical/#string-literals).
+    Literal]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#string-literals).
     See the I/O specific sections for `tblProperties` format requirements.
 
 ## BigQuery
