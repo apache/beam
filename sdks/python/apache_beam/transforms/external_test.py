@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -29,7 +28,9 @@ from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import Pipeline
-from apache_beam.io.external.generate_sequence import GenerateSequence
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
@@ -41,6 +42,7 @@ class ExternalTransformTest(unittest.TestCase):
 
   # This will be overwritten if set via a flag.
   expansion_service_jar = None
+  expansion_service_port = None
 
   def test_pipeline_generation(self):
     pipeline = beam.Pipeline()
@@ -102,58 +104,70 @@ class ExternalTransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
 
-  def test_java_expansion(self):
-    if not self.expansion_service_jar:
+  def test_java_expansion_portable_runner(self):
+    if not ExternalTransformTest.expansion_service_jar:
       raise unittest.SkipTest('No expansion service jar provided.')
 
+    # Run as cheaply as possible on the portable runner.
+    # TODO(robertwb): Support this directly in the direct runner.
+    pipeline_args = self.pipeline_args or (
+        ['--runner=PortableRunner',
+         '--experiments=beam_fn_api',
+         'environment_type=%s' % python_urns.EMBEDDED_PYTHON,
+         'job_endpoint=embed'])
+
+    pipeline_options = PipelineOptions(pipeline_args)
+    assert (
+        pipeline_options.view_as(StandardOptions).runner.lower()
+        == "portablerunner"), "Only PortableRunner is supported."
+
+    # We use the save_main_session option because one or more DoFn's in this
+    # workflow rely on global context (e.g., a module imported at module level).
+    pipeline_options.view_as(SetupOptions).save_main_session = True
+    self.run_pipelines(pipeline_options)
+
+  @staticmethod
+  def run_pipelines(pipeline_options):
     # The actual definitions of these transforms is in
     # org.apache.beam.runners.core.construction.TestExpansionService.
     TEST_COUNT_URN = "pytest:beam:transforms:count"
     TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than"
 
-    # Run as cheaply as possible on the portable runner.
-    # TODO(robertwb): Support this directly in the direct runner.
-    options = beam.options.pipeline_options.PipelineOptions(
-        runner='PortableRunner',
-        experiments=['beam_fn_api'],
-        environment_type=python_urns.EMBEDDED_PYTHON,
-        job_endpoint='embed')
+    assert (
+        pipeline_options.view_as(StandardOptions).runner.lower()
+        == "portablerunner"), "Only PortableRunner is supported."
 
     try:
+
+      # Run a simple count-filtered-letters pipeline.
+      p = beam.Pipeline(options=pipeline_options)
+      p.runner.init_dockerized_job_server()
+
       # Start the java server and wait for it to be ready.
-      port = '8091'
+      port = str(ExternalTransformTest.expansion_service_port)
       address = 'localhost:%s' % port
-      server = subprocess.Popen(
-          ['java', '-jar', self.expansion_service_jar, port])
+      server = subprocess.Popen([
+          'java', '-jar', ExternalTransformTest.expansion_service_jar,
+          port])
+
       with grpc.insecure_channel(address) as channel:
         grpc.channel_ready_future(channel).result()
 
-      # Run a simple count-filtered-letters pipeline.
-      with beam.Pipeline(options=options) as p:
-        res = (
-            p
-            | beam.Create(list('aaabccxyyzzz'))
-            | beam.Map(unicode)
-            # TODO(BEAM-6587): Use strings directly rather than ints.
-            | beam.Map(lambda x: int(ord(x)))
-            | beam.ExternalTransform(TEST_FILTER_URN, b'middle', address)
-            | beam.ExternalTransform(TEST_COUNT_URN, None, address)
-            # TODO(BEAM-6587): Remove when above is removed.
-            | beam.Map(lambda kv: (chr(kv[0]), kv[1]))
-            | beam.Map(lambda kv: '%s: %s' % kv))
+      res = (
+          p
+          | beam.Create(list('aaabccxyyzzz'))
+          | beam.Map(unicode)
+          # TODO(BEAM-6587): Use strings directly rather than ints.
+          | beam.Map(lambda x: int(ord(x)))
+          | beam.ExternalTransform(TEST_FILTER_URN, b'middle', address)
+          | beam.ExternalTransform(TEST_COUNT_URN, None, address)
+          # # TODO(BEAM-6587): Remove when above is removed.
+          | beam.Map(lambda kv: (chr(kv[0]), kv[1]))
+          | beam.Map(lambda kv: '%s: %s' % kv))
 
-        assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
+      assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
 
-      # Test GenerateSequence Java transform
-      with beam.Pipeline(options=options) as p:
-        res = (
-            p
-            | GenerateSequence(start=1, stop=10,
-                               expansion_service=address)
-        )
-
-        assert_that(res, equal_to([i for i in range(1, 10)]))
-
+      p.run().wait_until_finish()
     finally:
       server.kill()
 
@@ -161,10 +175,16 @@ class ExternalTransformTest(unittest.TestCase):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--expansion_service_jar')
-  known_args, sys.argv = parser.parse_known_args(sys.argv)
+  parser.add_argument('--expansion_service_port')
+  known_args, pipeline_args = parser.parse_known_args(sys.argv)
 
   if known_args.expansion_service_jar:
     ExternalTransformTest.expansion_service_jar = (
         known_args.expansion_service_jar)
-
-  unittest.main()
+    ExternalTransformTest.expansion_service_port = int(
+        known_args.expansion_service_port)
+    pipeline_options = PipelineOptions(pipeline_args)
+    ExternalTransformTest.run_pipelines(pipeline_options)
+  else:
+    sys.argv = pipeline_args
+    unittest.main()
