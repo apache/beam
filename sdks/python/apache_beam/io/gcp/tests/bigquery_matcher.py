@@ -130,7 +130,7 @@ class BigqueryFullResultMatcher(BaseMatcher):
 
     self.project = project
     self.query = query
-    self.expected_data = [sorted(i) for i in data]
+    self.expected_data = data
 
   def _matches(self, _):
     logging.info('Start verify Bigquery data.')
@@ -140,7 +140,7 @@ class BigqueryFullResultMatcher(BaseMatcher):
     logging.info('Read from given query (%s), total rows %d',
                  self.query, len(response))
 
-    self.actual_data = [sorted(i) for i in response]
+    self.actual_data = response
 
     # Verify result
     return sorted(self.expected_data) == sorted(self.actual_data)
