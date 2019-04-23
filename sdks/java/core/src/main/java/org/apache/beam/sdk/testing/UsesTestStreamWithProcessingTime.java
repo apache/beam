@@ -18,7 +18,8 @@
 package org.apache.beam.sdk.testing;
 
 /**
- * Category tag for tests that use {@link TestStream}, which is not a part of the Beam model but a
- * special feature currently only implemented by the direct runner and the Flink Runner (streaming).
+ * Subcategory for {@link UsesTestStream} tests which use the processing time feature of {@link
+ * TestStream}. Some Runners do not support setting processing time globally in a way that {@link
+ * TestStream} demands it.
  */
-public interface UsesTestStream {}
+public interface UsesTestStreamWithProcessingTime extends UsesTestStream {}
