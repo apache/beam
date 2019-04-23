@@ -51,9 +51,7 @@ public class SortedBucketSource<KeyT, ResultT>
         if (first == null) {
           first = current;
         } else {
-          Preconditions.checkState(first.getNumBuckets() == current.getNumBuckets());
-          Preconditions.checkState(first.getSortingKeyClass().equals(current.getSortingKeyClass()));
-          Preconditions.checkState(first.getHashType() == current.getHashType());
+          Preconditions.checkState(first.compatibleWith(current));;
         }
       }
 

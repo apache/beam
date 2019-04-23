@@ -55,6 +55,10 @@ public final class SMBFilenamePolicy implements Serializable {
       this.doTimestampFiles = doTimestampFiles;
     }
 
+    FileAssignment(ResourceId filenamePrefix, String fileNameSuffix) {
+      this(filenamePrefix, fileNameSuffix, false);
+    }
+
     public ResourceId forBucketShard(int bucketNumber, int numBuckets, int shardNumber, int numShards) {
       String prefix = "";
       if (doTimestampFiles) {
