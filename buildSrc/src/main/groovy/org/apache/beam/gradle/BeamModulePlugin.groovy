@@ -235,6 +235,24 @@ class BeamModulePlugin implements Plugin<Project> {
     String itModule = System.getProperty('itModule')
   }
 
+  // Reads and contains all necessary performance test parameters
+  class PythonPerformanceTestConfiguration {
+    // Fully qualified name of the test to run.
+    String tests = System.getProperty('tests')
+
+    // Attribute tag that can filter the test set.
+    String attribute = System.getProperty('attr')
+
+    // Extra test options pass to nose.
+    String[] extraTestOptions = ["--nocapture"]
+
+    // Name of Cloud KMS encryption key to use in some tests.
+    String kmsKeyName = System.getProperty('kmsKeyName')
+
+    // Pipeline options to be used for pipeline invocation.
+    String pipelineOptions = System.getProperty('pipelineOptions', '')
+  }
+
   // A class defining the set of configurable properties accepted by containerImageName.
   class ContainerImageNameConfiguration {
     String root = null // Sets the docker repository root (optional).
@@ -1731,6 +1749,45 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           inputs.files pythonSdkDeps
           outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+        }
+      }
+
+      // Run single or a set of integration tests with provided test options and pipeline options.
+      project.ext.enablePythonPerformanceTest = {
+
+        // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+        // See: http://groovy-lang.org/closures.html#implicit-it
+        def config = it ? it as PythonPerformanceTestConfiguration : new PythonPerformanceTestConfiguration()
+
+        project.task('integrationTest') {
+          dependsOn 'installGcpTest'
+          dependsOn 'sdist'
+
+          doLast {
+            def argMap = [:]
+
+            // Build test options that configures test environment and framework
+            def testOptions = []
+            if (config.tests)
+              testOptions += "--tests=$config.tests"
+            if (config.attribute)
+              testOptions += "--attr=$config.attribute"
+            testOptions.addAll(config.extraTestOptions)
+            argMap["test_opts"] = testOptions
+
+            // Build pipeline options that configures pipeline job
+            if (config.pipelineOptions)
+              argMap["pipeline_opts"] = config.pipelineOptions
+            if (config.kmsKeyName)
+              argMap["kms_key_name"] = config.kmsKeyName
+
+            def cmdArgs = project.mapToArgString(argMap)
+            def runScriptsDir = "${pythonRootDir}/scripts"
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh ${cmdArgs}"
+            }
+          }
         }
       }
     }
