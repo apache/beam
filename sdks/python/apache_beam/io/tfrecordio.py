@@ -52,7 +52,7 @@ def _default_crc32c_fn(value):
         _default_crc32c_fn.fn = snappy._snappy._crc32c  # pylint: disable=protected-access
     except ImportError:
       pass
-    
+
     if not _default_crc32c_fn.fn:
       logging.warning('Couldn\'t find python-snappy so the implementation of '
                       '_TFRecordUtil._masked_crc32c is not as fast as it could '
