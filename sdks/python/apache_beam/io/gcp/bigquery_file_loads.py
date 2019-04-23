@@ -498,7 +498,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self._custom_gcs_temp_location = custom_gcs_temp_location
     self.test_client = test_client
     self.schema = schema
-    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
+    self.coder = coder or bigquery_tools.RowAsDictJsonCoder(schema=self.schema)
 
     # If we have multiple destinations, then we will have multiple load jobs,
     # thus we will need temporary tables for atomicity.

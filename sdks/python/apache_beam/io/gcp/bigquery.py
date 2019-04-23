@@ -495,7 +495,7 @@ bigquery_v2_messages.TableSchema` object.
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
     self.validate = validate
-    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
+    self.coder = coder or bigquery_tools.RowAsDictJsonCoder(self.table_schema)
     self.kms_key = kms_key
 
   def display_data(self):
@@ -719,6 +719,13 @@ class BigQueryWriteFn(DoFn):
     rows = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
 
+    if callable(self.schema):
+      schema = self.schema(destination)
+    elif isinstance(self.schema, vp.ValueProvider):
+      schema = self.schema.get()
+    else:
+      schema = self.schema
+
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
@@ -733,7 +740,8 @@ class BigQueryWriteFn(DoFn):
           dataset_id=table_reference.datasetId,
           table_id=table_reference.tableId,
           rows=rows,
-          skip_invalid_rows=True)
+          skip_invalid_rows=True,
+          schema=schema)
 
       logging.debug("Passed: %s. Errors are %s", passed, errors)
       failed_rows = [rows[entry.index] for entry in errors]
