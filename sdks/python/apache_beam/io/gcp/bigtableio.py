@@ -165,20 +165,19 @@ class BigtableSource(iobase.BoundedSource):
                 'instance_id': instance_id,
                 'table_id': table_id,
                 'filter_': filter_})
-    self.row_count = Metrics.counter(self.__class__, 'Row count')
 
   def __getstate__(self):
     return self.beam_options
 
   def __setstate__(self, options):
     self._init(options)
-    self.row_count = Metrics.counter(self.__class__, 'Row count')
 
   def _init(self, options):
     self.beam_options = options
     self.table = None
     self.sample_row_keys = None
-    # self.row_count = Metrics.counter(self.__class__.__name__, 'Row count')
+    self.row_count = Metrics.counter(self.__class__.__name__, 'Row count')
+
 
   def _get_table(self):
     if self.table is None:
