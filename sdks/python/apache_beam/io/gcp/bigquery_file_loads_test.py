@@ -379,25 +379,25 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, foundation FROM %s" % output_table_2,
             data=[(d['name'], d['foundation'])
                   for d in _ELEMENTS
                   if 'foundation' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_3,
+            query="SELECT name, language FROM %s" % output_table_3,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_4,
+            query="SELECT name, foundation FROM %s" % output_table_4,
             data=[(d['name'], d['foundation'])
                   for d in _ELEMENTS
                   if 'foundation' in d])]
@@ -466,11 +466,11 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, foundation FROM %s" % output_table_2,
             data=[])]
 
     args = self.test_pipeline.get_full_options_as_args(
