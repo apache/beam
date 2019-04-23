@@ -12,6 +12,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
+import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
@@ -23,7 +24,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
@@ -47,16 +48,16 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
 
   private final BucketMetadata<SortingKeyT, ValueT> bucketingMetadata;
   private final SMBFilenamePolicy smbFilenamePolicy;
-  private final SerializableFunction<Void, SortedBucketFile.Writer<ValueT>> writerProvider;
+  private final Supplier<Writer<ValueT>> writerSupplier;
 
   public SortedBucketSink(
       BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
       SMBFilenamePolicy smbFilenamePolicy,
-      SerializableFunction<Void, SortedBucketFile.Writer<ValueT>> writerProvider
+      Supplier<Writer<ValueT>> writerSupplier
   ) {
     this.bucketingMetadata = bucketingMetadata;
     this.smbFilenamePolicy = smbFilenamePolicy;
-    this.writerProvider = writerProvider;
+    this.writerSupplier = writerSupplier;
   }
 
   @Override
@@ -73,7 +74,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
         .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
         .apply("Write bucket data", new WriteOperation<>(
-            smbFilenamePolicy, bucketingMetadata, writerProvider));
+            smbFilenamePolicy, bucketingMetadata, writerSupplier));
   }
 
   /*
@@ -138,15 +139,15 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
       PTransform<PCollection<KV<Integer, Iterable<KV<S, V>>>>, WriteResult> {
     private final SMBFilenamePolicy smbFilenamePolicy;
     private final BucketMetadata<S, V> bucketMetadata;
-    private final SerializableFunction<Void, SortedBucketFile.Writer<V>> writerProvider;
+    private final Supplier<Writer<V>> writerSupplier;
 
     WriteOperation(
         SMBFilenamePolicy smbFilenamePolicy,
         BucketMetadata<S, V> bucketMetadata,
-        SerializableFunction<Void, SortedBucketFile.Writer<V>> writerProvider) {
+        Supplier<Writer<V>> writerSupplier) {
       this.smbFilenamePolicy = smbFilenamePolicy;
       this.bucketMetadata = bucketMetadata;
-      this.writerProvider = writerProvider;
+      this.writerSupplier = writerSupplier;
     }
 
     @Override
@@ -154,7 +155,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
       return input
           .apply(
               "Write buckets to temp directory",
-              new WriteTempFiles<>(smbFilenamePolicy.forTempFiles(), bucketMetadata, writerProvider))
+              new WriteTempFiles<>(smbFilenamePolicy.forTempFiles(), bucketMetadata, writerSupplier))
           .apply("Finalize temp file destinations",
               new FinalizeTempFiles(smbFilenamePolicy.forDestination(), bucketMetadata)
           );
@@ -167,17 +168,17 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
 
     private final FileAssignment tempFileAssignment;
     private final BucketMetadata bucketMetadata;
-    private final SerializableFunction<Void, SortedBucketFile.Writer<V>> writerProvider;
+    private final Supplier<Writer<V>> writerSupplier;
 
 
     WriteTempFiles(
         FileAssignment tempFileAssignment,
         BucketMetadata bucketMetadata,
-        SerializableFunction<Void, SortedBucketFile.Writer<V>> writerProvider
+        Supplier<Writer<V>> writerSupplier
         ) {
       this.tempFileAssignment = tempFileAssignment;
       this.bucketMetadata = bucketMetadata;
-      this.writerProvider = writerProvider;
+      this.writerSupplier = writerSupplier;
     }
 
     @Override
@@ -200,7 +201,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
                      final ResourceId tmpDst = tempFileAssignment
                          .forBucketShard(bucketId, bucketMetadata.getNumBuckets(), 1, 1);
 
-                     final SortedBucketFile.Writer<V> writer = writerProvider.apply(null);
+                     final SortedBucketFile.Writer<V> writer = writerSupplier.get();
 
                      writer.prepareWrite(FileSystems.create(tmpDst, writer.getMimeType()));
 

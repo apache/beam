@@ -1,0 +1,7 @@
+{
+  "type":"AvroBucketMetadata",
+  "numBuckets":1,
+  "sortingKeyClass":"java.lang.Integer",
+  "hashType":"MURMUR3_32",
+  "keyField":"age"
+}

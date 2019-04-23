@@ -1,24 +1,29 @@
 package org.apache.beam.sdk.extensions.smb;
 
-    import com.fasterxml.jackson.annotation.JsonIgnore;
-    import com.fasterxml.jackson.annotation.JsonProperty;
-    import com.fasterxml.jackson.annotation.JsonSubTypes;
-    import com.fasterxml.jackson.annotation.JsonTypeInfo;
-    import com.fasterxml.jackson.core.JsonProcessingException;
-    import com.fasterxml.jackson.databind.ObjectMapper;
-    import java.util.Objects;
-    import org.apache.beam.sdk.coders.CannotProvideCoderException;
-    import org.apache.beam.sdk.coders.Coder;
-    import org.apache.beam.sdk.coders.CoderException;
-    import org.apache.beam.sdk.coders.CoderRegistry;
-    import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
-    import org.apache.beam.sdk.util.CoderUtils;
-    import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
-    import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.OutputStream;
+import java.util.Objects;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
-    import java.io.IOException;
-    import java.io.InputStream;
-    import java.io.Serializable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Serializable;
 
 // @Todo = everything. This is just a placeholder for the kind of functionality we need
 @JsonTypeInfo(
@@ -74,25 +79,13 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   }
 
   // @Todo: more sophisticated comparison rules.
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    BucketMetadata<?, ?> that = (BucketMetadata<?, ?>) o;
-    return numBuckets == that.numBuckets &&
-        Objects.equals(sortingKeyClass, that.sortingKeyClass) &&
-        hashType == that.hashType &&
-        Objects.equals(sortingKeyCoder, that.sortingKeyCoder) &&
-        Objects.equals(hashFunction, that.hashFunction);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(numBuckets, sortingKeyClass, hashType, sortingKeyCoder, hashFunction);
+  <S, V> boolean compatibleWith(BucketMetadata<S, V> other) {
+    return (
+        other != null &&
+            this.getNumBuckets() == other.numBuckets &&
+            this.hashType == other.hashType &&
+            this.sortingKeyClass == other.sortingKeyClass
+    );
   }
 
   ////////////////////////////////////////
@@ -134,6 +127,23 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   @JsonIgnore
   private static ObjectMapper objectMapper = new ObjectMapper();
 
+  public static <SortingKeyT, ValueT> Coder<BucketMetadata<SortingKeyT, ValueT>> coderFor() {
+    return new AtomicCoder<BucketMetadata<SortingKeyT, ValueT>>() {
+      @Override
+      public void encode(BucketMetadata<SortingKeyT, ValueT> value, OutputStream outStream)
+          throws CoderException, IOException {
+        JsonGenerator generator = new JsonFactory().createGenerator(outStream);
+        objectMapper.writeValue(generator, value);
+      }
+
+      @Override
+      public BucketMetadata<SortingKeyT, ValueT> decode(InputStream inStream)
+          throws CoderException, IOException {
+        JsonParser parser = new JsonFactory().createParser(inStream);
+        return objectMapper.readerFor(BucketMetadata.class).readValue(parser);
+      }
+    };
+  }
   public static <SortingKeyT, ValueT> BucketMetadata<SortingKeyT, ValueT> from(String src)
       throws IOException {
     return objectMapper.readerFor(BucketMetadata.class).readValue(src);
@@ -141,7 +151,16 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
 
   public static <SortingKeyT, ValueT> BucketMetadata<SortingKeyT, ValueT> from(InputStream src)
       throws IOException {
-    return objectMapper.readerFor(BucketMetadata.class).readValue(src);
+    JsonParser parser = new JsonFactory().createParser(src);
+    return objectMapper.readerFor(BucketMetadata.class).readValue(parser);
+  }
+
+  public static <SortingKeyT, ValueT> void to(
+      BucketMetadata<SortingKeyT, ValueT> bucketMetadata, OutputStream outputStream)
+      throws IOException {
+    // Calling .writeValue directly on outputStream tries to close the underlying channel
+    JsonGenerator generator = new JsonFactory().createGenerator(outputStream);
+    objectMapper.writeValue(generator, bucketMetadata);
   }
 
   @Override
