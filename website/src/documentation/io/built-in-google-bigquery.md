@@ -727,8 +727,8 @@ To use BigQuery time partitioning, use one of these two methods:
 This example generates one partition per day.
 
 ```java
-// Java snippet not yet available and tracked in JIRA: BEAM-5503
-```
+{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:BigQueryTimePartitioning
+%}```
 ```py
 # The Beam SDK for Python does not currently support time partitioning.
 ```
