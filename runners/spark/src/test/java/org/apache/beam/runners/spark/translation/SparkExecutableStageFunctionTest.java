@@ -43,12 +43,12 @@ import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.translation.SparkExecutableStageFunction.JobBundleFactoryCreator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.spark.Accumulator;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -61,7 +61,7 @@ public class SparkExecutableStageFunctionTest {
   @Mock private JobBundleFactory jobBundleFactory;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private RemoteBundle remoteBundle;
-  @Mock private Accumulator<MetricsContainerStepMap> metricsAccumulator;
+  @Mock private MetricsContainerStepMapAccumulator metricsAccumulator;
   @Mock private MetricsContainerStepMap stepMap;
   @Mock private MetricsContainerImpl container;
 
@@ -91,7 +91,7 @@ public class SparkExecutableStageFunctionTest {
     ImmutableMap<String, FnDataReceiver<WindowedValue<?>>> inputReceiver =
         ImmutableMap.of("input", Mockito.mock(FnDataReceiver.class));
     when(remoteBundle.getInputReceivers()).thenReturn(inputReceiver);
-    when(metricsAccumulator.localValue()).thenReturn(stepMap);
+    when(metricsAccumulator.value()).thenReturn(stepMap);
     when(stepMap.getContainer(any())).thenReturn(container);
   }
 
