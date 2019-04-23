@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import datetime
+import time
 import logging
 import random
 import string
@@ -67,41 +68,24 @@ TEMP_LOCATION = 'gs://mf2199/temp'
 AUTOSCALING_ALGORITHM = 'NONE'
 DISK_SIZE_GB = 50
 NUM_WORKERS = 300
-# ROW_COUNT = 10000
 COLUMN_COUNT = 10
 CELL_SIZE = 100
-# TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, str(LABEL_STAMP_MICROSECONDS))
-# # TABLE_ID = 'sample-table-{}k'.format(ROW_COUNT / 1000)
-# JOB_NAME = TABLE_ID
-
 COLUMN_FAMILY_ID = 'cf1'
 
+TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
+# TABLE_INFO = ('testmillion1c1d2c39', 781000)  # "good" reading table
+TABLE_INFO = ('sample-table-10k', 10000)  # "good" reading table
+# TABLE_INFO = ('sample-table-10k-1555901788505000', 10000) # "bad" reading table
+# TABLE_INFO = ('sample-table-10k-20190422-193002', 10000) # "bad" reading table
+# TABLE_ID = TABLE_INFO[0]
+# ROW_COUNT = TABLE_INFO[1]
 
-# TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
-# TABLE_INFO = ('testmillion1c1d2c39', 781000)
-# TABLE_INFO = ('sample-table-10k', 10000)
-TABLE_INFO = ('sample-table-10k-1555901788505000', 10000)
-TABLE_ID = TABLE_INFO[0]
-ROW_COUNT = TABLE_INFO[1]
+ROW_COUNT = 10000
+# TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, str(LABEL_STAMP_MICROSECONDS))
+TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, TIME_STAMP)
+# TABLE_ID = 'sample-table-{}k'.format(ROW_COUNT / 1000)
 
-PIPELINE_PARAMETERS_1 = [
-		'--experiments={}'.format(EXPERIMENTS),
-		'--project={}'.format(PROJECT_ID),
-		# '--instance={}'.format(INSTANCE_ID),
-		'--job_name={}'.format(TABLE_ID),
-		'--requirements_file={}'.format(REQUIREMENTS_FILE),
-		'--disk_size_gb={}'.format(DISK_SIZE_GB),
-		'--region={}'.format(REGION),
-		'--runner={}'.format(RUNNER),
-		'--autoscaling_algorithm={}'.format(AUTOSCALING_ALGORITHM),
-		'--num_workers={}'.format(NUM_WORKERS),
-		'--setup_file={}'.format(SETUP_FILE),
-		'--extra_package={}'.format(EXTRA_PACKAGE),
-		'--staging_location={}'.format(STAGING_LOCATION),
-		'--temp_location={}'.format(TEMP_LOCATION),
-	]
-
-PIPELINE_PARAMETERS_2 = [
+PIPELINE_PARAMETERS = [
 		'--experiments={}'.format(EXPERIMENTS),
 		'--project={}'.format(PROJECT_ID),
 		# '--instance={}'.format(INSTANCE_ID),
@@ -117,6 +101,7 @@ PIPELINE_PARAMETERS_2 = [
 		'--staging_location={}'.format(STAGING_LOCATION),
 		'--temp_location={}'.format(TEMP_LOCATION),
 	]
+
 
 class GenerateTestRows(beam.PTransform):
   """ A PTransform to generate dummy rows to write to a Bigtable Table.
@@ -164,39 +149,50 @@ class BigtableIOWTest(unittest.TestCase):
                     .table(TABLE_ID)
 
     if not self.table.exists():
-      logging.info('Table {} does not exist!'.format(TABLE_ID))
+      logging.info('Table {} does not exist.'.format(TABLE_ID))
       column_families = {COLUMN_FAMILY_ID: column_family.MaxVersionsGCRule(2)}
       self.table.create(column_families=column_families)
+      if self.table.exists():
+        logging.info('Table {} has been created.'.format(TABLE_ID))
+      else:
+        logging.info('Error creating table {}!'.format(TABLE_ID))
 
   def test_bigtable_io(self):
     print 'Project ID: ', PROJECT_ID
     print 'Instance ID:', INSTANCE_ID
     print 'Table ID:   ', TABLE_ID
 
-    # pipeline_options = PipelineOptions(PIPELINE_PARAMETERS_1)
-    # # pipeline_options.view_as(SetupOptions).save_main_session = True
+    pipeline_options = PipelineOptions(PIPELINE_PARAMETERS)
+    # pipeline_options.view_as(SetupOptions).save_main_session = True
 
-    # p = beam.Pipeline(options=pipeline_options)
-    # _ = (p
-    #        | 'Write Test Rows' >> GenerateTestRows()
-    #      )
-    #
-    # self.result = p.run()
-    # self.result.wait_until_finish()
-    #
-    # assert self.result.state == PipelineState.DONE
-    # assert len([_ for _ in self.table.read_rows()]) == ROW_COUNT
-    #
-    # if not hasattr(self.result, 'has_job') or self.result.has_job:
-    #   query_result = self.result.metrics().query(MetricsFilter().with_name('Written Row'))
-    #   if query_result['counters']:
-    #     read_counter = query_result['counters'][0]
-    #     logging.info('Number of Rows written: %d', read_counter.committed)
-    #     assert read_counter.committed == ROW_COUNT
+    p = beam.Pipeline(options=pipeline_options)
+    count = (p
+             | 'Write Test Rows' >> GenerateTestRows()
+             | 'Count' >> Count.Globally()
+             )
 
-    # logging.info('Write sequence is complete.')
+    # assert_that(count, equal_to([ROW_COUNT]))
 
-    pipeline_options = PipelineOptions(PIPELINE_PARAMETERS_2)
+    self.result = p.run()
+    self.result.wait_until_finish()
+
+    assert self.result.state == PipelineState.DONE
+    assert len([_ for _ in self.table.read_rows()]) == ROW_COUNT
+
+    if not hasattr(self.result, 'has_job') or self.result.has_job:
+      # query_result = self.result.metrics().query(MetricsFilter().with_name('Written Row'))
+      query_result = self.result.metrics().query()
+      if query_result['counters']:
+        logging.info('WRITE counters have been found!')
+        read_counter = query_result['counters'][0]
+        logging.info('Number of Rows written: %d', read_counter.committed)
+        assert read_counter.committed == ROW_COUNT
+      else:
+        logging.info('No WRITE counters were found!')
+
+    logging.info('Write sequence is complete.')
+
+    pipeline_options = PipelineOptions(PIPELINE_PARAMETERS)
     # q = beam.Pipeline(options=pipeline_options)
     # _ = (q
     #       | 'Read from Bigtable' >> Read(bigtableio.BigtableSource(project_id=PROJECT_ID,
@@ -218,17 +214,34 @@ class BigtableIOWTest(unittest.TestCase):
     # else:
     #   logging.info("not hasattr(self.result, 'has_job') or self.result.has_job: condition was not satisfied!")
 
-    p = beam.Pipeline(options=pipeline_options)
 
-    source = bigtableio.BigtableSource(project_id=PROJECT_ID,
-                                       instance_id=INSTANCE_ID,
-                                       table_id=TABLE_ID)
-    count = (p
-             | 'Read from Bigtable' >> Read(source)
+    # source = bigtableio.BigtableSource(project_id=PROJECT_ID,
+    #                                    instance_id=INSTANCE_ID,
+    #                                    table_id=TABLE_ID)
+    q = beam.Pipeline(options=pipeline_options)
+    count = (q
+             | 'Read from Bigtable' >> Read(bigtableio.BigtableSource(project_id=PROJECT_ID,
+                                                                      instance_id=INSTANCE_ID,
+                                                                      table_id=TABLE_ID))
              | 'Count Rows' >> Count.Globally()
              )
-    assert_that(count, equal_to([ROW_COUNT]))
-    p.run()
+    # assert_that(count, equal_to([ROW_COUNT]))
+    self.result = q.run()
+    self.result.wait_until_finish()
+
+    counter_name = 'Row count'
+    if not hasattr(self.result, 'has_job') or self.result.has_job:
+      # query_result = self.result.metrics().query(MetricsFilter().with_name(counter_name))
+      query_result = self.result.metrics().query()
+      if query_result['counters']:
+        # logging.info('Counter {} has been found!'.format(counter_name))
+        logging.info('READ counters have been found!')
+        # read_counter = query_result['counters'][0]
+        # logging.info('Number of Rows written: %d', read_counter.committed)
+        # assert read_counter.committed == ROW_COUNT
+      else:
+        # logging.info('Counter {} was NOT found!'.format(counter_name))
+        logging.info('No READ counters were found!')
 
 
 if __name__ == '__main__':
