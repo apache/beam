@@ -198,9 +198,11 @@ task pythonPostCommit() {
 }
 
 task python3PostCommit() {
-  dependsOn ":beam-sdks-python-test-suites-dataflow-py3:postCommitIT"
-  dependsOn ":beam-sdks-python-test-suites-dataflow-py3:validatesRunnerBatchTests"
-  dependsOn ":beam-sdks-python-test-suites-direct-py3:postCommitIT"
+  dependsOn ":beam-sdks-python-test-suites-dataflow-py35:postCommitIT"
+  dependsOn ":beam-sdks-python-test-suites-dataflow-py36:postCommitIT"
+  dependsOn ":beam-sdks-python-test-suites-dataflow-py35:validatesRunnerBatchTests"
+  dependsOn ":beam-sdks-python-test-suites-direct-py35:postCommitIT"
+  dependsOn ":beam-sdks-python-test-suites-direct-py36:postCommitIT"
 }
 
 task portablePythonPreCommit() {
