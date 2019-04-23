@@ -45,7 +45,8 @@ except ImportError:
   _microseconds_from_datetime = lambda label_stamp: label_stamp
   _datetime_from_microseconds = lambda micro: micro
 
-import bigtableio
+# import bigtableio
+import beam_bigtable as bigtableio
 
 LABEL_KEY = u'python-bigtable-beam'
 LABEL_STAMP_MICROSECONDS = _microseconds_from_datetime(datetime.datetime.utcnow().replace(tzinfo=UTC))
@@ -57,9 +58,11 @@ INSTANCE_ID = 'python-write-2'
 INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
 STORAGE_TYPE = enums.StorageType.HDD
 REGION = 'us-central1'
-# RUNNER = 'dataflow'
-RUNNER = 'direct'
+RUNNER = 'dataflow'
+# RUNNER = 'direct'
 LOCATION_ID = "us-central1-a"
+SETUP_FILE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\setup.py'
+EXTRA_PACKAGE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\dist\\beam_bigtable-0.3.120.tar.gz'
 STAGING_LOCATION = 'gs://mf2199/stage'
 TEMP_LOCATION = 'gs://mf2199/temp'
 AUTOSCALING_ALGORITHM = 'NONE'
@@ -77,7 +80,7 @@ TABLE_INFO = ('sample-table-10k', 10000)  # "good" reading table
 # TABLE_ID = TABLE_INFO[0]
 # ROW_COUNT = TABLE_INFO[1]
 
-ROW_COUNT = 100000
+ROW_COUNT = 10000
 # TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, str(LABEL_STAMP_MICROSECONDS))
 TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, TIME_STAMP)
 # TABLE_ID = 'sample-table-{}k-TEMPORARY'.format(ROW_COUNT / 1000)
@@ -92,6 +95,8 @@ PIPELINE_PARAMETERS = [
 		'--runner={}'.format(RUNNER),
 		'--autoscaling_algorithm={}'.format(AUTOSCALING_ALGORITHM),
 		'--num_workers={}'.format(NUM_WORKERS),
+    '--setup_file={}'.format(SETUP_FILE),
+    '--extra_package={}'.format(EXTRA_PACKAGE),
 		'--staging_location={}'.format(STAGING_LOCATION),
 		'--temp_location={}'.format(TEMP_LOCATION),
 	]
