@@ -89,10 +89,7 @@ class FlinkPipelineExecutionEnvironment {
       options.setStreaming(true);
     }
 
-    // Replace transforms only after determining the execution mode (batch/streaming)
-    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
-
-    // Needs to be done before creating the Flink ExecutionEnvironments
+    // Staged files need to be set before initializing the execution environments
     prepareFilesToStageForRemoteClusterExecution(options);
 
     FlinkPipelineTranslator translator;
@@ -111,6 +108,10 @@ class FlinkPipelineExecutionEnvironment {
               options, options.getFilesToStage());
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
+
+    // Transform replacements need to receive the finalized PipelineOptions
+    // including execution mode (batch/streaming) and parallelism.
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
 
     translator.translate(pipeline);
   }
