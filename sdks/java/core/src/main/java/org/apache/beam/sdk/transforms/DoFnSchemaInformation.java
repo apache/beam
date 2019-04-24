@@ -57,11 +57,25 @@ public abstract class DoFnSchemaInformation implements Serializable {
 
   public abstract Builder toBuilder();
 
-  DoFnSchemaInformation withElementParameterSchema(
+  /**
+   * Specified a parameter that is a selection from an input schema (specified using FieldAccess).
+   * This method is called when the input parameter itself has a schema. The input parameter does
+   * not need to be a Row. If it is a type with a compatible registered schema, then the conversion
+   * will be done automatically.
+   *
+   * @param inputCoder The coder for the ParDo's input elements.
+   * @param selectDescriptor The descriptor describing which field to select.
+   * @param selectOutputSchema The schema of the selected parameter.
+   * @param parameterCoder The coder for the input parameter to the method.
+   * @param unbox If unbox is true, then the select result is a 1-field schema that needs to be
+   *     unboxed.
+   * @return
+   */
+  DoFnSchemaInformation withSelectFromSchemaParameter(
       SchemaCoder<?> inputCoder,
       FieldAccessDescriptor selectDescriptor,
       Schema selectOutputSchema,
-      SchemaCoder<?> elementCoder,
+      SchemaCoder<?> parameterCoder,
       boolean unbox) {
     List<SerializableFunction<?, ?>> converters =
         ImmutableList.<SerializableFunction<?, ?>>builder()
@@ -70,7 +84,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
                 ConversionFunction.of(
                     inputCoder.getSchema(),
                     inputCoder.getToRowFunction(),
-                    elementCoder.getFromRowFunction(),
+                    parameterCoder.getFromRowFunction(),
                     selectDescriptor,
                     selectOutputSchema,
                     unbox))
@@ -79,7 +93,19 @@ public abstract class DoFnSchemaInformation implements Serializable {
     return toBuilder().setElementConverters(converters).build();
   }
 
-  DoFnSchemaInformation withUnboxParameter(
+  /**
+   * Specified a parameter that is a selection from an input schema (specified using FieldAccess).
+   * This method is called when the input parameter is a Java type that does not itself have a
+   * schema, e.g. long, or String. In this case we expect the selection predicate to return a
+   * single-field row with a field of the output type.
+   *
+   * @param inputCoder The coder for the ParDo's input elements.
+   * @param selectDescriptor The descriptor describing which field to select.
+   * @param selectOutputSchema The schema of the selected parameter.
+   * @param elementT The type of the method's input parameter.
+   * @return
+   */
+  DoFnSchemaInformation withUnboxPrimitiveParameter(
       SchemaCoder inputCoder,
       FieldAccessDescriptor selectDescriptor,
       Schema selectOutputSchema,

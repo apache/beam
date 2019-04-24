@@ -593,7 +593,7 @@ public class ParDo {
           ConvertHelpers.getConvertedSchemaInformation(selectedSchema, elementT, schemaRegistry);
       if (converted.outputSchemaCoder != null) {
         doFnSchemaInformation =
-            doFnSchemaInformation.withElementParameterSchema(
+            doFnSchemaInformation.withSelectFromSchemaParameter(
                 (SchemaCoder<?>) input.getCoder(),
                 accessDescriptor,
                 selectedSchema,
@@ -605,7 +605,7 @@ public class ParDo {
         // parameter.
         checkArgument(converted.unboxedType != null);
         doFnSchemaInformation =
-            doFnSchemaInformation.withUnboxParameter(
+            doFnSchemaInformation.withUnboxPrimitiveParameter(
                 (SchemaCoder<?>) input.getCoder(), accessDescriptor, selectedSchema, elementT);
       }
     }
