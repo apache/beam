@@ -19,10 +19,11 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineResources;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -50,7 +51,8 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
    * on classpath (eg. directories with .class files or empty directories). Prepare files for
    * staging only when using remote cluster (passing the master address explicitly).
    */
-  public static void prepareFilesToStageForRemoteClusterExecution(SparkPipelineOptions options) {
+  public static void prepareFilesToStageForRemoteClusterExecution(
+      SparkStructuredStreamingPipelineOptions options) {
     if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
       options.setFilesToStage(
           PipelineResources.prepareFilesForStaging(
@@ -58,7 +60,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     }
   }
 
-  public static void replaceTransforms(Pipeline pipeline, SparkPipelineOptions options) {
+  public static void replaceTransforms(Pipeline pipeline, StreamingOptions options) {
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(options.isStreaming()));
   }
 
@@ -66,7 +68,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
    * Visit the pipeline to determine the translation mode (batch/streaming) and update options
    * accordingly.
    */
-  public static void detectTranslationMode(Pipeline pipeline, SparkPipelineOptions options) {
+  public static void detectTranslationMode(Pipeline pipeline, StreamingOptions options) {
     TranslationModeDetector detector = new TranslationModeDetector();
     pipeline.traverseTopologically(detector);
     if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {

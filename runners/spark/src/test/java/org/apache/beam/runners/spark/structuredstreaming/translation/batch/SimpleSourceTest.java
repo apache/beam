@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.runners.spark.structuredstreaming.utils.SerializationDebugger;
 import org.apache.beam.sdk.Pipeline;
@@ -50,7 +49,7 @@ public class SimpleSourceTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+    PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     pipeline = Pipeline.create(options);
   }

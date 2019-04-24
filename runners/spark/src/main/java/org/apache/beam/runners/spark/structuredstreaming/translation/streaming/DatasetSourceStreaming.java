@@ -29,11 +29,11 @@ import java.util.List;
 import java.util.Optional;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
@@ -159,12 +159,11 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
 
     @Override
     public List<InputPartition<InternalRow>> planInputPartitions() {
-      SparkPipelineOptions sparkPipelineOptions =
-          serializablePipelineOptions.get().as(SparkPipelineOptions.class);
+      PipelineOptions options = serializablePipelineOptions.get();
       List<InputPartition<InternalRow>> result = new ArrayList<>();
       try {
         List<? extends UnboundedSource<T, CheckpointMarkT>> splits =
-            source.split(numPartitions, sparkPipelineOptions);
+            source.split(numPartitions, options);
         for (UnboundedSource<T, CheckpointMarkT> split : splits) {
           result.add(
               (InputPartition<InternalRow>)
@@ -236,8 +235,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
             // https://blog.yuvalitzchakov.com/exploring-stateful-streaming-with-spark-structured-streaming/
             // "Structured Streaming stores and retrieves the offsets on our behalf when re-running
             // the application meaning we no longer have to store them externally."
-            source.createReader(
-                serializablePipelineOptions.get().as(SparkPipelineOptions.class), null);
+            source.createReader(serializablePipelineOptions.get(), null);
       } catch (IOException e) {
         throw new RuntimeException("Error creating UnboundedReader ", e);
       }

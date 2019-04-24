@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
@@ -78,7 +78,7 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
         View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());
   }
 
-  public PipelineTranslatorBatch(SparkPipelineOptions options) {
+  public PipelineTranslatorBatch(SparkStructuredStreamingPipelineOptions options) {
     translationContext = new TranslationContext(options);
   }
 

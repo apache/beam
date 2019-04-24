@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -40,7 +39,7 @@ public class SimpleSourceTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+    PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     pipeline = Pipeline.create(options);
   }
