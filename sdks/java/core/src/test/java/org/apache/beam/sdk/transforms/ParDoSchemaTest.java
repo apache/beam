@@ -20,19 +20,15 @@ package org.apache.beam.sdk.transforms;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
-
-import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -367,31 +363,29 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   /** POJO used for testing. */
-  @DefaultSchema(JavaFieldSchema.class)
-  static class InferredPojo {
-    final String stringField;
-    final Integer integerField;
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Inferred {
+    abstract String getStringField();
 
-    @SchemaCreate
-    InferredPojo(String stringField, Integer integerField) {
-      this.stringField = stringField;
-      this.integerField = integerField;
-    }
+    abstract Integer getIntegerField();
   }
 
   @Test
   @Category({ValidatesRunner.class, UsesSchema.class})
   public void testInferredSchemaPipeline() {
-    List<InferredPojo> pojoList =
+    List<Inferred> pojoList =
         Lists.newArrayList(
-            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+            new AutoValue_ParDoSchemaTest_Inferred("a", 1),
+            new AutoValue_ParDoSchemaTest_Inferred("b", 2),
+            new AutoValue_ParDoSchemaTest_Inferred("c", 3));
 
     PCollection<String> output =
         pipeline
             .apply(Create.of(pojoList))
             .apply(
                 ParDo.of(
-                    new DoFn<InferredPojo, String>() {
+                    new DoFn<Inferred, String>() {
                       @ProcessElement
                       public void process(@Element Row row, OutputReceiver<String> r) {
                         r.output(row.getString(0) + ":" + row.getInt32(1));
@@ -404,11 +398,13 @@ public class ParDoSchemaTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesSchema.class})
   public void testSchemasPassedThrough() {
-    List<InferredPojo> pojoList =
+    List<Inferred> pojoList =
         Lists.newArrayList(
-            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+            new AutoValue_ParDoSchemaTest_Inferred("a", 1),
+            new AutoValue_ParDoSchemaTest_Inferred("b", 2),
+            new AutoValue_ParDoSchemaTest_Inferred("c", 3));
 
-    PCollection<InferredPojo> out = pipeline.apply(Create.of(pojoList)).apply(Filter.by(e -> true));
+    PCollection<Inferred> out = pipeline.apply(Create.of(pojoList)).apply(Filter.by(e -> true));
     assertTrue(out.hasSchema());
 
     pipeline.run();
@@ -419,22 +415,25 @@ public class ParDoSchemaTest implements Serializable {
   @AutoValue
   abstract static class Inferred2 {
     abstract Integer getIntegerField();
+
     abstract String getStringField();
   }
 
   @Test
   @Category({ValidatesRunner.class, UsesSchema.class})
   public void testSchemaConversionPipeline() {
-    List<InferredPojo> pojoList =
+    List<Inferred> pojoList =
         Lists.newArrayList(
-            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+            new AutoValue_ParDoSchemaTest_Inferred("a", 1),
+            new AutoValue_ParDoSchemaTest_Inferred("b", 2),
+            new AutoValue_ParDoSchemaTest_Inferred("c", 3));
 
     PCollection<String> output =
         pipeline
             .apply(Create.of(pojoList))
             .apply(
                 ParDo.of(
-                    new DoFn<InferredPojo, String>() {
+                    new DoFn<Inferred, String>() {
                       @ProcessElement
                       public void process(@Element Inferred2 pojo, OutputReceiver<String> r) {
                         r.output(pojo.getStringField() + ":" + pojo.getIntegerField());
@@ -487,7 +486,9 @@ public class ParDoSchemaTest implements Serializable {
   @AutoValue
   abstract static class ForExtraction {
     abstract Integer getIntegerField();
+
     abstract String getStringField();
+
     abstract List<Integer> getInts();
   }
 
@@ -536,9 +537,9 @@ public class ParDoSchemaTest implements Serializable {
   public void testSchemaFieldDescriptorSelectionUnboxing() {
     List<ForExtraction> pojoList =
         Lists.newArrayList(
-            new AutoValue_ParDoSchemaTest_ForExtraction(1,"a", Lists.newArrayList(1, 2)),
-            new AutoValue_ParDoSchemaTest_ForExtraction(2,"b", Lists.newArrayList(2, 3)),
-            new AutoValue_ParDoSchemaTest_ForExtraction(3,"c", Lists.newArrayList(3, 4)));
+            new AutoValue_ParDoSchemaTest_ForExtraction(1, "a", Lists.newArrayList(1, 2)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(2, "b", Lists.newArrayList(2, 3)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(3, "c", Lists.newArrayList(3, 4)));
 
     PCollection<String> output =
         pipeline
@@ -583,11 +584,13 @@ public class ParDoSchemaTest implements Serializable {
   public void testSchemaFieldSelectionNested() {
     List<ForExtraction> pojoList =
         Lists.newArrayList(
-            new AutoValue_ParDoSchemaTest_ForExtraction(1,"a", Lists.newArrayList(1, 2)),
-            new AutoValue_ParDoSchemaTest_ForExtraction(2, "b",  Lists.newArrayList(2, 3)),
-            new AutoValue_ParDoSchemaTest_ForExtraction(3,"c",  Lists.newArrayList(3, 4)));
+            new AutoValue_ParDoSchemaTest_ForExtraction(1, "a", Lists.newArrayList(1, 2)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(2, "b", Lists.newArrayList(2, 3)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(3, "c", Lists.newArrayList(3, 4)));
     List<NestedForExtraction> outerList =
-        pojoList.stream().map(AutoValue_ParDoSchemaTest_NestedForExtraction::new).collect(Collectors.toList());
+        pojoList.stream()
+            .map(AutoValue_ParDoSchemaTest_NestedForExtraction::new)
+            .collect(Collectors.toList());
 
     PCollection<String> output =
         pipeline
