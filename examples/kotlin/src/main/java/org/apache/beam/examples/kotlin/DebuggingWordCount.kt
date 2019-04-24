@@ -156,7 +156,6 @@ public object DebuggingWordCount {
     @JvmStatic
     fun main(args: Array<String>) {
         val options = (PipelineOptionsFactory.fromArgs(*args).withValidation() as WordCountOptions)
-
         runDebuggingWordCount(options)
     }
 }

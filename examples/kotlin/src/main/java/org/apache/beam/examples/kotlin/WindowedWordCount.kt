@@ -116,16 +116,12 @@ public object WindowedWordCount {
 
     /** A [DefaultValueFactory] that returns the current system time.  */
     public class DefaultToCurrentSystemTime : DefaultValueFactory<Long> {
-        override fun create(options: PipelineOptions): Long? {
-            return System.currentTimeMillis()
-        }
+        override fun create(options: PipelineOptions) = System.currentTimeMillis()
     }
 
     /** A [DefaultValueFactory] that returns the minimum timestamp plus one hour.  */
     public class DefaultToMinTimestampPlusOneHour : DefaultValueFactory<Long> {
-        override fun create(options: PipelineOptions): Long? {
-            return (options as Options).minTimestampMillis!! + Duration.standardHours(1).millis
-        }
+        override fun create(options: PipelineOptions) = (options as Options).minTimestampMillis!! + Duration.standardHours(1).millis
     }
 
     /**
