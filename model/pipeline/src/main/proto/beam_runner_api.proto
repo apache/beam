@@ -574,6 +574,9 @@ message StandardCoders {
     // Components: None
     DOUBLE = 11 [(beam_urn) = "beam:coder:double:v1"];
 
+    // Encodes nothing, decodes null value
+    VOID = 12 [(beam_urn) = "beam:coder:void:v1"];
+
     // Encodes an iterable of elements.
     //
     // The encoding for an iterable [e1...eN] of known length N is

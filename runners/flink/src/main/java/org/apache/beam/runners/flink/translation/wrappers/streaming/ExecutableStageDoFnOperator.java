@@ -644,7 +644,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               timerId);
       WindowedValue<KV<Object, Timer>> timerValue =
           WindowedValue.of(
-              KV.of(timerKey, Timer.of(timestamp, new byte[0])),
+              KV.of(timerKey, Timer.of(timestamp)),
               timestamp,
               Collections.singleton(window),
               PaneInfo.NO_FIRING);

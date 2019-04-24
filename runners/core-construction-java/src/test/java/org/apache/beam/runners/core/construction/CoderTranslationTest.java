@@ -43,6 +43,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -72,6 +73,7 @@ public class CoderTranslationTest {
               FullWindowedValueCoder.of(
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
           .add(DoubleCoder.of())
+          .add(VoidCoder.of())
           .build();
 
   /**

@@ -30,6 +30,7 @@ import java.util.AbstractList;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
@@ -604,10 +606,11 @@ public class IsmSideInputReader implements SideInputReader {
     }
 
     @Override
-    public Iterable<V> get(K k) {
+    public Iterable<V> get(@Nullable K k) {
       try {
         return new ListOverReaderIterators<>(
-            findAndStartReaders(readers, ImmutableList.of(k, window)), (V value) -> value);
+            findAndStartReaders(readers, Collections.unmodifiableList(Arrays.asList(k, window))),
+            (V value) -> value);
       } catch (IOException e) {
         throw new RuntimeException(
             String.format("Unable to create view for window %s and key %s.", window, k), e);

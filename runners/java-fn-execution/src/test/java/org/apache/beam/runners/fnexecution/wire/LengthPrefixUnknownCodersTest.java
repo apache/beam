@@ -105,7 +105,7 @@ public class LengthPrefixUnknownCodersTest {
           WindowedValue.getFullCoder(
               KvCoder.of(
                   LengthPrefixCoder.of(ByteArrayCoder.of()),
-                  LengthPrefixCoder.of(ByteArrayCoder.of())),
+                  LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
               GlobalWindow.Coder.INSTANCE),
           true
         },

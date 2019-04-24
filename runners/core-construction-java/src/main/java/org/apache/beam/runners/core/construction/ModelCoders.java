@@ -39,6 +39,8 @@ public class ModelCoders {
 
   public static final String DOUBLE_CODER_URN = getUrn(StandardCoders.Enum.DOUBLE);
 
+  public static final String VOID_CODER_URN = getUrn(StandardCoders.Enum.VOID);
+
   public static final String ITERABLE_CODER_URN = getUrn(StandardCoders.Enum.ITERABLE);
   public static final String TIMER_CODER_URN = getUrn(StandardCoders.Enum.TIMER);
   public static final String KV_CODER_URN = getUrn(StandardCoders.Enum.KV);
@@ -64,7 +66,8 @@ public class ModelCoders {
           GLOBAL_WINDOW_CODER_URN,
           INTERVAL_WINDOW_CODER_URN,
           WINDOWED_VALUE_CODER_URN,
-          DOUBLE_CODER_URN);
+          DOUBLE_CODER_URN,
+          VOID_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;

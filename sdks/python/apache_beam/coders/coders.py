@@ -455,6 +455,28 @@ class FloatCoder(FastCoder):
 Coder.register_structured_urn(common_urns.coders.DOUBLE.urn, FloatCoder)
 
 
+class VoidCoder(FastCoder):
+  """A coder used for None values."""
+
+  def _create_impl(self):
+    return coder_impl.VoidCoderImpl()
+
+  def is_deterministic(self):
+    return True
+
+  def to_type_hint(self):
+    return None
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+Coder.register_structured_urn(common_urns.coders.VOID.urn, VoidCoder)
+
+
 class TimestampCoder(FastCoder):
   """A coder used for timeutil.Timestamp values."""
 

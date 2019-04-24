@@ -22,6 +22,7 @@ import java.util.function.Predicate;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -55,12 +56,16 @@ public class LengthPrefixUnknownCoders {
     //     request to replace the coder with a byte array coder.
     //  2) the requested coder is a known coder but not a length prefix coder. In this case we
     //     rebuild the coder by recursively length prefixing any unknown component coders.
-    //  3) the requested coder is an unknown coder. In this case we either wrap the requested coder
+    //  3) the requested coder is a serialized Java coder. In this case we wrap the coder with
+    //     a length prefix coder.
+    //  4) the requested coder is an unknown coder. In this case we either wrap the requested coder
     //     with a length prefix coder or replace it with a length prefix byte array coder.
     if (ModelCoders.LENGTH_PREFIX_CODER_URN.equals(urn)) {
       return replaceWithByteArrayCoder ? lengthPrefixedByteArrayCoderId : coderId;
     } else if (ModelCoders.urns().contains(urn)) {
       return addForModelCoder(coderId, components, replaceWithByteArrayCoder);
+    } else if (CoderTranslation.JAVA_SERIALIZED_CODER_URN.equals(urn)) {
+      return addWrappedWithLengthPrefixCoder(coderId, components);
     } else {
       return replaceWithByteArrayCoder
           ? lengthPrefixedByteArrayCoderId

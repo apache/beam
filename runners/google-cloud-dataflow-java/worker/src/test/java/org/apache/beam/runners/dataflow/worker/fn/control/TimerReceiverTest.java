@@ -66,7 +66,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -492,13 +491,12 @@ public class TimerReceiverTest implements Serializable {
     }
   }
 
-  private KV<byte[], org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
-      String key, long timestampOffset) throws CoderException {
+  private KV<String, org.apache.beam.runners.core.construction.Timer<Void>> timerBytes(
+      String key, long timestampOffset) {
     return KV.of(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
+        key,
         org.apache.beam.runners.core.construction.Timer.of(
-            BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
-            CoderUtils.encodeToByteArray(VoidCoder.of(), null, Coder.Context.NESTED)));
+            BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset)));
   }
 
   private static DataflowExecutionContext.DataflowStepContext buildDataflowStepContext() {

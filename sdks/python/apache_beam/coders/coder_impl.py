@@ -447,6 +447,19 @@ class FloatCoderImpl(StreamCoderImpl):
     return 8
 
 
+class VoidCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+
+  def encode_to_stream(self, value, out, nested):
+    pass
+
+  def decode_from_stream(self, in_stream, nested):
+    return None
+
+  def estimate_size(self, unused_value, nested=False):
+    return 0
+
+
 IntervalWindow = None
 
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
@@ -30,6 +31,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
+import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AfterClass;
@@ -190,7 +193,10 @@ public class PortableTimersExecutionTest implements Serializable {
             pipelineProto,
             options.as(FlinkPipelineOptions.class),
             null,
-            Collections.emptyList());
+            PipelineResources.prepareFilesForStaging(
+                detectClassPathResourcesToStage(PortableTimersExecutionTest.class.getClassLoader()),
+                MoreObjects.firstNonNull(
+                    options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
 
     jobInvocation.start();
     while (jobInvocation.getState() != Enum.DONE) {

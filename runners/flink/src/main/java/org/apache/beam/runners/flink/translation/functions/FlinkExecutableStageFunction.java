@@ -322,7 +322,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     Instant timestamp = timer.getTimestamp();
     WindowedValue<KV<Object, Timer>> timerValue =
         WindowedValue.of(
-            KV.of(currentTimerKey, Timer.of(timestamp, new byte[0])),
+            KV.of(currentTimerKey, Timer.of(timestamp)),
             timestamp,
             Collections.singleton(window),
             PaneInfo.NO_FIRING);

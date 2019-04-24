@@ -98,7 +98,7 @@ class TimerSpec(object):
     return beam_runner_api_pb2.TimerSpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_coder_id=context.coders.get_id(
-            coders._TimerCoder(coders.SingletonCoder(None))))
+            coders._TimerCoder(coders.VoidCoder())))
 
 
 def on_timer(timer_spec):

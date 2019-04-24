@@ -72,6 +72,7 @@ public class LengthPrefixUnknownCoders {
           "kind:fixed_big_endian_int64",
           "kind:var_int32",
           "kind:void",
+          "org.apache.beam.sdk.coders.VoidCoder",
           "org.apache.beam.sdk.coders.DoubleCoder");
 
   private static final String LENGTH_PREFIX_CODER_TYPE = "kind:length_prefix";
@@ -248,6 +249,11 @@ public class LengthPrefixUnknownCoders {
         }
         prefixedCodec.put(PropertyNames.COMPONENT_ENCODINGS, prefixedComponents);
       }
+      return prefixedCodec;
+    } else if ("org.apache.beam.sdk.coders.CustomCoder".equals(coderType)) {
+      Map<String, Object> prefixedCodec = new HashMap<>();
+      prefixedCodec.put(PropertyNames.OBJECT_TYPE_NAME, LENGTH_PREFIX_CODER_TYPE);
+      prefixedCodec.put(PropertyNames.COMPONENT_ENCODINGS, ImmutableList.of(codec));
       return prefixedCodec;
     }
 

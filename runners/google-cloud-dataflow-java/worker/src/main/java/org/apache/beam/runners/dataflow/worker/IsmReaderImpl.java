@@ -32,6 +32,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -43,6 +44,8 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.Footer;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.FooterCoder;
@@ -653,10 +656,9 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
       try (Closeable readerCloser = readCounter.enter()) {
         int shardId =
             coder.encodeAndHash(
-                ImmutableList.builder()
-                    .addAll(keyComponents)
-                    .addAll(additionalKeyComponents)
-                    .build(),
+                Collections.unmodifiableList(
+                    Stream.concat(keyComponents.stream(), additionalKeyComponents.stream())
+                        .collect(Collectors.toList())),
                 keyBytes);
         return getBlock(keyBytes, shardId, readCounter).get(keyBytes);
       }
