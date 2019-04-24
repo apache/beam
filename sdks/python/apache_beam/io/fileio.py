@@ -28,12 +28,21 @@ No backward compatibility guarantees. Everything in this module is experimental.
 
 from __future__ import absolute_import
 
+import logging
+import random
+import uuid
+from collections import defaultdict
+
 from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import ValueProvider
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.annotations import experimental
 
 __all__ = ['EmptyMatchTreatment',
@@ -148,10 +157,11 @@ class ReadableFile(object):
     self.metadata = metadata
 
   def open(self, mime_type='text/plain'):
-    return filesystems.FileSystems.open(self.metadata.path)
+    return filesystems.FileSystems.open(self.metadata.path,
+                                        mime_type=mime_type)
 
   def read(self):
-    return self.open().read()
+    return self.open('application/octet-stream').read()
 
   def read_utf8(self):
     return self.open().read().decode('utf-8')
@@ -170,3 +180,476 @@ class ReadMatches(beam.PTransform):
   def expand(self, pcoll):
     return pcoll | beam.ParDo(_ReadMatchesFn(self._compression,
                                              self._skip_directories))
+
+
+class FileSink(object):
+  """Specifies how to write elements to individual files in ``WriteToFiles``.
+
+  **NOTE: THIS CLASS IS EXPERIMENTAL.**
+
+  A Sink class must implement the following:
+
+   - The ``open`` method, which initializes writing to a file handler (it is not
+     responsible for opening the file handler itself).
+   - The ``write`` method, which writes an element to the file that was passed
+     in ``open``.
+   - The ``flush`` method, which flushes any buffered state. This is most often
+     called before closing a file (but not exclusively called in that
+     situation). The sink is not responsible for closing the file handler.
+   """
+
+  def open(self, fh):
+    raise NotImplementedError
+
+  def write(self, record):
+    raise NotImplementedError
+
+  def flush(self):
+    raise NotImplementedError
+
+
+class DefaultSink(FileSink):
+  """A sink that writes elements into file handlers as they come.
+
+  **NOTE: THIS CLASS IS EXPERIMENTAL.**
+
+  This sink simply calls file_handler.write(record) on all records that come
+  into it.
+  """
+
+  def open(self, fh):
+    self._fh = fh
+
+  def write(self, record):
+    self._fh.write(record)
+
+  def flush(self):
+    self._fh.flush()
+
+
+def prefix_naming(prefix):
+  return default_file_naming(prefix)
+
+
+_DEFAULT_FILE_NAME_TEMPLATE = (
+    '{prefix}-{start}-{end}-{pane}-'
+    '{shard:05d}-{total_shards:05d}'
+    '{suffix}{compression}')
+
+
+def destination_prefix_naming():
+
+  def _inner(window, pane, shard_index, total_shards, compression, destination):
+    args = {'prefix': str(destination),
+            'start': '',
+            'end': '',
+            'pane': '',
+            'shard': 0,
+            'total_shards': 0,
+            'suffix': '',
+            'compression': ''}
+    if total_shards is not None and shard_index is not None:
+      args['shard'] = int(shard_index)
+      args['total_shards'] = int(total_shards)
+
+    if window != GlobalWindow():
+      args['start'] = window.start.to_utc_datetime().isoformat()
+      args['end'] = window.end.to_utc_datetime().isoformat()
+
+    # If the PANE is the ONLY firing in the window, we don't add it.
+    if pane and not (pane.is_first and pane.is_last):
+      args['pane'] = pane.index
+
+    if compression:
+      args['compression'] = '.%s' % compression
+
+    return _DEFAULT_FILE_NAME_TEMPLATE.format(**args)
+
+  return _inner
+
+
+def default_file_naming(prefix, suffix=None):
+
+  def _inner(window, pane, shard_index, total_shards, compression, destination):
+    args = {'prefix': prefix,
+            'start': '',
+            'end': '',
+            'pane': '',
+            'shard': 0,
+            'total_shards': 0,
+            'suffix': '',
+            'compression': ''}
+    if total_shards is not None and shard_index is not None:
+      args['shard'] = int(shard_index)
+      args['total_shards'] = int(total_shards)
+
+    if window != GlobalWindow():
+      args['start'] = window.start.to_utc_datetime().isoformat()
+      args['end'] = window.end.to_utc_datetime().isoformat()
+
+    # If the PANE is the ONLY firing in the window, we don't add it.
+    if pane and not (pane.is_first and pane.is_last):
+      args['pane'] = pane.index
+
+    if compression:
+      args['compression'] = '.%s' % compression
+    if suffix:
+      args['suffix'] = suffix
+
+    return _DEFAULT_FILE_NAME_TEMPLATE.format(**args)
+
+  return _inner
+
+
+class FileResult(object):
+  """A descriptor of a file that has been written."""
+
+  def __init__(self,
+               file_name,
+               shard_index,
+               total_shards,
+               window,
+               pane,
+               destination):
+    self.file_name = file_name
+    self.shard_index = int(shard_index)
+    self.total_shards = int(total_shards)
+    self.window = window
+    self.pane = pane
+    self.destination = destination
+
+  def _tuple(self):
+    return (self.file_name,
+            self.shard_index,
+            self.total_shards,
+            self.window,
+            self.pane,
+            self.destination)
+
+  def __hash__(self):
+    return hash(self._tuple())
+
+  def __eq__(self, other):
+    return isinstance(other, FileResult) and self._tuple() == other._tuple()
+
+  def __str__(self):
+    return '_FileResult(%s)' % self.__dict__
+
+  def __repr__(self):
+    return '<%s at 0x%x>' % (self.__str__(), id(self))
+
+
+@experimental()
+class WriteToFiles(beam.PTransform):
+  """Write the incoming PCollection to a set of output files.
+
+  The incoming ``PCollection`` may be bounded or unbounded.
+
+  **Note:** For unbounded ``PCollection``s, this transform does not support
+  multiple firings per Window (due to the fact that files are named only by
+  their destination, and window, at the moment).
+  """
+
+  # We allow up to 20 different destinations to be written in a single bundle.
+  # Too many files will add memory pressure to the worker, so we let it be 20.
+  MAX_NUM_WRITERS_PER_BUNDLE = 20
+
+  DEFAULT_SHARDING = 5
+
+  def __init__(self,
+               path,
+               file_naming=None,
+               destination=None,
+               temp_directory=None,
+               sink=None,
+               shards=None,
+               output_fn=None,
+               max_writers_per_bundle=MAX_NUM_WRITERS_PER_BUNDLE):
+    """Initializes a WriteToFiles transform.
+
+    Args:
+      path (str, ValueProvider): The directory to write files into.
+      file_naming (callable): A callable that takes in a window, pane,
+        shard_index, total_shards and compression; and returns a file name.
+      destination (callable): If this argument is provided, the sink parameter
+        must also be a callable.
+      temp_directory (str, ValueProvider): To ensure atomicity in the transform,
+        the output is written into temporary files, which are written to a
+        directory that is meant to be temporary as well. Once the whole output
+        has been written, the files are moved into their final destination, and
+        given their final names. By default, the temporary directory will be
+         within the temp_location of your pipeline.
+      sink (callable, FileSink): The sink to use to write into a file. It should
+        implement the methods of a ``FileSink``. If none is provided, a
+        ``DefaultSink`` is used.
+      shards (int): The number of shards per destination and trigger firing.
+      max_writers_per_bundle (int): The number of writers that can be open
+        concurrently in a single worker that's processing one bundle.
+    """
+    self.path = (
+        path if isinstance(path, ValueProvider) else StaticValueProvider(str,
+                                                                         path))
+    self.file_naming_fn = file_naming or default_file_naming('output')
+    self.destination_fn = self._get_destination_fn(destination)
+    self._temp_directory = temp_directory
+    self.sink_fn = self._get_sink_fn(sink)
+    self.shards = shards or WriteToFiles.DEFAULT_SHARDING
+    self.output_fn = output_fn or (lambda x: x)
+
+    self._max_num_writers_per_bundle = max_writers_per_bundle
+
+  @staticmethod
+  def _get_sink_fn(input_sink):
+    if isinstance(input_sink, FileSink):
+      return lambda x: input_sink
+    elif callable(input_sink):
+      return input_sink
+    else:
+      return lambda x: DefaultSink()
+
+  @staticmethod
+  def _get_destination_fn(destination):
+    if isinstance(destination, ValueProvider):
+      return lambda elm: destination.get()
+    elif callable(destination):
+      return destination
+    else:
+      return lambda elm: destination
+
+  def expand(self, pcoll):
+    p = pcoll.pipeline
+
+    if not self._temp_directory:
+      temp_location = (
+          p.options.view_as(GoogleCloudOptions).temp_location
+          or self.path.get())
+      dir_uid = str(uuid.uuid4())
+      self._temp_directory = StaticValueProvider(
+          str,
+          filesystems.FileSystems.join(temp_location,
+                                       '.temp%s' % dir_uid))
+      logging.info('Added temporary directory %s', self._temp_directory.get())
+
+    output = (pcoll
+              | beam.ParDo(_WriteUnshardedRecordsFn(
+                  base_path=self._temp_directory,
+                  destination_fn=self.destination_fn,
+                  sink_fn=self.sink_fn,
+                  max_writers_per_bundle=self._max_num_writers_per_bundle))
+              .with_outputs(_WriteUnshardedRecordsFn.SPILLED_RECORDS,
+                            _WriteUnshardedRecordsFn.WRITTEN_FILES))
+
+    written_files_pc = output[_WriteUnshardedRecordsFn.WRITTEN_FILES]
+    spilled_records_pc = output[_WriteUnshardedRecordsFn.SPILLED_RECORDS]
+
+    more_written_files_pc = (
+        spilled_records_pc
+        | beam.ParDo(_AppendShardedDestination(self.destination_fn,
+                                               self.shards))
+        | "GroupRecordsByDestinationAndShard" >> beam.GroupByKey()
+        | beam.ParDo(_WriteShardedRecordsFn(self._temp_directory,
+                                            self.sink_fn,
+                                            self.shards))
+    )
+
+    files_by_destination_pc = (
+        (written_files_pc, more_written_files_pc)
+        | beam.Flatten()
+        | beam.Map(lambda file_result: (file_result.destination, file_result))
+        | "GroupTempFilesByDestination" >> beam.GroupByKey())
+
+    # Now we should take the temporary files, and write them to the final
+    # destination, with their proper names.
+
+    file_results = (files_by_destination_pc
+                    | beam.ParDo(
+                        _MoveTempFilesIntoFinalDestinationFn(
+                            self.path, self.file_naming_fn)))
+
+    return file_results
+
+
+def _create_writer(base_path, file_name):
+  # TODO(pabloem) Is this a good place to create a temporary directory?
+
+  try:
+    filesystems.FileSystems.mkdirs(base_path)
+  except IOError:
+    # Directory already exists.
+    pass
+
+  full_file_name = filesystems.FileSystems.join(base_path, file_name)
+  return full_file_name, filesystems.FileSystems.create(full_file_name)
+
+
+class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
+
+  def __init__(self, path, file_naming_fn):
+    self.path = path
+    self.file_naming_fn = file_naming_fn
+
+  def process(self, element):
+    destination = element[0]
+    file_results = list(element[1])
+
+    for i, r in enumerate(file_results):
+      final_file_name = self.file_naming_fn(r.window,
+                                            r.pane,
+                                            i,
+                                            len(file_results),
+                                            '',   # TODO: ADD COMPRESSION!?
+                                            destination)
+
+      logging.info('Moving temporary file %s to dir: %s as %s. Res: %s',
+                   r.file_name, self.path.get(), final_file_name, r)
+
+      final_full_path = filesystems.FileSystems.join(self.path.get(),
+                                                     final_file_name)
+
+      # TODO(pabloem): Batch rename requests?
+      filesystems.FileSystems.rename([r.file_name],
+                                     [final_full_path])
+
+      yield FileResult(final_file_name,
+                       i,
+                       len(file_results),
+                       r.window,
+                       r.pane,
+                       destination)
+
+
+class _WriteShardedRecordsFn(beam.DoFn):
+
+  def __init__(self, base_path, sink_fn, shards):
+    self.base_path = base_path
+    self.sink_fn = sink_fn
+    self.shards = shards
+
+  def process(self,
+              element,
+              w=beam.DoFn.WindowParam,
+              pane=beam.DoFn.PaneInfoParam):
+    destination_and_shard = element[0]
+    destination = destination_and_shard[0]
+    shard = destination_and_shard[1]
+    records = element[1]
+
+    full_file_name, writer = _create_writer(base_path=self.base_path.get(),
+                                            file_name=str(uuid.uuid4()))
+    sink = self.sink_fn(destination)
+    sink.open(writer)
+
+    for r in records:
+      sink.write(r)
+
+    sink.flush()
+    writer.close()
+
+    logging.info('Writing file %s for destination %s and shard %s',
+                 full_file_name, destination, repr(shard))
+
+    yield FileResult(full_file_name,
+                     shard_index=shard,
+                     total_shards=self.shards,
+                     window=w,
+                     pane=pane,
+                     destination=destination)
+
+
+class _AppendShardedDestination(beam.DoFn):
+
+  def __init__(self, destination, shards):
+    self.destination_fn = destination
+    self.shards = shards
+
+    # We start the shards for a single destination at an arbitrary point.
+    self._shard_counter = defaultdict(lambda: random.randrange(self.shards))
+
+  def _next_shard_for_destination(self, destination):
+    self._shard_counter[destination] = (
+        (self._shard_counter[destination] + 1) % self.shards)
+
+    return self._shard_counter[destination]
+
+  def process(self, record):
+    destination = self.destination_fn(record)
+    shard = self._next_shard_for_destination(destination)
+
+    yield ((destination, shard), record)
+
+
+class _WriteUnshardedRecordsFn(beam.DoFn):
+
+  SPILLED_RECORDS = 'spilled_records'
+  WRITTEN_FILES = 'written_files'
+
+  def __init__(self,
+               base_path,
+               destination_fn,
+               sink_fn,
+               max_writers_per_bundle=WriteToFiles.MAX_NUM_WRITERS_PER_BUNDLE):
+    self.base_path = base_path
+    self.destination_fn = destination_fn
+    self.sink_fn = sink_fn
+    self.max_num_writers_per_bundle = max_writers_per_bundle
+
+  def start_bundle(self):
+    self._writers_and_sinks = {}
+    self._file_names = {}
+
+  def process(self,
+              record,
+              w=beam.DoFn.WindowParam,  # TODO(pabloem): Add Pane in FileResult
+              pane=beam.DoFn.PaneInfoParam):
+    destination = self.destination_fn(record)
+
+    writer, sink = self._get_or_create_writer_and_sink(destination, w)
+
+    if not writer:
+      return [beam.pvalue.TaggedOutput(self.SPILLED_RECORDS, record)]
+    else:
+      sink.write(record)
+
+  def _get_or_create_writer_and_sink(self, destination, window):
+    """Returns a tuple of writer, sink."""
+    writer_key = (destination, window)
+
+    if writer_key in self._writers_and_sinks:
+      return self._writers_and_sinks.get(writer_key)
+    elif len(self._writers_and_sinks) >= self.max_num_writers_per_bundle:
+      # The writer does not exist, and we have too many writers already.
+      return None, None
+    else:
+      # The writer does not exist, but we can still create a new one.
+      full_file_name, writer = _create_writer(base_path=self.base_path.get(),
+                                              file_name=str(uuid.uuid4()))
+      sink = self.sink_fn(destination)
+
+      sink.open(writer)
+
+      self._writers_and_sinks[writer_key] = (writer, sink)
+      self._file_names[writer_key] = full_file_name
+      return self._writers_and_sinks[writer_key]
+
+  def finish_bundle(self):
+    for key, writer_and_sink in self._writers_and_sinks.items():
+      writer = writer_and_sink[0]
+      sink = writer_and_sink[1]
+
+      sink.flush()
+      writer.close()
+
+      file_result = FileResult(self._file_names[key],
+                               shard_index=-1,
+                               total_shards=0,
+                               window=key[1],
+                               pane=None,  # TODO(pabloem): get the pane info
+                               destination=key[0])
+
+      yield beam.pvalue.TaggedOutput(
+          self.WRITTEN_FILES,
+          beam.transforms.window.WindowedValue(
+              file_result,
+              timestamp=key[1].start,
+              windows=[key[1]]  # TODO(pabloem) HOW DO WE GET THE PANE
+          ))
