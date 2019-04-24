@@ -252,7 +252,7 @@ task testWebsite(type: Exec) {
   commandLine 'docker', 'exec',
     "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
-      bundle exec rake test"""
+      bundle exec -- rake test disable_external=${findProperty('disableExternal') ?: true}"""
 }
 
 testWebsite.dependsOn 'buildLocalWebsite'
