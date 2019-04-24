@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-
 """Unittest for GCP Bigtable testing."""
 from __future__ import absolute_import
 
@@ -31,7 +30,7 @@ import pytz
 import apache_beam as beam
 from apache_beam.io import Read
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms.combiners import Count
@@ -45,7 +44,6 @@ except ImportError:
   _microseconds_from_datetime = lambda label_stamp: label_stamp
   _datetime_from_microseconds = lambda micro: micro
 
-# import bigtableio
 import beam_bigtable as bigtableio
 
 LABEL_KEY = u'python-bigtable-beam'
@@ -62,7 +60,7 @@ RUNNER = 'dataflow'
 # RUNNER = 'direct'
 LOCATION_ID = "us-central1-a"
 SETUP_FILE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\setup.py'
-EXTRA_PACKAGE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\dist\\beam_bigtable-0.3.120.tar.gz'
+EXTRA_PACKAGE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\dist\\bigtableio-0.3.120.tar.gz'
 STAGING_LOCATION = 'gs://mf2199/stage'
 TEMP_LOCATION = 'gs://mf2199/temp'
 AUTOSCALING_ALGORITHM = 'NONE'
@@ -73,23 +71,15 @@ CELL_SIZE = 100
 COLUMN_FAMILY_ID = 'cf1'
 
 TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
-# TABLE_INFO = ('testmillion1c1d2c39', 781000)  # "good" reading table
-TABLE_INFO = ('sample-table-10k', 10000)  # "good" reading table
-# TABLE_INFO = ('sample-table-10k-1555901788505000', 10000) # "bad" reading table
-# TABLE_INFO = ('sample-table-10k-20190422-193002', 10000) # "bad" reading table
-# TABLE_ID = TABLE_INFO[0]
-# ROW_COUNT = TABLE_INFO[1]
 
 ROW_COUNT = 10000
-# TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, str(LABEL_STAMP_MICROSECONDS))
 TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, TIME_STAMP)
-# TABLE_ID = 'sample-table-{}k-TEMPORARY'.format(ROW_COUNT / 1000)
-# TABLE_ID = 'sample-table-{}k'.format(ROW_COUNT / 1000)
+JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT / 1000, TIME_STAMP)
 
 PIPELINE_PARAMETERS = [
 		'--experiments={}'.format(EXPERIMENTS),
 		'--project={}'.format(PROJECT_ID),
-		'--job_name={}'.format(TABLE_ID),
+		'--job_name={}'.format(JOB_NAME),
 		'--disk_size_gb={}'.format(DISK_SIZE_GB),
 		'--region={}'.format(REGION),
 		'--runner={}'.format(RUNNER),
@@ -190,4 +180,3 @@ class BigtableIOWTest(unittest.TestCase):
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
-
