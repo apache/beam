@@ -22,12 +22,18 @@ import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,20 +41,29 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark window assign translation. */
 @RunWith(JUnit4.class)
 public class WindowAssignTest implements Serializable {
-  private static Pipeline pipeline;
+  private static Pipeline p;
 
   @BeforeClass
   public static void beforeClass() {
     PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    pipeline = Pipeline.create(options);
+    p = Pipeline.create(options);
   }
 
+  @Ignore
   @Test
   public void testWindowAssign() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    // test with a merging window because more complicated
-    input.apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(10L))));
-    pipeline.run();
+    PCollection<KV<Integer, Integer>> input =
+        p.apply(
+                Create.timestamped(
+                    TimestampedValue.of(KV.of(1, 1), new Instant(1)),
+                    TimestampedValue.of(KV.of(1, 2), new Instant(2)),
+                    TimestampedValue.of(KV.of(1, 3), new Instant(3)),
+                    TimestampedValue.of(KV.of(1, 4), new Instant(10)),
+                    TimestampedValue.of(KV.of(1, 5), new Instant(11))))
+            .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(Sum.integersPerKey());
+    PAssert.that(input).containsInAnyOrder(KV.of(1, 6), KV.of(1, 9));
+    p.run();
   }
 }
