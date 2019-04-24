@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
@@ -44,8 +43,8 @@ import org.slf4j.LoggerFactory;
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
  * we would do the following:
  *
- * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineOptions options =
- * SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
+ * <p>{@code Pipeline p = [logic for pipeline creation] SparkStructuredStreamingPipelineOptions
+ * options = SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
  * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
  */
 public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPipelineResult> {
@@ -53,7 +52,7 @@ public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPi
   private static final Logger LOG = LoggerFactory.getLogger(SparkStructuredStreamingRunner.class);
 
   /** Options used in this pipeline runner. */
-  private final SparkPipelineOptions options;
+  private final SparkStructuredStreamingPipelineOptions options;
 
   /**
    * Creates and returns a new SparkStructuredStreamingRunner with default options. In particular,
@@ -62,7 +61,8 @@ public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPi
    * @return A pipeline runner with default options.
    */
   public static SparkStructuredStreamingRunner create() {
-    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options =
+        PipelineOptionsFactory.as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     return new SparkStructuredStreamingRunner(options);
   }
@@ -70,10 +70,11 @@ public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPi
   /**
    * Creates and returns a new SparkStructuredStreamingRunner with specified options.
    *
-   * @param options The SparkPipelineOptions to use when executing the job.
+   * @param options The SparkStructuredStreamingPipelineOptions to use when executing the job.
    * @return A pipeline runner that will execute with specified options.
    */
-  public static SparkStructuredStreamingRunner create(SparkPipelineOptions options) {
+  public static SparkStructuredStreamingRunner create(
+      SparkStructuredStreamingPipelineOptions options) {
     return new SparkStructuredStreamingRunner(options);
   }
 
@@ -84,8 +85,8 @@ public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPi
    * @return A pipeline runner that will execute with specified options.
    */
   public static SparkStructuredStreamingRunner fromOptions(PipelineOptions options) {
-    SparkPipelineOptions sparkOptions =
-        PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
+    SparkStructuredStreamingPipelineOptions sparkOptions =
+        PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options);
 
     if (sparkOptions.getFilesToStage() == null) {
       sparkOptions.setFilesToStage(
@@ -105,7 +106,7 @@ public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPi
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
    * thread.
    */
-  private SparkStructuredStreamingRunner(SparkPipelineOptions options) {
+  private SparkStructuredStreamingRunner(SparkStructuredStreamingPipelineOptions options) {
     this.options = options;
   }
 
