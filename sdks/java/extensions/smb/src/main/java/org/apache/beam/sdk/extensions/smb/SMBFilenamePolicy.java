@@ -1,6 +1,7 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.joda.time.Instant;
@@ -73,6 +74,25 @@ public final class SMBFilenamePolicy implements Serializable {
 
     public ResourceId forMetadata() {
       return filenamePrefix.resolve(METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FileAssignment that = (FileAssignment) o;
+      return doTimestampFiles == that.doTimestampFiles &&
+          Objects.equals(filenamePrefix, that.filenamePrefix) &&
+          Objects.equals(fileNameSuffix, that.fileNameSuffix);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(filenamePrefix, fileNameSuffix, doTimestampFiles);
     }
   }
 }

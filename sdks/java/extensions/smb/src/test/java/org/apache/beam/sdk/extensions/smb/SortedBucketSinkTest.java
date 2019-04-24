@@ -3,7 +3,6 @@ package org.apache.beam.sdk.extensions.smb;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -90,16 +89,10 @@ public class SortedBucketSinkTest {
     }
   }
 
-  @Test
-  public void testWriteMetadata() throws  Exception {
-    final ObjectMapper objectMapper = new ObjectMapper();
-    objectMapper.writeValue(new File("src/test/resources/source1", "metadata.json"),
-        TestUtils.tryCreateMetadata(10, HashType.MURMUR3_32));
-  }
+  static final GenericRecord user1 = TestUtils.createUserRecord("d", 50);
+  static final GenericRecord user2 = TestUtils.createUserRecord("e", 75);
+  static final GenericRecord user3 = TestUtils.createUserRecord("f", 25);
 
-  static final GenericRecord user1 = TestUtils.createUserRecord("a", 50);
-  static final GenericRecord user2 = TestUtils.createUserRecord("b", 75);
-  static final GenericRecord user3 = TestUtils.createUserRecord("c", 25);
 
   @Test
   public void testSink() throws Exception {

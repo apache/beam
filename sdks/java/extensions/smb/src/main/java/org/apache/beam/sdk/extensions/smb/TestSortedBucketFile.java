@@ -1,5 +1,6 @@
 package org.apache.beam.sdk.extensions.smb;
 
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.MimeTypes;
 
 import java.nio.channels.ReadableByteChannel;
@@ -18,6 +19,11 @@ public class TestSortedBucketFile {
     public Reader(List<String> data) {
       this.data = data;
       this.it = data.iterator();
+    }
+
+    @Override
+    public Coder<SortedBucketFile.Reader<String>> coder() {
+      return null;
     }
 
     @Override
