@@ -123,7 +123,7 @@ case $STARTSTOP in
     if [ -f "$pid" ]; then
       while read stop_pid; do
         if kill -0 $stop_pid >/dev/null 2>&1; then
-          echo "Stopping pid: $stop_pid."
+          echo "Stopping expansion service pid: $stop_pid."
           kill $stop_pid
         else
           echo "Skipping invalid pid: $stop_pid."

@@ -27,6 +27,7 @@ ext.summary = """Testing Expansion Service used for executing cross-language tra
 dependencies {
   shadowTest project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-io-parquet", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
 }
 

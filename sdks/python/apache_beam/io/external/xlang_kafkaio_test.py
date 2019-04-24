@@ -26,73 +26,67 @@ import re
 import unittest
 
 from nose.plugins.attrib import attr
+from past.builtins import unicode
 
 import apache_beam as beam
-from apache_beam import coders
-from apache_beam.coders.avro_generic_coder import AvroGenericCoder
-from apache_beam.coders.avro_generic_coder import AvroGenericRecord
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-PARQUET_WRITE_URN = "beam:transforms:xlang:parquet_write"
-PARQUET_READ_URN = "beam:transforms:xlang:parquet_read"
+KAFKA_WRITE_URN = "beam:transforms:xlang:kafka_write"
+KAFKA_READ_URN = "beam:transforms:xlang:kafka_read"
 
 
 @attr('UsesCrossLanguageTransforms')
-class XlangParquetIOTest(unittest.TestCase):
+class XlangKafkaIOTest(unittest.TestCase):
   def test_write_and_read(self):
-    test_pipeline = TestPipeline()
     expansion_jar = os.environ.get('EXPANSION_JAR')
     if not expansion_jar:
       print("EXPANSION_JAR environment variable is not set.")
       return
-    test_pipeline.get_pipeline_options().view_as(
+
+    read_pipeline = TestPipeline(blocking=False)
+    read_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append('jar_packages='+expansion_jar)
-    port = os.environ.get('EXPANSION_PORT')
+
+    port = read_pipeline.get_option("expansion_port")
     if not port:
-      print("EXPANSION_PORT environment var is not provided. skipping.")
+      print("--expansion_port is not provided. skipping.")
       return
     address = 'localhost:%s' % port
-    test_pipeline.not_use_test_runner_api = True
 
     try:
-      with test_pipeline as p:
-        res = p \
-          | beam.Create([
-              AvroGenericRecord({"name": "abc"}),
-              AvroGenericRecord({"name": "def"}),
-              AvroGenericRecord({"name": "ghi"})]) \
-          | beam.ExternalTransform(
-              PARQUET_WRITE_URN,
-              b'/tmp/test.parquet', address) \
-          | beam.ExternalTransform(
-              PARQUET_READ_URN, None, address) \
-          | beam.Map(lambda x: '%s' % x.record['name'])
+      read = read_pipeline \
+        | beam.ExternalTransform(
+            KAFKA_READ_URN,
+            b'localhost:9092', address)
 
-        assert_that(res, equal_to(['abc', 'def', 'ghi']))
+      assert_that(read, equal_to(['abc', 'def', 'ghi']))
+
+      read_result = read_pipeline.run(test_runner_api=False)
+
+      write_pipeline = TestPipeline()
+      write_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append('jar_packages='+expansion_jar)
+      write_pipeline.not_use_test_runner_api = True
+
+      with write_pipeline as p:
+        _ = p \
+          | beam.Create(['abc', 'def', 'ghi']).with_output_types(unicode) \
+          | beam.ExternalTransform(
+              KAFKA_WRITE_URN,
+              b'localhost:9092', address)
+
+      read_result.wait_until_finish()
+
     except RuntimeError as e:
       if re.search(
-          '{}|{}'.format(PARQUET_WRITE_URN, PARQUET_READ_URN), str(e)):
+          '{}|{}'.format(KAFKA_WRITE_URN, KAFKA_READ_URN), str(e)):
         print("looks like URN not implemented in expansion service, skipping.")
       else:
         raise e
 
-
-class AvroGenericTestCoder(AvroGenericCoder):
-  SCHEMA = """
-  {
-    "type": "record", "name": "testrecord",
-    "fields": [ {"name": "name", "type": "string"} ]
-  }
-  """
-
-  def __init__(self):
-    super(AvroGenericTestCoder, self).__init__(self.SCHEMA)
-
-
-coders.registry.register_coder(AvroGenericRecord, AvroGenericTestCoder)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

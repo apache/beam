@@ -1636,7 +1636,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.evaluationDependsOn(":beam-sdks-python")
       project.evaluationDependsOn(":beam-sdks-java-test-expansion-service")
-      project.evaluationDependsOn(":beam-sdks-java-io-parquet")
       project.evaluationDependsOn(":beam-runners-core-construction-java")
 
       // Task for launching expansion services
@@ -1644,9 +1643,10 @@ class BeamModulePlugin implements Plugin<Project> {
       def pythonDir = project.project(":beam-sdks-python").projectDir
       def javaPort = startingExpansionPortNumber.getAndDecrement()
       def pythonPort = startingExpansionPortNumber.getAndDecrement()
+      def expansionJar = project.project(':beam-sdks-java-test-expansion-service').buildTestExpansionServiceJar.archivePath
       def expansionServiceOpts = [
         "group_id": project.name,
-        "java_expansion_service_jar": "${project.project(':beam-sdks-java-test-expansion-service').buildTestExpansionServiceJar.archivePath}",
+        "java_expansion_service_jar": expansionJar,
         "java_port": javaPort,
         "python_virtualenv_dir": envDir,
         "python_expansion_service_module": "apache_beam.runners.portability.expansion_service_test",
@@ -1657,11 +1657,10 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':beam-sdks-java-container:docker'
         dependsOn ':beam-sdks-python-container:docker'
         dependsOn ':beam-sdks-java-test-expansion-service:buildTestExpansionServiceJar'
-        dependsOn ":beam-sdks-java-io-parquet:shadowJarWithDependencies"
         dependsOn ":beam-sdks-python:installGcpTest"
         // setup test env
         executable 'sh'
-        args '-c', "$pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh start $serviceArgs; $pythonDir/scripts/run_kafka_services.sh start"
       }
 
       def mainTask = project.tasks.create(name: config.name) {
@@ -1672,7 +1671,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def cleanupTask = project.tasks.create(name: config.name+'Cleanup', type: Exec) {
         // teardown test env
         executable 'sh'
-        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}; $pythonDir/scripts/run_kafka_services.sh stop"
       }
       setupTask.finalizedBy cleanupTask
 
@@ -1721,8 +1720,8 @@ class BeamModulePlugin implements Plugin<Project> {
         def pythonTask = project.tasks.create(name: config.name+"PythonUsing"+sdk, type: Exec) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Python SDK"
-          environment "PARQUETIO_JAR", project.project(":beam-sdks-java-io-parquet").shadowJarWithDependencies.archivePath
           environment "EXPANSION_PORT", port
+          environment "EXPANSION_JAR", expansionJar
           executable 'sh'
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask
