@@ -34,14 +34,14 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark source translation. */
 @RunWith(JUnit4.class)
 public class SimpleSourceTest implements Serializable {
-  private static Pipeline pipeline;
+  private static Pipeline o;
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   @BeforeClass
   public static void beforeClass() {
     PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    pipeline = Pipeline.create(options);
+    o = Pipeline.create(options);
   }
 
   @Ignore
@@ -49,7 +49,7 @@ public class SimpleSourceTest implements Serializable {
   public void testUnboundedSource() {
     // produces an unbounded PCollection of longs from 0 to Long.MAX_VALUE which elements
     // have processing time as event timestamps.
-    pipeline.apply(GenerateSequence.from(0L));
-    pipeline.run();
+    o.apply(GenerateSequence.from(0L));
+    o.run();
   }
 }

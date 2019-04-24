@@ -24,8 +24,9 @@ import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.BeforeClass;
@@ -36,20 +37,21 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark {@link org.apache.beam.sdk.transforms.Combine} translation. */
 @RunWith(JUnit4.class)
 public class CombineTest implements Serializable {
-  private static Pipeline pipeline;
+  private static Pipeline p;
 
   @BeforeClass
   public static void beforeClass() {
     PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    pipeline = Pipeline.create(options);
+    p = Pipeline.create(options);
   }
 
   @Test
   public void testCombineGlobally() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    input.apply(Combine.globally(new IntegerCombineFn()));
-    pipeline.run();
+    PCollection<Integer> input =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).apply(Sum.integersGlobally());
+    PAssert.that(input).containsInAnyOrder(55);
+    p.run();
   }
 
   @Test
@@ -62,35 +64,8 @@ public class CombineTest implements Serializable {
     elems.add(KV.of(2, 4));
     elems.add(KV.of(2, 6));
 
-    PCollection<KV<Integer, Integer>> input = pipeline.apply(Create.of(elems));
-    input.apply(Combine.perKey(new IntegerCombineFn()));
-    pipeline.run();
-  }
-
-  private static class IntegerCombineFn extends Combine.CombineFn<Integer, Long, Long> {
-
-    @Override
-    public Long createAccumulator() {
-      return 0L;
-    }
-
-    @Override
-    public Long addInput(Long accumulator, Integer input) {
-      return accumulator + input;
-    }
-
-    @Override
-    public Long mergeAccumulators(Iterable<Long> accumulators) {
-      Long result = 0L;
-      for (Long value : accumulators) {
-        result += value;
-      }
-      return result;
-    }
-
-    @Override
-    public Long extractOutput(Long accumulator) {
-      return accumulator;
-    }
+    PCollection<KV<Integer, Integer>> input = p.apply(Create.of(elems)).apply(Sum.integersPerKey());
+    PAssert.that(input).containsInAnyOrder(KV.of(1, 9), KV.of(2, 12));
+    p.run();
   }
 }
