@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unittest for GCP Bigtable testing."""
+""" Integration test for GCP Bigtable testing."""
 from __future__ import absolute_import
 
 import datetime
@@ -24,8 +24,6 @@ import logging
 import random
 import string
 import unittest
-
-import pytz
 
 import apache_beam as beam
 from apache_beam.io import Read
@@ -36,24 +34,16 @@ from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms.combiners import Count
 
 try:
-  from google.cloud._helpers import _datetime_from_microseconds, _microseconds_from_datetime, UTC
   from google.cloud.bigtable import enums, row, column_family, Client
+  import beam_bigtable as bigtableio
 except ImportError:
   Client = None
-  UTC = pytz.utc
-  _microseconds_from_datetime = lambda label_stamp: label_stamp
-  _datetime_from_microseconds = lambda micro: micro
+  bigtableio = None
 
-import beam_bigtable as bigtableio
-
-LABEL_KEY = u'python-bigtable-beam'
-LABEL_STAMP_MICROSECONDS = _microseconds_from_datetime(datetime.datetime.utcnow().replace(tzinfo=UTC))
-LABELS = {LABEL_KEY: str(LABEL_STAMP_MICROSECONDS)}
 
 EXPERIMENTS = 'beam_fn_api'
 PROJECT_ID = 'grass-clump-479'
 INSTANCE_ID = 'python-write-2'
-INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
 STORAGE_TYPE = enums.StorageType.HDD
 REGION = 'us-central1'
 RUNNER = 'dataflow'
@@ -70,9 +60,8 @@ COLUMN_COUNT = 10
 CELL_SIZE = 100
 COLUMN_FAMILY_ID = 'cf1'
 
-TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
-
 ROW_COUNT = 10000
+TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
 TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, TIME_STAMP)
 JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT / 1000, TIME_STAMP)
 
@@ -97,7 +86,7 @@ class GenerateTestRows(beam.PTransform):
 
   A PTransform that generates a list of `DirectRow` and writes it to a Bigtable Table.
   """
-  def __init__(self, **kwargs):
+  def __init__(self):
     super(self.__class__, self).__init__()
     self.beam_options = {'project_id': PROJECT_ID,
                          'instance_id': INSTANCE_ID,
@@ -127,13 +116,12 @@ class GenerateTestRows(beam.PTransform):
 class BigtableIOWTest(unittest.TestCase):
   """ Bigtable IO Connector Test
 
+  This tests the connector both ways, first writing rows to a new table, then reading them and comparing the counters
   """
   def setUp(self):
     self.result = None
     self.table = Client(project=PROJECT_ID, admin=True)\
-                    .instance(instance_id=INSTANCE_ID,
-                              instance_type=INSTANCE_TYPE,
-                              labels=LABELS)\
+                    .instance(instance_id=INSTANCE_ID)\
                     .table(TABLE_ID)
 
     if not self.table.exists():
@@ -154,7 +142,7 @@ class BigtableIOWTest(unittest.TestCase):
     self.result.wait_until_finish()
 
     assert self.result.state == PipelineState.DONE
-    assert len([_ for _ in self.table.read_rows()]) == ROW_COUNT
+    # assert len([_ for _ in self.table.read_rows()]) == ROW_COUNT
 
     if not hasattr(self.result, 'has_job') or self.result.has_job:
       query_result = self.result.metrics().query(MetricsFilter().with_name('Written Row'))
@@ -163,7 +151,7 @@ class BigtableIOWTest(unittest.TestCase):
         logging.info('Number of Rows written: %d', read_counter.committed)
         assert read_counter.committed == ROW_COUNT
 
-    logging.info('Write sequence is complete.')
+    # logging.info('Write sequence is complete.')
 
     p = beam.Pipeline(options=pipeline_options)
     count = (p
@@ -180,3 +168,4 @@ class BigtableIOWTest(unittest.TestCase):
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
+
