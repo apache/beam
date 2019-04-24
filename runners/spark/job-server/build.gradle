@@ -71,6 +71,8 @@ runShadow {
   if (project.hasProperty('cleanArtifactsPerJob'))
     args += ["--clean-artifacts-per-job=${project.property('cleanArtifactsPerJob')}"]
 
+  systemProperties System.properties
+
   // Enable remote debugging.
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
   if (project.hasProperty("logLevel"))
