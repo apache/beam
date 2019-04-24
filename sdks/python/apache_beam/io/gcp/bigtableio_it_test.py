@@ -47,7 +47,7 @@ INSTANCE_ID = 'python-write-2'
 STORAGE_TYPE = enums.StorageType.HDD
 REGION = 'us-central1'
 RUNNER = 'dataflow'
-# RUNNER = 'direct'
+# RUNNER = 'direct'       # Use this runner to run Apache Beam locally
 LOCATION_ID = "us-central1-a"
 SETUP_FILE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\setup.py'
 EXTRA_PACKAGE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\dist\\bigtableio-0.3.120.tar.gz'
@@ -55,15 +55,20 @@ STAGING_LOCATION = 'gs://mf2199/stage'
 TEMP_LOCATION = 'gs://mf2199/temp'
 AUTOSCALING_ALGORITHM = 'NONE'
 DISK_SIZE_GB = 50
-NUM_WORKERS = 300
+
+ROW_COUNT = 10000
 COLUMN_COUNT = 10
 CELL_SIZE = 100
 COLUMN_FAMILY_ID = 'cf1'
 
-ROW_COUNT = 10000
+ROW_COUNT_K = ROW_COUNT / 1000
+NUM_WORKERS = min(ROW_COUNT_K, 300)
 TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
-TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT / 1000, TIME_STAMP)
-JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT / 1000, TIME_STAMP)
+TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
+JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
+
+# LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 PIPELINE_PARAMETERS = [
 		'--experiments={}'.format(EXPERIMENTS),
@@ -113,7 +118,7 @@ class GenerateTestRows(beam.PTransform):
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
-class BigtableIOWTest(unittest.TestCase):
+class BigtableIOTest(unittest.TestCase):
   """ Bigtable IO Connector Test
 
   This tests the connector both ways, first writing rows to a new table, then reading them and comparing the counters
@@ -166,6 +171,5 @@ class BigtableIOWTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
+  logging.getLogger().setLevel(LOG_LEVEL)
   unittest.main()
-
