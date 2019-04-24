@@ -303,6 +303,10 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   private static Object fieldToAvatica(Schema.FieldType type, Object beamValue) {
+    if (beamValue == null) {
+      return null;
+    }
+
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
         String logicalId = type.getLogicalType().getIdentifier();
