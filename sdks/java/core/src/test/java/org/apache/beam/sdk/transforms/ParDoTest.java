@@ -85,6 +85,7 @@ import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
@@ -3065,7 +3066,11 @@ public class ParDoTest implements Serializable {
      * timers when a "set" method is called on it before it goes off.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStreamWithProcessingTime.class
+    })
     public void testProcessingTimeTimerCanBeReset() throws Exception {
       final String timerId = "foo";
 
