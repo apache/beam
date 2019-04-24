@@ -25,11 +25,11 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
@@ -93,14 +93,12 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
 
     @Override
     public List<InputPartition<InternalRow>> planInputPartitions() {
-      SparkPipelineOptions sparkPipelineOptions =
-          serializablePipelineOptions.get().as(SparkPipelineOptions.class);
+      PipelineOptions options = serializablePipelineOptions.get();
       List<InputPartition<InternalRow>> result = new ArrayList<>();
       long desiredSizeBytes;
       try {
-        desiredSizeBytes = source.getEstimatedSizeBytes(sparkPipelineOptions) / numPartitions;
-        List<? extends BoundedSource<T>> splits =
-            source.split(desiredSizeBytes, sparkPipelineOptions);
+        desiredSizeBytes = source.getEstimatedSizeBytes(options) / numPartitions;
+        List<? extends BoundedSource<T>> splits = source.split(desiredSizeBytes, options);
         for (BoundedSource<T> split : splits) {
           result.add(
               (InputPartition<InternalRow>)
@@ -129,8 +127,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
       this.source = source;
       // reader is not serializable so lazy initialize it
       try {
-        reader =
-            source.createReader(serializablePipelineOptions.get().as(SparkPipelineOptions.class));
+        reader = source.createReader(serializablePipelineOptions.get().as(PipelineOptions.class));
       } catch (IOException e) {
         throw new RuntimeException("Error creating BoundedReader ", e);
       }

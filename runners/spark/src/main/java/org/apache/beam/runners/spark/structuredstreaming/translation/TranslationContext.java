@@ -26,7 +26,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformInputs;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -69,7 +69,7 @@ public class TranslationContext {
 
   private final Map<PCollectionView<?>, Dataset<?>> broadcastDataSets;
 
-  public TranslationContext(SparkPipelineOptions options) {
+  public TranslationContext(SparkStructuredStreamingPipelineOptions options) {
     SparkConf sparkConf = new SparkConf();
     sparkConf.setMaster(options.getSparkMaster());
     sparkConf.setAppName(options.getAppName());
@@ -182,8 +182,8 @@ public class TranslationContext {
   /** Starts a new pipeline. */
   public void startPipeline(boolean testMode) {
     try {
-      SparkPipelineOptions options =
-          serializablePipelineOptions.get().as(SparkPipelineOptions.class);
+      SparkStructuredStreamingPipelineOptions options =
+          serializablePipelineOptions.get().as(SparkStructuredStreamingPipelineOptions.class);
       for (Dataset<?> dataset : leaves) {
         if (options.isStreaming()) {
           // TODO: deal with Beam Discarding, Accumulating and Accumulating & Retracting	outputmodes
