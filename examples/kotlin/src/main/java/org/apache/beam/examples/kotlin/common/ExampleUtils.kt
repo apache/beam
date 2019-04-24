@@ -134,24 +134,20 @@ class ExampleUtils
     @Throws(IOException::class)
     fun setupBigQueryTable() {
         val bigQueryTableOptions = options as ExampleBigQueryTableOptions
-        if (bigQueryTableOptions.bigQueryDataset != null
-                && bigQueryTableOptions.bigQueryTable != null
-                && bigQueryTableOptions.bigQuerySchema != null) {
-            pendingMessages.add("******************Set Up Big Query Table*******************")
-            setupBigQueryTable(
-                    bigQueryTableOptions.project,
-                    bigQueryTableOptions.bigQueryDataset,
-                    bigQueryTableOptions.bigQueryTable,
-                    bigQueryTableOptions.bigQuerySchema)
-            pendingMessages.add(
-                    """
-                        The BigQuery table has been set up for this example:
-                        ${bigQueryTableOptions.project}:
-                        ${bigQueryTableOptions.bigQueryDataset}.
-                        ${bigQueryTableOptions.bigQueryTable}
-                    """.trimIndent()
-            )
-        }
+        pendingMessages.add("******************Set Up Big Query Table*******************")
+        setupBigQueryTable(
+                bigQueryTableOptions.project,
+                bigQueryTableOptions.bigQueryDataset,
+                bigQueryTableOptions.bigQueryTable,
+                bigQueryTableOptions.bigQuerySchema)
+        pendingMessages.add(
+                """
+                    The BigQuery table has been set up for this example:
+                    ${bigQueryTableOptions.project}:
+                    ${bigQueryTableOptions.bigQueryDataset}.
+                    ${bigQueryTableOptions.bigQueryTable}
+                """.trimIndent()
+        )
     }
 
     /** Tears down external resources that can be deleted upon the example's completion.  */
@@ -182,19 +178,15 @@ class ExampleUtils
         }
 
         val bigQueryTableOptions = options as ExampleBigQueryTableOptions
-        if (bigQueryTableOptions.bigQueryDataset != null
-                && bigQueryTableOptions.bigQueryTable != null
-                && bigQueryTableOptions.bigQuerySchema != null) {
-            pendingMessages.add(
-                    """
-                        The BigQuery table might contain the example's output, and it is not deleted automatically:
-                        ${bigQueryTableOptions.project}:
-                        ${bigQueryTableOptions.bigQueryDataset}.
-                        ${bigQueryTableOptions.bigQueryTable}
-                    """.trimIndent())
-            pendingMessages.add(
-                    "Please go to the Developers Console to delete it manually. Otherwise, you may be charged for its usage.")
-        }
+        pendingMessages.add(
+                """
+                    The BigQuery table might contain the example's output, and it is not deleted automatically:
+                    ${bigQueryTableOptions.project}:
+                    ${bigQueryTableOptions.bigQueryDataset}.
+                    ${bigQueryTableOptions.bigQueryTable}
+                """.trimIndent())
+        pendingMessages.add(
+                "Please go to the Developers Console to delete it manually. Otherwise, you may be charged for its usage.")
     }
 
     @Throws(IOException::class)
@@ -211,7 +203,18 @@ class ExampleUtils
 
         val tableService = bigQueryClient.tables()
         val table = executeNullIfNotFound(tableService.get(projectId, datasetId, tableId))
-        if (table == null) {
+
+        table?.let {
+            if (it.schema != schema) {
+                throw RuntimeException(
+                        """
+                        Table exists and schemas do not match, expecting:
+                        ${schema.toPrettyString()}, actual:
+                        ${table.schema.toPrettyString()}
+                    """.trimIndent()
+                )
+            }
+        } ?: run {
             val newTable = Table()
                     .setSchema(schema)
                     .setTableReference(
@@ -220,21 +223,12 @@ class ExampleUtils
                                     .setDatasetId(datasetId)
                                     .setTableId(tableId))
             tableService.insert(projectId, datasetId, newTable).execute()
-        } else if (table.schema != schema) {
-            throw RuntimeException(
-                    """
-                        Table exists and schemas do not match, expecting:
-                        ${schema.toPrettyString()}, actual:
-                        ${table.schema.toPrettyString()}
-                    """.trimIndent()
-            )
         }
     }
 
     @Throws(IOException::class)
-    private fun setupPubsubTopic(topic: String) {
-        pubsubClient.projects().topics().create(topic, Topic().setName(topic)).execute()
-    }
+    private fun setupPubsubTopic(topic: String) =
+            pubsubClient.projects().topics().create(topic, Topic().setName(topic)).execute()
 
     @Throws(IOException::class)
     private fun setupPubsubSubscription(topic: String, subscription: String) {
@@ -249,8 +243,10 @@ class ExampleUtils
      */
     @Throws(IOException::class)
     private fun deletePubsubTopic(topic: String) {
-        if (executeNullIfNotFound(pubsubClient.projects().topics().get(topic)) != null) {
-            pubsubClient.projects().topics().delete(topic).execute()
+        with(pubsubClient.projects().topics()) {
+            executeNullIfNotFound(get(topic))?.let {
+                delete(topic).execute()
+            }
         }
     }
 
@@ -261,8 +257,10 @@ class ExampleUtils
      */
     @Throws(IOException::class)
     private fun deletePubsubSubscription(subscription: String) {
-        if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) != null) {
-            pubsubClient.projects().subscriptions().delete(subscription).execute()
+        with(pubsubClient.Projects().subscriptions()) {
+            get(subscription)?.let {
+                delete(subscription).execute()
+            }
         }
     }
 
@@ -380,7 +378,7 @@ class ExampleUtils
             return credential?.let {
                 ChainingHttpRequestInitializer(
                         HttpCredentialsAdapter(credential), httpRequestInitializer)
-            } ?: kotlin.run {
+            } ?: run {
                 ChainingHttpRequestInitializer(
                         NullCredentialInitializer(), httpRequestInitializer)
             }
