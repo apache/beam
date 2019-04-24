@@ -31,7 +31,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
 import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
 import org.junit.BeforeClass;
@@ -44,14 +43,14 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark source translation. */
 @RunWith(JUnit4.class)
 public class SimpleSourceTest implements Serializable {
-  private static Pipeline pipeline;
+  private static Pipeline p;
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   @BeforeClass
   public static void beforeClass() {
     PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    pipeline = Pipeline.create(options);
+    p = Pipeline.create(options);
   }
 
   @Test
@@ -81,15 +80,9 @@ public class SimpleSourceTest implements Serializable {
     dataSourceOptions.put(DatasetSourceBatch.DEFAULT_PARALLELISM, "4");
     dataSourceOptions.put(
         DatasetSourceBatch.PIPELINE_OPTIONS,
-        new SerializablePipelineOptions(pipeline.getOptions()).toString());
+        new SerializablePipelineOptions(p.getOptions()).toString());
     DataSourceReader objectToTest =
         new DatasetSourceBatch().createReader(new DataSourceOptions(dataSourceOptions));
     SerializationDebugger.testSerialization(objectToTest, TEMPORARY_FOLDER.newFile());
-  }
-
-  @Test
-  public void testBoundedSource() {
-    pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    pipeline.run();
   }
 }

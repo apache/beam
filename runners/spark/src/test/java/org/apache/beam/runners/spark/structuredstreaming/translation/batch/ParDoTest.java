@@ -24,6 +24,7 @@ import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -39,126 +40,107 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark {@link ParDo} translation. */
 @RunWith(JUnit4.class)
 public class ParDoTest implements Serializable {
-  private static Pipeline pipeline;
+  private static Pipeline p;
 
   @BeforeClass
   public static void beforeClass() {
     PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    pipeline = Pipeline.create(options);
+    p = Pipeline.create(options);
   }
 
   @Test
   public void testPardo() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    input.apply(
-        ParDo.of(
-            new DoFn<Integer, Integer>() {
-              @ProcessElement
-              public void processElement(ProcessContext context) {
-                context.output(context.element() + 1);
-              }
-            }));
-    pipeline.run();
+    PCollection<Integer> input =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).apply(ParDo.of(PLUS_ONE_DOFN));
+    PAssert.that(input).containsInAnyOrder(2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+    p.run();
   }
 
   @Test
   public void testTwoPardoInRow() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    input
-        .apply(
-            ParDo.of(
-                new DoFn<Integer, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    Integer val = context.element() + 1;
-                    context.output(val);
-                    System.out.println("ParDo1: val = " + val);
-                  }
-                }))
-        .apply(
-            ParDo.of(
-                new DoFn<Integer, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    Integer val = context.element() + 1;
-                    context.output(val);
-                    System.out.println("ParDo2: val = " + val);
-                  }
-                }));
-    pipeline.run();
+    PCollection<Integer> input =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+            .apply(ParDo.of(PLUS_ONE_DOFN))
+            .apply(ParDo.of(PLUS_ONE_DOFN));
+    PAssert.that(input).containsInAnyOrder(3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+    p.run();
   }
 
   @Test
   public void testSideInputAsList() {
-    PCollection<Integer> sideInput = pipeline.apply("Create sideInput", Create.of(101, 102, 103));
-    final PCollectionView<List<Integer>> sideInputView = sideInput.apply(View.asList());
-
+    PCollectionView<List<Integer>> sideInputView =
+        p.apply("Create sideInput", Create.of(1, 2, 3)).apply(View.asList());
     PCollection<Integer> input =
-        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    input.apply(
-        ParDo.of(
-                new DoFn<Integer, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    List<Integer> sideInputValue = context.sideInput(sideInputView);
-                    Integer val = context.element();
-                    context.output(val);
-                    System.out.println(
-                        "ParDo1: val = " + val + ", sideInputValue = " + sideInputValue);
-                  }
-                })
-            .withSideInputs(sideInputView));
-
-    pipeline.run();
+        p.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            List<Integer> sideInputValue = c.sideInput(sideInputView);
+                            if (!sideInputValue.contains(c.element())) {
+                              c.output(c.element());
+                            }
+                          }
+                        })
+                    .withSideInputs(sideInputView));
+    PAssert.that(input).containsInAnyOrder(4, 5, 6, 7, 8, 9, 10);
+    p.run();
   }
 
   @Test
   public void testSideInputAsSingleton() {
-    PCollection<Integer> sideInput = pipeline.apply("Create sideInput", Create.of(101));
-    final PCollectionView<Integer> sideInputView = sideInput.apply(View.asSingleton());
+    PCollectionView<Integer> sideInputView =
+        p.apply("Create sideInput", Create.of(1)).apply(View.asSingleton());
 
     PCollection<Integer> input =
-        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    input.apply(
-        ParDo.of(
-                new DoFn<Integer, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    Integer sideInputValue = context.sideInput(sideInputView);
-                    Integer val = context.element();
-                    context.output(val);
-                    System.out.println(
-                        "ParDo1: val = " + val + ", sideInputValue = " + sideInputValue);
-                  }
-                })
-            .withSideInputs(sideInputView));
+        p.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            Integer sideInputValue = c.sideInput(sideInputView);
+                            if (!sideInputValue.equals(c.element())) {
+                              c.output(c.element());
+                            }
+                          }
+                        })
+                    .withSideInputs(sideInputView));
 
-    pipeline.run();
+    PAssert.that(input).containsInAnyOrder(2, 3, 4, 5, 6, 7, 8, 9, 10);
+    p.run();
   }
 
   @Test
   public void testSideInputAsMap() {
-    PCollection<KV<String, Integer>> sideInput =
-        pipeline.apply("Create sideInput", Create.of(KV.of("key1", 1), KV.of("key2", 2)));
-    final PCollectionView<Map<String, Integer>> sideInputView = sideInput.apply(View.asMap());
-
+    PCollectionView<Map<String, Integer>> sideInputView =
+        p.apply("Create sideInput", Create.of(KV.of("key1", 1), KV.of("key2", 2)))
+            .apply(View.asMap());
     PCollection<Integer> input =
-        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-    input.apply(
-        ParDo.of(
-                new DoFn<Integer, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    Map<String, Integer> sideInputValue = context.sideInput(sideInputView);
-                    Integer val = context.element();
-                    context.output(val);
-                    System.out.println(
-                        "ParDo1: val = " + val + ", sideInputValue = " + sideInputValue);
-                  }
-                })
-            .withSideInputs(sideInputView));
-
-    pipeline.run();
+        p.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            Map<String, Integer> sideInputValue = c.sideInput(sideInputView);
+                            if (!sideInputValue.containsKey("key" + c.element())) {
+                              c.output(c.element());
+                            }
+                          }
+                        })
+                    .withSideInputs(sideInputView));
+    PAssert.that(input).containsInAnyOrder(3, 4, 5, 6, 7, 8, 9, 10);
+    p.run();
   }
+
+  private static final DoFn<Integer, Integer> PLUS_ONE_DOFN =
+      new DoFn<Integer, Integer>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          c.output(c.element() + 1);
+        }
+      };
 }

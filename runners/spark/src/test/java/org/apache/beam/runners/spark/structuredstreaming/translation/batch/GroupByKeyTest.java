@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
+import static org.junit.Assert.assertThat;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +27,7 @@ import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -37,13 +41,13 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark {@link ParDo} translation. */
 @RunWith(JUnit4.class)
 public class GroupByKeyTest implements Serializable {
-  private static Pipeline pipeline;
+  private static Pipeline p;
 
   @BeforeClass
   public static void beforeClass() {
     PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    pipeline = Pipeline.create(options);
+    p = Pipeline.create(options);
   }
 
   @Test
@@ -56,8 +60,15 @@ public class GroupByKeyTest implements Serializable {
     elems.add(KV.of(2, 4));
     elems.add(KV.of(2, 6));
 
-    PCollection<KV<Integer, Integer>> input = pipeline.apply(Create.of(elems));
-    input.apply(GroupByKey.create());
-    pipeline.run();
+    PCollection<KV<Integer, Iterable<Integer>>> input =
+        p.apply(Create.of(elems)).apply(GroupByKey.create());
+    PAssert.thatMap(input)
+        .satisfies(
+            results -> {
+              assertThat(results.get(1), containsInAnyOrder(1, 3, 5));
+              assertThat(results.get(2), containsInAnyOrder(2, 4, 6));
+              return null;
+            });
+    p.run();
   }
 }
