@@ -1278,7 +1278,21 @@ only usable if you are writing to a single table.</p>
 
 <p class="language-java">This example generates one partition per day.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Java snippet not yet available and tracked in JIRA: BEAM-5503</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">weatherData</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">BigQueryIO</span><span class="o">.&lt;</span><span class="n">WeatherData</span><span class="o">&gt;</span><span class="n">write</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="n">tableSpec</span> <span class="o">+</span> <span class="s">"_partitioning"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">tableSchema</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">withFormatFunction</span><span class="o">(</span>
+            <span class="o">(</span><span class="n">WeatherData</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span>
+                <span class="k">new</span> <span class="nf">TableRow</span><span class="o">()</span>
+                    <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"year"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">year</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"month"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">month</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"day"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">day</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"maxTemp"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">maxTemp</span><span class="o">))</span>
+        <span class="c1">// NOTE: an existing table without time partitioning set up will not work</span>
+        <span class="o">.</span><span class="na">withTimePartitioning</span><span class="o">(</span><span class="k">new</span> <span class="n">TimePartitioning</span><span class="o">().</span><span class="na">setType</span><span class="o">(</span><span class="s">"DAY"</span><span class="o">))</span>
+        <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_TRUNCATE</span><span class="o">));</span>
 </code></pre>
 </div>
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The Beam SDK for Python does not currently support time partitioning.</span>
