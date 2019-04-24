@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.annotations;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -73,7 +74,7 @@ public @interface DefaultSchema {
   class DefaultSchemaProvider implements SchemaProvider {
     final Map<TypeDescriptor, ProviderAndDescriptor> cachedProviders = Maps.newConcurrentMap();
 
-    private static final class ProviderAndDescriptor {
+    private static final class ProviderAndDescriptor implements Serializable {
       final SchemaProvider schemaProvider;
       final TypeDescriptor<?> typeDescriptor;
 
