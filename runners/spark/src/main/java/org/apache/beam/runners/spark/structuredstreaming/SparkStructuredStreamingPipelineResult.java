@@ -24,7 +24,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
 /** Represents a Spark pipeline execution result. */
-class SparkPipelineResult implements PipelineResult {
+class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   @Nullable // TODO: remove once method will be implemented
   @Override

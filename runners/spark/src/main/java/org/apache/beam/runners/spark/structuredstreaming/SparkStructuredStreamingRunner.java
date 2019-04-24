@@ -37,17 +37,19 @@ import org.slf4j.LoggerFactory;
  * Beam pipeline with the default options of a single threaded spark instance in local mode, we
  * would do the following:
  *
- * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineResult result =
- * (SparkPipelineResult) p.run(); }
+ * <p>{@code Pipeline p = [logic for pipeline creation] SparkStructuredStreamingPipelineResult
+ * result = (SparkStructuredStreamingPipelineResult) p.run(); }
  *
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
  * we would do the following:
  *
  * <p>{@code Pipeline p = [logic for pipeline creation] SparkStructuredStreamingPipelineOptions
  * options = SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
- * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
+ * SparkStructuredStreamingPipelineResult result = (SparkStructuredStreamingPipelineResult) p.run();
+ * }
  */
-public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPipelineResult> {
+public final class SparkStructuredStreamingRunner
+    extends PipelineRunner<SparkStructuredStreamingPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkStructuredStreamingRunner.class);
 
@@ -111,12 +113,12 @@ public final class SparkStructuredStreamingRunner extends PipelineRunner<SparkPi
   }
 
   @Override
-  public SparkPipelineResult run(final Pipeline pipeline) {
+  public SparkStructuredStreamingPipelineResult run(final Pipeline pipeline) {
     TranslationContext translationContext = translatePipeline(pipeline);
     // TODO initialise other services: checkpointing, metrics system, listeners, ...
     // TODO pass testMode using pipelineOptions
     translationContext.startPipeline(true);
-    return new SparkPipelineResult();
+    return new SparkStructuredStreamingPipelineResult();
   }
 
   private TranslationContext translatePipeline(Pipeline pipeline) {
