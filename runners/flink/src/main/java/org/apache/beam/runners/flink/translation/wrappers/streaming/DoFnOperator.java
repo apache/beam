@@ -617,8 +617,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       // hold back by the pushed back values waiting for side inputs
       long pushedBackInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
 
-      timeServiceManager.advanceWatermark(
-          new Watermark(toFlinkRuntimeWatermark(pushedBackInputWatermark)));
+      timeServiceManager.advanceWatermark(new Watermark(pushedBackInputWatermark));
 
       Instant watermarkHold = keyedStateInternals.watermarkHold();
 
@@ -653,17 +652,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       // maybe output a new watermark
       processWatermark1(new Watermark(currentInputWatermark));
     }
-  }
-
-  /**
-   * Converts a Beam watermark to a Flink watermark. This is only relevant when considering what
-   * event-time timers to fire: in Beam, a watermark {@code T} says there will not be any elements
-   * with a timestamp {@code < T} in the future. A Flink watermark {@code T} says there will not be
-   * any elements with a timestamp {@code <= T} in the future. We correct this by subtracting {@code
-   * 1} from a Beam watermark before passing to any relevant Flink runtime components.
-   */
-  private static long toFlinkRuntimeWatermark(long beamWatermark) {
-    return beamWatermark - 1;
   }
 
   /**
@@ -1031,11 +1019,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       long time = timer.getTimestamp().getMillis();
       switch (timer.getDomain()) {
         case EVENT_TIME:
-          timerService.registerEventTimeTimer(timer, time);
+          timerService.registerEventTimeTimer(timer, adjustTimestampForFlink(time));
           break;
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
-          timerService.registerProcessingTimeTimer(timer, time);
+          timerService.registerProcessingTimeTimer(timer, adjustTimestampForFlink(time));
           break;
         default:
           throw new UnsupportedOperationException("Unsupported time domain: " + timer.getDomain());
@@ -1087,11 +1075,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       long time = timerKey.getTimestamp().getMillis();
       switch (timerKey.getDomain()) {
         case EVENT_TIME:
-          timerService.deleteEventTimeTimer(timerKey, time);
+          timerService.deleteEventTimeTimer(timerKey, adjustTimestampForFlink(time));
           break;
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
-          timerService.deleteProcessingTimeTimer(timerKey, time);
+          timerService.deleteProcessingTimeTimer(timerKey, adjustTimestampForFlink(time));
           break;
         default:
           throw new UnsupportedOperationException(
@@ -1119,6 +1107,27 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     @Override
     public Instant currentOutputWatermarkTime() {
       return new Instant(currentOutputWatermark);
+    }
+
+    /**
+     * In Beam, a timer with timestamp {@code T} is only illegible for firing when the time has
+     * moved past this time stamp, i.e. {@code T < current_time}. In the case of event time,
+     * current_time is the watermark, in the case of processing time it is the system time.
+     *
+     * <p>Flink's TimerService has different semantics because it only ensures {@code T <=
+     * current_time}.
+     *
+     * <p>To make up for this, we need to add one millisecond to Flink's internal timer timestamp.
+     * Note that we do not modify Beam's timestamp and we are not exposing Flink's timestamp.
+     *
+     * <p>See also https://jira.apache.org/jira/browse/BEAM-3863
+     */
+    private long adjustTimestampForFlink(long beamTimerTimestamp) {
+      if (beamTimerTimestamp == Long.MAX_VALUE) {
+        // We would overflow, do not adjust timestamp
+        return Long.MAX_VALUE;
+      }
+      return beamTimerTimestamp + 1;
     }
   }
 }
