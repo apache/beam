@@ -52,7 +52,7 @@ Here are few brief snippets of code that show how the Kotlin Samples compare to 
 
 ### Kotlin
 
-```kotlin
+```java
  // String templating
  val filename = "$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)"  
 ```
@@ -70,7 +70,7 @@ public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, Stri
 
 ## Kotlin
 
-```kotlin
+```java
 public class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
     override fun apply(input: KV<String, Long>) = "${input.key} : ${input.value}"  //Single line functions
 }
@@ -86,7 +86,7 @@ if(tableRow != null){
 
 ### Kotlin
 
-```kotlin
+```java
 tableRow?.let{
     formatAndInsert(it)  // No need for null checks
 }
@@ -100,7 +100,7 @@ String tableName = "testTable";
 
 ### Kotlin
 
-```kotlin
+```java
 val tableName = "testTable"  // Type inferencing
 ```
 
