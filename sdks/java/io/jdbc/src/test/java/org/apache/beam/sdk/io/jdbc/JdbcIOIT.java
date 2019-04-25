@@ -37,6 +37,8 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -148,6 +150,16 @@ public class JdbcIOIT {
           return NamedTestResult.create(
               uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
         });
+    suppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("write_bytes");
+          return NamedTestResult.create(uuid, timestamp, "write_bytes", totalBytes);
+        });
+    suppliers.add(
+        reader -> {
+          double writeElements = reader.getCounterMetric("write_elements");
+          return NamedTestResult.create(uuid, timestamp, "write_elements", writeElements);
+        });
     return suppliers;
   }
 
@@ -159,6 +171,17 @@ public class JdbcIOIT {
           long readStart = reader.getStartTimeMetric("read_time");
           long readEnd = reader.getEndTimeMetric("read_time");
           return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
+        });
+
+    suppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("read_bytes");
+          return NamedTestResult.create(uuid, timestamp, "read_bytes", totalBytes);
+        });
+    suppliers.add(
+        reader -> {
+          double readElements = reader.getCounterMetric("read_elements");
+          return NamedTestResult.create(uuid, timestamp, "read_elements", readElements);
         });
     return suppliers;
   }
@@ -176,6 +199,8 @@ public class JdbcIOIT {
         .apply(GenerateSequence.from(0).to(numberOfRows))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
+        .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, "write_bytes")))
+        .apply(ParDo.of(new CountMonitor<>(NAMESPACE, "write_elements")))
         .apply(
             JdbcIO.<TestRow>write()
                 .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
@@ -209,7 +234,9 @@ public class JdbcIOIT {
                     .withQuery(String.format("select name,id from %s;", tableName))
                     .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
                     .withCoder(SerializableCoder.of(TestRow.class)))
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
+            .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, "read_bytes")))
+            .apply(ParDo.of(new CountMonitor<>(NAMESPACE, "read_elements")));
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
         .isEqualTo((long) numberOfRows);
