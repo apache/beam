@@ -196,7 +196,7 @@ class BigtableSource(iobase.BoundedSource):
     			  calling ``cancel()``.
     """
     if self.sample_row_keys is None:
-      self.sample_row_keys = list(self._get_table().sample_row_keys())
+      self.sample_row_keys = self._get_table().sample_row_keys()
       if self.sample_row_keys[0].row_key != b'':
         SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
         first_key = SampleRowKey(b'', 0)
@@ -210,7 +210,7 @@ class BigtableSource(iobase.BoundedSource):
       return LexicographicKeyRangeTracker(start_position, stop_position)
 
   def estimate_size(self):
-    return self.get_sample_row_keys()[-1].offset_bytes
+    return list(self.get_sample_row_keys()[-1]).offset_bytes
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     """ Splits the source into a set of bundles, using the row_set if it is set.
@@ -230,13 +230,13 @@ class BigtableSource(iobase.BoundedSource):
     # TODO: Use the desired bundle size to split accordingly
     # TODO: Allow users to provide their own row sets
 
-    sample_row_keys = self.get_sample_row_keys()
+    sample_row_keys = list(self.get_sample_row_keys())
     bundles = []
     for i in range(1, len(sample_row_keys)):
-      key_1 = sample_row_keys[i - 1]
-      key_2 = sample_row_keys[i]
-      size = key_2.offset_bytes - key_1.offset_bytes
-      bundles.append(iobase.SourceBundle(size, self, key_1.row_key, key_2.row_key))
+      key_1 = sample_row_keys[i - 1].row_key
+      key_2 = sample_row_keys[i].row_key
+      size = sample_row_keys[i].offset_bytes - sample_row_keys[i - 1].offset_bytes
+      bundles.append(iobase.SourceBundle(size, self, key_1, key_2))
 
     # Shuffle is needed to allow reading from different locations of the table for better efficiency
     shuffle(bundles)

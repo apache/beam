@@ -30,7 +30,6 @@ try:
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.table import Table
   from google.cloud.bigtable.row_data import PartialRowData
-  # from google.cloud.bigtable_v2.types import SampleRowKeysResponse
   from google.cloud.bigtable_v2.proto.bigtable_pb2 import SampleRowKeysResponse
   from google.cloud.bigtable.row_set import RowRange
   from google.cloud.bigtable.row_set import RowSet
@@ -96,6 +95,10 @@ class BigtableSourceTest(unittest.TestCase):
 
     for i, key in enumerate(keys):
       sample_row = SampleRowKeysResponse()
+      if i == 0 and key != b'':
+        sample_row.row_key = b''
+        sample_row.offset_bytes = 0
+        yield sample_row
       sample_row.row_key = key
       sample_row.offset_bytes = (i + 1) * SIZE_768M
       yield sample_row
@@ -120,8 +123,8 @@ class BigtableSourceTest(unittest.TestCase):
   @mock.patch.object(BigtableSource, 'get_sample_row_keys')
   def test_split(self, mock_sample_row_keys):
     mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_1)
-    split_list = list(BigtableSource(self.project_id, self.instance_id, self.table_id).split())
-    self.assertEqual(len(split_list), len(KEYS_1))
+    bundles = list(BigtableSource(self.project_id, self.instance_id, self.table_id).split(None))
+    self.assertEqual(len(list(bundles)), len(KEYS_1))
 
   def _key_bytes(self, key):
     return bytes(key) if sys.version_info < (3, 0) else bytes(key, 'utf8')
@@ -151,26 +154,19 @@ class BigtableSourceTest(unittest.TestCase):
   @mock.patch.object(BigtableSource, 'get_sample_row_keys')
   @mock.patch.object(Table, 'read_rows')
   def test_read_small_table(self, mock_read_rows, mock_sample_row_keys):
-    # def mocking_sample_row_keys():
-    #   sample_row = SampleRowKeysResponse()
-    #   sample_row.row_key = b''
-    #   sample_row.offset_bytes = SIZE_768M
-    #   return [sample_row]
-
     row_count = 10000
 
     def _mock_read_rows(): # 12.2 KB
       for i in range(0, row_count):
         yield PartialRowData(self._key_bytes('beam_key%07d' % i))
 
-    # mock_sample_row_keys.return_value = mocking_sample_row_keys()
     mock_sample_row_keys.return_value = self._mock_sample_keys()
     mock_read_rows.return_value = _mock_read_rows()
-    bigtable = BigtableSource(self.project_id, self.instance_id, self.table_id)
+    source = BigtableSource(self.project_id, self.instance_id, self.table_id)
 
-    for split_bundle in bigtable.split():
-      range_tracker = bigtable.get_range_tracker(split_bundle.start_position, split_bundle.stop_position)
-      rows = list(bigtable.read(range_tracker))
+    for split_bundle in source.split(None):
+      range_tracker = source.get_range_tracker(split_bundle.start_position, split_bundle.stop_position)
+      rows = list(source.read(range_tracker))
       self.assertEqual(len(rows), row_count)
 
       for row in rows:
@@ -187,24 +183,15 @@ class BigtableSourceTest(unittest.TestCase):
   def test_read_table(self, mock_read_rows, mock_sample_row_keys):
     mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_2)
     mock_read_rows.side_effect = self._mocking_read_rows
-    bigtable = BigtableSource(self.project_id, self.instance_id, self.table_id)
+    source = BigtableSource(self.project_id, self.instance_id, self.table_id)
 
     # TODO: Need to implement mock-reader and row counter
 
-    # add = []
-    splits = []
-    # counter = 0
-    for split in bigtable.split():
-      # add.append(len(list(bigtable.read(bigtable.get_range_tracker(split.start_position, split.stop_position)))))
-      # for row in list(bigtable.read(bigtable.get_range_tracker(split.start_position, split.stop_position))):
-      #   counter += 1
-      splits.append(split)
-    # print "row count = ", counter
+    bundles = []
+    for bundle in source.split(None):
+      bundles.append(bundle)
 
-    # print len(splits)
-
-    # self.assertEqual(sum(add), len(KEYS_2)) # Create One Row for each Bundle in the read_rows method.
-    self.assertEqual(len(splits), len(KEYS_2)) # Create One Row for each Bundle in the read_rows method.
+    self.assertEqual(len(bundles), len(KEYS_2)) # Create One Row for each Bundle in the read_rows method.
 
 
 if __name__ == '__main__':
