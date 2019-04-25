@@ -255,8 +255,7 @@ class FnApiRunnerTest(unittest.TestCase):
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
   def test_pardo_state_only(self):
-    index_state_spec = userstate.CombiningValueStateSpec(
-        'index', beam.coders.IterableCoder(beam.coders.VarIntCoder()), sum)
+    index_state_spec = userstate.CombiningValueStateSpec('index', sum)
 
     # TODO(ccy): State isn't detected with Map/FlatMap.
     class AddIndex(beam.DoFn):
