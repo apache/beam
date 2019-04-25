@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.smb.BucketSourceIterator.BucketSourceIteratorCoder;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
+import org.apache.beam.sdk.extensions.smb.SMBJoinResult.ToResult;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Reader;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.KeyedBucketSources;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.KeyedBucketSources.KeyedBucketSource;
@@ -32,17 +34,19 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 
-public class SortedBucketSource<KeyT> extends PTransform<
-    KeyedBucketSources<KeyT>, PCollection<KV<KeyT, SMBJoinResult>>> {
+public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT> extends PTransform<
+    KeyedBucketSources<KeyT>, PCollection<KV<KeyT, ResultT>>> {
 
   private final Coder<KeyT> keyCoder;
+  private final SMBJoinResult.ToResult<ResultT> toResult;
 
-  SortedBucketSource(Coder<KeyT> keyCoder) {
+  SortedBucketSource(Coder<KeyT> keyCoder, SMBJoinResult.ToResult<ResultT> toResult) {
     this.keyCoder = keyCoder;
+    this.toResult = toResult;
   }
 
   @Override
-  public PCollection<KV<KeyT, SMBJoinResult>> expand(KeyedBucketSources<KeyT> sources) {
+  public PCollection<KV<KeyT, ResultT>> expand(KeyedBucketSources<KeyT> sources) {
 
     // validate that all sources are compatible
     // Verify: what's the call site of this? does it need to be put in a dofn?
@@ -63,56 +67,84 @@ public class SortedBucketSource<KeyT> extends PTransform<
 
     return openedReaders
         .apply(Reshuffle.viaRandomKey())
-        .apply(ParDo.of(new MergeBuckets<>()))
-        .setCoder(KvCoder.of(keyCoder, new SMBJoinResult.SMBJoinResultCoder()));
+        .apply(ParDo.of(new MergeBuckets<>(toResult)))
+        .setCoder(KvCoder.of(keyCoder, toResult.resultCoder()));
   }
 
   /**
    *
    * @param <KeyT>
    */
-  static class MergeBuckets<KeyT> extends
-      DoFn<KV<Integer, List<BucketSourceIterator<KeyT>>>, KV<KeyT, SMBJoinResult>> {
+  static class MergeBuckets<KeyT extends Comparable<KeyT>, ResultT> extends
+      DoFn<KV<Integer, List<BucketSourceIterator<KeyT>>>, KV<KeyT, ResultT>> {
+    private final SMBJoinResult.ToResult<ResultT> toResult;
+
+    MergeBuckets(ToResult<ResultT> toResult) {
+      this.toResult = toResult;
+    }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      List<BucketSourceIterator<KeyT>> readers = c.element().getValue();
+      List<BucketSourceIterator<KeyT>> readers = new ArrayList<>(c.element().getValue());
+
       readers.forEach(BucketSourceIterator::initialize);
 
-      Map<TupleTag, Iterator<?>> valueMap = new HashMap<>();
-      KeyT keyForGroup = null;
+      KeyT keyForGroup;
 
-      // @Todo Actuall implement this, keeping track of min key seen etc...
-      Iterator<BucketSourceIterator<KeyT>> iterators = readers.iterator();
+      Map<TupleTag, KV<KeyT, Iterator<?>>> nextKeyGroups = new HashMap<>();
 
-      while (iterators.hasNext()) {
-        BucketSourceIterator<KeyT> bucketIt = iterators.next();
-        TupleTag tupleTag = bucketIt.getTupleTag();
-        KV<KeyT, Iterator<?>> next = bucketIt.nextKeyGroup();
+      while(true) {
+        Iterator<BucketSourceIterator<KeyT>> readersIt = readers.iterator();
 
-        if (next == null) {
-          iterators.remove();
-          continue;
+        while (readersIt.hasNext()) {
+          final BucketSourceIterator<KeyT> reader = readersIt.next();
+
+          if (!reader.hasNextKeyGroup()) {
+            try {
+              reader.finish();
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+
+            readersIt.remove();
+          } else {
+            nextKeyGroups.put(reader.getTupleTag(), reader.nextKeyGroup());
+          }
         }
 
-        if (keyForGroup == null) {
-          keyForGroup = next.getKey();
+        if (nextKeyGroups.isEmpty()) {
+          break;
         }
 
-        valueMap.put(tupleTag, next.getValue());
-      };
+        final KeyT minKey = nextKeyGroups.entrySet()
+            .stream()
+            .min(Comparator.comparing(e -> e.getValue().getKey()))
+            .map(entry -> entry.getValue().getKey()).orElse(null);
 
-      c.output(KV.of(keyForGroup, new SMBJoinResult(valueMap)));
-      valueMap = new HashMap<>();
+        keyForGroup = minKey;
 
-      readers.forEach(r -> {
-        try {
-          r.finish();
-        } catch (Exception e) {
-          throw new RuntimeException("Closing reader failed: {}", e);
+        Iterator<Map.Entry<TupleTag, KV<KeyT, Iterator<?>>>> nextKeyGroupsIt = nextKeyGroups.entrySet().iterator();
+
+        Map<TupleTag, Iterable<?>> valueMap = new HashMap<>();
+
+        while (nextKeyGroupsIt.hasNext()) {
+          final List<Object> values = new ArrayList<>();
+          Map.Entry<TupleTag, KV<KeyT, Iterator<?>>> entry = nextKeyGroupsIt.next();
+
+          if (entry.getValue().getKey() == minKey) {
+            entry.getValue().getValue().forEachRemaining(values::add);
+
+            valueMap.put(entry.getKey(), values);
+            nextKeyGroupsIt.remove();
+          }
         }
-      });
 
+        c.output(KV.of(keyForGroup, toResult.apply(new SMBJoinResult(valueMap))));
+
+        if (readers.isEmpty()) {
+          break;
+        }
+      }
     }
   }
 

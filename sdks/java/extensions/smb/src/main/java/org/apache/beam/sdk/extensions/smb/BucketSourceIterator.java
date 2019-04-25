@@ -62,50 +62,50 @@ class BucketSourceIterator<KeyT> implements Serializable {
     return tupleTag;
   }
 
+  boolean hasNextKeyGroup() {
+    return nextKv != null;
+  }
+
   // group next continuous values of the same key in an iterator
   KV<KeyT, Iterator<?>> nextKeyGroup() {
-    if (nextKv == null) {
-      return null;
-    } else {
-      KeyT key = (KeyT) nextKv.getKey();
+    KeyT key = nextKv.getKey();
 
-      Iterator<?> iterator = new Iterator<Object>() {
-        private Object value = nextKv.getValue();
+    Iterator<?> iterator = new Iterator<Object>() {
+      private Object value = nextKv.getValue();
 
-        @Override
-        public boolean hasNext() {
-          return value != null;
-        }
+      @Override
+      public boolean hasNext() {
+        return value != null;
+      }
 
-        @Override
-        public Object next() {
-          try {
-            Object result = value;
-            Object v = reader.read();
-            if (v == null) {
-              // end of file, reset outer
-              value = null;
-              nextKv = null;
+      @Override
+      public Object next() {
+        try {
+          Object result = value;
+          Object v = reader.read();
+          if (v == null) {
+            // end of file, reset outer
+            value = null;
+            nextKv = null;
+          } else {
+            KeyT k = metadata.extractSortingKey(v);
+            if (key.equals(k)) {
+              // same key, update next value
+              value = v;
             } else {
-              KeyT k = metadata.extractSortingKey(v);
-              if (key.equals(k)) {
-                // same key, update next value
-                value = v;
-              } else {
-                // end of group, advance outer
-                value = null;
-                nextKv = KV.of(k, v);
-              }
+              // end of group, advance outer
+              value = null;
+              nextKv = KV.of(k, v);
             }
-            return KV.of(tupleTag, result);
-          } catch (Exception e) {
-            throw new RuntimeException(e);
           }
+          return result;
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
-      };
+      }
+    };
 
-      return KV.of(key, iterator);
-    }
+    return KV.of(key, iterator);
   }
 
   // @Todo simplify the coder logic
