@@ -372,8 +372,9 @@ class FixedWindows(NonMergingWindowFn):
     Args:
       size (int): Size of the window in seconds.
       offset(int): Offset of the window in seconds since Unix epoch. Windows
-      start at t=N * size + offset where t=0 is the epoch. The offset must be a
-      value in range [0, size). If not, it will be normalized to this range.
+        start at t=N * size + offset where t=0 is the epoch. The offset must
+        be a value in range [0, size). If not, it will be normalized to this
+        range.
     """
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
