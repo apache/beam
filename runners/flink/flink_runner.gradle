@@ -136,8 +136,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptions = JsonOutput.toJson(
         ["--runner=TestFlinkRunner",
          "--streaming=${config.streaming}",
-         // TODO This should be changed to > 1
-         "--parallelism=1",
+         "--parallelism=2",
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
