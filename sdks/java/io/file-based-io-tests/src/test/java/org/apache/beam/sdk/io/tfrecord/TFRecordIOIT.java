@@ -39,6 +39,8 @@ import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.CountMonitor;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -122,9 +124,13 @@ public class TFRecordIOIT {
         .apply(
             "Record time before writing",
             ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "writeTime")))
+        .apply("Collect byte count", ParDo.of(new ByteMonitor<>(TFRECORD_NAMESPACE, "byteCount")))
+        .apply(
+            "Collect element count", ParDo.of(new CountMonitor<>(TFRECORD_NAMESPACE, "itemCount")))
         .apply("Write content to files", writeTransform);
 
-    writePipeline.run().waitUntilFinish();
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
 
     String filenamePattern = createFilenamePattern();
     PCollection<String> consolidatedHashcode =
@@ -146,32 +152,29 @@ public class TFRecordIOIT {
             "Delete test files",
             ParDo.of(new DeleteFileFn())
                 .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
-    PipelineResult result = readPipeline.run();
-    result.waitUntilFinish();
-    collectAndPublishMetrics(result);
+    PipelineResult readResult = readPipeline.run();
+    readResult.waitUntilFinish();
+    collectAndPublishMetrics(readResult, writeResult);
   }
 
-  private void collectAndPublishMetrics(PipelineResult result) {
+  private void collectAndPublishMetrics(PipelineResult readResult, PipelineResult writeResult) {
     String uuid = UUID.randomUUID().toString();
     String timestamp = Timestamp.now().toString();
 
-    Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
-        fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, TFRECORD_NAMESPACE, uuid, timestamp)
+    Set<Function<MetricsReader, NamedTestResult>> readMetricSuppliers =
+        getReadMetricSuppliers(uuid, timestamp);
+    new IOITMetrics(readMetricSuppliers, readResult, TFRECORD_NAMESPACE, uuid, timestamp)
+        .publish(bigQueryDataset, bigQueryTable);
+
+    Set<Function<MetricsReader, NamedTestResult>> writeMetricSuppliers =
+        getWriteMetricSuppliers(uuid, timestamp);
+    new IOITMetrics(writeMetricSuppliers, writeResult, TFRECORD_NAMESPACE, uuid, timestamp)
         .publish(bigQueryDataset, bigQueryTable);
   }
 
-  private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(
+  private Set<Function<MetricsReader, NamedTestResult>> getWriteMetricSuppliers(
       String uuid, String timestamp) {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
-    suppliers.add(
-        reader -> {
-          long writeStart = reader.getStartTimeMetric("writeTime");
-          long writeEnd = reader.getEndTimeMetric("writeTime");
-          double writeTime = (writeEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
-        });
-
     suppliers.add(
         reader -> {
           long readStart = reader.getStartTimeMetric("readTime");
@@ -182,10 +185,27 @@ public class TFRecordIOIT {
 
     suppliers.add(
         reader -> {
+          double totalBytes = reader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
+        });
+
+    suppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
+        });
+    return suppliers;
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> getReadMetricSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(
+        reader -> {
           long writeStart = reader.getStartTimeMetric("writeTime");
-          long readEnd = reader.getEndTimeMetric("readTime");
-          double runTime = (readEnd - writeStart) / 1e3;
-          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+          long writeEnd = reader.getEndTimeMetric("writeTime");
+          double writeTime = (writeEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
         });
 
     return suppliers;
