@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Apache Beam + Kotlin = ❤️"
-date:   2019-04-24 00:00:01 -0800
+date:   2019-04-25 00:00:01 -0800
 excerpt_separator: <!--more-->
 categories: blog
 authors:
@@ -41,7 +41,7 @@ Here are few brief snippets of code that show how the Kotlin Samples compare to 
 
 ### Java
 
-```
+```java
  String filename = String.format(
                     "%s-%s-of-%s%s",
                     filenamePrefixForWindow(intervalWindow),
@@ -52,14 +52,14 @@ Here are few brief snippets of code that show how the Kotlin Samples compare to 
 
 ### Kotlin
 
-```
+```kotlin
  // String templating
  val filename = "$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)"  
 ```
 
 ### Java 
 
-```
+```java
 public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
     @Override
     public String apply(KV<String, Long> input) {
@@ -70,7 +70,7 @@ public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, Stri
 
 ## Kotlin
 
-```
+```kotlin
 public class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
     override fun apply(input: KV<String, Long>) = "${input.key} : ${input.value}"  //Single line functions
 }
@@ -78,7 +78,7 @@ public class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
 
 ### Java
 
-```
+```java
 if(tableRow != null){
     formatAndInsert(tableRow);
 }
@@ -86,7 +86,7 @@ if(tableRow != null){
 
 ### Kotlin
 
-```
+```kotlin
 tableRow?.let{
     formatAndInsert(it)  // No need for null checks
 }
@@ -94,13 +94,13 @@ tableRow?.let{
 
 ### Java
 
-```
+```java
 String tableName = "testTable";
 ```
 
 ### Kotlin
 
-```
+```kotlin
 val tableName = "testTable"  // Type inferencing
 ```
 
