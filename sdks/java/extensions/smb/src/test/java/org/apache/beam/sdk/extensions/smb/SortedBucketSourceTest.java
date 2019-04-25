@@ -3,6 +3,11 @@ package org.apache.beam.sdk.extensions.smb;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
@@ -16,6 +21,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,17 +32,20 @@ public class SortedBucketSourceTest {
   @Rule public final TemporaryFolder source1Folder = new TemporaryFolder();
   @Rule public final TemporaryFolder source2Folder = new TemporaryFolder();
 
-  static final GenericRecord user1 = TestUtils.createUserRecord("a", 50);
-  static final GenericRecord user2 = TestUtils.createUserRecord("b", 50);
-  static final GenericRecord user3 = TestUtils.createUserRecord("c", 25);
-  static final GenericRecord user4 = TestUtils.createUserRecord("d", 25);
-  static final GenericRecord user5 = TestUtils.createUserRecord("e", 75);
+  static final GenericRecord userA = TestUtils.createUserRecord("a", 50);
+  static final GenericRecord userB = TestUtils.createUserRecord("b", 50);
+  static final GenericRecord userC = TestUtils.createUserRecord("c", 25);
+  static final GenericRecord userD = TestUtils.createUserRecord("d", 25);
+  static final GenericRecord userE = TestUtils.createUserRecord("e", 75);
 
   private SMBFilenamePolicy filenamePolicySource1;
   private SMBFilenamePolicy filenamePolicySource2;
 
   private final AvroSortedBucketFile<GenericRecord> file = new AvroSortedBucketFile<>(
       GenericRecord.class, TestUtils.schema);
+
+  private static final TupleTag<GenericRecord> SOURCE_1_TAG = new TupleTag<>("source1");
+  private static final TupleTag<GenericRecord> SOURCE_2_TAG = new TupleTag<>("source2");
 
   // Write two sources with GenericRecords + metadata
   @Before
@@ -60,9 +69,10 @@ public class SortedBucketSourceTest {
             .forBucketShard(0, 1, 1, 1),
         file.createWriter().getMimeType()));
 
-    writer1.write(user1);
-    writer1.write(user3);
-    writer1.write(user5);
+    writer1.write(userA);
+    writer1.write(userA);
+    writer1.write(userC);
+    writer1.write(userE);
     writer1.finishWrite();
 
     Writer<GenericRecord> writer2 = file.createWriter();
@@ -70,8 +80,8 @@ public class SortedBucketSourceTest {
         filenamePolicySource2.forDestination()
             .forBucketShard(0, 1, 1, 1),
         file.createWriter().getMimeType()));
-    writer2.write(user2);
-    writer2.write(user4);
+    writer2.write(userB);
+    writer2.write(userD);
     writer2.finishWrite();
 
     final BucketMetadata<Integer, GenericRecord> metadata = TestUtils.tryCreateMetadata(1, HashType.MURMUR3_32);
@@ -84,27 +94,42 @@ public class SortedBucketSourceTest {
         new File(source2Folder.getRoot().getAbsolutePath(), "metadata.json"), metadata);
   }
 
+  static class ToJoinedUserResult extends SMBJoinResult.ToResult<KV<Iterable<GenericRecord>, Iterable<GenericRecord>>> {
+
+    @Override
+    Coder<KV<Iterable<GenericRecord>, Iterable<GenericRecord>>> resultCoder() {
+      return KvCoder.of(
+          NullableCoder.of(IterableCoder.of(AvroCoder.of(TestUtils.schema))),
+          NullableCoder.of(IterableCoder.of(AvroCoder.of(TestUtils.schema)))
+      );
+    }
+
+    @Override
+    public KV<Iterable<GenericRecord>, Iterable<GenericRecord>> apply(SMBJoinResult input) {
+      return KV.of(
+          input.getValuesForTag(SOURCE_1_TAG),
+          input.getValuesForTag(SOURCE_2_TAG)
+      );
+    }
+  }
   @Test
   public void testSources() {
     final KeyedBucketSources<Integer> keyedBucketSources = KeyedBucketSources
         .of(pipeline, 1,
             new KeyedBucketSource<Integer, GenericRecord>(
-              new TupleTag<GenericRecord>("source1"), filenamePolicySource1.forDestination(),
-                file.createReader())
+              SOURCE_1_TAG, filenamePolicySource1.forDestination(), file.createReader())
         ).and(
-            new KeyedBucketSource<Integer, GenericRecord>(
-                new TupleTag<GenericRecord>("source2"), filenamePolicySource2.forDestination(),
-                file.createReader())
+            new KeyedBucketSource<>(SOURCE_2_TAG, filenamePolicySource2.forDestination(), file.createReader())
         );
 
-    PCollection<KV<Integer, SMBJoinResult>> joinedSources = new SortedBucketSource<Integer>(
-        VarIntCoder.of()
-    ).expand(keyedBucketSources);
+    final PCollection<KV<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>> joinedSources =
+        new SortedBucketSource<>(VarIntCoder.of(), new ToJoinedUserResult()).expand(keyedBucketSources);
 
-    PAssert.that(joinedSources).satisfies(result -> {
-      result.iterator().forEachRemaining(System.out::println);
-      return null;
-    });
+    PAssert.that(joinedSources).containsInAnyOrder(
+        KV.of(50, KV.of(ImmutableList.of(userA, userA), ImmutableList.of(userB))),
+        KV.of(25, KV.of(ImmutableList.of(userC), ImmutableList.of(userD))),
+        KV.of(75, KV.of(ImmutableList.of(userE), null))
+    );
 
     pipeline.run();
   }
