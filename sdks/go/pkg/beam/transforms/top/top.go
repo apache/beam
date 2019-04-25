@@ -58,8 +58,7 @@ func Largest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.P
 
 // LargestPerKey returns the largest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
-// single-element PCollection<KV<K,[]T>> with a slice of the N largest elements for
-// each key.
+// PCollection<KV<K,[]T>> with a slice of the N largest elements for each key.
 func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.LargestPerKey(%v)", n))
 
@@ -89,8 +88,7 @@ func Smallest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.
 
 // SmallestPerKey returns the smallest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
-// single-element PCollection<KV<K,[]T>> with a slice of the N smallest elements for
-// each key.
+// PCollection<KV<K,[]T>> with a slice of the N smallest elements for each key.
 func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.SmallestPerKey(%v)", n))
 
