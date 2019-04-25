@@ -29,14 +29,20 @@ def loadTestArgsProperty = "loadTest.args"
 
 def runnerProperty = "runner"
 
-task run(type: Exec, dependsOn: 'installGcpTest') {
+task run(type: Exec, dependsOn: installGcpTest) {
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
-        loadTestArgs +=" --sdk_location=${project.rootDir}/sdks/python/build/apache-beam.tar.gz"
+        def sdistPath = "${project.rootDir}/sdks/python/apache_beam/testing/load_tests/build/apache-beam.tar.gz"
+        println sdistPath
+        if(!fileExists(sdistPath)){
+            dependsOn "sdist"
+        }
+        loadTestArgs +=" --sdk_location=${sdistPath}"
     }
 
+    println project.ext.envdir
     environment "LOAD_TEST_ENABLED", 'true'
     setWorkingDir "${project.rootDir}/sdks/python"
 
@@ -48,6 +54,10 @@ task run(type: Exec, dependsOn: 'installGcpTest') {
             throw new GradleException('error occurred')
         }
     }
+}
+
+def fileExists(filePath){
+    file (filePath).exists()
 }
 
 def parseOptions(String option) {
