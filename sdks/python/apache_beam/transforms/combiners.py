@@ -888,14 +888,14 @@ class Latest(object):
 
     @staticmethod
     def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
-      _check_instance_type(Tuple[T, T], element)
+      _check_instance_type(KV[K, V], element)
       key, value = element
       return [(key, (value, timestamp))]
 
     def expand(self, pcoll):
       return (pcoll
               | core.ParDo(self.add_timestamp)
-              .with_output_types(Tuple[T, Tuple[T, TimestampType]])
+              .with_output_types(KV[K, Tuple[T, TimestampType]])
               | core.CombinePerKey(LatestCombineFn()))
 
 
