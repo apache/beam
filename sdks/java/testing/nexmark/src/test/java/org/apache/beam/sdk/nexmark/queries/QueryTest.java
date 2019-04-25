@@ -188,12 +188,14 @@ public class QueryTest {
 
   @Test
   @Category(NeedsRunner.class)
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
   public void sqlQuery5MatchesModelBatch() {
     queryMatchesModel("SqlQuery5TestBatch", new SqlQuery5(CONFIG), new Query5Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
   public void sqlQuery5MatchesModelStreaming() {
     queryMatchesModel(
         "SqlQuery5TestStreaming", new SqlQuery5(CONFIG), new Query5Model(CONFIG), true);
