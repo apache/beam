@@ -125,7 +125,9 @@ public class SchemaTranslation {
     }
     Schema schema = builder.build();
     schema.setEncodingPositions(encodingLocationMap);
-    schema.setUUID(UUID.fromString(protoSchema.getId()));
+    if (!protoSchema.getId().isEmpty()) {
+      schema.setUUID(UUID.fromString(protoSchema.getId()));
+    }
 
     return schema;
   }

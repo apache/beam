@@ -442,4 +442,43 @@ public class ParDoSchemaTest implements Serializable {
     PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
     pipeline.run();
   }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class Nested {
+    final int field1;
+    final InferredPojo inner;
+
+    @SchemaCreate
+    public Nested(int field1, InferredPojo inner) {
+      this.field1 = field1;
+      this.inner = inner;
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSchema.class})
+  public void testNestedSchema() {
+    List<Nested> pojoList =
+        Lists.newArrayList(
+            new Nested(1, new InferredPojo("a", 1)),
+            new Nested(2, new InferredPojo("b", 2)),
+            new Nested(3, new InferredPojo("c", 3)));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(WithKeys.of("foo"))
+            .apply(Reshuffle.of())
+            .apply(Values.create())
+            .apply(
+                ParDo.of(
+                    new DoFn<Nested, String>() {
+                      @ProcessElement
+                      public void process(@Element Nested nested, OutputReceiver<String> r) {
+                        r.output(nested.inner.stringField + ":" + nested.inner.integerField);
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
+    pipeline.run();
+  }
 }
