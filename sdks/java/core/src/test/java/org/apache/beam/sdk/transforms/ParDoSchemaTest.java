@@ -445,10 +445,12 @@ public class ParDoSchemaTest implements Serializable {
 
   @DefaultSchema(JavaFieldSchema.class)
   static class Nested {
+    final int field1;
     final InferredPojo inner;
 
     @SchemaCreate
-    public Nested(InferredPojo inner) {
+    public Nested(int field1, InferredPojo inner) {
+      this.field1 = field1;
       this.inner = inner;
     }
   }
@@ -458,9 +460,9 @@ public class ParDoSchemaTest implements Serializable {
   public void testNestedSchema() {
     List<Nested> pojoList =
         Lists.newArrayList(
-            new Nested(new InferredPojo("a", 1)),
-            new Nested(new InferredPojo("b", 2)),
-            new Nested(new InferredPojo("c", 3)));
+            new Nested(1, new InferredPojo("a", 1)),
+            new Nested(2, new InferredPojo("b", 2)),
+            new Nested(3, new InferredPojo("c", 3)));
 
     PCollection<String> output =
         pipeline
