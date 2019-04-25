@@ -67,23 +67,25 @@ TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%
 TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
 JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
 
+LETTERS_AND_DIGITS = string.ascii_letters + string.digits
+
 # LOG_LEVEL = logging.DEBUG
 LOG_LEVEL = logging.INFO
 
 PIPELINE_PARAMETERS = [
-		'--experiments={}'.format(EXPERIMENTS),
-		'--project={}'.format(PROJECT_ID),
-		'--job_name={}'.format(JOB_NAME),
-		'--disk_size_gb={}'.format(DISK_SIZE_GB),
-		'--region={}'.format(REGION),
-		'--runner={}'.format(RUNNER),
-		'--autoscaling_algorithm={}'.format(AUTOSCALING_ALGORITHM),
-		'--num_workers={}'.format(NUM_WORKERS),
+    '--experiments={}'.format(EXPERIMENTS),
+    '--project={}'.format(PROJECT_ID),
+    '--job_name={}'.format(JOB_NAME),
+    '--disk_size_gb={}'.format(DISK_SIZE_GB),
+    '--region={}'.format(REGION),
+    '--runner={}'.format(RUNNER),
+    '--autoscaling_algorithm={}'.format(AUTOSCALING_ALGORITHM),
+    '--num_workers={}'.format(NUM_WORKERS),
     '--setup_file={}'.format(SETUP_FILE),
     '--extra_package={}'.format(EXTRA_PACKAGE),
-		'--staging_location={}'.format(STAGING_LOCATION),
-		'--temp_location={}'.format(TEMP_LOCATION),
-	]
+    '--staging_location={}'.format(STAGING_LOCATION),
+    '--temp_location={}'.format(TEMP_LOCATION),
+]
 
 
 class GenerateTestRows(beam.PTransform):
@@ -101,7 +103,7 @@ class GenerateTestRows(beam.PTransform):
     for i in range(ROW_COUNT):
       key = "key_%s" % ('{0:012}'.format(i))
       test_row = row.DirectRow(row_key=key)
-      value = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(CELL_SIZE))
+      value = ''.join(random.choice(LETTERS_AND_DIGITS) for _ in range(CELL_SIZE))
       for j in range(COLUMN_COUNT):
         test_row.set_cell(column_family_id=COLUMN_FAMILY_ID,
                           column=('field%s' % j).encode('utf-8'),
@@ -147,7 +149,6 @@ class BigtableIOTest(unittest.TestCase):
     self.result.wait_until_finish()
 
     assert self.result.state == PipelineState.DONE
-    # assert len([_ for _ in self.table.read_rows()]) == ROW_COUNT
 
     if not hasattr(self.result, 'has_job') or self.result.has_job:
       query_result = self.result.metrics().query(MetricsFilter().with_name('Written Row'))

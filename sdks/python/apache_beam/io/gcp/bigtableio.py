@@ -50,7 +50,6 @@ try:
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_set import RowSet
   from google.cloud.bigtable.row_set import RowRange
-  # from google.cloud.bigtable_v2.proto.bigtable_pb2 import SampleRowKeysResponse
 except ImportError:
   Client = None
 
