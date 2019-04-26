@@ -47,6 +47,15 @@ class GreedyPCollectionFusers {
       ImmutableMap.<String, FusibilityChecker>builder()
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, GreedyPCollectionFusers::canFuseParDo)
           .put(
+              PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
+              GreedyPCollectionFusers::canFuseParDo)
+          .put(
+              PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN,
+              GreedyPCollectionFusers::canFuseParDo)
+          .put(
+              PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN,
+              GreedyPCollectionFusers::canFuseParDo)
+          .put(
               PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
               GreedyPCollectionFusers::canFuseCompatibleEnvironment)
           .put(
@@ -73,6 +82,15 @@ class GreedyPCollectionFusers {
       ImmutableMap.<String, CompatibilityChecker>builder()
           .put(
               PTransformTranslation.PAR_DO_TRANSFORM_URN,
+              GreedyPCollectionFusers::parDoCompatibility)
+          .put(
+              PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
+              GreedyPCollectionFusers::parDoCompatibility)
+          .put(
+              PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN,
+              GreedyPCollectionFusers::parDoCompatibility)
+          .put(
+              PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN,
               GreedyPCollectionFusers::parDoCompatibility)
           .put(
               PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
