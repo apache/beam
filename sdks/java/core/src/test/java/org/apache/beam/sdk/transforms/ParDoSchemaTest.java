@@ -556,7 +556,7 @@ public class ParDoSchemaTest implements Serializable {
                           FieldAccessDescriptor.withFieldNames("integerField");
 
                       @FieldAccess("intsSelector")
-                      final FieldAccessDescriptor stringsSelector =
+                      final FieldAccessDescriptor intsSelector =
                           FieldAccessDescriptor.withFieldNames("ints");
 
                       @ProcessElement
