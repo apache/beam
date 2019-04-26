@@ -28,9 +28,8 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apache Beam</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
+  <title>Apache Beam + Kotlin = ❤️</title>
+  <meta name="description" content="Apache Beam samples are now available in Kotlin!">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
@@ -39,7 +38,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/blog/2019/04/25/beam-kotlin.html" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -53,7 +52,7 @@
   </script>
 </head>
 
-  <body class="body body--index">
+  <body class="body ">
     <!--
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -125,7 +124,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/_posts/2019-04-25-beam-kotlin.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -135,6 +134,31 @@
 
     <div class="body__contained">
       <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Apache Beam + Kotlin = ❤️</h1>
+    <p class="post-meta"><time datetime="2019-04-25T01:00:01-07:00" itemprop="datePublished">Apr 25, 2019</time> •
+       Harshit Dwivedi [<a href="https://twitter.com/harshithdwivedi">@harshithdwivedi</a>]
+      
+    </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -147,207 +171,99 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<div class="hero-bg">
-  <div class="hero section">
-    <div class="hero__cols">
-      <div class="hero__cols__col">
-        <div class="hero__cols__col__content">
-          <div class="hero__title">
-            Apache Beam: An advanced unified programming model
-          </div>
-          <div class="hero__subtitle">
-            Implement batch and streaming data processing jobs that run on any execution engine.
-          </div>
-          <div class="hero__ctas hero__ctas--first">
-            <a class="button button--primary" href="/get-started/beam-overview/">Learn more</a>
-            <a class="button button--primary" href="/get-started/try-apache-beam/">Try Beam</a>
-            <a class="button button--primary" href="/get-started/downloads/">Download Beam SDK 2.12.0</a>
-          </div>
-          <div class="hero__ctas">
-            <a class="button" href="/get-started/quickstart-java/">Java Quickstart</a>
-            <a class="button" href="/get-started/quickstart-py/">Python Quickstart</a>
-            <a class="button" href="/get-started/quickstart-go/">Go Quickstart</a>
-          </div>
-        </div>
-      </div>
-      <div class="hero__cols__col">
-        <div class="hero__blog">
-          <div class="hero__blog__title">
-            The latest from the blog
-          </div>
-          <div class="hero__blog__cards">
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/04/25/beam-kotlin.html">
-              <div class="hero__blog__cards__card__title">Apache Beam + Kotlin = ❤️</div>
-              <div class="hero__blog__cards__card__date">Apr 25, 2019</div>
-            </a>
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/04/25/beam-2.12.0.html">
-              <div class="hero__blog__cards__card__title">Apache Beam 2.12.0</div>
-              <div class="hero__blog__cards__card__date">Apr 25, 2019</div>
-            </a>
-            
-            <a class="hero__blog__cards__card" href="/blog/2019/04/19/season-of-docs.html">
-              <div class="hero__blog__cards__card__title">Apache Beam is applying to Season of Docs</div>
-              <div class="hero__blog__cards__card__date">Apr 19, 2019</div>
-            </a>
-            
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+
+<p>Apache Beam samples are now available in Kotlin!</p>
+
+<!--more-->
+
+<p><img src="/images/blog/kotlin.png" alt="Kotlin" height="320" width="800" /></p>
+
+<p>If you are someone who’s been working with Java in your professional career; there’s a good chance that you’ve also heard of <a href="https://kotlinlang.org/">Kotlin</a>, which is an Open Sourced, statically typed language for JVM and is mostly being favoured by Android Developers due to the many myriad features which enable more concise and cleaner code than Java without sacrificing performance or safety.</p>
+
+<p>It gives us an immense pleasure to announce that we are also taking a step ahead in the same direction and releasing the samples for the Beam SDK in Kotlin alongside Java!</p>
+
+<p>(Note : At the time of writing this post, only the WordCount samples have been added in Koltin with more samples underway)</p>
+
+<h2 id="code-snippets">Code Snippets</h2>
+<p>Here are few brief snippets of code that show how the Kotlin Samples compare to Java</p>
+
+<h3 id="java">Java</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">String</span> <span class="n">filename</span> <span class="o">=</span> <span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span>
+                    <span class="s">"%s-%s-of-%s%s"</span><span class="o">,</span>
+                    <span class="n">filenamePrefixForWindow</span><span class="o">(</span><span class="n">intervalWindow</span><span class="o">),</span>
+                    <span class="n">shardNumber</span><span class="o">,</span>
+                    <span class="n">numShards</span><span class="o">,</span>
+                    <span class="n">outputFileHints</span><span class="o">.</span><span class="na">suggestedFilenameSuffix</span><span class="o">);</span>
+</code></pre>
 </div>
 
-<div class="pillars section">
-  <div class="pillars__title">
-    All about Apache Beam
-  </div>
-  <div class="pillars__cols">
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Unified
-      </div>
-      <div class="pillars__cols__col__body">
-        Use a single programming model for both batch and streaming use cases.
-      </div>
-    </div>
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Portable
-      </div>
-      <div class="pillars__cols__col__body">
-        Execute pipelines on multiple execution environments.
-      </div>
-    </div>
-    
-    <div class="pillars__cols__col">
-      <div class="pillars__cols__col__title">
-        Extensible
-      </div>
-      <div class="pillars__cols__col__body">
-        Write and share new SDKs, IO connectors, and transformation libraries.
-      </div>
-    </div>
-    
-  </div>
+<h3 id="kotlin">Kotlin</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="c1">// String templating</span>
+ <span class="n">val</span> <span class="n">filename</span> <span class="o">=</span> <span class="s">"$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)"</span>  
+</code></pre>
 </div>
 
-<div class="graphic section">
-<div class="graphic__image">
-<img src="/images/beam_architecture.png" alt="Beam architecture" />
-</div>
+<h3 id="java-1">Java</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">FormatAsTextFn</span> <span class="kd">extends</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">String</span> <span class="nf">apply</span><span class="o">(</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">input</span><span class="o">.</span><span class="na">getKey</span><span class="o">()</span> <span class="o">+</span> <span class="s">": "</span> <span class="o">+</span> <span class="n">input</span><span class="o">.</span><span class="na">getValue</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
 </div>
 
-<div class="logos section">
-  <div class="logos__title">
-    Works with
-  </div>
-  <div class="logos__logos">
-    
-    <div class="logos__logos__logo">
-      <a href="http://apex.apache.org"><img src="/images/logo_apex.png" alt="APEX" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://flink.apache.org"><img src="/images/logo_flink.png" alt="Flink" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://spark.apache.org/"><img src="/images/logo_spark.png" alt="Spark" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="https://cloud.google.com/dataflow/"><img src="/images/logo_google_cloud.png" alt="Google Cloud Dataflow" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://gearpump.apache.org/"><img src="/images/logo_gearpump.png" alt="Gearpump" /></a>
-    </div>
-    
-    <div class="logos__logos__logo">
-      <a href="http://samza.apache.org/"><img src="/images/logo_samza.png" alt="Samza" /></a>
-    </div>
-    
-  </div>
+<h2 id="kotlin-1">Kotlin</h2>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">FormatAsTextFn</span> <span class="o">:</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+    <span class="n">override</span> <span class="n">fun</span> <span class="nf">apply</span><span class="o">(</span><span class="nl">input:</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;)</span> <span class="o">=</span> <span class="s">"${input.key} : ${input.value}"</span>  <span class="c1">//Single line functions</span>
+<span class="o">}</span>
+</code></pre>
 </div>
 
-<div class="cards section section--wide">
-  <div class="section__contained">
-    <div class="cards__title">
-      Testimonials
-    </div>
-    <div class="cards__cards">
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          A framework that delivers the flexibility and advanced functionality our customers need.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –Talend
-          </div>
-        </div>
-      </div>
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          Apache Beam has powerful semantics that solve real-world challenges of stream processing.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –PayPal
-          </div>
-        </div>
-      </div>
-      
-      <div class="cards__cards__card">
-        <div class="cards__cards__card__body">
-          Apache Beam represents a principled approach for analyzing data streams.
-        </div>
-        <div class="cards__cards__card__user">
-          <!-- TODO: Implement icons.
-          <div class="cards__cards__card__user__icon">
-          </div>
-          -->
-          <div class="cards__cards__card__user__name">
-            –data Artisans
-          </div>
-        </div>
-      </div>
-      
-    </div>
-    <div class="cards__body">
-      Beam is an open source community and contributions are greatly appreciated!
-      If you’d like to contribute, please see the <a href="/contribute/">Contribute</a> section.
-    </div>
-  </div>
+<h3 id="java-2">Java</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">if</span><span class="o">(</span><span class="n">tableRow</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">){</span>
+    <span class="n">formatAndInsert</span><span class="o">(</span><span class="n">tableRow</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre>
 </div>
 
-<div class="ctas section">
-  <div class="ctas__title">
-    Get started
-  </div>
-  <div class="ctas__ctas ctas__ctas--top">
-  <a class="button button--primary" href="/get-started/beam-overview/">Learn more</a>
-  <a class="button button--primary" href="/get-started/downloads/">Download Beam SDK 2.12.0</a>
-  </div>
-  <div class="ctas__ctas">
-  <a class="button" href="/get-started/quickstart-java/">Java Quickstart</a>
-  <a class="button" href="/get-started/quickstart-py/">Python Quickstart</a>
-  <a class="button" href="/get-started/quickstart-go/">Go Quickstart</a>
-  </div>
+<h3 id="kotlin-2">Kotlin</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">tableRow</span><span class="o">?.</span><span class="na">let</span><span class="o">{</span>
+    <span class="n">formatAndInsert</span><span class="o">(</span><span class="n">it</span><span class="o">)</span>  <span class="c1">// No need for null checks</span>
+<span class="o">}</span>
+</code></pre>
 </div>
+
+<h3 id="java-3">Java</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableName</span> <span class="o">=</span> <span class="s">"testTable"</span><span class="o">;</span>
+</code></pre>
+</div>
+
+<h3 id="kotlin-3">Kotlin</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">val</span> <span class="n">tableName</span> <span class="o">=</span> <span class="s">"testTable"</span>  <span class="c1">// Type inferencing</span>
+</code></pre>
+</div>
+
+<h2 id="contributors-welcomed">Contributors Welcomed!</h2>
+
+<p>While we’re still adding more samples and streamlining the current ones, we would love to have your feedback on the code snippets.
+You can find them over here : <a href="https://github.com/apache/beam/tree/master/examples/kotlin">https://github.com/apache/beam/tree/master/examples/kotlin</a></p>
+
+<p>If you are using Kotlin with Apache Beam already; we would very much appreciate if you went ahead and help us convert the existing samples from Java into Koltin.</p>
+
+<p>Thank you, and we are looking forward to feedback from you!</p>
+
+  </div>
+
+</article>
 
     </div>
     <!--
