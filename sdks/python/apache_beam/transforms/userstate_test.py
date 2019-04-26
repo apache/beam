@@ -498,6 +498,34 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         [('timer1', 10), ('timer2', 20), ('timer3', 30)],
         sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
+  def test_timer_output_timestamp_and_window(self):
+
+    class TimerEmittingStatefulDoFn(DoFn):
+      EMIT_TIMER_1 = TimerSpec('emit1', TimeDomain.WATERMARK)
+
+      def process(self, element, timer1=DoFn.TimerParam(EMIT_TIMER_1)):
+        timer1.set(10)
+
+      @on_timer(EMIT_TIMER_1)
+      def emit_callback_1(self,
+                          window=DoFn.WindowParam,
+                          ts=DoFn.TimestampParam):
+        yield ('timer1', int(ts), ts.start, ts.end)
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([1]))
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | beam.ParDo(TimerEmittingStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(
+        [('timer1', 10, 0, 10)],
+        sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
   def test_index_assignment(self):
     class IndexAssigningStatefulDoFn(DoFn):
       INDEX_STATE = BagStateSpec('index', VarIntCoder())
