@@ -104,8 +104,7 @@ class DataOutputOperation(RunnerIOOperation):
 
 
 class DataInputOperation(RunnerIOOperation):
-  """A source-like operation that gathers input from the runner.
-  """
+  """A source-like operation that gathers input from the runner."""
 
   def __init__(self, operation_name, step_name, consumers, counter_factory,
                state_sampler, windowed_coder, input_target, data_channel):
@@ -390,8 +389,20 @@ class OutputTimer(object):
 
 
 class FnApiUserStateContext(userstate.UserStateContext):
+  """Interface for state and timers from SDK to Fn API servicer of state.."""
+
   def __init__(
       self, state_handler, transform_id, key_coder, window_coder, timer_specs):
+    """Initialize a ``FnApiUserStateContext``.
+
+    Args:
+      state_handler: A StateServicer object.
+      transform_id: The name of the PTransform that this context is associated.
+      key_coder:
+      window_coder:
+      timer_specs: A list of ``userstate.TimerSpec`` objects specifying the
+        timers associated with this operation.
+    """
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._key_coder = key_coder
@@ -401,6 +412,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._all_states = {}
 
   def update_timer_receivers(self, receivers):
+    """TODO"""
     self._timer_receivers = {}
     for tag in self._timer_specs:
       self._timer_receivers[tag] = receivers.pop(tag)
@@ -461,9 +473,20 @@ def only_element(iterable):
 
 
 class BundleProcessor(object):
-  """A class for processing bundles of elements."""
+  """A class for processing bundles of elements.
+
+  """
+
   def __init__(
       self, process_bundle_descriptor, state_handler, data_channel_factory):
+    """Initialize a bundle processor.
+
+    Args:
+      process_bundle_descriptor (``beam_fn_api_pb2.ProcessBundleDescriptor``):
+        a description of the stage that this ``BundleProcessor``is to execute.
+      state_handler (beam_fn_api_pb2_grpc.BeamFnStateServicer).
+      data_channel_factory (``data_plane.DataChannelFactory``).
+    """
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
