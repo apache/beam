@@ -30,6 +30,8 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.PA
 import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
@@ -173,7 +175,9 @@ public class QueryablePipeline {
           COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
           COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
           SPLITTABLE_PROCESS_KEYED_URN,
-          SPLITTABLE_PROCESS_ELEMENTS_URN);
+          SPLITTABLE_PROCESS_ELEMENTS_URN,
+          SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN,
+          SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN);
 
   /** Returns true if the provided transform is a primitive. */
   private static boolean isPrimitiveTransform(PTransform transform) {
