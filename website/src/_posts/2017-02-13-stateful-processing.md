@@ -541,8 +541,6 @@ new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
 ```
 
 ```py
-# State and timers are not yet supported in Beam's Python SDK.
-# Watch this space!
 class ModelStatefulFn(beam.DoFn):
 
   PREVIOUS_PREDICTION = BagStateSpec('previous_pred_state', PredictionCoder())
@@ -566,9 +564,9 @@ class ModelStatefulFn(beam.DoFn):
     if (previous_prediction is None
         or self.should_output_prediction(
             previous_prediction, new_prediction)):
-        previous_pred_state.clear()
-        previous_pred_state.add(new_prediction)
-        yield (user, new_prediction)
+      previous_pred_state.clear()
+      previous_pred_state.add(new_prediction)
+      yield (user, new_prediction)
 ```
 
 Let's walk through it,
