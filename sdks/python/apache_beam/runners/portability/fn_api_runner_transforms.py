@@ -449,11 +449,24 @@ def pipeline_from_stages(
   return new_proto
 
 
-def create_and_optimize_stages(
-    pipeline_proto,
-    phases,
-    known_runner_urns,
-    use_state_iterables=False):
+def create_and_optimize_stages(pipeline_proto,
+                               phases,
+                               known_runner_urns,
+                               use_state_iterables=False):
+  """Create a set of stages given a pipeline proto, and set of optimizations.
+
+  Args:
+    pipeline_proto (beam_runner_api_pb2.Pipeline): A pipeline defined by a user.
+    phases (callable): Each phase identifies a specific transformation to be
+      applied to the pipeline graph. Existing phases are defined in this file,
+      and receive a list of stages, and a pipeline context. Some available
+      transformations are ``lift_combiners``, ``expand_sdf``, ``expand_gbk``,
+      etc.
+
+  Returns:
+    A tuple with a pipeline context, and a list of stages (i.e. an optimized
+    graph).
+  """
   pipeline_context = TransformContext(
       pipeline_proto.components,
       known_runner_urns,
