@@ -233,6 +233,7 @@ class CompressedFile(object):
               self._decompressor = zlib.decompressobj(self._gzip_mask)
 
             decompressed = self._decompressor.decompress(buf)
+            del buf
             self._read_buffer.write(decompressed)
             continue
         else:
