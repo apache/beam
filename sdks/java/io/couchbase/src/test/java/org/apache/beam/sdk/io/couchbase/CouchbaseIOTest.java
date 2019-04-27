@@ -34,6 +34,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,6 +57,18 @@ public class CouchbaseIOTest implements Serializable {
   private static final String ADMIN_PWD = "admin-pwd";
   private static final String BUCKET_PWD = "bucket-pwd";
   private static final int SAMPLE_SIZE = 100;
+  private static final String[] scientists = {
+    "Einstein",
+    "Darwin",
+    "Copernicus",
+    "Pasteur",
+    "Curie",
+    "Faraday",
+    "Newton",
+    "Bohr",
+    "Galilei",
+    "Maxwell"
+  };
 
   @BeforeClass
   public static void startCouchbase() {
@@ -100,28 +113,29 @@ public class CouchbaseIOTest implements Serializable {
                 .withCoder(SerializableCoder.of(JsonDocument.class)));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo((long) SAMPLE_SIZE);
+    PAssert.that(output)
+        .satisfies(
+            iterable -> {
+              iterable.forEach(
+                  doc ->
+                      Assert.assertEquals(
+                          JsonObject.create()
+                              .put(
+                                  "name",
+                                  scientists[Integer.valueOf(doc.id()) % scientists.length]),
+                          doc.content()));
+              return null;
+            });
 
     pipeline.run();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
   private static void insertData() {
-    String[] scientists = {
-      "Einstein",
-      "Darwin",
-      "Copernicus",
-      "Pasteur",
-      "Curie",
-      "Faraday",
-      "Newton",
-      "Bohr",
-      "Galilei",
-      "Maxwell"
-    };
     for (int i = 0; i < SAMPLE_SIZE; i++) {
       bucket.upsert(
           JsonDocument.create(
-              String.valueOf(i + 1),
+              String.valueOf(i),
               JsonObject.create().put("name", scientists[i % scientists.length])));
     }
   }

@@ -74,7 +74,7 @@ import rx.functions.Func1;
 public class CouchbaseIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CouchbaseIO.class);
-  private static final int DEFAULT_BATCH_SIZE = 100;
+  private static final int DEFAULT_BATCH_SIZE = 1024;
 
   private CouchbaseIO() {}
 
@@ -317,7 +317,7 @@ public class CouchbaseIO {
           Integer.parseInt(
               new String(result.allRows().get(0).byteValue(), Charset.forName("UTF-8")));
 
-      // Calculate the total size of bundles
+      // Calculate the number of bundles
       int totalBundle = (int) Math.ceil((double) itemCount / spec.batchSize());
 
       // Create a set of ranges and populate to the output
