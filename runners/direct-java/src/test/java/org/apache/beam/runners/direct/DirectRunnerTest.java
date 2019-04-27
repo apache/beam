@@ -607,7 +607,6 @@ public class DirectRunnerTest implements Serializable {
    */
   public interface TestSerializationOfOptions extends PipelineOptions {
     String getFoo();
-
     void setFoo(String foo);
 
     @JsonIgnore
