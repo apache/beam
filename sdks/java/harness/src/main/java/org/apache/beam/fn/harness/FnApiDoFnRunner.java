@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
@@ -120,6 +121,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     this.mainOutputConsumers =
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
             (Collection) context.localNameToConsumer.get(context.mainOutputTag.getId());
+    this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.parDoPayload);
     this.doFnInvoker = DoFnInvokers.invokerFor(context.doFn);
     this.doFnInvoker.invokeSetup();
 
@@ -157,7 +159,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
             outputTo(consumers, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
           }
         };
-    this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.parDoPayload);
   }
 
   @Override
@@ -396,9 +397,9 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
-      Row row = context.schemaCoder.getToRowFunction().apply(element());
-      return doFnSchemaInformation.getElementParameterSchema().getFromRowFunction().apply(row);
+    public Object schemaElement(int index) {
+      SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
+      return converter.apply(element());
     }
 
     @Override
@@ -580,7 +581,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+    public Object schemaElement(int index) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
     }
 

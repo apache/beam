@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -258,6 +259,10 @@ public class DoFnSignatures {
     /** Extra parameters in their entirety. Unmodifiable. */
     public List<Parameter> getExtraParameters() {
       return Collections.unmodifiableList(extraParameters);
+    }
+
+    public void setParameter(int index, Parameter parameter) {
+      extraParameters.set(index, parameter);
     }
 
     /**
@@ -814,6 +819,16 @@ public class DoFnSignatures {
 
       methodContext.addParameter(extraParam);
     }
+    int schemaElementIndex = 0;
+    for (int i = 0; i < methodContext.getExtraParameters().size(); ++i) {
+      Parameter parameter = methodContext.getExtraParameters().get(i);
+      if (parameter instanceof SchemaElementParameter) {
+        SchemaElementParameter schemaParameter = (SchemaElementParameter) parameter;
+        schemaParameter = schemaParameter.toBuilder().setIndex(schemaElementIndex).build();
+        methodContext.setParameter(i, schemaParameter);
+        ++schemaElementIndex;
+      }
+    }
 
     // The allowed parameters depend on whether this DoFn is splittable
     if (methodContext.hasRestrictionTrackerParameter()) {
@@ -867,13 +882,13 @@ public class DoFnSignatures {
 
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
-    if (hasElementAnnotation(param.getAnnotations())) {
-      if (paramT.equals(inputT)) {
-        return Parameter.elementParameter(paramT);
-      } else {
-        String fieldAccessString = getFieldAccessId(param.getAnnotations());
-        return Parameter.schemaElementParameter(paramT, fieldAccessString);
-      }
+    String fieldAccessString = getFieldAccessId(param.getAnnotations());
+    if (fieldAccessString != null) {
+      return Parameter.schemaElementParameter(paramT, fieldAccessString, param.getIndex());
+    } else if (hasElementAnnotation(param.getAnnotations())) {
+      return (paramT.equals(inputT))
+          ? Parameter.elementParameter(paramT)
+          : Parameter.schemaElementParameter(paramT, null, param.getIndex());
     } else if (hasTimestampAnnotation(param.getAnnotations())) {
       methodErrors.checkArgument(
           rawType.equals(Instant.class),
