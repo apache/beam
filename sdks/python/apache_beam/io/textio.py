@@ -390,7 +390,7 @@ class _TextSink(filebasedsink.FileBasedSink):
   def open(self, temp_path):
     file_handle = super(_TextSink, self).open(temp_path)
     if self._header is not None:
-      file_handle.write(self._header)
+      file_handle.write(coders.ToStringCoder().encode(self._header))
       if self._append_trailing_newlines:
         file_handle.write(b'\n')
     return file_handle
