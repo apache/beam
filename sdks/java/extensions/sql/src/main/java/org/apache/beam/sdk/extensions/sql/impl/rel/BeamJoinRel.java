@@ -566,7 +566,12 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
   private Pair<RexNode, RexNode> extractJoinPairOfRexNodes(RexCall rexCall) {
     if (!rexCall.getOperator().getName().equals("=")) {
-      throw new UnsupportedOperationException("Non equi-join is not supported!");
+      throw new UnsupportedOperationException("Non equi-join is not supported");
+    }
+
+    if (isIllegalJoinConjunctionClause(rexCall)) {
+      throw new UnsupportedOperationException(
+          "Only support column reference or struct field access in conjunction clause");
     }
 
     int leftIndex = getColumnIndex(rexCall.getOperands().get(0));
@@ -576,6 +581,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     } else {
       return new Pair<>(rexCall.getOperands().get(1), rexCall.getOperands().get(0));
     }
+  }
+
+  // Only support {RexInputRef | RexFieldAccess} = {RexInputRef | RexFieldAccess}
+  private boolean isIllegalJoinConjunctionClause(RexCall rexCall) {
+    return (!(rexCall.getOperands().get(0) instanceof RexInputRef)
+            && !(rexCall.getOperands().get(0) instanceof RexFieldAccess))
+        || (!(rexCall.getOperands().get(1) instanceof RexInputRef)
+            && !(rexCall.getOperands().get(1) instanceof RexFieldAccess));
   }
 
   private int getColumnIndex(RexNode rexNode) {
