@@ -1452,7 +1452,13 @@ public class AvroIO {
   }
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Formats an element of a user type into a record with the given schema. */
+  /**
+   * Formats an element of a user type into a record with the given schema.
+   *
+   * @deprecated Users can achieve the same by providing this transform in a {@link
+   *     org.apache.beam.sdk.transforms.ParDo} before using write in AvroIO {@link #write(Class)}.
+   */
+  @Deprecated
   public interface RecordFormatter<ElementT> extends Serializable {
     GenericRecord formatRecord(ElementT element, Schema schema);
   }
@@ -1473,7 +1479,10 @@ public class AvroIO {
    * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
    * elements by converting each one to a {@link GenericRecord} with a given (common) schema, like
    * {@link #writeCustomTypeToGenericRecords()}.
+   *
+   * @deprecated RecordFormatter will be removed in future versions.
    */
+  @Deprecated
   public static <ElementT> Sink<ElementT> sinkViaGenericRecords(
       Schema schema, RecordFormatter<ElementT> formatter) {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
@@ -1487,7 +1496,9 @@ public class AvroIO {
   /** Implementation of {@link #sink} and {@link #sinkViaGenericRecords}. */
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
+    /** @deprecated RecordFormatter will be removed in future versions. */
     @Nullable
+    @Deprecated
     abstract RecordFormatter<ElementT> getRecordFormatter();
 
     @Nullable
@@ -1501,6 +1512,8 @@ public class AvroIO {
 
     @AutoValue.Builder
     abstract static class Builder<ElementT> {
+      /** @deprecated RecordFormatter will be removed in future versions. */
+      @Deprecated
       abstract Builder<ElementT> setRecordFormatter(RecordFormatter<ElementT> formatter);
 
       abstract Builder<ElementT> setJsonSchema(String jsonSchema);
