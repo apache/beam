@@ -594,7 +594,7 @@ public class DirectRunnerTest implements Serializable {
         PipelineOptionsFactory.fromArgs("--foo=testValue", "--ignoredField=overridden")
             .as(TestSerializationOfOptions.class);
 
-    assertEquals("testValue", options.as(MyOptions.class).getFoo());
+    assertEquals("testValue", options.getFoo());
     assertEquals("overridden", options.as(MyOptions.class).getIgnoredField());
     options = DirectRunner.fromOptions(options).getPipelineOptions();
     assertEquals("testValue", options.as(MyOptions.class).getFoo());
