@@ -23,8 +23,6 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.metrics import Metrics
-from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
@@ -36,7 +34,6 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._start_bundle_calls = 0
     self._finish_bundle_calls = 0
     self._teardown_called = False
-    self._teardown_called_counter = Metrics.counter(self.__class__, 'teardown_called')
 
   def setup(self):
     assert not self._setup_called,'setup should not be called twice'
@@ -76,7 +73,6 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._teardown_called = True
     global _global_teardown_called
     _global_teardown_called = True
-    self._teardown_called_counter.inc()
 
 
 @attr('ValidatesRunner')
@@ -90,8 +86,3 @@ class DoFnLifecycleTest(unittest.TestCase):
     result.wait_until_finish()
     # Assumes that the worker is run in the same process as the test.
     self.assertTrue(_global_teardown_called)
-    metrics_filter = MetricsFilter().with_name('teardown_called')
-    metrics_query_result = result.metrics().query(metrics_filter)
-    self.assertEqual(len(metrics_query_result['counters']), 1)
-    self.assertEqual(metrics_query_result['counters'][0].result, 1)
-    
