@@ -133,7 +133,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private final DirectOptions options;
   private final Set<Enforcement> enabledEnforcements;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
-  private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final ObjectMapper MAPPER_WITH_MODULES =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
