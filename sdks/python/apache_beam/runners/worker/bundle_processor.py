@@ -499,6 +499,8 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    for op in self.ops.values():
+      op.setup()
     self.splitting_lock = threading.Lock()
 
   def create_execution_tree(self, descriptor):
