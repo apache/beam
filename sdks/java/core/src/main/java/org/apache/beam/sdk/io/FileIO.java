@@ -667,7 +667,8 @@ public class FileIO {
   @AutoValue
   public abstract static class ReadMatches
       extends PTransform<PCollection<MatchResult.Metadata>, PCollection<ReadableFile>> {
-    enum DirectoryTreatment {
+    /** Enum to control how directories are handled. */
+    public enum DirectoryTreatment {
       SKIP,
       PROHIBIT
     }
