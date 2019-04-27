@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 func addParDoCtx(err error, s Scope) error {
