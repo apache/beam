@@ -499,8 +499,6 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
-    for op in self.ops.values():
-      op.setup()
     self.splitting_lock = threading.Lock()
 
   def create_execution_tree(self, descriptor):
@@ -746,7 +744,7 @@ class BundleProcessor(object):
         monitoring_info.labels['TAG'] = actual_output_tags[0]
     return monitoring_info
 
-  def teardown(self):
+  def shutdown(self):
     for op in self.ops.values():
       op.teardown()
 

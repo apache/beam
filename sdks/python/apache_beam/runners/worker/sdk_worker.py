@@ -150,10 +150,6 @@ class SdkHarness(object):
     # Stop all the workers and clean all the associated resources
     self._data_channel_factory.close()
     self._state_handler_factory.close()
-    while not self.workers.empty():
-      worker = self.workers.get()
-      worker.teardown()
-
     logging.info('Done consuming work.')
 
   def _execute(self, task, request):
@@ -322,6 +318,14 @@ class BundleProcessorCache(object):
     processor.reset()
     self.cached_bundle_processors[descriptor_id].append(processor)
 
+  def shutdown(self):
+    for instruction_id in self.active_bundle_processors.keys():
+      self.active_bundle_processors[instruction_id].shutdown()
+      del self.active_bundle_processors[instruction_id]
+    for cached_bundle_processors in self.cached_bundle_processors.values():
+      while len(cached_bundle_processors) > 0:
+        cached_bundle_processors.pop().shutdown()
+
 
 class SdkWorker(object):
 
@@ -417,6 +421,9 @@ class SdkWorker(object):
           instruction_id=instruction_id,
           error='Instruction not running: %s' % instruction_id)
 
+  def stop(self):
+    self.bundle_processor_cache.shutdown()
+
   @contextlib.contextmanager
   def maybe_profile(self, instruction_id):
     if self.profiler_factory:
@@ -428,11 +435,6 @@ class SdkWorker(object):
         yield
     else:
       yield
-
-  def teardown(self):
-    for processors in self.cached_bundle_processors.values():
-      for processor in processors:
-        processor.teardown()
 
 
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):

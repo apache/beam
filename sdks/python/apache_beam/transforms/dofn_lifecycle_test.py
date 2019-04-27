@@ -23,7 +23,12 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
+
+
+_global_teardown_called = False
 
 class CallSequenceEnforcingDoFn(beam.DoFn):
   def __init__(self):
@@ -31,6 +36,7 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._start_bundle_calls = 0
     self._finish_bundle_calls = 0
     self._teardown_called = False
+    self._teardown_called_counter = Metrics.counter(self.__class__, 'teardown_called')
 
   def setup(self):
     assert not self._setup_called,'setup should not be called twice'
@@ -46,7 +52,7 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     assert not self._teardown_called, 'teardown should not have been called'
     self._start_bundle_calls += 1
 
-  def process(self, element)
+  def process(self, element):
     assert self._setup_called, 'setup should have been called'
     assert self._start_bundle_calls > 0, 'start_bundle should have been called'
     assert self._start_bundle_calls == self._finish_bundle_calls + 1, \
@@ -67,15 +73,25 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     assert self._start_bundle_calls == self._finish_bundle_calls , \
       'there should be as many start_bundle calls as finish_bundle calls'
     assert not self._teardown_called,'teardown should not be called twice'
-    # Unfortunately there is no way to assert that teardown was actually called.
-    # This is acceptable because teardown is best-effort.
     self._teardown_called = True
+    global _global_teardown_called
+    _global_teardown_called = True
+    self._teardown_called_counter.inc()
 
 
 @attr('ValidatesRunner')
 class DoFnLifecycleTest(unittest.TestCase):
   def test_dofn_lifecycle(self):
-    with TestPipeline() as p:
-      (p
-        | 'Start' >> beam.Create([1, 2, 3])
-        | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
+    p = TestPipeline()
+    (p
+      | 'Start' >> beam.Create([1, 2, 3])
+      | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
+    result = p.run()
+    result.wait_until_finish()
+    # Assumes that the worker is run in the same process as the test.
+    self.assertTrue(_global_teardown_called)
+    metrics_filter = MetricsFilter().with_name('teardown_called')
+    metrics_query_result = result.metrics().query(metrics_filter)
+    self.assertEqual(len(metrics_query_result['counters']), 1)
+    self.assertEqual(metrics_query_result['counters'][0].result, 1)
+    

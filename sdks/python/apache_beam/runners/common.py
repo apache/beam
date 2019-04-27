@@ -806,11 +806,11 @@ class DoFnRunner(Receiver):
   def finish(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
 
-  def finalize(self):
-    self.bundle_finalizer_param.finalize_bundle()
-
   def teardown(self):
     self._invoke_lifecycle_method(self.do_fn_invoker.invoke_teardown)
+
+  def finalize(self):
+    self.bundle_finalizer_param.finalize_bundle()
 
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
