@@ -605,7 +605,7 @@ public class DirectRunnerTest implements Serializable {
    * Options for testing if {@link DirectRunner} drops {@link PipelineOptions} marked with {@link
    * JsonIgnore} fields.
    */
-  public interface MyOptions extends DirectOptions {
+  public interface TestSerializationOfOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String foo);
