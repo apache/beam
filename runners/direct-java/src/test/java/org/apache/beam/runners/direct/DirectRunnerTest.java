@@ -590,7 +590,7 @@ public class DirectRunnerTest implements Serializable {
    */
   @Test
   public void testFromOptionsIfIgnoredFieldsGettingDropped() {
-    PipelineOptions options =
+    TestSerializationOfOptions options =
         PipelineOptionsFactory.fromArgs("--foo=testValue", "--ignoredField=overridden")
             .as(MyOptions.class);
 
