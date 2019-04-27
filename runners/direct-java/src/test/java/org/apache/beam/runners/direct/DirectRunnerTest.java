@@ -596,7 +596,8 @@ public class DirectRunnerTest implements Serializable {
 
     assertEquals("testValue", options.getFoo());
     assertEquals("overridden", options.getIgnoredField());
-    options = DirectRunner.fromOptions(options).getPipelineOptions().as(TestSerializationOfOptions.class);
+    options =
+        DirectRunner.fromOptions(options).getPipelineOptions().as(TestSerializationOfOptions.class);
     assertEquals("testValue", options.getFoo());
     assertEquals("not overridden", options.getIgnoredField());
   }
@@ -607,11 +608,13 @@ public class DirectRunnerTest implements Serializable {
    */
   public interface TestSerializationOfOptions extends PipelineOptions {
     String getFoo();
+
     void setFoo(String foo);
 
     @JsonIgnore
     @Default.String("not overridden")
     String getIgnoredField();
+
     void setIgnoredField(String value);
   }
 
