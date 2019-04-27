@@ -141,7 +141,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   public static DirectRunner fromOptions(PipelineOptions options) {
     try {
       options =
-          MAPPER.readValue(MAPPER_WITH_MODULES.writeValueAsBytes(options), DirectOptions.class);
+          MAPPER.readValue(MAPPER.writeValueAsBytes(options), PipelineOptions.class).as(DirectOptions.class);
     } catch (IOException e) {
       throw new IllegalArgumentException(
           "PipelineOptions specified failed to serialize to JSON.", e);
