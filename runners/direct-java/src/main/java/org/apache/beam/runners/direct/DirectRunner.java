@@ -157,7 +157,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   /** For testing purpose only. */
   @VisibleForTesting
-  protected DirectOptions getPipelineOptions() {
+  protected PipelineOptions getPipelineOptions() {
     return options;
   }
 
