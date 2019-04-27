@@ -613,7 +613,6 @@ public class DirectRunnerTest implements Serializable {
     @JsonIgnore
     @Default.String("not overridden")
     String getIgnoredField();
-
     void setIgnoredField(String value);
   }
 
