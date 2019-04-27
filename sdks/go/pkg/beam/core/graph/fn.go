@@ -22,7 +22,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Fn holds either a function or struct receiver.

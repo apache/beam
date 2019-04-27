@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Create inserts a fixed set of values into the pipeline. The values must

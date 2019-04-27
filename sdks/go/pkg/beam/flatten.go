@@ -17,7 +17,7 @@ package beam
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Flatten is a PTransform that takes either multiple PCollections of type 'A'
