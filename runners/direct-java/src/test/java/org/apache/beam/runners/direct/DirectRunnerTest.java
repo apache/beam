@@ -595,7 +595,7 @@ public class DirectRunnerTest implements Serializable {
             .as(TestSerializationOfOptions.class);
 
     assertEquals("testValue", options.getFoo());
-    assertEquals("overridden", options.as(MyOptions.class).getIgnoredField());
+    assertEquals("overridden", options.getIgnoredField());
     options = DirectRunner.fromOptions(options).getPipelineOptions();
     assertEquals("testValue", options.as(MyOptions.class).getFoo());
     assertEquals("not overridden", options.as(MyOptions.class).getIgnoredField());
