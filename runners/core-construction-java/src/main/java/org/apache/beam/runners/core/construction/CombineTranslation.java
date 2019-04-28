@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_GLOBALLY_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
@@ -53,9 +54,9 @@ public class CombineTranslation {
   public static final String JAVA_SERIALIZED_COMBINE_FN_URN = "beam:combinefn:javasdk:v1";
 
   /** A {@link TransformPayloadTranslator} for {@link Combine.PerKey}. */
-  public static class CombinePayloadTranslator
+  public static class CombinePerKeyPayloadTranslator
       implements PTransformTranslation.TransformPayloadTranslator<Combine.PerKey<?, ?, ?>> {
-    private CombinePayloadTranslator() {}
+    private CombinePerKeyPayloadTranslator() {}
 
     @Override
     public String getUrn(Combine.PerKey<?, ?, ?> transform) {
@@ -69,7 +70,8 @@ public class CombineTranslation {
       if (transform.getTransform().getSideInputs().isEmpty()) {
         return FunctionSpec.newBuilder()
             .setUrn(COMBINE_PER_KEY_TRANSFORM_URN)
-            .setPayload(payloadForCombine((AppliedPTransform) transform, components).toByteString())
+            .setPayload(
+                payloadForCombinePerKey((AppliedPTransform) transform, components).toByteString())
             .build();
       } else {
         // Combines with side inputs are translated as generic composites, which have a blank
@@ -78,48 +80,119 @@ public class CombineTranslation {
       }
     }
 
-    /** Registers {@link CombinePayloadTranslator}. */
+    /** Registers {@link CombinePerKeyPayloadTranslator}. */
     @AutoService(TransformPayloadTranslatorRegistrar.class)
     public static class Registrar implements TransformPayloadTranslatorRegistrar {
       @Override
       public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
           getTransformPayloadTranslators() {
-        return Collections.singletonMap(Combine.PerKey.class, new CombinePayloadTranslator());
+        return Collections.singletonMap(Combine.PerKey.class, new CombinePerKeyPayloadTranslator());
+      }
+    }
+
+    /** Produces a {@link RunnerApi.CombinePayload} from a {@link Combine.PerKey}. */
+    private static <K, InputT, OutputT> CombinePayload payloadForCombinePerKey(
+        final AppliedPTransform<
+                PCollection<KV<K, InputT>>,
+                PCollection<KV<K, OutputT>>,
+                Combine.PerKey<K, InputT, OutputT>>
+            combine,
+        final SdkComponents components)
+        throws IOException {
+
+      GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
+      try {
+        return RunnerApi.CombinePayload.newBuilder()
+            .setAccumulatorCoderId(
+                components.registerCoder(
+                    extractAccumulatorCoder(combineFn, (AppliedPTransform) combine)))
+            .setCombineFn(
+                SdkFunctionSpec.newBuilder()
+                    .setEnvironmentId(components.getOnlyEnvironmentId())
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
+                            .setPayload(
+                                ByteString.copyFrom(
+                                    SerializableUtils.serializeToByteArray(
+                                        combine.getTransform().getFn())))
+                            .build())
+                    .build())
+            .build();
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException(e);
       }
     }
   }
 
-  /** Produces a {@link RunnerApi.CombinePayload} from a {@link Combine}. */
-  static <K, InputT, OutputT> CombinePayload payloadForCombine(
-      final AppliedPTransform<
-              PCollection<KV<K, InputT>>,
-              PCollection<KV<K, OutputT>>,
-              Combine.PerKey<K, InputT, OutputT>>
-          combine,
-      final SdkComponents components)
-      throws IOException {
+  /** A {@link TransformPayloadTranslator} for {@link Combine.Globally}. */
+  public static class CombineGloballyPayloadTranslator
+      implements PTransformTranslation.TransformPayloadTranslator<Combine.Globally<?, ?>> {
+    private CombineGloballyPayloadTranslator() {}
 
-    GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
-    try {
-      return RunnerApi.CombinePayload.newBuilder()
-          .setAccumulatorCoderId(
-              components.registerCoder(
-                  extractAccumulatorCoder(combineFn, (AppliedPTransform) combine)))
-          .setCombineFn(
-              SdkFunctionSpec.newBuilder()
-                  .setEnvironmentId(components.getOnlyEnvironmentId())
-                  .setSpec(
-                      FunctionSpec.newBuilder()
-                          .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
-                          .setPayload(
-                              ByteString.copyFrom(
-                                  SerializableUtils.serializeToByteArray(
-                                      combine.getTransform().getFn())))
-                          .build())
-                  .build())
-          .build();
-    } catch (CannotProvideCoderException e) {
-      throw new IllegalArgumentException(e);
+    @Override
+    public String getUrn(Combine.Globally<?, ?> transform) {
+      return COMBINE_GLOBALLY_TRANSFORM_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, Combine.Globally<?, ?>> transform, SdkComponents components)
+        throws IOException {
+      if (transform.getTransform().getSideInputs().isEmpty()) {
+        return FunctionSpec.newBuilder()
+            .setUrn(COMBINE_GLOBALLY_TRANSFORM_URN)
+            .setPayload(
+                payloadForCombineGlobally((AppliedPTransform) transform, components).toByteString())
+            .build();
+      } else {
+        // Combines with side inputs are translated as generic composites, which have a blank
+        // FunctionSpec.
+        return null;
+      }
+    }
+
+    /** Registers {@link CombineGloballyPayloadTranslator}. */
+    @AutoService(TransformPayloadTranslatorRegistrar.class)
+    public static class Registrar implements TransformPayloadTranslatorRegistrar {
+      @Override
+      public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+          getTransformPayloadTranslators() {
+        return Collections.singletonMap(
+            Combine.Globally.class, new CombineGloballyPayloadTranslator());
+      }
+    }
+
+    /** Produces a {@link RunnerApi.CombinePayload} from a {@link Combine.Globally}. */
+    private static <InputT, OutputT> CombinePayload payloadForCombineGlobally(
+        final AppliedPTransform<
+                PCollection<InputT>, PCollection<OutputT>, Combine.Globally<InputT, OutputT>>
+            combine,
+        final SdkComponents components)
+        throws IOException {
+
+      GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
+      try {
+        return RunnerApi.CombinePayload.newBuilder()
+            .setAccumulatorCoderId(
+                components.registerCoder(
+                    extractAccumulatorCoder(combineFn, (AppliedPTransform) combine)))
+            .setCombineFn(
+                SdkFunctionSpec.newBuilder()
+                    .setEnvironmentId(components.getOnlyEnvironmentId())
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
+                            .setPayload(
+                                ByteString.copyFrom(
+                                    SerializableUtils.serializeToByteArray(
+                                        combine.getTransform().getFn())))
+                            .build())
+                    .build())
+            .build();
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException(e);
+      }
     }
   }
 
