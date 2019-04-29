@@ -734,7 +734,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     // We can't output here anymore because the checkpoint barrier has already been
     // sent downstream. This is going to change with 1.6/1.7's prepareSnapshotBarrier.
     outputManager.openBuffer();
-    invokeFinishBundle();
+    // Ensure that no new bundle gets started as part of finishing a bundle
+    while (bundleStarted.get()) {
+      invokeFinishBundle();
+    }
     outputManager.closeBuffer();
 
     super.snapshotState(context);
