@@ -112,6 +112,7 @@ public class SchemaTranslation {
       default:
         break;
     }
+    builder.setNullable(fieldType.getNullable());
     return builder.build();
   }
 
