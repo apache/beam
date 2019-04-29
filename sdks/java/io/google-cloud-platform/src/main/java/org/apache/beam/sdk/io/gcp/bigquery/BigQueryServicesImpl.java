@@ -289,6 +289,7 @@ class BigQueryServicesImpl implements BigQueryServices {
             LOG.info("Still waiting for BigQuery job {} to enter pending state", jobRef);
             continue;
           }
+          LOG.info("ajamato JobStatus.getState {}", status.getState());
           if ("DONE".equals(status.getState())) {
             LOG.info("BigQuery job {} completed in state DONE", jobRef);
             return job;

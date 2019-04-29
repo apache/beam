@@ -229,6 +229,7 @@ public class BigQueryHelpers {
     // otherwise.
     boolean pollJob() throws IOException {
       if (started) {
+        // TODO what if its in a running state????
         Job job = pollJob.apply(currentJobId);
         this.lastJobAttempted = job;
         Status jobStatus = parseStatus(job);
@@ -456,10 +457,13 @@ public class BigQueryHelpers {
   }
 
   static Status parseStatus(@Nullable Job job) {
-    if (job == null) {
+    if (job == null) { // TODO Is this the normal case for a running job?
       return Status.UNKNOWN;
     }
+    // TODO see what we can infer from this.
+    // This is odd since it only returns failed or succeeded. No running/pending
     JobStatus status = job.getStatus();
+    LOG.info("ajamato JobStatus.getState {}", status.getState());
     if (status.getErrorResult() != null) {
       return Status.FAILED;
     } else if (status.getErrors() != null && !status.getErrors().isEmpty()) {
