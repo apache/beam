@@ -30,5 +30,5 @@ import java.util.function.BiFunction;
 @FunctionalInterface
 public interface SerializableBiFunction<FirstInputT, SecondInputT, OutputT>
     extends BiFunction<FirstInputT, SecondInputT, OutputT>, Serializable {
-  // This class is empty, but required for creating serializable lambda expressions.
+  // This interface is empty, but required for creating serializable lambda expressions.
 }

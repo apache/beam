@@ -501,14 +501,6 @@ public class Combine {
       };
     }
 
-    public static BinaryCombineFn<Long> foo() {
-      return of((x, y) -> x + y);
-    }
-
-    public static BinaryCombineFn<String> bar() {
-      return of(String::concat);
-    }
-
     /** Applies the binary operation to the two operands, returning the result. */
     public abstract V apply(V left, V right);
 
