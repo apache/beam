@@ -35,7 +35,7 @@ def testConfiguration = [
                         "beam_performance.many_files_textioit_hdfs_pkb_results",
                         "beam_performance.avroioit_hdfs_pkb_results",
                         "beam_performance.xmlioit_hdfs_pkb_results",
-                        "beam_performance.hadoopinputformatioit_pkb_results",
+                        "beam_performance.hadoopformatioit_pkb_results",
                         "beam_performance.mongodbioit_pkb_results",
                         "beam_performance.jdbcioit_pkb_results"
                 ]
