@@ -659,11 +659,13 @@ class Pipeline(object):
       return proto
 
   @staticmethod
-  def from_runner_api(proto, runner, options, return_context=False):
+  def from_runner_api(proto, runner, options, return_context=False,
+                      allow_proto_holders=False):
     """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
-    context = pipeline_context.PipelineContext(proto.components)
+    context = pipeline_context.PipelineContext(
+        proto.components, allow_proto_holders=allow_proto_holders)
     root_transform_id, = proto.root_transform_ids
     p.transforms_stack = [
         context.transforms.get_by_id(root_transform_id)]

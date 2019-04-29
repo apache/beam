@@ -297,6 +297,31 @@ def get_function_arguments(obj, func):
   return getfullargspec(f)
 
 
+class RunnerAPIPTransformHolder(PTransform):
+  """A `PTransform` that holds a runner API `PTransform` proto.
+
+  This is used for transforms, for which corresponding objects
+  cannot be initialized in Python SDK. For example, for `ParDo` transforms for
+  remote SDKs that may be available in Python SDK transform graph when expanding
+  a cross-language transform since a Python `ParDo` object cannot be generated
+  without a serialized Python `DoFn` object.
+  """
+
+  def __init__(self, proto):
+    self._proto = proto
+
+  def proto(self):
+    """Runner API payload for a `PTransform`"""
+    return self._proto
+
+  def to_runner_api(self, context, has_parts=False):
+    return self._proto
+
+  def get_restriction_coder(self):
+    # TODO(BEAM-7172): support external transforms that are SDFs.
+    return None
+
+
 class _DoFnParam(object):
   """DoFn parameter."""
 
@@ -1131,6 +1156,16 @@ class ParDo(PTransformWithSideInputs):
 
   def runner_api_requires_keyed_input(self):
     return userstate.is_stateful_dofn(self.fn)
+
+  def get_restriction_coder(self):
+    """Returns `restriction coder if `DoFn` of this `ParDo` is a SDF.
+
+    Returns `None` otherwise.
+    """
+    from apache_beam.runners.common import DoFnSignature
+    signature = DoFnSignature(self.fn)
+    return (signature.get_restriction_provider().restriction_coder()
+            if signature.is_splittable_dofn() else None)
 
 
 class _MultiParDo(PTransform):
