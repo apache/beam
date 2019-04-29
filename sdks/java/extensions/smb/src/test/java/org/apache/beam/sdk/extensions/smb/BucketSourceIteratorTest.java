@@ -17,30 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
-import java.util.Map;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.TupleTag;
+import java.util.List;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.junit.Test;
 
-/** Represents the result of an SMB co-group operation. */
-public class SMBJoinResult {
-  private final Map<TupleTag, Iterable<?>> valueMap;
+/** Tests bucket iterator. */
+public class BucketSourceIteratorTest {
 
-  SMBJoinResult(Map<TupleTag, Iterable<?>> valueMap) {
-    this.valueMap = valueMap;
-  }
+  private final List<String> input =
+      Lists.newArrayList("a1", "a1", "a2", "a3", "b1", "b2", "b2", "b3", "c1", "d1", "e1", "e2");
 
-  public <V> Iterable<V> getValuesForTag(TupleTag<V> tag) {
-    return (Iterable<V>) valueMap.get(tag);
-  }
-
-  /**
-   * Serializable converter from SMBJoinResult to desired result type.
-   *
-   * @param <ResultT>
-   */
-  public abstract static class ToResult<ResultT>
-      implements SerializableFunction<SMBJoinResult, ResultT> {
-    public abstract Coder<ResultT> resultCoder();
+  @Test
+  public void testBucketSourceIterator() {
+    // @Todo
   }
 }
