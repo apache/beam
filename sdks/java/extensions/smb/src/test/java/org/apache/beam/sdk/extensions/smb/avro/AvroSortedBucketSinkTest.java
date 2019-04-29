@@ -1,23 +1,19 @@
 
-package org.apache.beam.sdk.extensions.smb;
+package org.apache.beam.sdk.extensions.smb.avro;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
+import org.apache.avro.file.DataFileStream;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
-import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
-import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -25,18 +21,16 @@ import org.apache.beam.sdk.io.fs.ResourceIdCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 // Just an example usage...
-public class SortedBucketSinkTest {
+public class AvroSortedBucketSinkTest {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final TemporaryFolder outputFolder = new TemporaryFolder();
@@ -45,58 +39,17 @@ public class SortedBucketSinkTest {
   private static final AvroBucketMetadata<Integer> METADATA = TestUtils
       .tryCreateMetadata(1, HashType.MURMUR3_32);
 
-  private static class SerializableWriterSupplier implements Serializable, Supplier<Writer<GenericRecord>> {
-    private SerializableWriterSupplier() {
-    }
-
-    @Override
-    public Writer<GenericRecord> get() {
-      return new Writer<GenericRecord>() {
-        private AvroCoder coder = AvroCoder.of(TestUtils.schema);
-        private OutputStream channel;
-
-        @Override
-        public String getMimeType() {
-          return MimeTypes.BINARY;
-        }
-
-        @Override
-        public void prepareWrite(WritableByteChannel channel) throws Exception {
-          this.channel = Channels.newOutputStream(channel);
-        }
-
-        @Override
-        public void write(GenericRecord value) throws Exception {
-          coder.encode(value, channel);
-        }
-
-        @Override
-        public void finishWrite() throws Exception {
-          channel.close();
-        }
-      };
-    }
-  }
-
-  class TestSortedBucketSinkImpl extends SortedBucketSink<Integer, GenericRecord> {
-    TestSortedBucketSinkImpl() {
-      super(METADATA,
-          new SMBFilenamePolicy(
-              LocalResources.fromFile(outputFolder.getRoot(), true),
-              ".avro",
-              LocalResources.fromFile(tmpFolder.getRoot(), true)),
-          new SerializableWriterSupplier());
-    }
-  }
-
-  static final GenericRecord user1 = TestUtils.createUserRecord("d", 50);
-  static final GenericRecord user2 = TestUtils.createUserRecord("e", 75);
-  static final GenericRecord user3 = TestUtils.createUserRecord("f", 25);
-
+  private static final GenericRecord user1 = TestUtils.createUserRecord("d", 50);
+  private static final GenericRecord user2 = TestUtils.createUserRecord("e", 75);
+  private static final GenericRecord user3 = TestUtils.createUserRecord("f", 25);
 
   @Test
   public void testSink() throws Exception {
-    TestSortedBucketSinkImpl sink = new TestSortedBucketSinkImpl();
+    SortedBucketSink<Integer, GenericRecord> sink = AvroSortedBucketIO.sink(
+        METADATA, LocalResources.fromFile(outputFolder.getRoot(), true),
+        LocalResources.fromFile(tmpFolder.getRoot(), true), null, TestUtils.schema
+    );
+
     final PCollection<GenericRecord> users = pipeline
         .apply(Create.of(Lists.newArrayList(user1, user2, user3)).withCoder(TestUtils.userCoder));
 
@@ -107,7 +60,6 @@ public class SortedBucketSinkTest {
 
     PAssert.that(writtenMetadata).satisfies(m -> {
       final ResourceId metadataFile = m.iterator().next();
-      final ObjectMapper objectMapper = new ObjectMapper();
       try {
         final BucketMetadata<Integer, Object> readMetadata = BucketMetadata
             .from(Channels.newInputStream(FileSystems.open(metadataFile)));
@@ -132,12 +84,15 @@ public class SortedBucketSinkTest {
 
       try {
         final ReadableByteChannel channel = FileSystems.open(bucketFile.getValue());
-        final InputStream is = Channels.newInputStream(channel);
+        final DataFileStream<GenericRecord> reader = new DataFileStream<>(
+            Channels.newInputStream(channel), new GenericDatumReader<>(TestUtils.schema));
 
-        Assert.assertEquals(user3, TestUtils.userCoder.decode(is));
-        Assert.assertEquals(user1, TestUtils.userCoder.decode(is));
-        Assert.assertEquals(user2, TestUtils.userCoder.decode(is));
-        channel.close();
+        Assert.assertEquals(user3, reader.next());
+        Assert.assertEquals(user1, reader.next());
+        Assert.assertEquals(user2, reader.next());
+
+        Assert.assertFalse(reader.hasNext());
+        reader.close();
       } catch (IOException e) {
         Assert.fail(String.format("Failed to read written bucket file: %s", e));
       }

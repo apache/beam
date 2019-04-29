@@ -43,21 +43,24 @@ import org.slf4j.LoggerFactory;
  *
  * This must be implemented for different file-based IO types i.e. Avro.
  */
-public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
+public class SortedBucketSink<SortingKeyT, ValueT> extends
     PTransform<PCollection<ValueT>, WriteResult> {
 
   private final BucketMetadata<SortingKeyT, ValueT> bucketingMetadata;
   private final SMBFilenamePolicy smbFilenamePolicy;
   private final Supplier<Writer<ValueT>> writerSupplier;
+  private final ResourceId tempDirectory;
 
   public SortedBucketSink(
       BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
       SMBFilenamePolicy smbFilenamePolicy,
-      Supplier<Writer<ValueT>> writerSupplier
+      Supplier<Writer<ValueT>> writerSupplier,
+      ResourceId tempDirectory
   ) {
     this.bucketingMetadata = bucketingMetadata;
     this.smbFilenamePolicy = smbFilenamePolicy;
     this.writerSupplier = writerSupplier;
+    this.tempDirectory = tempDirectory;
   }
 
   @Override
@@ -74,7 +77,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
         .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
         .apply("Write bucket data", new WriteOperation<>(
-            smbFilenamePolicy, bucketingMetadata, writerSupplier));
+            smbFilenamePolicy, bucketingMetadata, writerSupplier, tempDirectory));
   }
 
   /*
@@ -100,7 +103,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
   /**
    * Represents a successful write to temp directory that was moved to its final output destination.
    */
-  static final class WriteResult implements POutput {
+  public static final class WriteResult implements POutput {
     private final Pipeline pipeline;
     private final PCollection<ResourceId> writtenMetadata;
     private final PCollection<KV<Integer, ResourceId>> writtenBuckets;
@@ -140,14 +143,17 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
     private final SMBFilenamePolicy smbFilenamePolicy;
     private final BucketMetadata<S, V> bucketMetadata;
     private final Supplier<Writer<V>> writerSupplier;
+    private final ResourceId tempDirectory;
 
     WriteOperation(
         SMBFilenamePolicy smbFilenamePolicy,
         BucketMetadata<S, V> bucketMetadata,
-        Supplier<Writer<V>> writerSupplier) {
+        Supplier<Writer<V>> writerSupplier,
+        ResourceId tempDirectory) {
       this.smbFilenamePolicy = smbFilenamePolicy;
       this.bucketMetadata = bucketMetadata;
       this.writerSupplier = writerSupplier;
+      this.tempDirectory = tempDirectory;
     }
 
     @Override
@@ -155,7 +161,7 @@ public abstract class SortedBucketSink<SortingKeyT, ValueT> extends
       return input
           .apply(
               "Write buckets to temp directory",
-              new WriteTempFiles<>(smbFilenamePolicy.forTempFiles(), bucketMetadata, writerSupplier))
+              new WriteTempFiles<>(smbFilenamePolicy.forTempFiles(tempDirectory), bucketMetadata, writerSupplier))
           .apply("Finalize temp file destinations",
               new FinalizeTempFiles(smbFilenamePolicy.forDestination(), bucketMetadata)
           );

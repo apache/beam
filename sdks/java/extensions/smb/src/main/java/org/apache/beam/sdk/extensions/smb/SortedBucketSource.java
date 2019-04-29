@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
@@ -35,24 +36,27 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 
 public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT> extends PTransform<
-    KeyedBucketSources<KeyT>, PCollection<KV<KeyT, ResultT>>> {
+    PBegin, PCollection<KV<KeyT, ResultT>>> {
 
   private final Coder<KeyT> keyCoder;
   private final SMBJoinResult.ToResult<ResultT> toResult;
+  private final List<KeyedBucketSource<KeyT, ?>> sources;
 
-  SortedBucketSource(Coder<KeyT> keyCoder, SMBJoinResult.ToResult<ResultT> toResult) {
+  public SortedBucketSource(Coder<KeyT> keyCoder, SMBJoinResult.ToResult<ResultT> toResult,
+      List<KeyedBucketSource<KeyT, ?>> sources) {
     this.keyCoder = keyCoder;
+    this.sources = sources;
     this.toResult = toResult;
   }
 
   @Override
-  public PCollection<KV<KeyT, ResultT>> expand(KeyedBucketSources<KeyT> sources) {
+  public final PCollection<KV<KeyT, ResultT>> expand(PBegin begin) {
 
     // validate that all sources are compatible
     // Verify: what's the call site of this? does it need to be put in a dofn?
     // @Todo metadata is being fetched twice per source
     BucketMetadata<KeyT, ?> first = null;
-    for (KeyedBucketSource<KeyT, ?> source : sources.getSources()) {
+    for (KeyedBucketSource<KeyT, ?> source : sources) {
       BucketMetadata<KeyT, ?> current = source.readMetadata();
       if (first == null) {
         first = current;
@@ -62,12 +66,12 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT> extends 
     }
 
     final PCollection<KV<Integer, List<BucketSourceIterator<KeyT>>>> openedReaders =
-        (PCollection<KV<Integer, List<BucketSourceIterator<KeyT>>>>) sources
-            .expand().get(new TupleTag<>("readers"));
+        (PCollection<KV<Integer, List<BucketSourceIterator<KeyT>>>>) new KeyedBucketSources<>(
+            begin.getPipeline(), first.getNumBuckets(), sources).expand().get(new TupleTag<>("readers"));
 
     return openedReaders
-        .apply(Reshuffle.viaRandomKey())
-        .apply(ParDo.of(new MergeBuckets<>(toResult)))
+        .apply("Force each key to a separate core", Reshuffle.viaRandomKey())
+        .apply("Perform co-group operation per key", ParDo.of(new MergeBuckets<>(toResult)))
         .setCoder(KvCoder.of(keyCoder, toResult.resultCoder()));
   }
 
@@ -100,12 +104,6 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT> extends 
           final BucketSourceIterator<KeyT> reader = readersIt.next();
 
           if (!reader.hasNextKeyGroup()) {
-            try {
-              reader.finish();
-            } catch (Exception e) {
-              throw new RuntimeException(e);
-            }
-
             readersIt.remove();
           } else {
             nextKeyGroups.put(reader.getTupleTag(), reader.nextKeyGroup());
@@ -154,7 +152,7 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT> extends 
    * Heavily copied from CoGroupByKey implementation.
    * @param <K>
    */
-  static class KeyedBucketSources<K> implements PInput, Serializable {
+  public static class KeyedBucketSources<K> implements PInput, Serializable {
     private transient Pipeline pipeline;
     private transient List<KeyedBucketSource<K, ?>> sources;
     private Integer numBuckets;
@@ -162,7 +160,7 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT> extends 
     KeyedBucketSources(Pipeline pipeline, Integer numBuckets) {
       this(pipeline, numBuckets, new ArrayList<>());
     }
-    KeyedBucketSources(
+    public KeyedBucketSources(
         Pipeline pipeline,
         Integer numBuckets,
         List<KeyedBucketSource<K, ?>> sources) {
@@ -230,7 +228,7 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT> extends 
       return retval;
     }
 
-    static class KeyedBucketSource<K, V> implements Serializable {
+    public static class KeyedBucketSource<K, V> implements Serializable {
       final TupleTag<V> tupleTag;
       final FileAssignment fileAssignment;
       final Reader<V> reader;
@@ -267,7 +265,7 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT> extends 
         final Reader<?> reader = source.reader;
 
         ResourceId resourceId = source.fileAssignment.forBucketShard(bucket, metadata.getNumBuckets(), 1, 1);
-        readers.add(new BucketSourceIterator<K>(reader, resourceId, source.tupleTag, metadata));
+        readers.add(new BucketSourceIterator<>(reader, resourceId, source.tupleTag, metadata));
       }
       return readers;
     }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -74,7 +75,8 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   }
 
   // @Todo: more sophisticated comparison rules.
-  <S, V> boolean compatibleWith(BucketMetadata<S, V> other) {
+  @VisibleForTesting
+  public <S, V> boolean compatibleWith(BucketMetadata<S, V> other) {
     return (
         other != null &&
             this.getNumBuckets() == other.numBuckets &&
@@ -132,7 +134,8 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
     return objectMapper.readerFor(BucketMetadata.class).readValue(src);
   }
 
-  static <SortingKeyT, ValueT> BucketMetadata<SortingKeyT, ValueT> from(InputStream src)
+  @VisibleForTesting
+  public static <SortingKeyT, ValueT> BucketMetadata<SortingKeyT, ValueT> from(InputStream src)
       throws IOException {
     return objectMapper.readValue(src, BucketMetadata.class);
   }
