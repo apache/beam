@@ -133,9 +133,16 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
       }
     }
 
-    @Override
-    public void stop() {
-      // nothing to clean up
+    @Override public void stop() {
+      try {
+        for (DatasetPartitionReader partitionReader : partitionReaders) {
+          if (partitionReader.started) {
+            partitionReader.close();
+          }
+        }
+      } catch (IOException e) {
+        throw new RuntimeException("Error closing " + this + "partitionReaders", e);
+      }
     }
 
     @Override
