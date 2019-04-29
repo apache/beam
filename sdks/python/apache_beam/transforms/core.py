@@ -345,7 +345,7 @@ class _DoFnParam(object):
     return self.param_id
 
 
-class _RestrictionParam(_DoFnParam):
+class _RestrictionDoFnParam(_DoFnParam):
   """Restriction Provider DoFn parameter."""
 
   def __init__(self, restriction_provider):
@@ -433,7 +433,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
 
-  RestrictionParam = _RestrictionParam
+  RestrictionParam = _RestrictionDoFnParam
 
   @staticmethod
   def from_callable(fn):
