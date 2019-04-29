@@ -456,14 +456,12 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     ``DoFn.TimestampParam``: timestamp of the input element.
     ``DoFn.WindowParam``: ``Window`` the input element belongs to.
     ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the spec
-                         of the parameter.
+    of the parameter.
     ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
-                         of the parameter.
+    of the parameter.
     ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
-                               provided here to allow treatment as a Splittable
-                               `DoFn``. The restriction tracker will be
-                               derived from the restriction provider in the
-                               parameter.
+    provided here to allow treatment as a Splittable ``DoFn``. The restriction
+    tracker will be derived from the restriction provider in the parameter.
     ``DoFn.WatermarkReporterParam``: a function that can be used to report
     output watermark of Splittable ``DoFn`` implementations.
 
