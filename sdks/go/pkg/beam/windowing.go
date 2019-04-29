@@ -16,10 +16,9 @@
 package beam
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // WindowInto applies the windowing strategy to each element.
@@ -30,10 +29,10 @@ func WindowInto(s Scope, ws *window.Fn, col PCollection) PCollection {
 // TryWindowInto attempts to insert a WindowInto transform.
 func TryWindowInto(s Scope, ws *window.Fn, col PCollection) (PCollection, error) {
 	if !s.IsValid() {
-		return PCollection{}, fmt.Errorf("invalid scope")
+		return PCollection{}, errors.New("invalid scope")
 	}
 	if !col.IsValid() {
-		return PCollection{}, fmt.Errorf("invalid input pcollection")
+		return PCollection{}, errors.New("invalid input pcollection")
 	}
 
 	edge := graph.NewWindowInto(s.real, s.scope, ws, col.n)
