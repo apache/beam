@@ -42,8 +42,10 @@ import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.types.StructType;
 
 /**
- * This is a spark structured streaming {@link DataSourceV2} implementation. As Continuous streaming
- * is tagged experimental in spark, this class does no implement {@link ContinuousReadSupport}.
+ * This is a spark structured streaming {@link DataSourceV2} implementation that wraps
+ * an {@link BoundedSource}.As Continuous streaming is tagged experimental in spark
+ * (no aggregation support + no exactly once guaranty),
+ * this class does no implement {@link ContinuousReadSupport}.
  */
 public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
 
