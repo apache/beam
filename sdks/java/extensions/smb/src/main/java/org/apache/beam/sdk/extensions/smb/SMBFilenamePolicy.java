@@ -1,36 +1,37 @@
 package org.apache.beam.sdk.extensions.smb;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 
-// @todo.... need to think about this more, a lot of redundant info getting passed around
 public final class SMBFilenamePolicy implements Serializable {
   private static final String TEMPDIR_TIMESTAMP = "yyyy-MM-dd_HH-mm-ss";
   private static final String BEAM_TEMPDIR_PATTERN = ".temp-beam-%s";
 
   private final ResourceId filenamePrefix;
-  private final ResourceId tempDirectory;
   private final String fileNameSuffix;
 
   public SMBFilenamePolicy(
       ResourceId destinationPrefix,
-      String fileNameSuffix,
-      ResourceId tempDirectory
+      String fileNameSuffix
   ) {
     this.filenamePrefix = destinationPrefix;
     this.fileNameSuffix = fileNameSuffix;
-    this.tempDirectory = tempDirectory;
   }
 
   public FileAssignment forDestination() {
     return new FileAssignment(filenamePrefix, fileNameSuffix, false);
   }
 
-  public FileAssignment forTempFiles() {
+  public FileAssignment forTempFiles(ResourceId tempDirectory) {
     return new FileAssignment(
         tempDirectory.resolve(
           String.format(
@@ -41,8 +42,9 @@ public final class SMBFilenamePolicy implements Serializable {
         true);
   }
 
-  static class FileAssignment implements Serializable {
-    private static final String BUCKET_TEMPLATE = "bucket-%d-of-%d-shard-%d-of-%s.%s";
+  public static class FileAssignment implements Serializable {
+    private static final String BUCKET_TEMPLATE = "bucket-%d-of-%d";
+    private static final String BUCKET_SHARD_TEMPLATE = BUCKET_TEMPLATE + "-shard-%d-of-%s.%s";
     private static final String METADATA_FILENAME = "metadata.json";
     private static final String TIMESTAMP_TEMPLATE = "yyyy-MM-dd_HH-mm-ss-";
 
@@ -67,12 +69,27 @@ public final class SMBFilenamePolicy implements Serializable {
       }
 
       return filenamePrefix.resolve(
-          prefix + String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets, shardNumber, numShards, fileNameSuffix),
+          prefix + String.format(BUCKET_SHARD_TEMPLATE, bucketNumber, numBuckets, shardNumber, numShards, fileNameSuffix),
           StandardResolveOptions.RESOLVE_FILE
       );
     }
 
-    public ResourceId forMetadata() {
+    List<ResourceId> forAllBucketShards(int bucketNumber, int numBuckets) {
+      final List<ResourceId> resourceIds = new ArrayList<>();
+      try {
+        MatchResult matchResult = FileSystems
+            .match(filenamePrefix + String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets) + "*." + fileNameSuffix);
+
+        matchResult.metadata().iterator()
+            .forEachRemaining(metadata -> resourceIds.add(metadata.resourceId()));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      return resourceIds;
+    }
+
+    ResourceId forMetadata() {
       return filenamePrefix.resolve(METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
     }
 

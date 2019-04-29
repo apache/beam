@@ -39,7 +39,7 @@ class BucketSourceIterator<KeyT> implements Serializable {
   }
 
   void initialize() {
-    Object value = null;
+    Object value;
     try {
       reader.prepareRead(FileSystems.open(resourceId));
       value = reader.read();

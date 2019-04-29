@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.extensions.smb;
+package org.apache.beam.sdk.extensions.smb.avro;
 
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
@@ -10,7 +10,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
-import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 
 public class TestUtils {
 
