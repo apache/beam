@@ -19,10 +19,10 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-// This job runs the suite of ValidatesRunner tests against the Flink runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink_Batch',
-  'Run Java Flink PortableValidatesRunner Batch', 'Java Flink PortableValidatesRunner Batch Tests', this) {
-  description('Runs the Java PortableValidatesRunner suite on the Flink runner.')
+// This job runs the suite of Java ValidatesRunner tests against the Spark runner in batch mode.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Spark_Batch',
+  'Run Java Spark PortableValidatesRunner Batch', 'Java Spark PortableValidatesRunner Batch Tests', this) {
+  description('Runs the Java PortableValidatesRunner suite on the Spark runner in batch mode.')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
@@ -36,7 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink_Batch',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-flink_2.11-job-server:validatesPortableRunnerBatch')
+      tasks(':runners:spark:job-server:validatesPortableRunnerBatch')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
