@@ -47,7 +47,6 @@ if __name__ == '__main__':
   #
   # python -m apache_beam.runners.portability.flink_runner_test \
   #     --flink_job_server_jar=/path/to/job_server.jar \
-  #     --type=Batch \
   #     --environment_type=docker \
   #     --extra_experiments=beam_experiments \
   #     [FlinkRunnerTest.test_method, ...]
@@ -256,9 +255,6 @@ if __name__ == '__main__':
             msg='Failed to find expected counter %s in line %s' % (
                 counter_name, line)
         )
-
-    def test_sdf(self):
-      raise unittest.SkipTest("BEAM-2939")
 
     def test_sdf_with_sdf_initiated_checkpointing(self):
       raise unittest.SkipTest("BEAM-2939")
