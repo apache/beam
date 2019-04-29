@@ -19,7 +19,12 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
+
+func addParDoCtx(err error, s Scope) error {
+	return errors.WithContextf(err, "inserting ParDo in scope %s", s)
+}
 
 // TryParDo attempts to insert a ParDo transform into the pipeline. It may fail
 // for multiple reasons, notably that the dofn is not valid or cannot be bound
@@ -27,12 +32,12 @@ import (
 func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCollection, error) {
 	side, typedefs, err := validate(s, col, opts)
 	if err != nil {
-		return nil, err
+		return nil, addParDoCtx(err, s)
 	}
 
 	fn, err := graph.NewDoFn(dofn)
 	if err != nil {
-		return nil, fmt.Errorf("invalid DoFn: %v", err)
+		return nil, addParDoCtx(err, s)
 	}
 
 	in := []*graph.Node{col.n}
@@ -41,7 +46,7 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	}
 	edge, err := graph.NewParDo(s.real, s.scope, fn, in, typedefs)
 	if err != nil {
-		return nil, err
+		return nil, addParDoCtx(err, s)
 	}
 
 	var ret []PCollection

@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -173,7 +174,7 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			// Interface types that implement JSON marshalling can be handled by the default coder.
 			// otherwise, inference needs to fail here.
 			if et.Kind() == reflect.Interface && !et.Implements(jsonCoderType) {
-				return nil, fmt.Errorf("inferCoder failed: interface type %v has no coder registered", et)
+				return nil, errors.Errorf("inferCoder failed: interface type %v has no coder registered", et)
 			}
 
 			c, err := newJSONCoder(et)
@@ -260,7 +261,7 @@ func jsonDec(t reflect.Type, in []byte) (T, error) {
 func newJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
 	c, err := coder.NewCustomCoder("json", t, jsonEnc, jsonDec)
 	if err != nil {
-		return nil, fmt.Errorf("invalid coder: %v", err)
+		return nil, errors.Wrapf(err, "invalid coder")
 	}
 	return c, nil
 }

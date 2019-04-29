@@ -16,10 +16,9 @@
 package beam
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // PCollection is an immutable collection of values of type 'A', which must be
@@ -76,7 +75,7 @@ func (p PCollection) SetCoder(c Coder) error {
 	}
 
 	if !typex.IsEqual(p.n.Type(), c.coder.T) {
-		return fmt.Errorf("coder type %v must be identical to node type %v", c.coder.T, p.n)
+		return errors.Errorf("coder type %v must be identical to node type %v", c.coder.T, p.n)
 	}
 	p.n.Coder = c.coder
 	return nil

@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Fn holds either a function or struct receiver.
@@ -201,7 +202,7 @@ func (f *DoFn) Name() string {
 func NewDoFn(fn interface{}) (*DoFn, error) {
 	ret, err := NewFn(fn)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithContext(errors.Wrapf(err, "invalid DoFn"), "constructing DoFn")
 	}
 	return AsDoFn(ret)
 }
@@ -275,7 +276,7 @@ func (f *CombineFn) Name() string {
 func NewCombineFn(fn interface{}) (*CombineFn, error) {
 	ret, err := NewFn(fn)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithContext(errors.Wrapf(err, "invalid CombineFn"), "constructing CombineFn")
 	}
 	return AsCombineFn(ret)
 }
