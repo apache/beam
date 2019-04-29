@@ -121,6 +121,10 @@ if __name__ == '__main__':
       # Skip until Spark runner supports SDF.
       raise unittest.SkipTest("BEAM-7222")
 
+    def test_sdf_synthetic_source(self):
+      # Skip until Spark runner supports SDF.
+      raise unittest.SkipTest("BEAM-7222")
+
     def test_external_transforms(self):
       # Skip until Spark runner supports external transforms.
       raise unittest.SkipTest("BEAM-7232")
