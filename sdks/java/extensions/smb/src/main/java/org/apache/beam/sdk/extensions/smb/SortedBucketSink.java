@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.smb;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,13 +55,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Writes a PCollection representing sorted, bucketized data to files, where the # of files is
- * equal to the # of buckets, assuming the contents of each bucket fit on a single worker.
+ * Writes a PCollection representing sorted, bucketized data to files, where the # of files is equal
+ * to the # of buckets, assuming the contents of each bucket fit on a single worker.
  *
- * This must be implemented for different file-based IO types i.e. Avro.
+ * @param <SortingKeyT>
+ * @param <ValueT>
  */
-public class SortedBucketSink<SortingKeyT, ValueT> extends
-    PTransform<PCollection<ValueT>, WriteResult> {
+public class SortedBucketSink<SortingKeyT, ValueT>
+    extends PTransform<PCollection<ValueT>, WriteResult> {
 
   private final BucketMetadata<SortingKeyT, ValueT> bucketingMetadata;
   private final SMBFilenamePolicy smbFilenamePolicy;
@@ -55,8 +73,7 @@ public class SortedBucketSink<SortingKeyT, ValueT> extends
       BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
       SMBFilenamePolicy smbFilenamePolicy,
       Supplier<Writer<ValueT>> writerSupplier,
-      ResourceId tempDirectory
-  ) {
+      ResourceId tempDirectory) {
     this.bucketingMetadata = bucketingMetadata;
     this.smbFilenamePolicy = smbFilenamePolicy;
     this.writerSupplier = writerSupplier;
@@ -64,39 +81,42 @@ public class SortedBucketSink<SortingKeyT, ValueT> extends
   }
 
   @Override
-  final public WriteResult expand(PCollection<ValueT> input) {
-    final Coder<KV<Integer, KV<SortingKeyT, ValueT>>> bucketedCoder = KvCoder.of(
-        VarIntCoder.of(),
-        KvCoder.of(this.bucketingMetadata.getSortingKeyCoder(), input.getCoder())
-    );
+  public final WriteResult expand(PCollection<ValueT> input) {
+    final Coder<KV<Integer, KV<SortingKeyT, ValueT>>> bucketedCoder =
+        KvCoder.of(
+            VarIntCoder.of(),
+            KvCoder.of(this.bucketingMetadata.getSortingKeyCoder(), input.getCoder()));
 
     return input
-        .apply("Assign buckets", ParDo.of(
-            new ExtractBucketAndSortKey<SortingKeyT, ValueT>(this.bucketingMetadata))
-        ).setCoder(bucketedCoder) // @Todo: Verify fusion of these steps
+        .apply(
+            "Assign buckets",
+            ParDo.of(new ExtractBucketAndSortKey<SortingKeyT, ValueT>(this.bucketingMetadata)))
+        .setCoder(bucketedCoder) // @Todo: Verify fusion of these steps
         .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
-        .apply("Write bucket data", new WriteOperation<>(
-            smbFilenamePolicy, bucketingMetadata, writerSupplier, tempDirectory));
+        .apply(
+            "Write bucket data",
+            new WriteOperation<>(
+                smbFilenamePolicy, bucketingMetadata, writerSupplier, tempDirectory));
   }
 
   /*
    *
    */
-  static final class ExtractBucketAndSortKey<S, V> extends DoFn<V, KV<Integer, KV<S, V>>> {
-    private final BucketMetadata<S, V> bucketMetadata;
+  static final class ExtractBucketAndSortKey<K, V> extends DoFn<V, KV<Integer, KV<K, V>>> {
+    private final BucketMetadata<K, V> bucketMetadata;
 
-    ExtractBucketAndSortKey(BucketMetadata<S, V> bucketMetadata) {
+    ExtractBucketAndSortKey(BucketMetadata<K, V> bucketMetadata) {
       this.bucketMetadata = bucketMetadata;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       V record = c.element();
-      c.output(KV.of(
-          bucketMetadata.assignBucket(record),
-          KV.of(bucketMetadata.extractSortingKey(record), record)
-      ));
+      c.output(
+          KV.of(
+              bucketMetadata.assignBucket(record),
+              KV.of(bucketMetadata.extractSortingKey(record), record)));
     }
   }
 
@@ -130,24 +150,24 @@ public class SortedBucketSink<SortingKeyT, ValueT> extends
     }
 
     @Override
-    public void finishSpecifyingOutput(String transformName, PInput input,
-        PTransform<?, ?> transform) { }
+    public void finishSpecifyingOutput(
+        String transformName, PInput input, PTransform<?, ?> transform) {}
   }
 
   /**
-   * Handles writing bucket data and SMB metadata to a uniquely named temp directory.
-   * @Todo: Retry policy, sharding per bucket, etc...
+   * Handles writing bucket data and SMB metadata to a uniquely named temp directory. @Todo: Retry
+   * policy, sharding per bucket, etc...
    */
-  static final class WriteOperation<S, V> extends
-      PTransform<PCollection<KV<Integer, Iterable<KV<S, V>>>>, WriteResult> {
+  static final class WriteOperation<K, V>
+      extends PTransform<PCollection<KV<Integer, Iterable<KV<K, V>>>>, WriteResult> {
     private final SMBFilenamePolicy smbFilenamePolicy;
-    private final BucketMetadata<S, V> bucketMetadata;
+    private final BucketMetadata<K, V> bucketMetadata;
     private final Supplier<Writer<V>> writerSupplier;
     private final ResourceId tempDirectory;
 
     WriteOperation(
         SMBFilenamePolicy smbFilenamePolicy,
-        BucketMetadata<S, V> bucketMetadata,
+        BucketMetadata<K, V> bucketMetadata,
         Supplier<Writer<V>> writerSupplier,
         ResourceId tempDirectory) {
       this.smbFilenamePolicy = smbFilenamePolicy;
@@ -157,77 +177,76 @@ public class SortedBucketSink<SortingKeyT, ValueT> extends
     }
 
     @Override
-    public WriteResult expand(PCollection<KV<Integer, Iterable<KV<S, V>>>> input) {
+    public WriteResult expand(PCollection<KV<Integer, Iterable<KV<K, V>>>> input) {
       return input
           .apply(
               "Write buckets to temp directory",
-              new WriteTempFiles<>(smbFilenamePolicy.forTempFiles(tempDirectory), bucketMetadata, writerSupplier))
-          .apply("Finalize temp file destinations",
-              new FinalizeTempFiles(smbFilenamePolicy.forDestination(), bucketMetadata)
-          );
+              new WriteTempFiles<>(
+                  smbFilenamePolicy.forTempFiles(tempDirectory), bucketMetadata, writerSupplier))
+          .apply(
+              "Finalize temp file destinations",
+              new FinalizeTempFiles(smbFilenamePolicy.forDestination(), bucketMetadata));
     }
   }
 
-  static class WriteTempFiles<S, V> extends PTransform<
-      PCollection<KV<Integer, Iterable<KV<S, V>>>>, PCollectionTuple> {
+  static class WriteTempFiles<K, V>
+      extends PTransform<PCollection<KV<Integer, Iterable<KV<K, V>>>>, PCollectionTuple> {
     private static final Logger LOG = LoggerFactory.getLogger(WriteTempFiles.class);
 
     private final FileAssignment tempFileAssignment;
     private final BucketMetadata bucketMetadata;
     private final Supplier<Writer<V>> writerSupplier;
 
-
     WriteTempFiles(
         FileAssignment tempFileAssignment,
         BucketMetadata bucketMetadata,
-        Supplier<Writer<V>> writerSupplier
-        ) {
+        Supplier<Writer<V>> writerSupplier) {
       this.tempFileAssignment = tempFileAssignment;
       this.bucketMetadata = bucketMetadata;
       this.writerSupplier = writerSupplier;
     }
 
     @Override
-    public PCollectionTuple expand(
-        PCollection<KV<Integer, Iterable<KV<S, V>>>> input) {
+    public PCollectionTuple expand(PCollection<KV<Integer, Iterable<KV<K, V>>>> input) {
 
-     return PCollectionTuple
-         .of(
-             new TupleTag<ResourceId>("tempMetadata"),
-             input.getPipeline().apply(Create.of(Collections.singletonList(writeMetadataFile()))))
-         .and(
-             new TupleTag<KV<Integer, ResourceId>>("tempBuckets"),
-             input.apply(ParDo.of(
-                 new DoFn<KV<Integer, Iterable<KV<S, V>>>, KV<Integer, ResourceId>>() {
-                   @ProcessElement
-                   public void processElement(ProcessContext c) throws Exception {
-                     final Integer bucketId = c.element().getKey();
-                     final Iterable<KV<S,V>> records = c.element().getValue();
+      return PCollectionTuple.of(
+              new TupleTag<ResourceId>("tempMetadata"),
+              input.getPipeline().apply(Create.of(Collections.singletonList(writeMetadataFile()))))
+          .and(
+              new TupleTag<KV<Integer, ResourceId>>("tempBuckets"),
+              input.apply(
+                  ParDo.of(
+                      new DoFn<KV<Integer, Iterable<KV<K, V>>>, KV<Integer, ResourceId>>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext c) throws Exception {
+                          final Integer bucketId = c.element().getKey();
+                          final Iterable<KV<K, V>> records = c.element().getValue();
 
-                     final ResourceId tmpDst = tempFileAssignment
-                         .forBucketShard(bucketId, bucketMetadata.getNumBuckets(), 1, 1);
+                          final ResourceId tmpDst =
+                              tempFileAssignment.forBucketShard(
+                                  bucketId, bucketMetadata.getNumBuckets(), 1, 1);
 
-                     final SortedBucketFile.Writer<V> writer = writerSupplier.get();
+                          final SortedBucketFile.Writer<V> writer = writerSupplier.get();
 
-                     writer.prepareWrite(FileSystems.create(tmpDst, writer.getMimeType()));
+                          writer.prepareWrite(FileSystems.create(tmpDst, writer.getMimeType()));
 
-                     try {
-                       records.forEach(kv -> {
-                         try {
-                           writer.write(kv.getValue());
-                         } catch (Exception e) {
-                           throw new RuntimeException(
-                               String.format("Failed to write element %s: %s", kv.getValue(), e));
-                         }
-                       });
-                     } finally {
-                       writer.finishWrite();
-                     }
-                     c.output(KV.of(bucketId, tmpDst));
-                   }
-                 })
-             )
-         );
+                          try {
+                            records.forEach(
+                                kv -> {
+                                  try {
+                                    writer.write(kv.getValue());
+                                  } catch (Exception e) {
+                                    throw new RuntimeException(
+                                        String.format(
+                                            "Failed to write element %s: %s", kv.getValue(), e));
+                                  }
+                                });
+                          } finally {
+                            writer.finishWrite();
+                          }
+                          c.output(KV.of(bucketId, tmpDst));
+                        }
+                      })));
     }
 
     private ResourceId writeMetadataFile() {
@@ -252,71 +271,83 @@ public class SortedBucketSink<SortingKeyT, ValueT> extends
     }
   }
 
-  /**
-   * Moves written temp files to their final destinations. Input is a map of bucket -> temp path
-   */
+  /** Moves written temp files to their final destinations. Input is a map of bucket -> temp path */
   static final class FinalizeTempFiles extends PTransform<PCollectionTuple, WriteResult> {
     private final FileAssignment finalizedFileAssignment;
     private final BucketMetadata bucketMetadata;
 
-    FinalizeTempFiles(
-        FileAssignment fileAssignment,
-        BucketMetadata bucketMetadata
-    ) {
+    FinalizeTempFiles(FileAssignment fileAssignment, BucketMetadata bucketMetadata) {
       this.finalizedFileAssignment = fileAssignment;
       this.bucketMetadata = bucketMetadata;
     }
 
     @Override
     public WriteResult expand(PCollectionTuple input) {
-      return input
-          .apply("Move to final destinations", PTransform.compose((tuple) -> {
-            final PCollection<ResourceId> metadata = tuple
-                .get(new TupleTag<ResourceId>("tempMetadata"))
-                .apply(ParDo.of(
-                    new DoFn<ResourceId, ResourceId>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext c) throws Exception {
-                        final ResourceId finalMetadataDst = finalizedFileAssignment.forMetadata();
-                        FileSystems.rename(
-                            ImmutableList.of(c.element()),
-                            ImmutableList.of(finalMetadataDst));
-                        c.output(finalMetadataDst);
-                      }
-                    }));
+      return input.apply(
+          "Move to final destinations",
+          PTransform.compose(
+              (tuple) -> {
+                final PCollection<ResourceId> metadata =
+                    tuple
+                        .get(new TupleTag<ResourceId>("tempMetadata"))
+                        .apply(
+                            ParDo.of(
+                                new DoFn<ResourceId, ResourceId>() {
+                                  @ProcessElement
+                                  public void processElement(ProcessContext c) throws Exception {
+                                    final ResourceId finalMetadataDst =
+                                        finalizedFileAssignment.forMetadata();
+                                    FileSystems.rename(
+                                        ImmutableList.of(c.element()),
+                                        ImmutableList.of(finalMetadataDst));
+                                    c.output(finalMetadataDst);
+                                  }
+                                }));
 
-            final PCollection<KV<Integer, ResourceId>> buckets = tuple
-                .get(new TupleTag<KV<Integer, ResourceId>>("tempBuckets"))
-                .apply("Collect all written buckets", Group.globally())
-                .apply("Rename temp buckets", ParDo.of(
-                    new DoFn<Iterable<KV<Integer, ResourceId>>, KV<Integer, ResourceId>>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext c) throws Exception {
-                        final List<ResourceId> srcFiles = new ArrayList<>();
-                        final List<ResourceId> dstFiles = new ArrayList<>();
+                final PCollection<KV<Integer, ResourceId>> buckets =
+                    tuple
+                        .get(new TupleTag<KV<Integer, ResourceId>>("tempBuckets"))
+                        .apply("Collect all written buckets", Group.globally())
+                        .apply(
+                            "Rename temp buckets",
+                            ParDo.of(
+                                new DoFn<
+                                    Iterable<KV<Integer, ResourceId>>, KV<Integer, ResourceId>>() {
+                                  @ProcessElement
+                                  public void processElement(ProcessContext c) throws Exception {
+                                    final List<ResourceId> srcFiles = new ArrayList<>();
+                                    final List<ResourceId> dstFiles = new ArrayList<>();
 
-                        final List<KV<Integer, ResourceId>> finalBucketLocations = new ArrayList<>();
+                                    final List<KV<Integer, ResourceId>> finalBucketLocations =
+                                        new ArrayList<>();
 
-                        c.element().forEach(bucketAndTempLocation -> {
-                          srcFiles.add(bucketAndTempLocation.getValue());
+                                    c.element()
+                                        .forEach(
+                                            bucketAndTempLocation -> {
+                                              srcFiles.add(bucketAndTempLocation.getValue());
 
-                          final ResourceId dstFile = finalizedFileAssignment
-                              .forBucketShard(bucketAndTempLocation.getKey(), bucketMetadata.getNumBuckets(), 1, 1);
+                                              final ResourceId dstFile =
+                                                  finalizedFileAssignment.forBucketShard(
+                                                      bucketAndTempLocation.getKey(),
+                                                      bucketMetadata.getNumBuckets(),
+                                                      1,
+                                                      1);
 
-                          dstFiles.add(dstFile);
-                          finalBucketLocations.add(KV.of(bucketAndTempLocation.getKey(), dstFile));
-                        });
+                                              dstFiles.add(dstFile);
+                                              finalBucketLocations.add(
+                                                  KV.of(bucketAndTempLocation.getKey(), dstFile));
+                                            });
 
-                        FileSystems.rename(srcFiles, dstFiles);
+                                    FileSystems.rename(srcFiles, dstFiles);
 
-                        finalBucketLocations.forEach(c::output);
-                      }
-                    }));
+                                    finalBucketLocations.forEach(c::output);
+                                  }
+                                }));
 
-            // @Todo Cleanup if either write failed (right now it's not totally atomic...)
+                // @Todo Cleanup if either write failed (right now it's not totally atomic...)
 
-            return new WriteResult(input.getPipeline(), metadata, buckets);
-          }));
+                return new WriteResult(input.getPipeline(), metadata, buckets);
+              }));
     }
   }
 }

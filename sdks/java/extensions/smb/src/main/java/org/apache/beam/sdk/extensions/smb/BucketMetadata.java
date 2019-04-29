@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.smb;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -6,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -18,37 +34,32 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
-// @Todo = everything. This is just a placeholder for the kind of functionality we need
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = AvroBucketMetadata.class)
-})
+/**
+ * Represents SMB metadata in a JSON-serializable format to be stored along with bucketed data.
+ *
+ * @param <SortingKeyT>
+ * @param <ValueT>
+ */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes({@JsonSubTypes.Type(value = AvroBucketMetadata.class)})
 public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializable {
 
-  @JsonProperty
-  private final int numBuckets;
+  @JsonProperty private final int numBuckets;
 
-  @JsonProperty
-  private final Class<SortingKeyT> sortingKeyClass;
+  @JsonProperty private final Class<SortingKeyT> sortingKeyClass;
 
-  @JsonProperty
-  private final HashType hashType;
+  @JsonProperty private final HashType hashType;
 
-  @JsonIgnore
-  private final Coder<SortingKeyT> sortingKeyCoder;
+  @JsonIgnore private final Coder<SortingKeyT> sortingKeyCoder;
 
-  @JsonIgnore
-  private final HashFunction hashFunction;
+  @JsonIgnore private final HashFunction hashFunction;
 
-  public BucketMetadata(int numBuckets,
-      Class<SortingKeyT> sortingKeyClass,
-      HashType hashType) throws CannotProvideCoderException {
+  public BucketMetadata(int numBuckets, Class<SortingKeyT> sortingKeyClass, HashType hashType)
+      throws CannotProvideCoderException {
     this.numBuckets = numBuckets;
     this.sortingKeyClass = sortingKeyClass;
     this.hashType = hashType;
@@ -57,6 +68,7 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
     this.hashFunction = hashType.create();
   }
 
+  /** Enumerated hashing schemes available for an SMB sink. */
   public enum HashType {
     MURMUR3_32 {
       @Override
@@ -74,15 +86,13 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
     public abstract HashFunction create();
   }
 
-  // @Todo: more sophisticated comparison rules.
+  // Todo: more sophisticated comparison rules.
   @VisibleForTesting
-  public <S, V> boolean compatibleWith(BucketMetadata<S, V> other) {
-    return (
-        other != null &&
-            this.getNumBuckets() == other.numBuckets &&
-            this.hashType == other.hashType &&
-            this.sortingKeyClass == other.sortingKeyClass
-    );
+  public boolean compatibleWith(BucketMetadata other) {
+    return (other != null
+        && this.getNumBuckets() == other.numBuckets
+        && this.hashType == other.hashType
+        && this.sortingKeyClass == other.sortingKeyClass);
   }
 
   ////////////////////////////////////////
@@ -121,13 +131,11 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   // Serialization
   ////////////////////////////////////////
 
-  @JsonIgnore
-  private static ObjectMapper objectMapper = new ObjectMapper();
+  @JsonIgnore private static ObjectMapper objectMapper = new ObjectMapper();
 
   // Using ObjectMapper directly on OutputStream tries to modify the underlying channel
   // by closing it, which throws an error in Beam. So write first to a byte array then copy.
-  @JsonIgnore
-  private static ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
+  @JsonIgnore private static ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
 
   static <SortingKeyT, ValueT> BucketMetadata<SortingKeyT, ValueT> from(String src)
       throws IOException {

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.smb.avro;
 
 import java.io.IOException;
@@ -20,7 +37,11 @@ import org.apache.beam.sdk.extensions.smb.SortedBucketFile;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 
-// @Todo: figure out generic vs reflect, recordClass vs schema
+/**
+ * Avro-specific IO operations. @Todo: figure out generic vs reflect, recordClass vs schema
+ *
+ * @param <ValueT>
+ */
 public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
   private final Class<ValueT> recordClass;
   private final SerializableSchemaSupplier schemaSupplier;
@@ -53,7 +74,7 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
   }
 
   private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
-    private final Schema schema;
+    private transient Schema schema;
 
     private SerializableSchemaSupplier(Schema schema) {
       this.schema = schema;
@@ -92,9 +113,8 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
     public void prepareRead(ReadableByteChannel channel) throws Exception {
       final Schema schema = schemaSupplier.get();
 
-      DatumReader<ValueT> datumReader = recordClass == null
-              ? new GenericDatumReader<>(schema)
-              : new ReflectDatumReader<>(schema);
+      DatumReader<ValueT> datumReader =
+          recordClass == null ? new GenericDatumReader<>(schema) : new ReflectDatumReader<>(schema);
       reader = new DataFileStream<>(Channels.newInputStream(channel), datumReader);
     }
 
@@ -117,7 +137,7 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
 
     private final Class<ValueT> recordClass;
     private final SerializableSchemaSupplier schemaSupplier;
-    private DataFileWriter<ValueT> writer;
+    private transient DataFileWriter<ValueT> writer;
 
     AvroWriter(Class<ValueT> recordClass, SerializableSchemaSupplier schemaSupplier) {
       this.recordClass = recordClass;
@@ -132,9 +152,8 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
     @Override
     public void prepareWrite(WritableByteChannel channel) throws Exception {
       final Schema schema = schemaSupplier.get();
-      DatumWriter<ValueT> datumWriter = recordClass == null
-              ? new GenericDatumWriter<>(schema)
-              : new ReflectDatumWriter<>(schema);
+      DatumWriter<ValueT> datumWriter =
+          recordClass == null ? new GenericDatumWriter<>(schema) : new ReflectDatumWriter<>(schema);
       writer = new DataFileWriter<>(datumWriter);
       writer.create(schema, Channels.newOutputStream(channel));
     }

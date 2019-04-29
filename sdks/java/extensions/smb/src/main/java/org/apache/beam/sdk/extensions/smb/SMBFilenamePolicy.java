@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.smb;
 
 import java.io.IOException;
@@ -12,6 +29,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 
+/** Naming policy for SMB files, on a per-bucket per-shard basis. */
 public final class SMBFilenamePolicy implements Serializable {
   private static final String TEMPDIR_TIMESTAMP = "yyyy-MM-dd_HH-mm-ss";
   private static final String BEAM_TEMPDIR_PATTERN = ".temp-beam-%s";
@@ -19,10 +37,7 @@ public final class SMBFilenamePolicy implements Serializable {
   private final ResourceId filenamePrefix;
   private final String fileNameSuffix;
 
-  public SMBFilenamePolicy(
-      ResourceId destinationPrefix,
-      String fileNameSuffix
-  ) {
+  public SMBFilenamePolicy(ResourceId destinationPrefix, String fileNameSuffix) {
     this.filenamePrefix = destinationPrefix;
     this.fileNameSuffix = fileNameSuffix;
   }
@@ -34,14 +49,15 @@ public final class SMBFilenamePolicy implements Serializable {
   public FileAssignment forTempFiles(ResourceId tempDirectory) {
     return new FileAssignment(
         tempDirectory.resolve(
-          String.format(
-              BEAM_TEMPDIR_PATTERN,
-              Instant.now().toString(DateTimeFormat.forPattern(TEMPDIR_TIMESTAMP))
-          ), StandardResolveOptions.RESOLVE_DIRECTORY),
+            String.format(
+                BEAM_TEMPDIR_PATTERN,
+                Instant.now().toString(DateTimeFormat.forPattern(TEMPDIR_TIMESTAMP))),
+            StandardResolveOptions.RESOLVE_DIRECTORY),
         fileNameSuffix,
         true);
   }
 
+  /** A file name assigner based on a specific output directory and file suffix. */
   public static class FileAssignment implements Serializable {
     private static final String BUCKET_TEMPLATE = "bucket-%d-of-%d";
     private static final String BUCKET_SHARD_TEMPLATE = BUCKET_TEMPLATE + "-shard-%d-of-%s.%s";
@@ -62,25 +78,38 @@ public final class SMBFilenamePolicy implements Serializable {
       this(filenamePrefix, fileNameSuffix, false);
     }
 
-    public ResourceId forBucketShard(int bucketNumber, int numBuckets, int shardNumber, int numShards) {
+    public ResourceId forBucketShard(
+        int bucketNumber, int numBuckets, int shardNumber, int numShards) {
       String prefix = "";
       if (doTimestampFiles) {
         prefix += Instant.now().toString(DateTimeFormat.forPattern(TIMESTAMP_TEMPLATE));
       }
 
       return filenamePrefix.resolve(
-          prefix + String.format(BUCKET_SHARD_TEMPLATE, bucketNumber, numBuckets, shardNumber, numShards, fileNameSuffix),
-          StandardResolveOptions.RESOLVE_FILE
-      );
+          prefix
+              + String.format(
+                  BUCKET_SHARD_TEMPLATE,
+                  bucketNumber,
+                  numBuckets,
+                  shardNumber,
+                  numShards,
+                  fileNameSuffix),
+          StandardResolveOptions.RESOLVE_FILE);
     }
 
     List<ResourceId> forAllBucketShards(int bucketNumber, int numBuckets) {
       final List<ResourceId> resourceIds = new ArrayList<>();
       try {
-        MatchResult matchResult = FileSystems
-            .match(filenamePrefix + String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets) + "*." + fileNameSuffix);
+        MatchResult matchResult =
+            FileSystems.match(
+                filenamePrefix
+                    + String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets)
+                    + "*."
+                    + fileNameSuffix);
 
-        matchResult.metadata().iterator()
+        matchResult
+            .metadata()
+            .iterator()
             .forEachRemaining(metadata -> resourceIds.add(metadata.resourceId()));
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -102,9 +131,9 @@ public final class SMBFilenamePolicy implements Serializable {
         return false;
       }
       FileAssignment that = (FileAssignment) o;
-      return doTimestampFiles == that.doTimestampFiles &&
-          Objects.equals(filenamePrefix, that.filenamePrefix) &&
-          Objects.equals(fileNameSuffix, that.fileNameSuffix);
+      return doTimestampFiles == that.doTimestampFiles
+          && Objects.equals(filenamePrefix, that.filenamePrefix)
+          && Objects.equals(fileNameSuffix, that.fileNameSuffix);
     }
 
     @Override

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.smb.avro;
 
 import java.io.Serializable;
@@ -22,7 +39,11 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
-// @Todo - use AutoValue builders
+/**
+ * Abstracts SMB sources and sinks for Avro-typed values.
+ *
+ * <p>Todo - use AutoValue builders
+ */
 public class AvroSortedBucketIO {
 
   public static <SortingKeyT, ValueT> SortedBucketSink<SortingKeyT, ValueT> sink(
@@ -30,8 +51,7 @@ public class AvroSortedBucketIO {
       ResourceId outputDirectory,
       ResourceId tempDirectory,
       Class<ValueT> recordClass,
-      Schema schema
-  ) {
+      Schema schema) {
     return new SortedBucketSink<>(
         bucketingMetadata,
         new SMBFilenamePolicy(outputDirectory, "avro"),
@@ -54,6 +74,7 @@ public class AvroSortedBucketIO {
 
   /**
    * Implements a typed SortedBucketSource for 2 sources.
+   *
    * @param <KeyT>
    * @param <V1>
    * @param <V2>
@@ -66,8 +87,7 @@ public class AvroSortedBucketIO {
     private Coder<V2> rightCoder;
     private Coder<KeyT> keyCoder;
 
-    SortedBucketSourceJoinBuilder(Coder<KeyT> keyCoder, Coder<V1> leftCoder,
-        Coder<V2> rightCoder) {
+    SortedBucketSourceJoinBuilder(Coder<KeyT> keyCoder, Coder<V1> leftCoder, Coder<V2> rightCoder) {
       this.keyCoder = keyCoder;
       this.leftCoder = leftCoder;
       this.rightCoder = rightCoder;
@@ -79,23 +99,23 @@ public class AvroSortedBucketIO {
     }
 
     public SortedBucketSourceJoinBuilder<KeyT, V1, V2> of(
-        ResourceId filenamePrefix,
-        Reader<V1> reader) {
-      this.leftSource = new KeyedBucketSource<KeyT, V1>(
-          new TupleTag<>("left"),
-          new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
-          reader);
+        ResourceId filenamePrefix, Reader<V1> reader) {
+      this.leftSource =
+          new KeyedBucketSource<KeyT, V1>(
+              new TupleTag<>("left"),
+              new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
+              reader);
 
       return this;
     }
 
     public SortedBucketSourceJoinBuilder<KeyT, V1, V2> and(
-        ResourceId filenamePrefix,
-        Reader<V2> reader) {
-      this.rightSource = new KeyedBucketSource<KeyT, V2>(
-          new TupleTag<>("right"),
-          new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
-          reader);
+        ResourceId filenamePrefix, Reader<V2> reader) {
+      this.rightSource =
+          new KeyedBucketSource<KeyT, V2>(
+              new TupleTag<>("right"),
+              new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
+              reader);
 
       return this;
     }
@@ -108,17 +128,16 @@ public class AvroSortedBucketIO {
             public KV<Iterable<V1>, Iterable<V2>> apply(SMBJoinResult input) {
               return KV.of(
                   input.getValuesForTag(new TupleTag<V1>("left")),
-                  input.getValuesForTag(new TupleTag<V2>("right"))
-              );
+                  input.getValuesForTag(new TupleTag<V2>("right")));
             }
 
             @Override
             public Coder<KV<Iterable<V1>, Iterable<V2>>> resultCoder() {
               return KvCoder.of(
                   NullableCoder.of(IterableCoder.of(leftCoder)),
-                  NullableCoder.of(IterableCoder.of(rightCoder))
-              );
-            }},
+                  NullableCoder.of(IterableCoder.of(rightCoder)));
+            }
+          },
           ImmutableList.of(leftSource, rightSource));
     }
   }

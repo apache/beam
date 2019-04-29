@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.smb.avro;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,58 +39,53 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+/** Tests Avro SMB source. */
 public class AvroSortedBucketSourceTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final TemporaryFolder source1Folder = new TemporaryFolder();
   @Rule public final TemporaryFolder source2Folder = new TemporaryFolder();
 
-  static final GenericRecord userA = TestUtils.createUserRecord("a", 50);
-  static final GenericRecord userB = TestUtils.createUserRecord("b", 50);
-  static final GenericRecord userC = TestUtils.createUserRecord("c", 25);
-  static final GenericRecord userD = TestUtils.createUserRecord("d", 25);
-  static final GenericRecord userE = TestUtils.createUserRecord("e", 75);
+  private static final GenericRecord USER_A = TestUtils.createUserRecord("a", 50);
+  private static final GenericRecord USER_B = TestUtils.createUserRecord("b", 50);
+  private static final GenericRecord USER_C = TestUtils.createUserRecord("c", 25);
+  private static final GenericRecord USER_D = TestUtils.createUserRecord("d", 25);
+  private static final GenericRecord USER_E = TestUtils.createUserRecord("e", 75);
 
-  private final AvroSortedBucketFile<GenericRecord> file = new AvroSortedBucketFile<>(
-      GenericRecord.class, TestUtils.schema);
+  private final AvroSortedBucketFile<GenericRecord> file =
+      new AvroSortedBucketFile<>(GenericRecord.class, TestUtils.SCHEMA);
 
   // Write two sources with GenericRecords + metadata
   @Before
   public void setUp() throws Exception {
-    SMBFilenamePolicy filenamePolicySource1;
-    SMBFilenamePolicy filenamePolicySource2;
+    final SMBFilenamePolicy filenamePolicySource1 =
+        new SMBFilenamePolicy(LocalResources.fromFile(source1Folder.getRoot(), true), "avro");
 
-    filenamePolicySource1 = new SMBFilenamePolicy(
-        LocalResources.fromFile(source1Folder.getRoot(), true),
-        "avro"
-    );
+    final SMBFilenamePolicy filenamePolicySource2 =
+        new SMBFilenamePolicy(LocalResources.fromFile(source2Folder.getRoot(), true), "avro");
 
-    filenamePolicySource2 = new SMBFilenamePolicy(
-        LocalResources.fromFile(source2Folder.getRoot(), true),
-        "avro"
-    );
+    final Writer<GenericRecord> writer = file.createWriter();
 
-    Writer<GenericRecord> writer1 = file.createWriter();
+    writer.prepareWrite(
+        FileSystems.create(
+            filenamePolicySource1.forDestination().forBucketShard(0, 1, 1, 1),
+            file.createWriter().getMimeType()));
 
-    writer1.prepareWrite(FileSystems.create(
-        filenamePolicySource1.forDestination()
-            .forBucketShard(0, 1, 1, 1),
-        file.createWriter().getMimeType()));
+    writer.write(USER_C);
+    writer.write(USER_A);
+    writer.write(USER_A);
+    writer.write(USER_E);
+    writer.finishWrite();
 
-    writer1.write(userC);
-    writer1.write(userA);
-    writer1.write(userA);
-    writer1.write(userE);
-    writer1.finishWrite();
+    writer.prepareWrite(
+        FileSystems.create(
+            filenamePolicySource2.forDestination().forBucketShard(0, 1, 1, 1),
+            file.createWriter().getMimeType()));
+    writer.write(USER_D);
+    writer.write(USER_B);
+    writer.finishWrite();
 
-    writer1.prepareWrite(FileSystems.create(
-        filenamePolicySource2.forDestination()
-            .forBucketShard(0, 1, 1, 1),
-        file.createWriter().getMimeType()));
-    writer1.write(userD);
-    writer1.write(userB);
-    writer1.finishWrite();
-
-    final BucketMetadata<Integer, GenericRecord> metadata = TestUtils.tryCreateMetadata(1, HashType.MURMUR3_32);
+    final BucketMetadata<Integer, GenericRecord> metadata =
+        TestUtils.tryCreateMetadata(1, HashType.MURMUR3_32);
 
     final ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.writeValue(
@@ -85,22 +97,24 @@ public class AvroSortedBucketSourceTest {
 
   @Test
   public void testSources() {
-    final SortedBucketSource<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>> sourceTransform =
-        AvroSortedBucketIO.SortedBucketSourceJoinBuilder.of(
-            VarIntCoder.of(), AvroCoder.of(TestUtils.schema), AvroCoder.of(TestUtils.schema)
-        ).of(LocalResources.fromFile(source1Folder.getRoot(), true), file.createReader())
-        .and(LocalResources.fromFile(source2Folder.getRoot(), true), file.createReader())
-        .build();
+    final SortedBucketSource<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>
+        sourceTransform =
+            AvroSortedBucketIO.SortedBucketSourceJoinBuilder.of(
+                    VarIntCoder.of(),
+                    AvroCoder.of(TestUtils.SCHEMA),
+                    AvroCoder.of(TestUtils.SCHEMA))
+                .of(LocalResources.fromFile(source1Folder.getRoot(), true), file.createReader())
+                .and(LocalResources.fromFile(source2Folder.getRoot(), true), file.createReader())
+                .build();
 
+    final PCollection<KV<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>>
+        joinedSources = pipeline.apply(sourceTransform);
 
-    final PCollection<KV<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>> joinedSources =
-        pipeline.apply(sourceTransform);
-
-    PAssert.that(joinedSources).containsInAnyOrder(
-        KV.of(50, KV.of(ImmutableList.of(userA, userA), ImmutableList.of(userB))),
-        KV.of(25, KV.of(ImmutableList.of(userC), ImmutableList.of(userD))),
-        KV.of(75, KV.of(ImmutableList.of(userE), null))
-    );
+    PAssert.that(joinedSources)
+        .containsInAnyOrder(
+            KV.of(50, KV.of(ImmutableList.of(USER_A, USER_A), ImmutableList.of(USER_B))),
+            KV.of(25, KV.of(ImmutableList.of(USER_C), ImmutableList.of(USER_D))),
+            KV.of(75, KV.of(ImmutableList.of(USER_E), null)));
 
     pipeline.run();
   }
