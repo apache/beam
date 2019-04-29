@@ -27,11 +27,15 @@ from apache_beam.coders import BytesCoder
 from apache_beam.coders import IterableCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import VarIntCoder
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
+from apache_beam.transforms import window
 from apache_beam.transforms.combiners import ToListCombineFn
 from apache_beam.transforms.combiners import TopCombineFn
 from apache_beam.transforms.core import DoFn
@@ -510,20 +514,24 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       def emit_callback_1(self,
                           window=DoFn.WindowParam,
                           ts=DoFn.TimestampParam):
-        yield ('timer1', int(ts), ts.start, ts.end)
+        yield ('timer1', int(ts), int(window.start), int(window.end))
 
-    with TestPipeline() as p:
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=pipeline_options) as p:
       test_stream = (TestStream()
                      .advance_watermark_to(10)
                      .add_elements([1]))
       (p
        | test_stream
        | beam.Map(lambda x: ('mykey', x))
+       | "window_into" >> beam.WindowInto(window.FixedWindows(5),
+                                          accumulation_mode=trigger.AccumulationMode.DISCARDING)
        | beam.ParDo(TimerEmittingStatefulDoFn())
        | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(
-        [('timer1', 10, 0, 10)],
+        [('timer1', 10, 10, 15)],
         sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_index_assignment(self):
