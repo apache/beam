@@ -47,6 +47,7 @@ import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
@@ -66,6 +67,7 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -822,7 +824,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         keyContextConsumer.accept(kv.getKey());
         for (String userState : userStateNames) {
           StateNamespace namespace = StateNamespaces.window(windowCoder, kv.getValue());
-          BagState<?> state = stateInternals.state(namespace, StateTags.bag(userState, null));
+          StateTag<BagState<Void>> bagStateStateTag = StateTags.bag(userState, VoidCoder.of());
+          BagState<?> state = stateInternals.state(namespace, bagStateStateTag);
           state.clear();
         }
       }
