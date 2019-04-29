@@ -337,7 +337,6 @@ class BigQueryWrapper(object):
                     writeDisposition=write_disposition,
                     createDisposition=create_disposition,
                     sourceFormat='NEWLINE_DELIMITED_JSON',
-                    autodetect=schema is None,
                 )
             ),
             jobReference=reference,
