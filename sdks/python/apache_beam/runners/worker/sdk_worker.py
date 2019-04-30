@@ -42,6 +42,7 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.token_auth_interceptor import TokenAuthInterceptor
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
@@ -51,11 +52,12 @@ class SdkHarness(object):
 
   def __init__(
       self, control_address, worker_count, credentials=None, worker_id=None,
-      profiler_factory=None):
+      profiler_factory=None, token=None):
     self._alive = True
     self._worker_count = worker_count
     self._worker_index = 0
     self._worker_id = worker_id
+    self._token = token
     if credentials is None:
       logging.info('Creating insecure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.insecure_channel(
@@ -68,10 +70,10 @@ class SdkHarness(object):
     logging.info('Control channel established.')
 
     self._control_channel = grpc.intercept_channel(
-        self._control_channel, WorkerIdInterceptor(self._worker_id))
+        self._control_channel, WorkerIdInterceptor(self._worker_id), TokenAuthInterceptor(token))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
-        credentials)
-    self._state_handler_factory = GrpcStateHandlerFactory(credentials)
+        credentials=credentials, token=token)
+    self._state_handler_factory = GrpcStateHandlerFactory(credentials=credentials, token=token)
     self._profiler_factory = profiler_factory
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.
@@ -363,11 +365,12 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
   Caches the created channels by ``state descriptor url``.
   """
 
-  def __init__(self, credentials=None):
+  def __init__(self, credentials=None, token=None):
     self._state_handler_cache = {}
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
     self._credentials = credentials
+    self._token = token
 
   def create_state_handler(self, api_service_descriptor):
     if not api_service_descriptor:
@@ -392,7 +395,8 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           logging.info('State channel established.')
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,
-                                                WorkerIdInterceptor())
+                                                WorkerIdInterceptor(),
+                                                TokenAuthInterceptor(self._token))
           self._state_handler_cache[url] = GrpcStateHandler(
               beam_fn_api_pb2_grpc.BeamFnStateStub(grpc_channel))
     return self._state_handler_cache[url]

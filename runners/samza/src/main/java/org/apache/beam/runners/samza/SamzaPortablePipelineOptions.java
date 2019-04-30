@@ -33,4 +33,11 @@ public interface SamzaPortablePipelineOptions extends SamzaPipelineOptions {
   int getControlPort();
 
   void setControlPort(int port);
+
+  @Description(
+      "The file path for the local file system token. If not set (by default), then the runner would"
+          + " not use secure server factory.")
+  String getFsTokenPath();
+
+  void setFsTokenPath(String path);
 }

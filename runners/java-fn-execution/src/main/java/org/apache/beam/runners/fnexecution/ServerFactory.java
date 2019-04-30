@@ -30,14 +30,21 @@ import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Context;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Contexts;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerCall;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerCallHandler;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerInterceptor;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerInterceptors;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.NettyServerBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollEventLoopGroup;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollServerDomainSocketChannel;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollServerSocketChannel;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p13p1.io.netty.util.internal.StringUtil;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.util.internal.ThreadLocalRandom;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 
@@ -70,6 +77,15 @@ public abstract class ServerFactory {
     return new InetSocketAddressServerFactory(urlFactory, portSupplier);
   }
 
+  /**
+   * Create a {@link SecureLocalServerFactory} that uses the ports from a supplier and the given fs
+   * token.
+   */
+  public static ServerFactory createSecureLocalServerFactory(
+      Supplier<Integer> portSupplier, String token) throws IOException {
+    return new SecureLocalServerFactory(UrlFactory.createDefault(), portSupplier, token);
+  }
+
   /** Create a {@link EpollSocket}. */
   public static ServerFactory createEpollSocket() {
     return new EpollSocket();
@@ -99,6 +115,7 @@ public abstract class ServerFactory {
   public abstract Server create(
       List<BindableService> services, Endpoints.ApiServiceDescriptor serviceDescriptor)
       throws IOException;
+
   /**
    * Creates a {@link Server gRPC Server} using the default server factory.
    *
@@ -112,7 +129,7 @@ public abstract class ServerFactory {
       this(urlFactory, () -> 0);
     }
 
-    private InetSocketAddressServerFactory(UrlFactory urlFactory, Supplier<Integer> portSupplier) {
+    InetSocketAddressServerFactory(UrlFactory urlFactory, Supplier<Integer> portSupplier) {
       this.urlFactory = urlFactory;
       this.portSupplier = portSupplier;
     }
@@ -142,7 +159,7 @@ public abstract class ServerFactory {
       return createServer(services, (InetSocketAddress) socketAddress);
     }
 
-    private static Server createServer(List<BindableService> services, InetSocketAddress socket)
+    protected Server createServer(List<BindableService> services, InetSocketAddress socket)
         throws IOException {
       NettyServerBuilder builder =
           NettyServerBuilder.forPort(socket.getPort())
@@ -156,6 +173,58 @@ public abstract class ServerFactory {
                   builder.addService(
                       ServerInterceptors.intercept(
                           service, GrpcContextHeaderAccessorProvider.interceptor())));
+      return builder.build().start();
+    }
+  }
+
+  /**
+   * Creates a {@link Server gRPC Server} with file system based local token authentication enabled
+   * that provides basic security for non-VM, multi-tenant environment. The creation of the server
+   * requires the socket address to be "loopback".
+   */
+  public static class SecureLocalServerFactory extends InetSocketAddressServerFactory {
+    private static final Metadata.Key<String> FS_TOKEN_KEY =
+        Metadata.Key.of("fs_token", Metadata.ASCII_STRING_MARSHALLER);
+    private final String token;
+
+    private SecureLocalServerFactory(
+        UrlFactory urlFactory, Supplier<Integer> portSupplier, String token) throws IOException {
+      super(urlFactory, portSupplier);
+      this.token = token;
+    }
+
+    private final ServerInterceptor INTERCEPTOR =
+        new ServerInterceptor() {
+          @Override
+          public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+              ServerCall<ReqT, RespT> call,
+              Metadata requestHeaders,
+              ServerCallHandler<ReqT, RespT> next) {
+            String requestToken = requestHeaders.get(FS_TOKEN_KEY);
+            if (StringUtil.isNullOrEmpty(requestToken)) {
+              throw new RuntimeException("Null or empty request token.");
+            }
+            if (!token.equals(requestToken)) {
+              throw new RuntimeException("Incorrect request token.");
+            }
+            return Contexts.interceptCall(Context.current(), call, requestHeaders, next);
+          }
+        };
+
+    @Override
+    protected Server createServer(List<BindableService> services, InetSocketAddress socket)
+        throws IOException {
+      checkArgument(socket.getAddress().isLoopbackAddress(), "Loopback address not specified");
+      NettyServerBuilder builder =
+          NettyServerBuilder.forAddress(socket)
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
+      services.stream()
+          .forEach(
+              service ->
+                  builder.addService(
+                      ServerInterceptors.intercept(
+                          service, GrpcContextHeaderAccessorProvider.interceptor(), INTERCEPTOR)));
       return builder.build().start();
     }
   }

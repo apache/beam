@@ -123,6 +123,12 @@ def main(unused_argv):
 
   logging.info('semi_persistent_directory: %s', semi_persistent_directory)
 
+  token = None
+  if 'LOCAL_TOKEN_PATH' in os.environ:
+    token_path = os.environ['LOCAL_TOKEN_PATH']
+    with open(token_path, "r") as token_file:
+      token = token_file.read().replace('\n','')
+
   try:
     _load_main_session(semi_persistent_directory)
   except Exception:  # pylint: disable=broad-except
@@ -142,7 +148,8 @@ def main(unused_argv):
         control_address=service_descriptor.url,
         worker_count=_get_worker_count(sdk_pipeline_options),
         profiler_factory=profiler.Profile.factory_from_options(
-            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
+            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions)),
+        token=token
     ).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
