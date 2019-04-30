@@ -31,6 +31,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pubsub_v1 "github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio/v1"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
@@ -129,7 +130,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 	case graphx.URNParDo:
 		var payload pb.ParDoPayload
 		if err := proto.Unmarshal(t.Spec.Payload, &payload); err != nil {
-			return nil, fmt.Errorf("invalid ParDo payload for %v: %v", t, err)
+			return nil, errors.Wrapf(err, "invalid ParDo payload for %v", t)
 		}
 
 		var steps []*df.Step
@@ -174,24 +175,24 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		// Combine ParDo with the CombineValues kind, set its SerializedFn to map to the
 		// composite payload, and the accumulator coding.
 		if len(t.Subtransforms) != 2 {
-			return nil, fmt.Errorf("invalid CombinePerKey, expected 2 subtransforms but got %d in %v", len(t.Subtransforms), t)
+			return nil, errors.Errorf("invalid CombinePerKey, expected 2 subtransforms but got %d in %v", len(t.Subtransforms), t)
 		}
 		steps, err := x.translateTransforms(fmt.Sprintf("%v%v/", trunk, path.Base(t.UniqueName)), t.Subtransforms)
 		if err != nil {
-			return nil, fmt.Errorf("invalid CombinePerKey, couldn't extract GBK from %v: %v", t, err)
+			return nil, errors.Wrapf(err, "invalid CombinePerKey, couldn't extract GBK from %v", t)
 		}
 		var payload pb.CombinePayload
 		if err := proto.Unmarshal(t.Spec.Payload, &payload); err != nil {
-			return nil, fmt.Errorf("invalid Combine payload for %v: %v", t, err)
+			return nil, errors.Wrapf(err, "invalid Combine payload for %v", t)
 		}
 
 		c, err := x.coders.Coder(payload.AccumulatorCoderId)
 		if err != nil {
-			return nil, fmt.Errorf("invalid Combine payload , missing Accumulator Coder %v: %v", t, err)
+			return nil, errors.Wrapf(err, "invalid Combine payload , missing Accumulator Coder %v", t)
 		}
 		enc, err := graphx.EncodeCoderRef(c)
 		if err != nil {
-			return nil, fmt.Errorf("invalid Combine payload, couldn't encode Accumulator Coder %v: %v", t, err)
+			return nil, errors.Wrapf(err, "invalid Combine payload, couldn't encode Accumulator Coder %v", t)
 		}
 		json.Unmarshal([]byte(steps[1].Properties), &prop)
 		prop.Encoding = enc
@@ -226,7 +227,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 
 		var msg pubsub_v1.PubSubPayload
 		if err := proto.Unmarshal(t.Spec.Payload, &msg); err != nil {
-			return nil, fmt.Errorf("bad pubsub payload: %v", err)
+			return nil, errors.Wrap(err, "bad pubsub payload")
 		}
 
 		prop.Format = "pubsub"
@@ -252,7 +253,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 			return []*df.Step{x.newStep(id, writeKind, prop)}, nil
 
 		default:
-			return nil, fmt.Errorf("bad pubsub op: %v", msg.Op)
+			return nil, errors.Errorf("bad pubsub op: %v", msg.Op)
 		}
 
 	default:
@@ -260,7 +261,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 			return x.translateTransforms(fmt.Sprintf("%v%v/", trunk, path.Base(t.UniqueName)), t.Subtransforms)
 		}
 
-		return nil, fmt.Errorf("unexpected primitive urn: %v", t)
+		return nil, errors.Errorf("unexpected primitive urn: %v", t)
 	}
 }
 
@@ -320,11 +321,11 @@ func (x *translator) wrapCoder(pcol *pb.PCollection, c *coder.Coder) *graphx.Cod
 	ws := x.comp.WindowingStrategies[pcol.WindowingStrategyId]
 	wc, err := x.coders.WindowCoder(ws.WindowCoderId)
 	if err != nil {
-		panic(fmt.Sprintf("failed to decode window coder %v for windowing strategy %v: %v", ws.WindowCoderId, pcol.WindowingStrategyId, err))
+		panic(errors.Wrapf(err, "failed to decode window coder %v for windowing strategy %v", ws.WindowCoderId, pcol.WindowingStrategyId))
 	}
 	ret, err := graphx.EncodeCoderRef(coder.NewW(c, wc))
 	if err != nil {
-		panic(fmt.Sprintf("failed to wrap coder %v for windowing strategy %v: %v", c, pcol.WindowingStrategyId, err))
+		panic(errors.Wrapf(err, "failed to wrap coder %v for windowing strategy %v", c, pcol.WindowingStrategyId))
 	}
 	return ret
 }
