@@ -679,7 +679,7 @@ public class ExecutableStageDoFnOperatorTest {
             createOutputMap(mainOutput, additionalOutputs),
             windowingStrategy,
             keyCoder,
-            null);
+            keyCoder != null ? new KvToByteBufferKeySelector<>(keyCoder) : null);
 
     Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
     return operator;
