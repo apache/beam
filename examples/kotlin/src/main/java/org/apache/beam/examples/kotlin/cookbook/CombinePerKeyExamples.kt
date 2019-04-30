@@ -113,9 +113,7 @@ object CombinePerKeyExamples {
             val words = rows.apply(ParDo.of(ExtractLargeWordsFn()))
 
             // word, play_name => word, all_plays ...
-            val wordAllPlays = words.apply(Combine.perKey {
-                ConcatWords().apply(it)
-            })
+            val wordAllPlays = words.apply<PCollection<KV<String, String>>>(Combine.perKey(ConcatWords()))
 
             // <word, all_plays>... => row...
 
