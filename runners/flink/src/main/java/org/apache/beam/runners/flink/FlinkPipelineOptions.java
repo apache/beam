@@ -235,4 +235,11 @@ public interface FlinkPipelineOptions
   Boolean getAllowNonRestoredState();
 
   void setAllowNonRestoredState(Boolean allowNonRestoredState);
+
+  @Description(
+      "Flag indicating whether auto-balance sharding for WriteFiles transform should be enabled.")
+  @Default.Boolean(false)
+  Boolean isAutoBalanceWriteFilesShardingEnabled();
+
+  void setAutoBalanceWriteFilesShardingEnabled(Boolean autoBalanceWriteFilesShardingEnabled);
 }

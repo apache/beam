@@ -17,27 +17,47 @@
  */
 package org.apache.beam.runners.flink;
 
-import java.util.Collections;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.ShardedKeyCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.ShardingFunction;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -169,6 +189,29 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     }
   }
 
+  static PTransformMatcher writeFilesNeedsOverrides() {
+    return application -> {
+      if (WRITE_FILES_TRANSFORM_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
+        try {
+          FlinkPipelineOptions options =
+              application.getPipeline().getOptions().as(FlinkPipelineOptions.class);
+          ShardingFunction shardingFn =
+              WriteFilesTranslation.getShardingFunction((AppliedPTransform) application);
+          return WriteFilesTranslation.isRunnerDeterminedSharding((AppliedPTransform) application)
+              || (options.isAutoBalanceWriteFilesShardingEnabled() && shardingFn == null);
+        } catch (IOException exc) {
+          throw new RuntimeException(
+              String.format(
+                  "Transform with URN %s failed to parse: %s",
+                  WRITE_FILES_TRANSFORM_URN, application.getTransform()),
+              exc);
+        }
+      }
+      return false;
+    };
+  }
+
   @VisibleForTesting
   static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
       implements PTransformOverrideFactory<
@@ -211,6 +254,23 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
         if (WriteFilesTranslation.isWindowedWrites(transform)) {
           replacement = replacement.withWindowedWrites();
         }
+
+        if (options.isAutoBalanceWriteFilesShardingEnabled()) {
+          Preconditions.checkArgument(
+              options.getParallelism() > 0,
+              "Parallelism is required to be set in FlinkPipelineOptions when isAutoBalanceWriteFilesShardingEnabled");
+          Preconditions.checkArgument(
+              options.getMaxParallelism() > 0,
+              "MaxParallelism is required to be set in FlinkPipelineOptions when isAutoBalanceWriteFilesShardingEnabled");
+
+          replacement =
+              replacement.withShardingFunction(
+                  new FlinkAutoBalancedShardKeyShardingFunction<>(
+                      options.getParallelism(),
+                      options.getMaxParallelism(),
+                      sink.getDynamicDestinations().getDestinationCoder()));
+        }
+
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             replacement.withNumShards(numShards));
@@ -222,7 +282,117 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
         Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
-      return Collections.emptyMap();
+      return ReplacementOutputs.tagged(outputs, newOutput);
+    }
+  }
+
+  /**
+   * Flink has a known problem of unevenly assigning keys to key groups (and then workers) for cases
+   * that number of keys is not >> key groups. This is typical scenario when writing files, where
+   * one do not want to end up with too many small files. This {@link ShardingFunction} implements
+   * what was suggested on Flink's <a
+   * href="http://mail-archives.apache.org/mod_mbox/flink-dev/201901.mbox/%3CCAOUjMkygmFMDbOJNCmndrZ0bYug=iQJmVz6QvMW7C87n=pw8SQ@mail.gmail.com%3E">mailing
+   * list</a> and properly chooses shard keys in a way that they are distributed evenly among
+   * workers by Flink.
+   */
+  private static class FlinkAutoBalancedShardKeyShardingFunction<UserT, DestinationT>
+      implements ShardingFunction<UserT, DestinationT> {
+
+    private final int parallelism;
+    private final int maxParallelism;
+    private final Coder<DestinationT> destinationCoder;
+    private final Map<CacheKey, ShardedKey<Integer>> cache = new HashMap<>();
+    private final Set<Integer> usedSalts = new HashSet<>();
+
+    private int shardNumber = -1;
+
+    private FlinkAutoBalancedShardKeyShardingFunction(
+        int parallelism, int maxParallelism, Coder<DestinationT> destinationCoder) {
+      this.parallelism = parallelism;
+      this.maxParallelism = maxParallelism;
+      this.destinationCoder = destinationCoder;
+    }
+
+    @Override
+    public ShardedKey<Integer> assignShardKey(
+        DestinationT destination, UserT element, int shardCount) throws Exception {
+
+      if (shardNumber == -1) {
+        shardNumber = ThreadLocalRandom.current().nextInt(shardCount);
+      } else {
+        shardNumber = (shardNumber + 1) % shardCount;
+      }
+
+      int destinationKey =
+          Arrays.hashCode(CoderUtils.encodeToByteArray(destinationCoder, destination));
+      // we need to ensure that keys are always stable no matter at which worker they
+      // are created and what is an order of observed shard numbers
+      if (cache.size() < shardNumber) {
+        for (int i = 0; i < shardNumber; i++) {
+          generateInternal(new CacheKey(destinationKey, i));
+        }
+      }
+
+      return generateInternal(new CacheKey(destinationKey, shardNumber));
+    }
+
+    private ShardedKey<Integer> generateInternal(CacheKey key) {
+
+      ShardedKey<Integer> result = cache.get(key);
+      if (result != null) {
+        return result;
+      }
+
+      int salt = -1;
+      while (true) {
+        salt++;
+        ShardedKey<Integer> shk = ShardedKey.of(Objects.hash(key.key, salt), key.shard);
+        int targetPartition = key.shard % parallelism;
+
+        // create effective key in the same way Beam/Flink will do so we can see if it gets
+        // allocated to the partition we want
+        ByteBuffer effectiveKey;
+        try {
+          byte[] bytes = CoderUtils.encodeToByteArray(ShardedKeyCoder.of(VarIntCoder.of()), shk);
+          effectiveKey = ByteBuffer.wrap(bytes);
+        } catch (CoderException e) {
+          throw new RuntimeException(e);
+        }
+
+        int partition =
+            KeyGroupRangeAssignment.assignKeyToParallelOperator(
+                effectiveKey, maxParallelism, parallelism);
+
+        if (partition == targetPartition && !usedSalts.contains(salt)) {
+          usedSalts.add(salt);
+          cache.put(key, shk);
+          return shk;
+        }
+      }
+    }
+
+    private static class CacheKey implements Serializable {
+      private final int key;
+      private final int shard;
+
+      private CacheKey(int key, int shard) {
+        this.key = key;
+        this.shard = shard;
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hash(key, shard);
+      }
+
+      @Override
+      public boolean equals(Object obj) {
+        if (obj instanceof CacheKey) {
+          CacheKey o = (CacheKey) obj;
+          return o.key == key && o.shard == shard;
+        }
+        return false;
+      }
     }
   }
 }

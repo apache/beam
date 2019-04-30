@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
@@ -85,6 +86,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
@@ -277,6 +279,36 @@ public class WriteFilesTest {
         IDENTITY_MAP,
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink()).withNumShards(20));
+  }
+
+  /**
+   * Test that WriteFiles with a configured sharding function distributes elements according to
+   * assigned key. Test use simple sharding which co-locate same elements into same shard.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCustomShardingFunctionWrite() throws IOException {
+    runShardedWrite(
+        Arrays.asList("1", "2", "3", "1", "2", "3"),
+        IDENTITY_MAP,
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink())
+            .withNumShards(4)
+            .withShardingFunction(new TestShardingFunction()),
+        new BiFunction<Integer, List<String>, Void>() {
+          @Override
+          public Void apply(Integer shardNumber, List<String> shardContent) {
+            // Function creates only shards 1,2,3 but WriteFiles will ensure shard 0 with empty
+            // content will be created as well
+            if (shardNumber == 0) {
+              assertTrue(shardContent.isEmpty());
+            } else {
+              assertEquals(
+                  Lists.newArrayList(shardNumber.toString(), shardNumber.toString()), shardContent);
+            }
+            return null;
+          }
+        });
   }
 
   /** Test a WriteFiles transform with an empty PCollection. */
@@ -671,6 +703,20 @@ public class WriteFilesTest {
   }
 
   /**
+   * Same as {@link #runShardedWrite(List, PTransform, String, WriteFiles, BiFunction)} but without
+   * shard content check. This means content will be checked only globally, that shards together
+   * contains written input and not content per shard
+   */
+  private void runShardedWrite(
+      List<String> inputs,
+      PTransform<PCollection<String>, PCollection<String>> transform,
+      String baseName,
+      WriteFiles<String, ?, String> write)
+      throws IOException {
+    runShardedWrite(inputs, transform, baseName, write, null);
+  }
+
+  /**
    * Performs a WriteFiles transform with the desired number of shards. Verifies the WriteFiles
    * transform calls the appropriate methods on a test sink in the correct order, as well as
    * verifies that the elements of a PCollection are written to the sink. If numConfiguredShards is
@@ -680,7 +726,8 @@ public class WriteFilesTest {
       List<String> inputs,
       PTransform<PCollection<String>, PCollection<String>> transform,
       String baseName,
-      WriteFiles<String, ?, String> write)
+      WriteFiles<String, ?, String> write,
+      BiFunction<Integer, List<String>, Void> shardContentChecker)
       throws IOException {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
@@ -703,7 +750,7 @@ public class WriteFilesTest {
         (write.getNumShardsProvider() != null && !write.getWindowedWrites())
             ? Optional.of(write.getNumShardsProvider().get())
             : Optional.absent();
-    checkFileContents(baseName, inputs, numShards, !write.getWindowedWrites());
+    checkFileContents(baseName, inputs, numShards, !write.getWindowedWrites(), shardContentChecker);
   }
 
   static void checkFileContents(
@@ -711,6 +758,16 @@ public class WriteFilesTest {
       List<String> inputs,
       Optional<Integer> numExpectedShards,
       boolean expectRemovedTempDirectory)
+      throws IOException {
+    checkFileContents(baseName, inputs, numExpectedShards, expectRemovedTempDirectory, null);
+  }
+
+  static void checkFileContents(
+      String baseName,
+      List<String> inputs,
+      Optional<Integer> numExpectedShards,
+      boolean expectRemovedTempDirectory,
+      BiFunction<Integer, List<String>, Void> shardContentChecker)
       throws IOException {
     List<File> outputFiles = Lists.newArrayList();
     final String pattern = baseName + "*";
@@ -720,9 +777,9 @@ public class WriteFilesTest {
       outputFiles.add(new File(meta.resourceId().toString()));
     }
     assertFalse("Should have produced at least 1 output file", outputFiles.isEmpty());
+    Pattern shardPattern = Pattern.compile("(\\d{4})-of-\\d{4}");
     if (numExpectedShards.isPresent()) {
       assertEquals(numExpectedShards.get().intValue(), outputFiles.size());
-      Pattern shardPattern = Pattern.compile("\\d{4}-of-\\d{4}");
 
       Set<String> expectedShards = Sets.newHashSet();
       DecimalFormat df = new DecimalFormat("0000");
@@ -742,6 +799,7 @@ public class WriteFilesTest {
 
     List<String> actual = Lists.newArrayList();
     for (File outputFile : outputFiles) {
+      List<String> actualShard = Lists.newArrayList();
       try (BufferedReader reader = Files.newBufferedReader(outputFile.toPath(), Charsets.UTF_8)) {
         for (; ; ) {
           String line = reader.readLine();
@@ -749,10 +807,17 @@ public class WriteFilesTest {
             break;
           }
           if (!line.equals(SimpleWriter.HEADER) && !line.equals(SimpleWriter.FOOTER)) {
-            actual.add(line);
+            actualShard.add(line);
           }
         }
       }
+      if (shardContentChecker != null) {
+        Matcher matcher = shardPattern.matcher(outputFile.getName());
+        matcher.find();
+        int shardNumber = Integer.parseInt(matcher.group(1));
+        shardContentChecker.apply(shardNumber, actualShard);
+      }
+      actual.addAll(actualShard);
     }
     assertThat(actual, containsInAnyOrder(inputs.toArray()));
     if (expectRemovedTempDirectory) {
@@ -790,6 +855,15 @@ public class WriteFilesTest {
           .apply(Top.largest(1))
           .apply(Flatten.iterables())
           .apply(View.asSingleton());
+    }
+  }
+
+  private static class TestShardingFunction implements ShardingFunction<String, Void> {
+    @Override
+    public ShardedKey<Integer> assignShardKey(Void destination, String element, int shardCount)
+        throws Exception {
+      int shard = Integer.parseInt(element);
+      return ShardedKey.of(0, shard);
     }
   }
 }
