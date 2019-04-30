@@ -130,7 +130,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  private final DirectOptions options;
+  private DirectOptions options;
   private final Set<Enforcement> enabledEnforcements;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
   private static final ObjectMapper MAPPER =
@@ -139,28 +139,12 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   /** Construct a {@link DirectRunner} from the provided options. */
   public static DirectRunner fromOptions(PipelineOptions options) {
-    try {
-      options =
-          MAPPER
-              .readValue(MAPPER.writeValueAsBytes(options), PipelineOptions.class)
-              .as(DirectOptions.class);
-    } catch (IOException e) {
-      throw new IllegalArgumentException(
-          "PipelineOptions specified failed to serialize to JSON.", e);
-    }
-
     return new DirectRunner(options.as(DirectOptions.class));
   }
 
   private DirectRunner(DirectOptions options) {
     this.options = options;
     this.enabledEnforcements = Enforcement.enabled(options);
-  }
-
-  /** For testing purpose only. */
-  @VisibleForTesting
-  protected PipelineOptions getPipelineOptions() {
-    return options;
   }
 
   Supplier<Clock> getClockSupplier() {
@@ -173,6 +157,16 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   @Override
   public DirectPipelineResult run(Pipeline pipeline) {
+    try {
+      options =
+          MAPPER
+              .readValue(MAPPER.writeValueAsBytes(options), PipelineOptions.class)
+              .as(DirectOptions.class);
+    } catch (IOException e) {
+      throw new IllegalArgumentException(
+          "PipelineOptions specified failed to serialize to JSON.", e);
+    }
+
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
     try {

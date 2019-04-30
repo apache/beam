@@ -591,15 +591,29 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testFromOptionsIfIgnoredFieldsGettingDropped() {
     TestSerializationOfOptions options =
-        PipelineOptionsFactory.fromArgs("--foo=testValue", "--ignoredField=overridden")
+        PipelineOptionsFactory.fromArgs(
+                "--foo=testValue", "--ignoredField=overridden", "--runner=DirectRunner")
             .as(TestSerializationOfOptions.class);
 
     assertEquals("testValue", options.getFoo());
     assertEquals("overridden", options.getIgnoredField());
-    options =
-        DirectRunner.fromOptions(options).getPipelineOptions().as(TestSerializationOfOptions.class);
-    assertEquals("testValue", options.getFoo());
-    assertEquals("not overridden", options.getIgnoredField());
+    Pipeline p = Pipeline.create(options);
+    PCollection<Integer> pc =
+        p.apply(Create.of("1"))
+            .apply(
+                ParDo.of(
+                    new DoFn<String, Integer>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        TestSerializationOfOptions options =
+                            c.getPipelineOptions().as(TestSerializationOfOptions.class);
+                        assertEquals("testValue", options.getFoo());
+                        assertEquals("not overridden", options.getIgnoredField());
+                        c.output(Integer.parseInt(c.element()));
+                      }
+                    }));
+    PAssert.that(pc).containsInAnyOrder(1);
+    p.run();
   }
 
   /**
