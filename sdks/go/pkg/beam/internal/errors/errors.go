@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package errors contains functionality for creating and wrapping errors with improved formatting
+// compared to the standard Go error functionality.
 package errors
 
 import (
