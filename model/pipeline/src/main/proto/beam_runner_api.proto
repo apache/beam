@@ -535,6 +535,8 @@ message WriteFilesPayload {
   bool runner_determined_sharding = 4;
 
   map<string, SideInput> side_inputs = 5;
+
+  SdkFunctionSpec sharding_function = 6;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
