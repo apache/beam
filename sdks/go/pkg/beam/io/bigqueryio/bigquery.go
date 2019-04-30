@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	bq "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
@@ -67,14 +68,14 @@ func NewQualifiedTableName(s string) (QualifiedTableName, error) {
 	c := strings.LastIndex(s, ":")
 	d := strings.LastIndex(s, ".")
 	if c == -1 || d == -1 || d < c {
-		return QualifiedTableName{}, fmt.Errorf("table name missing components: %v", s)
+		return QualifiedTableName{}, errors.Errorf("table name missing components: %v", s)
 	}
 
 	project := s[:c]
 	dataset := s[c+1 : d]
 	table := s[d+1:]
 	if strings.TrimSpace(project) == "" || strings.TrimSpace(dataset) == "" || strings.TrimSpace(table) == "" {
-		return QualifiedTableName{}, fmt.Errorf("table name has empty components: %v", s)
+		return QualifiedTableName{}, errors.Errorf("table name has empty components: %v", s)
 	}
 	return QualifiedTableName{Project: project, Dataset: dataset, Table: table}, nil
 }
@@ -150,7 +151,7 @@ func mustInferSchema(t reflect.Type) bigquery.Schema {
 	}
 	schema, err := bigquery.InferSchema(reflect.Zero(t).Interface())
 	if err != nil {
-		panic(fmt.Sprintf("invalid schema type: %v", err))
+		panic(errors.Wrapf(err, "invalid schema type: %v", t))
 	}
 	return schema
 }
@@ -251,12 +252,12 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	for iter(&val) {
 		current, err := getInsertSize(val.(interface{}), schema)
 		if err != nil {
-			return fmt.Errorf("biquery write error: %v", err)
+			return errors.Wrapf(err, "bigquery write error")
 		}
 		if len(data)+1 > writeRowLimit || size+current > writeSizeLimit {
 			// Write rows in batches to comply with BQ limits.
 			if err := put(ctx, table, f.Type.T, data); err != nil {
-				return fmt.Errorf("bigquery write error [len=%d, size=%d]: %v", len(data), size, err)
+				return errors.Wrapf(err, "bigquery write error [len=%d, size=%d]", len(data), size)
 			}
 			data = nil
 			size = writeOverheadBytes
@@ -269,7 +270,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 		return nil
 	}
 	if err := put(ctx, table, f.Type.T, data); err != nil {
-		return fmt.Errorf("bigquery write error [len=%d, size=%d]: %v", len(data), size, err)
+		return errors.Wrapf(err, "bigquery write error [len=%d, size=%d]", len(data), size)
 	}
 	return nil
 }
