@@ -31,6 +31,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
 import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
 import org.junit.BeforeClass;
@@ -85,4 +88,10 @@ public class SimpleSourceTest implements Serializable {
         new DatasetSourceBatch().createReader(new DataSourceOptions(dataSourceOptions));
     SerializationDebugger.testSerialization(objectToTest, TEMPORARY_FOLDER.newFile());
   }
-}
+
+  @Test
+  public void testBoundedSource() {
+    PCollection<Integer> input = p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+    PAssert.that(input).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    p.run();
+  }}
