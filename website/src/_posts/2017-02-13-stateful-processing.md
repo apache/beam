@@ -294,14 +294,15 @@ new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 
 ```py
 class IndexAssigningStatefulDoFn(DoFn):
-  INDEX_STATE = BagStateSpec('index', VarIntCoder())
+  INDEX_STATE = CombiningStateSpec('index',
+                                   VarIntCoder(),
+                                   combiners.SumCombineFn())
 
   def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
     unused_key, value = element
-    next_index, = list(state.read()) or [0]
+    next_index = state.read() or 0
     yield (value, next_index)
-    state.clear()
-    state.add(next_index + 1)
+    state.add(1)
 ```
 
 Let's dissect this:
@@ -544,7 +545,9 @@ new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
 class ModelStatefulFn(beam.DoFn):
 
   PREVIOUS_PREDICTION = BagStateSpec('previous_pred_state', PredictionCoder())
-  MODEL_STATE = BagStateSpec('model_state', ModelCoder())
+  MODEL_STATE = CombiningValueStateSpec('model_state',
+                                        ModelCoder(),
+                                        ModelFromEventsFn())
 
   def process(self,
               user_event,
@@ -556,10 +559,7 @@ class ModelStatefulFn(beam.DoFn):
     previous_prediction = previous_pred_state.read()
 
     new_prediction = model.prediction(event)
-    model.add(event)
-
-    model_state.clear()
-    model_state.add(model)
+    model_state.add(event)
 
     if (previous_prediction is None
         or self.should_output_prediction(
