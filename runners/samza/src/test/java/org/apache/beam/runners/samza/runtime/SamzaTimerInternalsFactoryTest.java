@@ -27,6 +27,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.runners.core.StateNamespace;
@@ -119,7 +120,6 @@ public class SamzaTimerInternalsFactoryTest {
   public void testEventTimeTimers() {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
-    pipelineOptions.setTimerBufferSize(1);
 
     final RocksDbKeyValueStore store = createStore("store1");
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
@@ -153,17 +153,17 @@ public class SamzaTimerInternalsFactoryTest {
   }
 
   @Test
-  public void testRestore() {
+  public void testRestore() throws Exception {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
-    pipelineOptions.setTimerBufferSize(1);
 
     RocksDbKeyValueStore store = createStore("store2");
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
+    final String key = "testKey";
     final StateNamespace nameSpace = StateNamespaces.global();
-    final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
+    final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
     final TimerInternals.TimerData timer1 =
         TimerInternals.TimerData.of("timer1", nameSpace, new Instant(10), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer1);
@@ -182,6 +182,15 @@ public class SamzaTimerInternalsFactoryTest {
     restoredFactory.setInputWatermark(new Instant(150));
     Collection<KeyedTimerData<String>> readyTimers = restoredFactory.removeReadyTimers();
     assertEquals(2, readyTimers.size());
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    StringUtf8Coder.of().encode(key, baos);
+    byte[] keyBytes = baos.toByteArray();
+    assertEquals(
+        readyTimers,
+        Arrays.asList(
+            new KeyedTimerData<>(keyBytes, key, timer1),
+            new KeyedTimerData<>(keyBytes, key, timer2)));
 
     store.close();
   }
@@ -226,6 +235,46 @@ public class SamzaTimerInternalsFactoryTest {
     final byte[] keyBytes = baos.toByteArray();
     restoredFactory.removeProcessingTimer(new KeyedTimerData(keyBytes, "testKey", timer1));
     restoredFactory.removeProcessingTimer(new KeyedTimerData(keyBytes, "testKey", timer2));
+
+    store.close();
+  }
+
+  @Test
+  public void testOverride() {
+    final SamzaPipelineOptions pipelineOptions =
+        PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+
+    RocksDbKeyValueStore store = createStore("store4");
+    final SamzaTimerInternalsFactory<String> timerInternalsFactory =
+        createTimerInternalsFactory(null, "timer", pipelineOptions, store);
+
+    final StateNamespace nameSpace = StateNamespaces.global();
+    final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
+    final TimerInternals.TimerData timer1 =
+        TimerInternals.TimerData.of("timerId", nameSpace, new Instant(10), TimeDomain.EVENT_TIME);
+    timerInternals.setTimer(timer1);
+
+    // this timer should override the first timer
+    final TimerInternals.TimerData timer2 =
+        TimerInternals.TimerData.of("timerId", nameSpace, new Instant(100), TimeDomain.EVENT_TIME);
+    timerInternals.setTimer(timer2);
+
+    final TimerInternals.TimerData timer3 =
+        TimerInternals.TimerData.of("timerId2", nameSpace, new Instant(200), TimeDomain.EVENT_TIME);
+    timerInternals.setTimer(timer3);
+
+    // this timer shouldn't override since it has a different id
+    timerInternalsFactory.setInputWatermark(new Instant(50));
+    Collection<KeyedTimerData<String>> readyTimers = timerInternalsFactory.removeReadyTimers();
+    assertEquals(0, readyTimers.size());
+
+    timerInternalsFactory.setInputWatermark(new Instant(150));
+    readyTimers = timerInternalsFactory.removeReadyTimers();
+    assertEquals(1, readyTimers.size());
+
+    timerInternalsFactory.setInputWatermark(new Instant(250));
+    readyTimers = timerInternalsFactory.removeReadyTimers();
+    assertEquals(1, readyTimers.size());
 
     store.close();
   }
