@@ -593,7 +593,7 @@ for the list of the available methods and their restrictions.
 
 {:.language-java}
 ***Note:*** If you use batch loads in a streaming pipeline, you must use
-`withTriggeringFrequency` to specify a triggering frequency.
+`withTriggeringFrequency` to specify a triggering frequency and `withNumFileShards` to specify number of file shards written.
 
 
 ### Writing to a table
