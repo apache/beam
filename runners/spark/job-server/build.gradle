@@ -90,7 +90,7 @@ def portableValidatesRunnerTask(String name) {
     numParallelTests: 1,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     systemProperties: [
-      "beam.spark.test.reuseSparkContext": "true",
+      "beam.spark.test.reuseSparkContext": "false",
       "spark.ui.enabled": "false",
       "spark.ui.showConsoleProgress": "false",
     ],
