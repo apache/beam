@@ -33,6 +33,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
@@ -164,6 +165,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   abstract List<PCollectionView<?>> getSideInputs();
 
+  @Nullable
+  abstract ShardingFunction<UserT, DestinationT, ? extends ShardAwareKey> getShardingFunction();
+
+  @Nullable
+  abstract Coder<? extends ShardAwareKey> getShardingKeyCoder();
+
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
   @AutoValue.Builder
@@ -184,6 +191,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
+
+    abstract Builder<UserT, DestinationT, OutputT> setShardingFunction(
+        @Nullable ShardingFunction<UserT, DestinationT, ? extends ShardAwareKey> fn);
+
+    abstract Builder<UserT, DestinationT, OutputT> setShardingKeyCoder(
+        @Nullable Coder<? extends ShardAwareKey> coder);
 
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
@@ -253,6 +266,20 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedSharding() {
     return toBuilder().setComputeNumShards(null).setNumShardsProvider(null).build();
+  }
+
+  /**
+   * Returns a new {@link WriteFiles} that will write to the current {@link FileBasedSink} using the
+   * specified sharding function to assign shard for inputs.
+   */
+  public <ShardKeyT extends ShardAwareKey>
+      WriteFiles<UserT, DestinationT, OutputT> withShardingFunction(
+          ShardingFunction<UserT, DestinationT, ShardKeyT> shardingFunction,
+          Coder<ShardKeyT> shardKeyCoder) {
+    return toBuilder()
+        .setShardingFunction(shardingFunction)
+        .setShardingKeyCoder(shardKeyCoder)
+        .build();
   }
 
   /**
@@ -429,9 +456,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               // shard numbers are assigned together to both the spilled and non-spilled files in
               // finalize.
               .apply("GroupUnwritten", GroupByKey.create())
+              .apply("ReMapShardKey", ParDo.of(new ShardedKeyMapFn<>()))
+              .setCoder(KvCoder.of(DefaultShardKeyCoder.of(), IterableCoder.of(input.getCoder())))
               .apply(
                   "WriteUnwritten",
-                  ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
+                  ParDo.of(new WriteShardsIntoTempFilesFn<DefaultShardKey>())
+                      .withSideInputs(getSideInputs()))
               .setCoder(fileResultCoder)
               .apply(
                   "DropShardNum",
@@ -624,17 +654,42 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       if (numShardsView != null) {
         shardingSideInputs.add(numShardsView);
       }
-      return input
-          .apply(
-              "ApplyShardingKey",
-              ParDo.of(new ApplyShardingKeyFn(numShardsView, destinationCoder))
-                  .withSideInputs(shardingSideInputs))
-          .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
-          .apply("GroupIntoShards", GroupByKey.create())
-          .apply(
-              "WriteShardsIntoTempFiles",
-              ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
-          .setCoder(fileResultCoder);
+
+      if (getShardingFunction() == null) {
+        return input
+            .apply(
+                "ApplyShardingKey",
+                ParDo.of(new ApplyShardingKeyFn(numShardsView, destinationCoder))
+                    .withSideInputs(shardingSideInputs))
+            .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
+            .apply("GroupIntoShards", GroupByKey.create())
+            .apply("ReMapShardKey", ParDo.of(new ShardedKeyMapFn<>()))
+            .setCoder(KvCoder.of(DefaultShardKeyCoder.of(), IterableCoder.of(input.getCoder())))
+            .apply(
+                "WriteShardsIntoTempFiles",
+                ParDo.of(new WriteShardsIntoTempFilesFn<DefaultShardKey>())
+                    .withSideInputs(getSideInputs()))
+            .setCoder(fileResultCoder);
+      } else {
+
+        ShardingFunction<UserT, DestinationT, ShardAwareKey> shardingFunction =
+            (ShardingFunction<UserT, DestinationT, ShardAwareKey>) getShardingFunction();
+        Coder<ShardAwareKey> shardingKeyCoder = (Coder<ShardAwareKey>) getShardingKeyCoder();
+        checkArgument(
+            shardingKeyCoder != null, "Must specify shardingKeyCoder when using shardingFunction");
+
+        return input
+            .apply(
+                "ApplyShardingFunction",
+                ParDo.of(new ApplyShardingFunctionFn(shardingFunction, numShardsView))
+                    .withSideInputs(shardingSideInputs))
+            .setCoder(KvCoder.of(shardingKeyCoder, input.getCoder()))
+            .apply("GroupIntoShards", GroupByKey.create())
+            .apply(
+                "WriteShardsIntoTempFiles",
+                ParDo.of(new WriteShardsIntoTempFilesFn<>()).withSideInputs(getSideInputs()))
+            .setCoder(fileResultCoder);
+      }
     }
   }
 
@@ -684,13 +739,60 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       DestinationT destination = getDynamicDestinations().getDestination(context.element());
       context.output(
           KV.of(
-              ShardedKey.of(hashDestination(destination, destinationCoder), shardNumber),
+              org.apache.beam.sdk.values.ShardedKey.of(
+                  hashDestination(destination, destinationCoder), shardNumber),
               context.element()));
     }
   }
 
-  private class WriteShardsIntoTempFilesFn
-      extends DoFn<KV<ShardedKey<Integer>, Iterable<UserT>>, FileResult<DestinationT>> {
+  private class ApplyShardingFunctionFn extends DoFn<UserT, KV<ShardAwareKey, UserT>> {
+
+    private final ShardingFunction<UserT, DestinationT, ? extends ShardAwareKey> shardingFn;
+    private final @Nullable PCollectionView<Integer> numShardsView;
+
+    ApplyShardingFunctionFn(
+        ShardingFunction<UserT, DestinationT, ShardAwareKey> shardingFn,
+        @Nullable PCollectionView<Integer> numShardsView) {
+      this.numShardsView = numShardsView;
+      this.shardingFn = shardingFn;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
+      final int shardCount;
+      if (numShardsView != null) {
+        shardCount = context.sideInput(numShardsView);
+      } else {
+        checkNotNull(getNumShardsProvider());
+        shardCount = getNumShardsProvider().get();
+      }
+      checkArgument(
+          shardCount > 0,
+          "Must have a positive number of shards specified for non-runner-determined sharding."
+              + " Got %s",
+          shardCount);
+
+      DestinationT destination = getDynamicDestinations().getDestination(context.element());
+      ShardAwareKey shardKey =
+          shardingFn.assignShardKey(destination, context.element(), shardCount);
+      context.output(KV.of(shardKey, context.element()));
+    }
+  }
+
+  private static class ShardedKeyMapFn<V>
+      extends DoFn<KV<ShardedKey<Integer>, Iterable<V>>, KV<DefaultShardKey, Iterable<V>>> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      ShardedKey<Integer> key = c.element().getKey();
+      Iterable<V> value = c.element().getValue();
+      c.output(KV.of(DefaultShardKey.of(key.getKey(), key.getShardNumber()), value));
+    }
+  }
+
+  private class WriteShardsIntoTempFilesFn<ShardKeyT extends ShardAwareKey>
+      extends DoFn<KV<ShardKeyT, Iterable<UserT>>, FileResult<DestinationT>> {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
