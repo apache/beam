@@ -44,6 +44,8 @@ import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.OutputStream;
 import org.apache.samza.system.descriptors.InputDescriptor;
 import org.apache.samza.system.descriptors.OutputDescriptor;
+import org.apache.samza.table.Table;
+import org.apache.samza.table.descriptors.TableDescriptor;
 
 /**
  * Helper that keeps the mapping from BEAM PCollection id to Samza {@link MessageStream}. It also
@@ -56,6 +58,7 @@ public class PortableTranslationContext {
   private final SamzaPipelineOptions options;
   private int topologicalId;
   private final Set<String> registeredInputStreams = new HashSet<>();
+  private final Map<String, Table> registeredTables = new HashMap<>();
 
   public PortableTranslationContext(
       StreamApplicationDescriptor appDescriptor, SamzaPipelineOptions options) {
@@ -166,5 +169,11 @@ public class PortableTranslationContext {
     WindowingStrategy<?, BoundedWindow> ret =
         (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
     return ret;
+  }
+
+  @SuppressWarnings("unchecked")
+  public <K, V> Table<KV<K, V>> getTable(TableDescriptor<K, V, ?> tableDesc) {
+    return registeredTables.computeIfAbsent(
+        tableDesc.getTableId(), id -> appDescriptor.getTable(tableDesc));
   }
 }
