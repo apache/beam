@@ -292,7 +292,6 @@ public class AvroIO {
    */
   public static <T> ReadFiles<T> readFiles(Class<T> recordClass) {
     return new AutoValue_AvroIO_ReadFiles.Builder<T>()
-        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
@@ -328,7 +327,6 @@ public class AvroIO {
    */
   public static ReadFiles<GenericRecord> readFilesGenericRecords(Schema schema) {
     return new AutoValue_AvroIO_ReadFiles.Builder<GenericRecord>()
-        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .setInferBeamSchema(false)
@@ -390,7 +388,6 @@ public class AvroIO {
   public static <T> ParseFiles<T> parseFilesGenericRecords(
       SerializableFunction<GenericRecord, T> parseFn) {
     return new AutoValue_AvroIO_ParseFiles.Builder<T>()
-        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
@@ -653,8 +650,6 @@ public class AvroIO {
   @AutoValue
   public abstract static class ReadFiles<T>
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
-    abstract MatchConfiguration getMatchConfiguration();
-
     @Nullable
     abstract Class<T> getRecordClass();
 
@@ -669,8 +664,6 @@ public class AvroIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
-
       abstract Builder<T> setRecordClass(Class<T> recordClass);
 
       abstract Builder<T> setSchema(Schema schema);
@@ -680,24 +673,6 @@ public class AvroIO {
       abstract Builder<T> setInferBeamSchema(boolean infer);
 
       abstract ReadFiles<T> build();
-    }
-
-    /** Sets the {@link MatchConfiguration}. */
-    public ReadFiles<T> withMatchConfiguration(MatchConfiguration configuration) {
-      return toBuilder().setMatchConfiguration(configuration).build();
-    }
-
-    /** Like {@link Read#withEmptyMatchTreatment}. */
-    public ReadFiles<T> withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
-      return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
-    }
-
-    /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
-    public ReadFiles<T> watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     @VisibleForTesting
@@ -725,12 +700,6 @@ public class AvroIO {
                   new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
                   AvroCoder.of(getRecordClass(), getSchema())));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      builder.include("matchConfiguration", getMatchConfiguration());
     }
   }
 
@@ -964,8 +933,6 @@ public class AvroIO {
   @AutoValue
   public abstract static class ParseFiles<T>
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
-    abstract MatchConfiguration getMatchConfiguration();
-
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
     @Nullable
@@ -977,8 +944,6 @@ public class AvroIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
-
       abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
 
       abstract Builder<T> setCoder(Coder<T> coder);
@@ -986,24 +951,6 @@ public class AvroIO {
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ParseFiles<T> build();
-    }
-
-    /** Sets the {@link MatchConfiguration}. */
-    public ParseFiles<T> withMatchConfiguration(MatchConfiguration configuration) {
-      return toBuilder().setMatchConfiguration(configuration).build();
-    }
-
-    /** Like {@link Read#withEmptyMatchTreatment}. */
-    public ParseFiles<T> withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
-      return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
-    }
-
-    /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
-    public ParseFiles<T> watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     /** Specifies the coder for the result of the {@code parseFn}. */
@@ -1031,9 +978,7 @@ public class AvroIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder
-          .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"))
-          .include("matchConfiguration", getMatchConfiguration());
+      builder.add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"));
     }
 
     private static class CreateParseSourceFn<T>
