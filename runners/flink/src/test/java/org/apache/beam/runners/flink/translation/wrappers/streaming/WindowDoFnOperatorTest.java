@@ -189,7 +189,7 @@ public class WindowDoFnOperatorTest {
         emptyList(),
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         VarLongCoder.of(),
-        null /* key selector */);
+        new WorkItemKeySelector(VarLongCoder.of()));
   }
 
   private KeyedOneInputStreamOperatorTestHarness<

@@ -164,6 +164,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
+  protected Lock getLockToAcquireForStateAccessDuringBundles() {
+    return stateBackendLock;
+  }
+
+  @Override
   public void open() throws Exception {
     executableStage = ExecutableStage.fromPayload(payload);
     // TODO: Wire this into the distributed cache and make it pluggable.
