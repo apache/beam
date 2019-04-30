@@ -19,8 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
@@ -33,8 +31,8 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpe
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
@@ -48,21 +46,22 @@ import org.apache.spark.sql.sources.v2.reader.streaming.Offset;
 import org.apache.spark.sql.types.StructType;
 
 /**
- * This is a spark structured streaming {@link DataSourceV2} implementation that wraps an
- * {@link UnboundedSource}.
- * <p>
- * As Continuous streaming is tagged experimental in spark
- * (no aggregation support + no exactly once guaranty), this class does no implement {@link ContinuousReadSupport}.
- * </p>
+ * This is a spark structured streaming {@link DataSourceV2} implementation that wraps an {@link
+ * UnboundedSource}.
+ *
+ * <p>As Continuous streaming is tagged experimental in spark (no aggregation support + no exactly
+ * once guaranty), this class does no implement {@link ContinuousReadSupport}.
+ *
  * <p>Spark {@link Offset}s are ignored because:
+ *
  * <ul>
- * <li> resuming from checkpoint is supported by the Beam framework through {@link CheckpointMark}
- * <li> {@link DatasetSourceStreaming} is a generic wrapper that could wrap a Beam {@link UnboundedSource}
- * that cannot specify offset ranges
+ *   <li>resuming from checkpoint is supported by the Beam framework through {@link CheckpointMark}
+ *   <li>{@link DatasetSourceStreaming} is a generic wrapper that could wrap a Beam {@link
+ *       UnboundedSource} that cannot specify offset ranges
  * </ul>
- * So, no matter the offset range specified by the spark framework, the Beam source will resume
- * from its {@link CheckpointMark} in case of failure.
- * </p>
+ *
+ * So, no matter the offset range specified by the spark framework, the Beam source will resume from
+ * its {@link CheckpointMark} in case of failure.
  */
 @SuppressFBWarnings("SE_BAD_FIELD") // make spotbugs happy
 class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
@@ -110,30 +109,43 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
           new SerializablePipelineOptions(options.get(PIPELINE_OPTIONS).get());
     }
 
-    @Override public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
+    @Override
+    public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
       // offsets are ignored see javadoc
     }
 
-    @Override public Offset getStartOffset() { return EMPTY_OFFSET; }
+    @Override
+    public Offset getStartOffset() {
+      return EMPTY_OFFSET;
+    }
 
-    @Override public Offset getEndOffset() { return EMPTY_OFFSET; }
+    @Override
+    public Offset getEndOffset() {
+      return EMPTY_OFFSET;
+    }
 
-    @Override public Offset deserializeOffset(String json) { return EMPTY_OFFSET; }
+    @Override
+    public Offset deserializeOffset(String json) {
+      return EMPTY_OFFSET;
+    }
 
-    @Override public void commit(Offset end) {
+    @Override
+    public void commit(Offset end) {
       // offsets are ignored see javadoc
       for (DatasetPartitionReader partitionReader : partitionReaders) {
         try {
           partitionReader.reader.getCheckpointMark().finalizeCheckpoint();
         } catch (IOException e) {
-          throw new RuntimeException(String
-              .format("Commit of Offset %s failed, checkpointMark %s finalizeCheckpoint() failed",
+          throw new RuntimeException(
+              String.format(
+                  "Commit of Offset %s failed, checkpointMark %s finalizeCheckpoint() failed",
                   end, partitionReader.reader.getCheckpointMark()));
         }
       }
     }
 
-    @Override public void stop() {
+    @Override
+    public void stop() {
       try {
         for (DatasetPartitionReader partitionReader : partitionReaders) {
           if (partitionReader.started) {
@@ -159,16 +171,18 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
         List<? extends UnboundedSource<T, CheckpointMarkT>> splits =
             source.split(numPartitions, options);
         for (UnboundedSource<T, CheckpointMarkT> split : splits) {
-          result.add(new InputPartition<InternalRow>() {
+          result.add(
+              new InputPartition<InternalRow>() {
 
-            @Override public InputPartitionReader<InternalRow> createPartitionReader() {
-              DatasetPartitionReader<T, CheckpointMarkT> datasetPartitionReader;
-              datasetPartitionReader = new DatasetPartitionReader<>(split,
-                    serializablePipelineOptions);
-              partitionReaders.add(datasetPartitionReader);
-              return datasetPartitionReader;
-            }
-          });
+                @Override
+                public InputPartitionReader<InternalRow> createPartitionReader() {
+                  DatasetPartitionReader<T, CheckpointMarkT> datasetPartitionReader;
+                  datasetPartitionReader =
+                      new DatasetPartitionReader<>(split, serializablePipelineOptions);
+                  partitionReaders.add(datasetPartitionReader);
+                  return datasetPartitionReader;
+                }
+              });
         }
         return result;
 
@@ -189,7 +203,8 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
     private UnboundedSource.UnboundedReader<T> reader;
 
     DatasetPartitionReader(
-        UnboundedSource<T, CheckpointMarkT> source, SerializablePipelineOptions serializablePipelineOptions) {
+        UnboundedSource<T, CheckpointMarkT> source,
+        SerializablePipelineOptions serializablePipelineOptions) {
       this.started = false;
       this.closed = false;
       this.source = source;
@@ -231,9 +246,12 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
       reader.close();
     }
   }
-  private static final Offset EMPTY_OFFSET = new Offset() {
-    @Override public String json() {
-      return "{offset : -1}";
-    }
-  };
+
+  private static final Offset EMPTY_OFFSET =
+      new Offset() {
+        @Override
+        public String json() {
+          return "{offset : -1}";
+        }
+      };
 }
