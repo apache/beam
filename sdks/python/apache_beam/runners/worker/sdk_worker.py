@@ -311,6 +311,7 @@ class BundleProcessorCache(object):
     return self.active_bundle_processors.get(instruction_id, (None, None))[-1]
 
   def discard(self, instruction_id):
+    self.active_bundle_processors[instruction_id].shutdown()
     del self.active_bundle_processors[instruction_id]
 
   def release(self, instruction_id):
@@ -319,7 +320,7 @@ class BundleProcessorCache(object):
     self.cached_bundle_processors[descriptor_id].append(processor)
 
   def shutdown(self):
-    for instruction_id in self.active_bundle_processors.keys():
+    for instruction_id in self.active_bundle_processors:
       self.active_bundle_processors[instruction_id].shutdown()
       del self.active_bundle_processors[instruction_id]
     for cached_bundle_processors in self.cached_bundle_processors.values():
