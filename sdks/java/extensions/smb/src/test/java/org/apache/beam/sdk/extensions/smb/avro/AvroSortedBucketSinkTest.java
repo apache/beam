@@ -31,8 +31,6 @@ import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
-import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata.GenericRecordMetadata;
-import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata.SpecificRecordMetadata;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.LocalResources;
@@ -59,8 +57,8 @@ public class AvroSortedBucketSinkTest {
 
   @Test
   public void testGenericRecordSink() throws Exception {
-    final GenericRecordMetadata<Integer> metadata =
-        new GenericRecordMetadata<>(1, Integer.class, HashType.MURMUR3_32, "age");
+    final AvroBucketMetadata<Integer, GenericRecord> metadata =
+        new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "age");
 
     final SortedBucketSink<Integer, GenericRecord> sink =
         AvroSortedBucketIO.sink(
@@ -134,8 +132,8 @@ public class AvroSortedBucketSinkTest {
 
   @Test
   public void testSpecificRecordSink() throws Exception {
-    final BucketMetadata<Integer, AvroGeneratedUser> metadata =
-        new SpecificRecordMetadata<>(1, Integer.class, HashType.MURMUR3_32, "favorite_number");
+    final AvroBucketMetadata<Integer, AvroGeneratedUser> metadata =
+        new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "favorite_number");
 
     final SortedBucketSink<Integer, AvroGeneratedUser> sink =
         AvroSortedBucketIO.sink(

@@ -28,8 +28,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata.GenericRecordMetadata;
-import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata.SpecificRecordMetadata;
+import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
@@ -41,10 +40,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
  * @param <ValueT>
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes({
-  @JsonSubTypes.Type(value = GenericRecordMetadata.class),
-  @JsonSubTypes.Type(value = SpecificRecordMetadata.class)
-})
+@JsonSubTypes({@JsonSubTypes.Type(value = AvroBucketMetadata.class)})
 public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializable {
 
   @JsonProperty private final int numBuckets;
