@@ -18,11 +18,12 @@
 """ Integration test for GCP Bigtable testing."""
 from __future__ import absolute_import
 
+import argparse
 import datetime
-import time
 import logging
 import random
 import string
+import time
 import unittest
 
 import apache_beam as beam
@@ -39,53 +40,6 @@ try:
 except ImportError:
   Client = None
   bigtableio = None
-
-
-EXPERIMENTS = 'beam_fn_api'
-PROJECT_ID = 'grass-clump-479'
-INSTANCE_ID = 'python-write-2'
-STORAGE_TYPE = enums.StorageType.HDD
-REGION = 'us-central1'
-RUNNER = 'dataflow'
-# RUNNER = 'direct'       # Use this runner to run Apache Beam locally
-LOCATION_ID = "us-central1-a"
-SETUP_FILE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\setup.py'
-EXTRA_PACKAGE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\dist\\bigtableio-0.3.120.tar.gz'
-STAGING_LOCATION = 'gs://mf2199/stage'
-TEMP_LOCATION = 'gs://mf2199/temp'
-AUTOSCALING_ALGORITHM = 'NONE'
-DISK_SIZE_GB = 50
-
-ROW_COUNT = 10000
-COLUMN_COUNT = 10
-CELL_SIZE = 100
-COLUMN_FAMILY_ID = 'cf1'
-
-ROW_COUNT_K = ROW_COUNT / 1000
-NUM_WORKERS = min(ROW_COUNT_K, 300)
-TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
-TABLE_ID = 'sample-table-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
-JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
-
-LETTERS_AND_DIGITS = string.ascii_letters + string.digits
-
-# LOG_LEVEL = logging.DEBUG
-LOG_LEVEL = logging.INFO
-
-PIPELINE_PARAMETERS = [
-    '--experiments={}'.format(EXPERIMENTS),
-    '--project={}'.format(PROJECT_ID),
-    '--job_name={}'.format(JOB_NAME),
-    '--disk_size_gb={}'.format(DISK_SIZE_GB),
-    '--region={}'.format(REGION),
-    '--runner={}'.format(RUNNER),
-    '--autoscaling_algorithm={}'.format(AUTOSCALING_ALGORITHM),
-    '--num_workers={}'.format(NUM_WORKERS),
-    '--setup_file={}'.format(SETUP_FILE),
-    '--extra_package={}'.format(EXTRA_PACKAGE),
-    '--staging_location={}'.format(STAGING_LOCATION),
-    '--temp_location={}'.format(TEMP_LOCATION),
-]
 
 
 class GenerateTestRows(beam.PTransform):
@@ -117,7 +71,6 @@ class GenerateTestRows(beam.PTransform):
             | bigtableio.WriteToBigTable(project_id=self.beam_options['project_id'],
                                          instance_id=self.beam_options['instance_id'],
                                          table_id=self.beam_options['table_id']))
-
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOTest(unittest.TestCase):
@@ -157,8 +110,6 @@ class BigtableIOTest(unittest.TestCase):
         logging.info('Number of Rows written: %d', read_counter.committed)
         assert read_counter.committed == ROW_COUNT
 
-    # logging.info('Write sequence is complete.')
-
     p = beam.Pipeline(options=pipeline_options)
     count = (p
              | 'Read from Bigtable' >> Read(bigtableio.BigtableSource(project_id=PROJECT_ID,
@@ -172,5 +123,76 @@ class BigtableIOTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(LOG_LEVEL)
-  unittest.main()
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--project', type=str)
+  parser.add_argument('--instance', type=str)
+  parser.add_argument('--table', type=str, default='test-table')
+  parser.add_argument('--region', type=str, default='us-central1')
+  parser.add_argument('--staging_location', type=str)
+  parser.add_argument('--temp_location', type=str)
+  parser.add_argument('--setup_file', type=str)
+  parser.add_argument('--extra_package', type=str)
+  parser.add_argument('--num_workers', type=int, default=300)
+  parser.add_argument('--autoscaling_algorithm', type=str, default='NONE')
+  parser.add_argument('--experiments', type=str, default='beam_fn_api')
+  parser.add_argument('--runner', type=str, default='dataflow')
+  parser.add_argument('--disk_size_gb', type=int, default=50)
+  parser.add_argument('--row_count', type=int, default=10000)
+  parser.add_argument('--column_count', type=int, default=10)
+  parser.add_argument('--cell_size', type=int, default=100)
+  parser.add_argument('--log_level', type=int, default=logging.INFO)
+  args = parser.parse_args()
+
+  print 'project argument               =', args.project
+  print 'instance argument              =', args.instance
+  print 'table argument                 =', args.table
+  print 'region argument                =', args.region
+  print 'staging_location argument      =', args.staging_location
+  print 'temp_location argument         =', args.temp_location
+  print 'setup_file argument            =', args.setup_file
+  print 'extra_package argument         =', args.extra_package
+  print 'num_workers argument           =', args.num_workers
+  print 'autoscaling_algorithm argument =', args.autoscaling_algorithm
+  print 'experiments argument           =', args.experiments
+  print 'runner argument                =', args.runner
+  print 'disk_size_gb argument          =', args.disk_size_gb
+  print 'row_count argument             =', args.row_count
+  print 'column_count argument          =', args.column_count
+  print 'cell_size argument             =', args.cell_size
+  print 'log_level argument             =', args.log_level
+
+  PROJECT_ID = args.project
+  INSTANCE_ID = args.instance
+  ROW_COUNT = args.row_count
+  COLUMN_COUNT = args.column_count
+  CELL_SIZE = args.cell_size
+
+  COLUMN_FAMILY_ID = 'cf1'
+  TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
+  LETTERS_AND_DIGITS = string.ascii_letters + string.digits
+
+  ROW_COUNT_K = ROW_COUNT / 1000
+  NUM_WORKERS = min(ROW_COUNT_K, args.num_workers)
+  TABLE_ID = '{}-{}k-{}'.format(args.table, ROW_COUNT_K, TIME_STAMP)
+  JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
+
+  PIPELINE_PARAMETERS = [
+    '--experiments={}'.format(args.experiments),
+    '--project={}'.format(PROJECT_ID),
+    '--job_name={}'.format(JOB_NAME),
+    '--disk_size_gb={}'.format(args.disk_size_gb),
+    '--region={}'.format(args.region),
+    '--runner={}'.format(args.runner),
+    '--autoscaling_algorithm={}'.format(args.autoscaling_algorithm),
+    '--num_workers={}'.format(NUM_WORKERS),
+    '--setup_file={}'.format(args.setup_file),
+    '--extra_package={}'.format(args.extra_package),
+    '--staging_location={}'.format(args.staging_location),
+    '--temp_location={}'.format(args.temp_location),
+  ]
+
+  logging.getLogger().setLevel(args.log_level)
+
+  suite = unittest.TestSuite()
+  suite.addTest(BigtableIOTest('test_bigtable_io'))
+  unittest.TextTestRunner(verbosity=2).run(suite)
