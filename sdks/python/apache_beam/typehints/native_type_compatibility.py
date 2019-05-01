@@ -91,6 +91,12 @@ def _safe_issubclass(derived, parent):
     return out
   except TypeError:
     return False
+  except AttributeError:
+    try:
+      out = issubclass(derived, parent)
+      return out
+    except TypeError:
+      return False
 
 
 def _match_issubclass(match_against):
@@ -103,18 +109,13 @@ def _matcher_(derived, parent):
   except:
     return type(derived) == type(parent)
 
+
 def _match_same_type(match_against):
   # For Union types. They can't be compared with isinstance either, so we
   # Have to compare their types directly.
   return lambda user_type: _matcher_(user_type, match_against)
 
-
-#def _match_same_type(match_against):
-#  # For Union types. They can't be compared with isinstance either, so we
-#  # have to compare their types directly.
-#  return lambda user_type: type(user_type) == type(match_against)
-
-
+  
 def _match_is_named_tuple(user_type):
   return (_safe_issubclass(user_type, typing.Tuple) and
           hasattr(user_type, '_field_types'))
