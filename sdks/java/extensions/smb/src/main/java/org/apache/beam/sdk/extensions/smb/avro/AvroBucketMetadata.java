@@ -21,39 +21,78 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
-/**
- * Avro-specific metadata encoding.
- *
- * @param <SortingKeyT>
- */
-public class AvroBucketMetadata<SortingKeyT> extends BucketMetadata<SortingKeyT, GenericRecord> {
+/** Avro-specific metadata encoding. */
+public class AvroBucketMetadata {
 
-  @JsonProperty private final String keyField;
+  /**
+   * Represents a metadata encoding for GenericRecords.
+   *
+   * @param <SortingKeyT>
+   */
+  public static class GenericRecordMetadata<SortingKeyT>
+      extends BucketMetadata<SortingKeyT, GenericRecord> {
 
-  @JsonIgnore private String[] keyPath;
+    @JsonProperty private final String keyField;
 
-  @JsonCreator
-  public AvroBucketMetadata(
-      @JsonProperty("numBuckets") int numBuckets,
-      @JsonProperty("sortingKeyClass") Class<SortingKeyT> sortingKeyClass,
-      @JsonProperty("hashType") HashType hashType,
-      @JsonProperty("keyField") String keyField)
-      throws CannotProvideCoderException {
-    super(numBuckets, sortingKeyClass, hashType);
-    this.keyField = keyField;
-    this.keyPath = keyField.split("\\.");
+    @JsonIgnore private String[] keyPath;
+
+    @JsonCreator
+    public GenericRecordMetadata(
+        @JsonProperty("numBuckets") int numBuckets,
+        @JsonProperty("sortingKeyClass") Class<SortingKeyT> sortingKeyClass,
+        @JsonProperty("hashType") BucketMetadata.HashType hashType,
+        @JsonProperty("keyField") String keyField) {
+      super(numBuckets, sortingKeyClass, hashType);
+      this.keyField = keyField;
+      this.keyPath = keyField.split("\\.");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public SortingKeyT extractSortingKey(GenericRecord value) {
+      GenericRecord node = value;
+      for (int i = 0; i < keyPath.length - 1; i++) {
+        node = (GenericRecord) node.get(keyPath[i]);
+      }
+      return (SortingKeyT) node.get(keyPath[keyPath.length - 1]);
+    }
   }
 
-  @SuppressWarnings("unchecked")
-  @Override
-  public SortingKeyT extractSortingKey(GenericRecord value) {
-    GenericRecord node = value;
-    for (int i = 0; i < keyPath.length - 1; i++) {
-      node = (GenericRecord) node.get(keyPath[i]);
+  /**
+   * Represents a metadata encoding for extensions of SpecificRecordBase.
+   *
+   * @param <SortingKeyT>
+   * @param <AvroTypeT>
+   */
+  public static class SpecificRecordMetadata<SortingKeyT, AvroTypeT extends SpecificRecordBase>
+      extends BucketMetadata<SortingKeyT, AvroTypeT> {
+
+    @JsonProperty private final String keyField;
+
+    @JsonIgnore private String[] keyPath;
+
+    @JsonCreator
+    public SpecificRecordMetadata(
+        @JsonProperty("numBuckets") int numBuckets,
+        @JsonProperty("sortingKeyClass") Class<SortingKeyT> sortingKeyClass,
+        @JsonProperty("hashType") BucketMetadata.HashType hashType,
+        @JsonProperty("keyField") String keyField) {
+      super(numBuckets, sortingKeyClass, hashType);
+      this.keyField = keyField;
+      this.keyPath = keyField.split("\\.");
     }
-    return (SortingKeyT) node.get(keyPath[keyPath.length - 1]);
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public SortingKeyT extractSortingKey(AvroTypeT value) {
+      SpecificRecordBase node = value;
+      for (int i = 0; i < keyPath.length - 1; i++) {
+        node = (SpecificRecordBase) node.get(keyPath[i]);
+      }
+      return (SortingKeyT) node.get(keyPath[keyPath.length - 1]);
+    }
   }
 }

@@ -46,7 +46,7 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
   private final Class<ValueT> recordClass;
   private final SerializableSchemaSupplier schemaSupplier;
 
-  public AvroSortedBucketFile(Class<ValueT> recordClass, Schema schema) {
+  AvroSortedBucketFile(Class<ValueT> recordClass, Schema schema) {
     this.recordClass = recordClass;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
   }
@@ -61,6 +61,14 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
     return new AvroWriter<>(recordClass, schemaSupplier);
   }
 
+  Schema getSchema() {
+    return schemaSupplier.get();
+  }
+
+  Class<ValueT> getRecordClass() {
+    return recordClass;
+  }
+
   private static class SerializableSchemaString implements Serializable {
     private final String schema;
 
@@ -73,7 +81,7 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
     }
   }
 
-  private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
+  static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
     private transient Schema schema;
 
     private SerializableSchemaSupplier(Schema schema) {
@@ -94,7 +102,7 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
   // Reader
   ////////////////////////////////////////
 
-  static class AvroReader<ValueT> extends SortedBucketFile.Reader<ValueT> implements Serializable {
+  private static class AvroReader<ValueT> extends SortedBucketFile.Reader<ValueT> {
     private Class<ValueT> recordClass;
     private SerializableSchemaSupplier schemaSupplier;
     private transient DataFileStream<ValueT> reader;
@@ -114,7 +122,10 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
       final Schema schema = schemaSupplier.get();
 
       DatumReader<ValueT> datumReader =
-          recordClass == null ? new GenericDatumReader<>(schema) : new ReflectDatumReader<>(schema);
+          recordClass == null
+              ? new GenericDatumReader<>(schema)
+              : new ReflectDatumReader<>(recordClass);
+
       reader = new DataFileStream<>(Channels.newInputStream(channel), datumReader);
     }
 
@@ -153,7 +164,9 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
     public void prepareWrite(WritableByteChannel channel) throws Exception {
       final Schema schema = schemaSupplier.get();
       DatumWriter<ValueT> datumWriter =
-          recordClass == null ? new GenericDatumWriter<>(schema) : new ReflectDatumWriter<>(schema);
+          recordClass == null
+              ? new GenericDatumWriter<>(schema)
+              : new ReflectDatumWriter<>(recordClass);
       writer = new DataFileWriter<>(datumWriter);
       writer.create(schema, Channels.newOutputStream(channel));
     }

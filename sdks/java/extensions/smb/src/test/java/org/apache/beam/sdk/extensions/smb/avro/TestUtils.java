@@ -23,15 +23,13 @@ import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** Utilities for SMB unit tests. */
 public class TestUtils {
 
-  static final Schema SCHEMA =
+  static final Schema USER_SCHEMA =
       Schema.createRecord(
           "user",
           "",
@@ -41,21 +39,13 @@ public class TestUtils {
               new Field("name", Schema.create(Type.STRING), "", null),
               new Field("age", Schema.create(Type.INT), "", null)));
 
-  static final Coder<GenericRecord> USER_CODER = AvroCoder.of(SCHEMA);
+  static final Coder<GenericRecord> USER_CODER = AvroCoder.of(USER_SCHEMA);
 
   static GenericRecord createUserRecord(String name, int age) {
-    GenericData.Record result = new GenericData.Record(SCHEMA);
+    GenericData.Record result = new GenericData.Record(USER_SCHEMA);
     result.put("name", name);
     result.put("age", age);
 
     return result;
-  }
-
-  static AvroBucketMetadata<Integer> tryCreateMetadata(int numBuckets, HashType hashType) {
-    try {
-      return new AvroBucketMetadata<Integer>(numBuckets, Integer.class, hashType, "age");
-    } catch (CannotProvideCoderException e) {
-      throw new RuntimeException();
-    }
   }
 }

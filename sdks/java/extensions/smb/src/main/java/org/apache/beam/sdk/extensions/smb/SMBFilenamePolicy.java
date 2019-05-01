@@ -17,13 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.joda.time.Instant;
@@ -43,7 +38,7 @@ public final class SMBFilenamePolicy implements Serializable {
   }
 
   public FileAssignment forDestination() {
-    return new FileAssignment(filenamePrefix, fileNameSuffix, false);
+    return new FileAssignment(filenamePrefix, fileNameSuffix);
   }
 
   public FileAssignment forTempFiles(ResourceId tempDirectory) {
@@ -59,8 +54,7 @@ public final class SMBFilenamePolicy implements Serializable {
 
   /** A file name assigner based on a specific output directory and file suffix. */
   public static class FileAssignment implements Serializable {
-    private static final String BUCKET_TEMPLATE = "bucket-%d-of-%d";
-    private static final String BUCKET_SHARD_TEMPLATE = BUCKET_TEMPLATE + "-shard-%d-of-%s.%s";
+    private static final String BUCKET_TEMPLATE = "bucket-%d-of-%d.%s";
     private static final String METADATA_FILENAME = "metadata.json";
     private static final String TIMESTAMP_TEMPLATE = "yyyy-MM-dd_HH-mm-ss-";
 
@@ -78,47 +72,18 @@ public final class SMBFilenamePolicy implements Serializable {
       this(filenamePrefix, fileNameSuffix, false);
     }
 
-    public ResourceId forBucketShard(
-        int bucketNumber, int numBuckets, int shardNumber, int numShards) {
+    public ResourceId forBucket(int bucketNumber, int numBuckets) {
       String prefix = "";
       if (doTimestampFiles) {
         prefix += Instant.now().toString(DateTimeFormat.forPattern(TIMESTAMP_TEMPLATE));
       }
 
       return filenamePrefix.resolve(
-          prefix
-              + String.format(
-                  BUCKET_SHARD_TEMPLATE,
-                  bucketNumber,
-                  numBuckets,
-                  shardNumber,
-                  numShards,
-                  fileNameSuffix),
+          prefix + String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets, fileNameSuffix),
           StandardResolveOptions.RESOLVE_FILE);
     }
 
-    List<ResourceId> forAllBucketShards(int bucketNumber, int numBuckets) {
-      final List<ResourceId> resourceIds = new ArrayList<>();
-      try {
-        MatchResult matchResult =
-            FileSystems.match(
-                filenamePrefix
-                    + String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets)
-                    + "*."
-                    + fileNameSuffix);
-
-        matchResult
-            .metadata()
-            .iterator()
-            .forEachRemaining(metadata -> resourceIds.add(metadata.resourceId()));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-
-      return resourceIds;
-    }
-
-    ResourceId forMetadata() {
+    public ResourceId forMetadata() {
       return filenamePrefix.resolve(METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
     }
 
