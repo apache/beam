@@ -27,7 +27,6 @@ import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource;
-import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata.GenericRecordMetadata;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.LocalResources;
@@ -93,7 +92,7 @@ public class AvroSortedBucketSourceTest {
     writer.finishWrite();
 
     final BucketMetadata<Integer, GenericRecord> metadata =
-        new GenericRecordMetadata<>(1, Integer.class, HashType.MURMUR3_32, "age");
+        new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "age");
 
     final ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.writeValue(
@@ -159,7 +158,7 @@ public class AvroSortedBucketSourceTest {
     writer.finishWrite();
 
     final BucketMetadata<Integer, GenericRecord> metadata =
-        new GenericRecordMetadata<>(1, Integer.class, HashType.MURMUR3_32, "favorite_number");
+        new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "favorite_number");
 
     final ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.writeValue(

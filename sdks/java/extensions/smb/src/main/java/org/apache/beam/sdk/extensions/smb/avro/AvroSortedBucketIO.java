@@ -27,7 +27,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToResult;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
@@ -50,7 +49,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 public class AvroSortedBucketIO {
 
   public static <SortingKeyT> SortedBucketSink<SortingKeyT, GenericRecord> sink(
-      BucketMetadata<SortingKeyT, GenericRecord> bucketingMetadata,
+      AvroBucketMetadata<SortingKeyT, GenericRecord> bucketingMetadata,
       Coder<SortingKeyT> sortingKeyCoder,
       ResourceId outputDirectory,
       ResourceId tempDirectory,
@@ -58,13 +57,14 @@ public class AvroSortedBucketIO {
     return sink(bucketingMetadata, sortingKeyCoder, outputDirectory, tempDirectory, null, schema);
   }
 
-  public static <SortingKeyT, ValueT> SortedBucketSink<SortingKeyT, ValueT> sink(
-      BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
-      Coder<SortingKeyT> sortingKeyCoder,
-      ResourceId outputDirectory,
-      ResourceId tempDirectory,
-      Class<ValueT> recordClass,
-      Schema schema) {
+  public static <SortingKeyT, ValueT extends GenericRecord>
+      SortedBucketSink<SortingKeyT, ValueT> sink(
+          AvroBucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
+          Coder<SortingKeyT> sortingKeyCoder,
+          ResourceId outputDirectory,
+          ResourceId tempDirectory,
+          Class<ValueT> recordClass,
+          Schema schema) {
     return new SortedBucketSink<>(
         bucketingMetadata,
         sortingKeyCoder,
