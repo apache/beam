@@ -232,14 +232,8 @@ public class SortedBucketSource<KeyT, ResultT>
         }
       }
 
-      final Map<String, Coder<Reader>> coders = new HashMap<>();
-
-      for (KeyedBucketSource source : sources) {
-        coders.put(source.tupleTag.getId(), source.reader.coder());
-      }
-
       final Coder<KV<Integer, List<BucketSourceIterator<K>>>> coder =
-          KvCoder.of(VarIntCoder.of(), ListCoder.of(new BucketSourceIteratorCoder<K>(coders)));
+          KvCoder.of(VarIntCoder.of(), ListCoder.of(new BucketSourceIteratorCoder<K>()));
 
       map.put(
           new TupleTag<K>("readers"),

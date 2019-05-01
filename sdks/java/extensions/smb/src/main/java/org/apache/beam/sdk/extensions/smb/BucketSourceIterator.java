@@ -23,10 +23,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Iterator;
-import java.util.Map;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Reader;
@@ -128,11 +126,7 @@ class BucketSourceIterator<KeyT> implements Serializable {
   }
 
   static class BucketSourceIteratorCoder<K> extends AtomicCoder<BucketSourceIterator<K>> {
-    private Map<String, Coder<Reader>> readerCoderRegistry;
-
-    BucketSourceIteratorCoder(Map<String, Coder<Reader>> readerCoderRegistry) {
-      this.readerCoderRegistry = readerCoderRegistry;
-    }
+    BucketSourceIteratorCoder() {}
 
     @Override
     public void encode(BucketSourceIterator<K> value, OutputStream outStream)
@@ -140,7 +134,7 @@ class BucketSourceIterator<KeyT> implements Serializable {
       try {
         ResourceIdCoder.of().encode(value.resourceId, outStream);
         SerializableCoder.of(TupleTag.class).encode(value.tupleTag, outStream);
-        readerCoderRegistry.get(value.tupleTag.getId()).encode(value.reader, outStream);
+        SerializableCoder.of(Reader.class).encode(value.reader, outStream);
         BucketMetadata.to(value.metadata, outStream);
       } catch (Exception e) {
         throw new CoderException("Encoding BucketSourceReader failed: " + e);
@@ -152,7 +146,7 @@ class BucketSourceIterator<KeyT> implements Serializable {
       try {
         final ResourceId resourceId = ResourceIdCoder.of().decode(inStream);
         final TupleTag<?> tupleTag = SerializableCoder.of(TupleTag.class).decode(inStream);
-        final Reader<?> reader = readerCoderRegistry.get(tupleTag.getId()).decode(inStream);
+        final Reader<?> reader = SerializableCoder.of(Reader.class).decode(inStream);
         final BucketMetadata<K, Object> metadata =
             BucketMetadata.from(new ByteArrayInputStream(ByteArrayCoder.of().decode(inStream)));
 

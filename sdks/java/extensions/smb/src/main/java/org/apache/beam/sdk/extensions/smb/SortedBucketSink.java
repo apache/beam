@@ -92,8 +92,8 @@ public class SortedBucketSink<SortingKeyT, ValueT>
     return input
         .apply(
             "Assign buckets",
-            ParDo.of(new ExtractBucketAndSortKey<>(this.bucketingMetadata, this.sortingKeyCoder))
-        ).setCoder(bucketedCoder)
+            ParDo.of(new ExtractBucketAndSortKey<>(this.bucketingMetadata, this.sortingKeyCoder)))
+        .setCoder(bucketedCoder)
         .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
         .apply(
