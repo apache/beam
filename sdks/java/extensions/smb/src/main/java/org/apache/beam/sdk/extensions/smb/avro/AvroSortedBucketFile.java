@@ -31,8 +31,6 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
@@ -110,11 +108,6 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
     AvroReader(Class<ValueT> recordClass, SerializableSchemaSupplier schemaSupplier) {
       this.recordClass = recordClass;
       this.schemaSupplier = schemaSupplier;
-    }
-
-    @Override
-    public Coder<? extends Reader> coder() {
-      return SerializableCoder.of(AvroReader.class);
     }
 
     @Override

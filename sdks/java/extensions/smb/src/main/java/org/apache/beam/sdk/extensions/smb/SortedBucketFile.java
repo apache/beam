@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.smb;
 import java.io.Serializable;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import org.apache.beam.sdk.coders.Coder;
 
 /** Abstracts IO operations for different data types. */
 // read/write individual records sequentially from a sorted bucket file
@@ -38,8 +37,6 @@ public abstract class SortedBucketFile<ValueT> implements Serializable {
    * @param <ValueT>
    */
   public abstract static class Reader<ValueT> implements Serializable {
-    public abstract Coder<? extends Reader> coder();
-
     public abstract void prepareRead(ReadableByteChannel channel) throws Exception;
 
     public abstract ValueT read() throws Exception;
