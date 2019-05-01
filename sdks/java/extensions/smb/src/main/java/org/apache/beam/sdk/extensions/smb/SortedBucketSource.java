@@ -32,8 +32,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.smb.BucketSourceIterator.BucketSourceIteratorCoder;
+import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToResult;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
-import org.apache.beam.sdk.extensions.smb.SMBJoinResult.ToResult;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Reader;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.KeyedBucketSources.KeyedBucketSource;
 import org.apache.beam.sdk.io.FileSystems;
@@ -46,40 +46,40 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 
 /**
- * Reads in an arbitrary number of heterogenously typed Sources stored with the same bucketing
+ * Reads in an arbitrary number of heterogeneous typed Sources stored with the same bucketing
  * scheme, and co-groups on a common key.
  *
  * @param <KeyT>
  * @param <ResultT>
  */
-public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT>
+public class SortedBucketSource<KeyT, ResultT>
     extends PTransform<PBegin, PCollection<KV<KeyT, ResultT>>> {
-
   private final Coder<KeyT> keyCoder;
-  private final SMBJoinResult.ToResult<ResultT> toResult;
+  private final SMBCoGbkResult.ToResult<ResultT> toResult;
   private final List<KeyedBucketSource<KeyT, ?>> sources;
+  private final Comparator<KeyT> keyComparator;
 
   public SortedBucketSource(
       Coder<KeyT> keyCoder,
-      SMBJoinResult.ToResult<ResultT> toResult,
-      List<KeyedBucketSource<KeyT, ?>> sources) {
+      SMBCoGbkResult.ToResult<ResultT> toResult,
+      List<KeyedBucketSource<KeyT, ?>> sources,
+      Comparator<KeyT> keyComparator) {
     this.keyCoder = keyCoder;
     this.sources = sources;
     this.toResult = toResult;
+    this.keyComparator = keyComparator;
   }
 
   @Override
   public final PCollection<KV<KeyT, ResultT>> expand(PBegin begin) {
 
-    // validate that all sources are compatible
-    // Verify: what's the call site of this? does it need to be put in a dofn?
-    // @Todo metadata is being fetched twice per source
+    // @TODO: Support asymmetric, but still compatible, bucket sizes in reader.
+
     BucketMetadata<KeyT, ?> first = null;
     for (KeyedBucketSource<KeyT, ?> source : sources) {
       BucketMetadata<KeyT, ?> current = source.readMetadata();
@@ -90,25 +90,31 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT>
       }
     }
 
+    final int numBuckets = first.getNumBuckets();
+
     final PCollection<KV<Integer, List<BucketSourceIterator<KeyT>>>> openedReaders =
         (PCollection<KV<Integer, List<BucketSourceIterator<KeyT>>>>)
-            new KeyedBucketSources<>(begin.getPipeline(), first.getNumBuckets(), sources)
+            new KeyedBucketSources<>(begin.getPipeline(), numBuckets, sources)
                 .expand()
                 .get(new TupleTag<>("readers"));
 
     return openedReaders
         .apply("Force each key to a separate core", Reshuffle.viaRandomKey())
-        .apply("Perform co-group operation per key", ParDo.of(new MergeBuckets<>(toResult)))
+        .apply(
+            "Perform co-group operation per key",
+            ParDo.of(new MergeBuckets<>(toResult, keyComparator)))
         .setCoder(KvCoder.of(keyCoder, toResult.resultCoder()));
   }
 
   /** @param <KeyT> */
-  static class MergeBuckets<KeyT extends Comparable<KeyT>, ResultT>
+  static class MergeBuckets<KeyT, ResultT>
       extends DoFn<KV<Integer, List<BucketSourceIterator<KeyT>>>, KV<KeyT, ResultT>> {
-    private final SMBJoinResult.ToResult<ResultT> toResult;
+    private final SMBCoGbkResult.ToResult<ResultT> toResult;
+    private final Comparator<KeyT> keyComparator;
 
-    MergeBuckets(ToResult<ResultT> toResult) {
+    MergeBuckets(ToResult<ResultT> toResult, Comparator<KeyT> keyComparator) {
       this.toResult = toResult;
+      this.keyComparator = keyComparator;
     }
 
     @ProcessElement
@@ -140,22 +146,24 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT>
 
         final KeyT minKey =
             nextKeyGroups.entrySet().stream()
-                .min(Comparator.comparing(e -> e.getValue().getKey()))
+                .min(
+                    (e1, e2) ->
+                        keyComparator.compare(e1.getValue().getKey(), e2.getValue().getKey()))
                 .map(entry -> entry.getValue().getKey())
                 .orElse(null);
 
         keyForGroup = minKey;
 
-        Iterator<Map.Entry<TupleTag, KV<KeyT, Iterator<?>>>> nextKeyGroupsIt =
+        final Iterator<Map.Entry<TupleTag, KV<KeyT, Iterator<?>>>> nextKeyGroupsIt =
             nextKeyGroups.entrySet().iterator();
 
-        Map<TupleTag, Iterable<?>> valueMap = new HashMap<>();
+        final Map<TupleTag, Iterable<?>> valueMap = new HashMap<>();
 
         while (nextKeyGroupsIt.hasNext()) {
           final List<Object> values = new ArrayList<>();
           Map.Entry<TupleTag, KV<KeyT, Iterator<?>>> entry = nextKeyGroupsIt.next();
 
-          if (entry.getValue().getKey() == minKey) {
+          if (keyComparator.compare(entry.getValue().getKey(), minKey) == 0) {
             entry.getValue().getValue().forEachRemaining(values::add);
 
             valueMap.put(entry.getKey(), values);
@@ -163,7 +171,7 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT>
           }
         }
 
-        c.output(KV.of(keyForGroup, toResult.apply(new SMBJoinResult(valueMap))));
+        c.output(KV.of(keyForGroup, toResult.apply(new SMBCoGbkResult(valueMap))));
 
         if (readers.isEmpty()) {
           break;
@@ -178,7 +186,8 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT>
    *
    * @param <K>
    */
-  public static class KeyedBucketSources<K> implements Serializable, PInput {
+  public static class KeyedBucketSources<K>
+      implements Serializable, org.apache.beam.sdk.values.PInput {
     private transient Pipeline pipeline;
     private List<KeyedBucketSource<K, ?>> sources;
     private Integer numBuckets;
@@ -202,7 +211,7 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT>
     <V> KeyedBucketSources<K> and(KeyedBucketSource<K, V> source) {
       List<KeyedBucketSource<K, ?>> newKeyedCollections = copyAddLast(sources, source);
 
-      return new KeyedBucketSources<K>(pipeline, numBuckets, newKeyedCollections);
+      return new KeyedBucketSources<>(pipeline, numBuckets, newKeyedCollections);
     }
 
     @Override
@@ -241,9 +250,9 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT>
 
     private static <K> List<KeyedBucketSource<K, ?>> copyAddLast(
         List<KeyedBucketSource<K, ?>> keyedCollections, KeyedBucketSource<K, ?> taggedCollection) {
-      final List<KeyedBucketSource<K, ?>> retval = new ArrayList<>(keyedCollections);
-      retval.add(taggedCollection);
-      return retval;
+      final List<KeyedBucketSource<K, ?>> copy = new ArrayList<>(keyedCollections);
+      copy.add(taggedCollection);
+      return copy;
     }
 
     /**
@@ -289,9 +298,11 @@ public class SortedBucketSource<KeyT extends Comparable<KeyT>, ResultT>
         final BucketMetadata<K, Object> metadata = source.readMetadata();
         final Reader<?> reader = source.reader;
 
-        List<ResourceId> resourceId =
-            source.fileAssignment.forAllBucketShards(bucket, metadata.getNumBuckets());
-        readers.add(new BucketSourceIterator<>(reader, resourceId, source.tupleTag, metadata));
+        ResourceId resourceId = source.fileAssignment.forBucket(bucket, metadata.getNumBuckets());
+
+        if (resourceId != null) {
+          readers.add(new BucketSourceIterator<>(reader, resourceId, source.tupleTag, metadata));
+        }
       }
       return readers;
     }

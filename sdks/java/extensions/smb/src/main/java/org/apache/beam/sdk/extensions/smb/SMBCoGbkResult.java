@@ -23,10 +23,10 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Represents the result of an SMB co-group operation. */
-public class SMBJoinResult {
+public class SMBCoGbkResult {
   private final Map<TupleTag, Iterable<?>> valueMap;
 
-  SMBJoinResult(Map<TupleTag, Iterable<?>> valueMap) {
+  SMBCoGbkResult(Map<TupleTag, Iterable<?>> valueMap) {
     this.valueMap = valueMap;
   }
 
@@ -35,12 +35,12 @@ public class SMBJoinResult {
   }
 
   /**
-   * Serializable converter from SMBJoinResult to desired result type.
+   * Serializable converter from SMBCoGbkResult to desired result type.
    *
    * @param <ResultT>
    */
   public abstract static class ToResult<ResultT>
-      implements SerializableFunction<SMBJoinResult, ResultT> {
+      implements SerializableFunction<SMBCoGbkResult, ResultT> {
     public abstract Coder<ResultT> resultCoder();
   }
 }

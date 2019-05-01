@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -68,29 +69,33 @@ public class SortedBucketSink<SortingKeyT, ValueT>
   private final SMBFilenamePolicy smbFilenamePolicy;
   private final Supplier<Writer<ValueT>> writerSupplier;
   private final ResourceId tempDirectory;
+  private final Coder<SortingKeyT> sortingKeyCoder;
 
   public SortedBucketSink(
       BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
+      Coder<SortingKeyT> sortingKeyCoder,
       SMBFilenamePolicy smbFilenamePolicy,
       Supplier<Writer<ValueT>> writerSupplier,
       ResourceId tempDirectory) {
     this.bucketingMetadata = bucketingMetadata;
+    this.sortingKeyCoder = sortingKeyCoder;
     this.smbFilenamePolicy = smbFilenamePolicy;
     this.writerSupplier = writerSupplier;
     this.tempDirectory = tempDirectory;
+    ;
   }
 
   @Override
   public final WriteResult expand(PCollection<ValueT> input) {
     final Coder<KV<Integer, KV<SortingKeyT, ValueT>>> bucketedCoder =
-        KvCoder.of(
-            VarIntCoder.of(),
-            KvCoder.of(this.bucketingMetadata.getSortingKeyCoder(), input.getCoder()));
+        KvCoder.of(VarIntCoder.of(), KvCoder.of(sortingKeyCoder, input.getCoder()));
 
     return input
         .apply(
             "Assign buckets",
-            ParDo.of(new ExtractBucketAndSortKey<SortingKeyT, ValueT>(this.bucketingMetadata)))
+            ParDo.of(
+                new ExtractBucketAndSortKey<SortingKeyT, ValueT>(
+                    this.bucketingMetadata, this.sortingKeyCoder)))
         .setCoder(bucketedCoder) // @Todo: Verify fusion of these steps
         .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
@@ -105,18 +110,24 @@ public class SortedBucketSink<SortingKeyT, ValueT>
    */
   static final class ExtractBucketAndSortKey<K, V> extends DoFn<V, KV<Integer, KV<K, V>>> {
     private final BucketMetadata<K, V> bucketMetadata;
+    private final Coder<K> sortingKeyCoder;
 
-    ExtractBucketAndSortKey(BucketMetadata<K, V> bucketMetadata) {
+    ExtractBucketAndSortKey(BucketMetadata<K, V> bucketMetadata, Coder<K> sortingKeyCoder) {
       this.bucketMetadata = bucketMetadata;
+      this.sortingKeyCoder = sortingKeyCoder;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      V record = c.element();
-      c.output(
-          KV.of(
-              bucketMetadata.assignBucket(record),
-              KV.of(bucketMetadata.extractSortingKey(record), record)));
+      final V record = c.element();
+      final K key = bucketMetadata.extractSortingKey(record);
+      final byte[] keyBytes = CoderUtils.encodeToByteArray(sortingKeyCoder, key);
+
+      final int bucket =
+          Math.abs(bucketMetadata.getHashFunction().hashBytes(keyBytes).asInt())
+              % bucketMetadata.getNumBuckets();
+
+      c.output(KV.of(bucket, KV.of(key, record)));
     }
   }
 
@@ -223,8 +234,8 @@ public class SortedBucketSink<SortingKeyT, ValueT>
                           final Iterable<KV<K, V>> records = c.element().getValue();
 
                           final ResourceId tmpDst =
-                              tempFileAssignment.forBucketShard(
-                                  bucketId, bucketMetadata.getNumBuckets(), 1, 1);
+                              tempFileAssignment.forBucket(
+                                  bucketId, bucketMetadata.getNumBuckets());
 
                           final SortedBucketFile.Writer<V> writer = writerSupplier.get();
 
@@ -327,11 +338,9 @@ public class SortedBucketSink<SortingKeyT, ValueT>
                                               srcFiles.add(bucketAndTempLocation.getValue());
 
                                               final ResourceId dstFile =
-                                                  finalizedFileAssignment.forBucketShard(
+                                                  finalizedFileAssignment.forBucket(
                                                       bucketAndTempLocation.getKey(),
-                                                      bucketMetadata.getNumBuckets(),
-                                                      1,
-                                                      1);
+                                                      bucketMetadata.getNumBuckets());
 
                                               dstFiles.add(dstFile);
                                               finalBucketLocations.add(
@@ -344,7 +353,7 @@ public class SortedBucketSink<SortingKeyT, ValueT>
                                   }
                                 }));
 
-                // @Todo Cleanup if either write failed (right now it's not totally atomic...)
+                // @Todo - reduce this to a single FileSystems.rename operation for atomicity?
 
                 return new WriteResult(input.getPipeline(), metadata, buckets);
               }));

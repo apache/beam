@@ -18,17 +18,20 @@
 package org.apache.beam.sdk.extensions.smb.avro;
 
 import java.io.Serializable;
+import java.util.Comparator;
+import java.util.Optional;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
+import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult;
+import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToResult;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
-import org.apache.beam.sdk.extensions.smb.SMBJoinResult;
-import org.apache.beam.sdk.extensions.smb.SMBJoinResult.ToResult;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile;
-import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Reader;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource;
@@ -46,14 +49,25 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  */
 public class AvroSortedBucketIO {
 
+  public static <SortingKeyT> SortedBucketSink<SortingKeyT, GenericRecord> sink(
+      BucketMetadata<SortingKeyT, GenericRecord> bucketingMetadata,
+      Coder<SortingKeyT> sortingKeyCoder,
+      ResourceId outputDirectory,
+      ResourceId tempDirectory,
+      Schema schema) {
+    return sink(bucketingMetadata, sortingKeyCoder, outputDirectory, tempDirectory, null, schema);
+  }
+
   public static <SortingKeyT, ValueT> SortedBucketSink<SortingKeyT, ValueT> sink(
       BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
+      Coder<SortingKeyT> sortingKeyCoder,
       ResourceId outputDirectory,
       ResourceId tempDirectory,
       Class<ValueT> recordClass,
       Schema schema) {
     return new SortedBucketSink<>(
         bucketingMetadata,
+        sortingKeyCoder,
         new SMBFilenamePolicy(outputDirectory, "avro"),
         new AvroWriterSupplier<>(recordClass, schema),
         tempDirectory);
@@ -79,45 +93,85 @@ public class AvroSortedBucketIO {
    * @param <V1>
    * @param <V2>
    */
-  public static class SortedBucketSourceJoinBuilder<KeyT extends Comparable<KeyT>, V1, V2>
-      implements Serializable {
+  public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> implements Serializable {
+
     private KeyedBucketSource<KeyT, V1> leftSource;
     private Coder<V1> leftCoder;
+
     private KeyedBucketSource<KeyT, V2> rightSource;
     private Coder<V2> rightCoder;
-    private Coder<KeyT> keyCoder;
 
-    SortedBucketSourceJoinBuilder(Coder<KeyT> keyCoder, Coder<V1> leftCoder, Coder<V2> rightCoder) {
+    private Coder<KeyT> keyCoder;
+    private Comparator<KeyT> keyComparator;
+
+    SortedBucketSourceJoinBuilder(Coder<KeyT> keyCoder, Comparator<KeyT> keyComparator) {
+      this.keyCoder = keyCoder;
+      this.keyComparator = keyComparator;
+    }
+
+    SortedBucketSourceJoinBuilder(
+        Coder<KeyT> keyCoder,
+        KeyedBucketSource<KeyT, V1> leftSource,
+        Coder<V1> leftCoder,
+        Comparator<KeyT> keyComparator) {
       this.keyCoder = keyCoder;
       this.leftCoder = leftCoder;
-      this.rightCoder = rightCoder;
+      this.leftSource = leftSource;
+      this.keyComparator = keyComparator;
     }
 
-    public static <K extends Comparable<K>, V1, V2> SortedBucketSourceJoinBuilder<K, V1, V2> of(
-        Coder<K> keyCoder, Coder<V1> leftCoder, Coder<V2> rightCoder) {
-      return new SortedBucketSourceJoinBuilder<>(keyCoder, leftCoder, rightCoder);
+    public static <K extends Comparable<K>> SortedBucketSourceJoinBuilder<K, ?, ?> create(
+        Coder<K> keyCoder) {
+      return new SortedBucketSourceJoinBuilder<>(keyCoder, Comparator.naturalOrder());
     }
 
-    public SortedBucketSourceJoinBuilder<KeyT, V1, V2> of(
-        ResourceId filenamePrefix, Reader<V1> reader) {
-      this.leftSource =
-          new KeyedBucketSource<KeyT, V1>(
+    public static <K> SortedBucketSourceJoinBuilder<K, ?, ?> create(
+        Coder<K> keyCoder, Comparator<K> keyComparator) {
+      return new SortedBucketSourceJoinBuilder<>(keyCoder, keyComparator);
+    }
+
+    public SortedBucketSourceJoinBuilder<KeyT, GenericRecord, ?> of(
+        ResourceId filenamePrefix, Schema schema) {
+      return of(filenamePrefix, schema, null);
+    }
+
+    public <ValueT> SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> of(
+        ResourceId filenamePrefix, Schema schema, Class<ValueT> recordClass) {
+      final SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> builderCopy =
+          new SortedBucketSourceJoinBuilder<>(keyCoder, keyComparator);
+
+      builderCopy.leftSource =
+          new KeyedBucketSource<>(
               new TupleTag<>("left"),
               new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
-              reader);
+              new AvroSortedBucketFile<>(recordClass, schema).createReader());
+      builderCopy.leftCoder =
+          AvroCoder.of(
+              Optional.ofNullable(recordClass).orElse((Class<ValueT>) GenericRecord.class), schema);
 
-      return this;
+      return builderCopy;
     }
 
-    public SortedBucketSourceJoinBuilder<KeyT, V1, V2> and(
-        ResourceId filenamePrefix, Reader<V2> reader) {
-      this.rightSource =
-          new KeyedBucketSource<KeyT, V2>(
+    public SortedBucketSourceJoinBuilder<KeyT, V1, GenericRecord> and(
+        ResourceId filenamePrefix, Schema schema) {
+      return and(filenamePrefix, schema, null);
+    }
+
+    public <ValueT> SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> and(
+        ResourceId filenamePrefix, Schema schema, Class<ValueT> recordClass) {
+
+      final SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> builderCopy =
+          new SortedBucketSourceJoinBuilder<>(keyCoder, leftSource, leftCoder, keyComparator);
+
+      builderCopy.rightSource =
+          new KeyedBucketSource<>(
               new TupleTag<>("right"),
               new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
-              reader);
-
-      return this;
+              new AvroSortedBucketFile<>(recordClass, schema).createReader());
+      builderCopy.rightCoder =
+          AvroCoder.of(
+              Optional.ofNullable(recordClass).orElse((Class<ValueT>) GenericRecord.class), schema);
+      return builderCopy;
     }
 
     public SortedBucketSource<KeyT, KV<Iterable<V1>, Iterable<V2>>> build() {
@@ -125,10 +179,10 @@ public class AvroSortedBucketIO {
           keyCoder,
           new ToResult<KV<Iterable<V1>, Iterable<V2>>>() {
             @Override
-            public KV<Iterable<V1>, Iterable<V2>> apply(SMBJoinResult input) {
+            public KV<Iterable<V1>, Iterable<V2>> apply(SMBCoGbkResult input) {
               return KV.of(
-                  input.getValuesForTag(new TupleTag<V1>("left")),
-                  input.getValuesForTag(new TupleTag<V2>("right")));
+                  input.getValuesForTag(new TupleTag<>("left")),
+                  input.getValuesForTag(new TupleTag<>("right")));
             }
 
             @Override
@@ -138,7 +192,8 @@ public class AvroSortedBucketIO {
                   NullableCoder.of(IterableCoder.of(rightCoder)));
             }
           },
-          ImmutableList.of(leftSource, rightSource));
+          ImmutableList.of(leftSource, rightSource),
+          keyComparator);
     }
   }
 }
