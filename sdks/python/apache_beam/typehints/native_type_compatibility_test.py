@@ -37,10 +37,10 @@ class _TestClass(object):
   pass
 
 
-@unittest.skipIf(sys.version_info >= (3, 7, 0) and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3.7. '
-                 'See BEAM-6985')
+#@unittest.skipIf(sys.version_info >= (3, 7, 0) and
+#                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+#                 'This test still needs to be fixed on Python 3.7. '
+#                 'See BEAM-6985')
 class NativeTypeCompatibilityTest(unittest.TestCase):
 
   def test_convert_to_beam_type(self):
