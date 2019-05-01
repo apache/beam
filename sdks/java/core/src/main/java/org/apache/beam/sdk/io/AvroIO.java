@@ -628,6 +628,11 @@ public class AvroIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .addIfNotNull(DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"))
           .addIfNotNull(
               DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
           .include("matchConfiguration", getMatchConfiguration());
@@ -703,6 +708,18 @@ public class AvroIO {
                   new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
                   AvroCoder.of(getRecordClass(), getSchema())));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .addIfNotNull(
+              DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"));
     }
   }
 
@@ -786,7 +803,13 @@ public class AvroIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.include("matchConfiguration", getMatchConfiguration());
+      builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .addIfNotNull(DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"))
+          .include("matchConfiguration", getMatchConfiguration());
     }
   }
 
