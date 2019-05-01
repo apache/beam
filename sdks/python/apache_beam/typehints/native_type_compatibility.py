@@ -84,7 +84,27 @@ def _safe_issubclass(derived, parent):
     issubclass(derived, parent), or False if a TypeError was raised.
   """
   try:
-    return issubclass(derived, parent)
+    print(1)
+
+    if type(derived) == typing._GenericAlias:
+      print(1.1)
+      print("The parent is : {}".format(parent))
+      print("The parent type is: {}".format(type(parent)))
+      print("The parent origin is: {}".format(parent.__origin__))
+
+      print("The derived is : {}".format(derived))
+      print("The derived type is: {}".format(type(derived)))
+      print("THe derived origin is: {}".format(derived.__origin__))
+      print(derived.__repr__)
+
+      out = issubclass(derived.__origin__, parent.__origin__)
+      print(out)
+    else:
+      print(1.2)
+      out = issubclass(derived, parent)
+    if out:
+      print("MATCH IT IS A MATCH")
+    return out
   except TypeError:
     return False
 
@@ -93,10 +113,22 @@ def _match_issubclass(match_against):
   return lambda user_type: _safe_issubclass(user_type, match_against)
 
 
+def _matcher_(derived, parent):
+  try:
+    return derived.__origin__ is parent
+  except:
+    return type(derived) == type(parent)
+
 def _match_same_type(match_against):
   # For Union types. They can't be compared with isinstance either, so we
-  # have to compare their types directly.
-  return lambda user_type: type(user_type) == type(match_against)
+  # Have to compare their types directly.
+  return lambda user_type: _matcher_(user_type, match_against)
+
+
+#def _match_same_type(match_against):
+#  # For Union types. They can't be compared with isinstance either, so we
+#  # have to compare their types directly.
+#  return lambda user_type: type(user_type) == type(match_against)
 
 
 def _match_is_named_tuple(user_type):
@@ -151,9 +183,12 @@ def convert_to_beam_type(typ):
   ]
 
   # Find the first matching entry.
+  print("Start")
   matched_entry = next((entry for entry in type_map if entry.match(typ)), None)
+  print("Matched entry: {}".format(matched_entry))
   if not matched_entry:
     # No match: return original type.
+    print(2.1)
     return typ
 
   if matched_entry.arity == -1:
@@ -166,11 +201,14 @@ def convert_to_beam_type(typ):
   typs = [convert_to_beam_type(_get_arg(typ, i)) for i in range(arity)]
   if arity == 0:
     # Nullary types (e.g. Any) don't accept empty tuples as arguments.
+    print(2.2)
     return matched_entry.beam_type
   elif arity == 1:
     # Unary types (e.g. Set) don't accept 1-tuples as arguments
+    print(2.3)
     return matched_entry.beam_type[typs[0]]
   else:
+    print(2.4)
     return matched_entry.beam_type[tuple(typs)]
 
 
