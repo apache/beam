@@ -25,6 +25,7 @@ import (
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=filter --identifiers=filterFn,mapFn,keyFn
+//go:generate go fmt
 
 var (
 	sig = funcx.MakePredicate(beam.TType) // T -> bool

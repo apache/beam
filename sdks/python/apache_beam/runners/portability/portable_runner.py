@@ -114,7 +114,6 @@ class PortableRunner(runner.PipelineRunner):
           portable_options.environment_config
           or PortableRunner.default_docker_image())
       return beam_runner_api_pb2.Environment(
-          url=docker_image,
           urn=common_urns.environments.DOCKER.urn,
           payload=beam_runner_api_pb2.DockerPayload(
               container_image=docker_image
@@ -196,21 +195,18 @@ class PortableRunner(runner.PipelineRunner):
         del transform_proto.subtransforms[:]
 
     # Preemptively apply combiner lifting, until all runners support it.
-    # This optimization is idempotent.
+    # Also apply sdf expansion.
+    # These optimizations commute and are idempotent.
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
-        'pre_optimize', 'combine').lower()
+        'pre_optimize', 'lift_combiners,expand_sdf').lower()
     if not options.view_as(StandardOptions).streaming:
       flink_known_urns = frozenset([
           common_urns.composites.RESHUFFLE.urn,
           common_urns.primitives.IMPULSE.urn,
           common_urns.primitives.FLATTEN.urn,
           common_urns.primitives.GROUP_BY_KEY.urn])
-      if pre_optimize == 'combine':
-        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
-            proto_pipeline,
-            phases=[fn_api_runner_transforms.lift_combiners],
-            known_runner_urns=flink_known_urns,
-            partial=True)
+      if pre_optimize == 'none':
+        pass
       elif pre_optimize == 'all':
         proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
             proto_pipeline,
@@ -218,6 +214,7 @@ class PortableRunner(runner.PipelineRunner):
                     fn_api_runner_transforms.annotate_stateful_dofns_as_roots,
                     fn_api_runner_transforms.fix_side_input_pcoll_coders,
                     fn_api_runner_transforms.lift_combiners,
+                    fn_api_runner_transforms.expand_sdf,
                     fn_api_runner_transforms.fix_flatten_coders,
                     # fn_api_runner_transforms.sink_flattens,
                     fn_api_runner_transforms.greedily_fuse,
@@ -226,10 +223,21 @@ class PortableRunner(runner.PipelineRunner):
                     fn_api_runner_transforms.remove_data_plane_ops,
                     fn_api_runner_transforms.sort_stages],
             known_runner_urns=flink_known_urns)
-      elif pre_optimize == 'none':
-        pass
       else:
-        raise ValueError('Unknown value for pre_optimize: %s' % pre_optimize)
+        phases = []
+        for phase_name in pre_optimize.split(','):
+          # For now, these are all we allow.
+          if phase_name in ('lift_combiners', 'expand_sdf'):
+            phases.append(getattr(fn_api_runner_transforms, phase_name))
+          else:
+            raise ValueError(
+                'Unknown or inapplicable phase for pre_optimize: %s'
+                % phase_name)
+        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+            proto_pipeline,
+            phases=phases,
+            known_runner_urns=flink_known_urns,
+            partial=True)
 
     if not job_service:
       channel = grpc.insecure_channel(job_endpoint)

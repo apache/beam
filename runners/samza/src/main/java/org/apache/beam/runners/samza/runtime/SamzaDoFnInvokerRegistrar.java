@@ -20,14 +20,14 @@ package org.apache.beam.runners.samza.runtime;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
-import org.apache.samza.task.TaskContext;
+import org.apache.samza.context.Context;
 
 /** A registrar for Samza DoFnInvoker. */
 public interface SamzaDoFnInvokerRegistrar {
 
   /** Returns the invoker for a {@link DoFn}. */
   <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
-      DoFn<InputT, OutputT> fn, TaskContext context);
+      DoFn<InputT, OutputT> fn, Context context);
 
   /** Returns the configs for a {@link DoFn}. */
   <InputT, OutputT> Map<String, String> configFor(DoFn<InputT, OutputT> fn);

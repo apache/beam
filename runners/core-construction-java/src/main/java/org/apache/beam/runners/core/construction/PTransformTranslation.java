@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.CombineComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
+import org.apache.beam.runners.core.construction.ExternalTranslation.ExternalTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -110,6 +111,10 @@ public class PTransformTranslation {
       getUrn(SplittableParDoComponents.PROCESS_KEYED_ELEMENTS);
   public static final String SPLITTABLE_PROCESS_ELEMENTS_URN =
       getUrn(SplittableParDoComponents.PROCESS_ELEMENTS);
+  public static final String SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN =
+      getUrn(SplittableParDoComponents.SPLIT_AND_SIZE_RESTRICTIONS);
+  public static final String SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN =
+      getUrn(SplittableParDoComponents.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS);
 
   public static final String ITERABLE_SIDE_INPUT =
       getUrn(RunnerApi.StandardSideInputTypes.Enum.ITERABLE);
@@ -125,6 +130,7 @@ public class PTransformTranslation {
         .add(new RawPTransformTranslator())
         .add(new KnownTransformPayloadTranslator())
         .add(ParDoTranslator.create())
+        .add(ExternalTranslator.create())
         .build();
   }
 

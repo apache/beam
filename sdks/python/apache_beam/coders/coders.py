@@ -280,10 +280,17 @@ class Coder(object):
     Prefer registering a urn with its parameter type and constructor.
     """
     parameter_type, constructor = cls._known_urns[coder_proto.spec.spec.urn]
-    return constructor(
-        proto_utils.parse_Bytes(coder_proto.spec.spec.payload, parameter_type),
-        [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
-        context)
+    try:
+      return constructor(
+          proto_utils.parse_Bytes(
+              coder_proto.spec.spec.payload, parameter_type),
+          [context.coders.get_by_id(c)
+           for c in coder_proto.component_coder_ids],
+          context)
+    except Exception:
+      if context.allow_proto_holders:
+        return RunnerAPICoderHolder(coder_proto)
+      raise
 
   def to_runner_api_parameter(self, context):
     return (
@@ -450,6 +457,9 @@ class FloatCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+Coder.register_structured_urn(common_urns.coders.DOUBLE.urn, FloatCoder)
 
 
 class TimestampCoder(FastCoder):
@@ -1137,3 +1147,25 @@ class StateBackedIterableCoder(FastCoder):
         read_state=context.iterable_state_read,
         write_state=context.iterable_state_write,
         write_state_threshold=int(payload))
+
+
+class RunnerAPICoderHolder(Coder):
+  """A `Coder` that holds a runner API `Coder` proto.
+
+  This is used for coders for which corresponding objects cannot be
+  initialized in Python SDK. For example, coders for remote SDKs that may
+  be available in Python SDK transform graph when expanding a cross-language
+  transform.
+  """
+
+  def __init__(self, proto):
+    self._proto = proto
+
+  def proto(self):
+    return self._proto
+
+  def to_runner_api(self, context):
+    return self._proto
+
+  def to_type_hint(self):
+    return typehints.Any

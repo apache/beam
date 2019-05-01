@@ -160,6 +160,8 @@ class WatermarkManager(object):
     for applied_ptransform, tw in self._transform_to_watermarks.items():
       fired_timers, had_realtime_timer = tw.extract_transform_timers()
       if fired_timers:
+        # We should sort the timer firings, so they are fired in order.
+        fired_timers.sort(key=lambda ft: ft.timestamp)
         all_timers.append((applied_ptransform, fired_timers))
       if (had_realtime_timer
           and tw.output_watermark < WatermarkManager.WATERMARK_POS_INF):

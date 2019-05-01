@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -301,7 +302,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+    public Object schemaElement(int index) {
       throw new UnsupportedOperationException(
           "Element parameters are not supported outside of @ProcessElement method.");
     }
@@ -415,7 +416,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+    public Object schemaElement(int index) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
@@ -631,9 +632,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
-      Row row = schemaCoder.getToRowFunction().apply(element());
-      return doFnSchemaInformation.getElementParameterSchema().getFromRowFunction().apply(row);
+    public Object schemaElement(int index) {
+      SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
+      return converter.apply(element());
     }
 
     @Override
@@ -781,7 +782,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+    public Object schemaElement(int index) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
     }
 

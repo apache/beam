@@ -244,7 +244,7 @@ func NewBytes() *Coder {
 	return &Coder{Kind: Bytes, T: typex.New(reflectx.ByteSlice)}
 }
 
-// NewVarInt returns a new int32 coder using the built-in scheme.
+// NewVarInt returns a new int64 coder using the built-in scheme.
 func NewVarInt() *Coder {
 	return &Coder{Kind: VarInt, T: typex.New(reflectx.Int64)}
 }

@@ -81,6 +81,14 @@ class ParDoBoundMultiTranslator<InT, OutT>
       ParDo.MultiOutput<InT, OutT> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
+    doTranslate(transform, node, ctx);
+  }
+
+  // static for serializing anonymous functions
+  private static <InT, OutT> void doTranslate(
+      ParDo.MultiOutput<InT, OutT> transform,
+      TransformHierarchy.Node node,
+      TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
     final Map<TupleTag<?>, Coder<?>> outputCoders =
         ctx.getCurrentTransform().getOutputs().entrySet().stream()
@@ -140,6 +148,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
             idToPValueMap,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             node.getFullName(),
+            // TODO: infer a fixed id from the name
+            String.valueOf(ctx.getCurrentTopologicalId()),
+            input.isBounded(),
             false,
             null,
             Collections.emptyMap(),
@@ -176,6 +187,14 @@ class ParDoBoundMultiTranslator<InT, OutT>
    */
   @Override
   public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    doTranslatePortable(transform, pipeline, ctx);
+  }
+
+  // static for serializing anonymous functions
+  private static <InT, OutT> void doTranslatePortable(
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
@@ -221,6 +240,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
 
+    final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
+    final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
+
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             mainOutputTag,
@@ -234,6 +256,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             nodeFullname,
+            // TODO: infer a fixed id from the name
+            String.valueOf(ctx.getCurrentTopologicalId()),
+            isBounded,
             true,
             stagePayload,
             idToTupleTagMap,
@@ -296,7 +321,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     return config;
   }
 
-  private class SideInputWatermarkFn
+  private static class SideInputWatermarkFn<InT>
       implements FlatMapFunction<OpMessage<InT>, OpMessage<InT>>,
           WatermarkFunction<OpMessage<InT>> {
 

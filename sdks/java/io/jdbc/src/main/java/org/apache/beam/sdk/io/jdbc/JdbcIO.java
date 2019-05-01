@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -160,7 +161,10 @@ public class JdbcIO {
    * @param <T> Type of the data to be read.
    */
   public static <T> Read<T> read() {
-    return new AutoValue_JdbcIO_Read.Builder<T>().setFetchSize(DEFAULT_FETCH_SIZE).build();
+    return new AutoValue_JdbcIO_Read.Builder<T>()
+        .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setOutputParallelization(true)
+        .build();
   }
 
   /**
@@ -173,6 +177,7 @@ public class JdbcIO {
   public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
     return new AutoValue_JdbcIO_ReadAll.Builder<ParameterT, OutputT>()
         .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setOutputParallelization(true)
         .build();
   }
 
@@ -185,7 +190,11 @@ public class JdbcIO {
    * @param <T> Type of the data to be written.
    */
   public static <T> Write<T> write() {
-    return new AutoValue_JdbcIO_Write.Builder<T>()
+    return new Write();
+  }
+
+  public static <T> WriteVoid<T> writeVoid() {
+    return new AutoValue_JdbcIO_WriteVoid.Builder<T>()
         .setBatchSize(DEFAULT_BATCH_SIZE)
         .setRetryStrategy(new DefaultRetryStrategy())
         .build();
@@ -238,6 +247,8 @@ public class JdbcIO {
     @Nullable
     abstract DataSource getDataSource();
 
+    abstract boolean isPoolingDataSource();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -254,14 +265,22 @@ public class JdbcIO {
 
       abstract Builder setDataSource(DataSource dataSource);
 
+      abstract Builder setPoolingDataSource(boolean poolingDataSource);
+
       abstract DataSourceConfiguration build();
     }
 
     public static DataSourceConfiguration create(DataSource dataSource) {
+      return create(dataSource, true);
+    }
+
+    public static DataSourceConfiguration create(
+        DataSource dataSource, boolean isPoolingDataSource) {
       checkArgument(dataSource != null, "dataSource can not be null");
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDataSource(dataSource)
+          .setPoolingDataSource(isPoolingDataSource)
           .build();
     }
 
@@ -280,6 +299,7 @@ public class JdbcIO {
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDriverClassName(driverClassName)
           .setUrl(url)
+          .setPoolingDataSource(true)
           .build();
     }
 
@@ -352,21 +372,25 @@ public class JdbcIO {
         current = basicDataSource;
       }
 
-      // wrapping the datasource as a pooling datasource
-      DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
-      PoolableConnectionFactory poolableConnectionFactory =
-          new PoolableConnectionFactory(connectionFactory, null);
-      GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-      poolConfig.setMaxTotal(1);
-      poolConfig.setMinIdle(0);
-      poolConfig.setMinEvictableIdleTimeMillis(10000);
-      poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
-      GenericObjectPool connectionPool =
-          new GenericObjectPool(poolableConnectionFactory, poolConfig);
-      poolableConnectionFactory.setPool(connectionPool);
-      poolableConnectionFactory.setDefaultAutoCommit(false);
-      poolableConnectionFactory.setDefaultReadOnly(false);
-      return new PoolingDataSource(connectionPool);
+      if (isPoolingDataSource()) {
+        // wrapping the datasource as a pooling datasource
+        DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
+        PoolableConnectionFactory poolableConnectionFactory =
+            new PoolableConnectionFactory(connectionFactory, null);
+        GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+        poolConfig.setMaxTotal(1);
+        poolConfig.setMinIdle(0);
+        poolConfig.setMinEvictableIdleTimeMillis(10000);
+        poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
+        GenericObjectPool connectionPool =
+            new GenericObjectPool(poolableConnectionFactory, poolConfig);
+        poolableConnectionFactory.setPool(connectionPool);
+        poolableConnectionFactory.setDefaultAutoCommit(false);
+        poolableConnectionFactory.setDefaultReadOnly(false);
+        return new PoolingDataSource(connectionPool);
+      } else {
+        return current;
+      }
     }
   }
 
@@ -399,6 +423,8 @@ public class JdbcIO {
 
     abstract int getFetchSize();
 
+    abstract boolean getOutputParallelization();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -414,6 +440,8 @@ public class JdbcIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setFetchSize(int fetchSize);
+
+      abstract Builder<T> setOutputParallelization(boolean outputParallelization);
 
       abstract Read<T> build();
     }
@@ -457,6 +485,14 @@ public class JdbcIO {
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
+    /**
+     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+     * default is to parallelize and should only be changed if this is known to be unnecessary.
+     */
+    public Read<T> withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(getQuery() != null, "withQuery() is required");
@@ -474,6 +510,7 @@ public class JdbcIO {
                   .withCoder(getCoder())
                   .withRowMapper(getRowMapper())
                   .withFetchSize(getFetchSize())
+                  .withOutputParallelization(getOutputParallelization())
                   .withParameterSetter(
                       (element, preparedStatement) -> {
                         if (getStatementPreparator() != null) {
@@ -515,6 +552,8 @@ public class JdbcIO {
 
     abstract int getFetchSize();
 
+    abstract boolean getOutputParallelization();
+
     abstract Builder<ParameterT, OutputT> toBuilder();
 
     @AutoValue.Builder
@@ -532,6 +571,8 @@ public class JdbcIO {
       abstract Builder<ParameterT, OutputT> setCoder(Coder<OutputT> coder);
 
       abstract Builder<ParameterT, OutputT> setFetchSize(int fetchSize);
+
+      abstract Builder<ParameterT, OutputT> setOutputParallelization(boolean outputParallelization);
 
       abstract ReadAll<ParameterT, OutputT> build();
     }
@@ -582,19 +623,33 @@ public class JdbcIO {
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
+    /**
+     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+     * default is to parallelize and should only be changed if this is known to be unnecessary.
+     */
+    public ReadAll<ParameterT, OutputT> withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
+    }
+
     @Override
     public PCollection<OutputT> expand(PCollection<ParameterT> input) {
-      return input
-          .apply(
-              ParDo.of(
-                  new ReadFn<>(
-                      getDataSourceConfiguration(),
-                      getQuery(),
-                      getParameterSetter(),
-                      getRowMapper(),
-                      getFetchSize())))
-          .setCoder(getCoder())
-          .apply(new Reparallelize<>());
+      PCollection<OutputT> output =
+          input
+              .apply(
+                  ParDo.of(
+                      new ReadFn<>(
+                          getDataSourceConfiguration(),
+                          getQuery(),
+                          getParameterSetter(),
+                          getRowMapper(),
+                          getFetchSize())))
+              .setCoder(getCoder());
+
+      if (getOutputParallelization()) {
+        output = output.apply(new Reparallelize<>());
+      }
+
+      return output;
     }
 
     @Override
@@ -680,9 +735,81 @@ public class JdbcIO {
     boolean apply(SQLException sqlException);
   }
 
+  /**
+   * This class is used as the default return value of {@link JdbcIO#write()}.
+   *
+   * <p>All methods in this class delegate to the appropriate method of {@link JdbcIO.WriteVoid}.
+   */
+  public static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    WriteVoid<T> inner;
+
+    Write() {
+      this(JdbcIO.<T>writeVoid());
+    }
+
+    Write(WriteVoid<T> inner) {
+      this.inner = inner;
+    }
+
+    /** See {@link WriteVoid#withDataSourceConfiguration(DataSourceConfiguration)}. */
+    public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
+      return new Write(inner.withDataSourceConfiguration(config));
+    }
+
+    /** See {@link WriteVoid#withStatement(String)}. */
+    public Write<T> withStatement(String statement) {
+      return new Write(inner.withStatement(statement));
+    }
+
+    /** See {@link WriteVoid#withPreparedStatementSetter(PreparedStatementSetter)}. */
+    public Write<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
+      return new Write(inner.withPreparedStatementSetter(setter));
+    }
+
+    /** See {@link WriteVoid#withBatchSize(long)}. */
+    public Write<T> withBatchSize(long batchSize) {
+      return new Write(inner.withBatchSize(batchSize));
+    }
+
+    /** See {@link WriteVoid#withRetryStrategy(RetryStrategy)}. */
+    public Write<T> withRetryStrategy(RetryStrategy retryStrategy) {
+      return new Write(inner.withRetryStrategy(retryStrategy));
+    }
+
+    /**
+     * Returns {@link WriteVoid} transform which can be used in {@link Wait#on(PCollection[])} to
+     * wait until all data is written.
+     *
+     * <p>Example: write a {@link PCollection} to one database and then to another database, making
+     * sure that writing a window of data to the second database starts only after the respective
+     * window has been fully written to the first database.
+     *
+     * <pre>{@code
+     * PCollection<Void> firstWriteResults = data.apply(JdbcIO.write()
+     *     .withDataSourceConfiguration(CONF_DB_1).withResults());
+     * data.apply(Wait.on(firstWriteResults))
+     *     .apply(JdbcIO.write().withDataSourceConfiguration(CONF_DB_2));
+     * }</pre>
+     */
+    public WriteVoid<T> withResults() {
+      return inner;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      inner.populateDisplayData(builder);
+    }
+
+    @Override
+    public PDone expand(PCollection<T> input) {
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
+    }
+  }
+
   /** A {@link PTransform} to write to a JDBC datasource. */
   @AutoValue
-  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+  public abstract static class WriteVoid<T> extends PTransform<PCollection<T>, PCollection<Void>> {
     @Nullable
     abstract DataSourceConfiguration getDataSourceConfiguration();
 
@@ -711,22 +838,22 @@ public class JdbcIO {
 
       abstract Builder<T> setRetryStrategy(RetryStrategy deadlockPredicate);
 
-      abstract Write<T> build();
+      abstract WriteVoid<T> build();
     }
 
-    public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
+    public WriteVoid<T> withDataSourceConfiguration(DataSourceConfiguration config) {
       return toBuilder().setDataSourceConfiguration(config).build();
     }
 
-    public Write<T> withStatement(String statement) {
+    public WriteVoid<T> withStatement(String statement) {
       return withStatement(ValueProvider.StaticValueProvider.of(statement));
     }
 
-    public Write<T> withStatement(ValueProvider<String> statement) {
+    public WriteVoid<T> withStatement(ValueProvider<String> statement) {
       return toBuilder().setStatement(statement).build();
     }
 
-    public Write<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
+    public WriteVoid<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
       return toBuilder().setPreparedStatementSetter(setter).build();
     }
 
@@ -735,7 +862,7 @@ public class JdbcIO {
      *
      * @param batchSize maximum batch size in number of statements
      */
-    public Write<T> withBatchSize(long batchSize) {
+    public WriteVoid<T> withBatchSize(long batchSize) {
       checkArgument(batchSize > 0, "batchSize must be > 0, but was %s", batchSize);
       return toBuilder().setBatchSize(batchSize).build();
     }
@@ -745,26 +872,25 @@ public class JdbcIO {
      * will retry the statements. If {@link RetryStrategy#apply(SQLException)} returns {@code true},
      * then {@link Write} retries the statements.
      */
-    public Write<T> withRetryStrategy(RetryStrategy retryStrategy) {
+    public WriteVoid<T> withRetryStrategy(RetryStrategy retryStrategy) {
       checkArgument(retryStrategy != null, "retryStrategy can not be null");
       return toBuilder().setRetryStrategy(retryStrategy).build();
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
+    public PCollection<Void> expand(PCollection<T> input) {
       checkArgument(
           getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
       checkArgument(getStatement() != null, "withStatement() is required");
       checkArgument(
           getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
 
-      input.apply(ParDo.of(new WriteFn<>(this)));
-      return PDone.in(input.getPipeline());
+      return input.apply(ParDo.of(new WriteFn<T>(this)));
     }
 
     private static class WriteFn<T> extends DoFn<T, Void> {
 
-      private final Write<T> spec;
+      private final WriteVoid<T> spec;
 
       private static final int MAX_RETRIES = 5;
       private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -777,7 +903,7 @@ public class JdbcIO {
       private PreparedStatement preparedStatement;
       private List<T> records = new ArrayList<>();
 
-      public WriteFn(Write<T> spec) {
+      public WriteFn(WriteVoid<T> spec) {
         this.spec = spec;
       }
 

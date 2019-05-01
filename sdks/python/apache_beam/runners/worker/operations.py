@@ -612,10 +612,10 @@ class DoOperation(Operation):
     return infos
 
 
-class SdfProcessElements(DoOperation):
+class SdfProcessSizedElements(DoOperation):
 
   def __init__(self, *args, **kwargs):
-    super(SdfProcessElements, self).__init__(*args, **kwargs)
+    super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
     self.lock = threading.RLock()
     self.element_start_output_bytes = None
 
@@ -628,7 +628,7 @@ class SdfProcessElements(DoOperation):
             receiver.opcounter.restart_sampling()
         # Actually processing the element can be expensive; do it without
         # the lock.
-        delayed_application = self.dofn_runner.process_with_restriction(o)
+        delayed_application = self.dofn_runner.process_with_sized_restriction(o)
         if delayed_application:
           self.execution_context.delayed_applications.append(
               (self, delayed_application))
@@ -645,12 +645,14 @@ class SdfProcessElements(DoOperation):
   def current_element_progress(self):
     with self.lock:
       if self.element_start_output_bytes is not None:
-        return self.dofn_runner.current_element_progress().with_completed(
-            self._total_output_bytes() - self.element_start_output_bytes)
+        progress = self.dofn_runner.current_element_progress()
+        if progress is not None:
+          return progress.with_completed(
+              self._total_output_bytes() - self.element_start_output_bytes)
 
   def progress_metrics(self):
     with self.lock:
-      metrics = super(SdfProcessElements, self).progress_metrics()
+      metrics = super(SdfProcessSizedElements, self).progress_metrics()
       current_element_progress = self.current_element_progress()
     if current_element_progress:
       metrics.active_elements.measured.input_element_counts[

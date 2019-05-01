@@ -190,6 +190,9 @@ public class StreamingWriteTables<ElementT>
       TupleTag<T> failedInsertsTag,
       AtomicCoder<T> coder,
       ErrorContainer<T> errorContainer) {
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    int numShards = options.getNumStreamingKeys();
+
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when
     // a VM that runs this code is restarted and the code is re-run.
@@ -204,7 +207,7 @@ public class StreamingWriteTables<ElementT>
     // streaming insert quota.
     PCollection<KV<ShardedKey<String>, TableRowInfo<ElementT>>> tagged =
         input
-            .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable<>(50)))
+            .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable<>(numShards)))
             .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), elementCoder))
             .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>()))
             .setCoder(

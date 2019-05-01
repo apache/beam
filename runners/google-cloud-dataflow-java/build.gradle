@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20190308'
+    'dataflow.container_version' : 'beam-master-20190415'
   ]
 }
 
@@ -107,7 +107,7 @@ test {
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests/'
+def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
 def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
@@ -131,6 +131,7 @@ def fnApiPipelineOptions = [
 def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
   'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
+  'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesSetState',
@@ -143,11 +144,12 @@ def commonExcludeCategories = [
 ]
 
 def fnApiWorkerExcludeCategories = [
+  'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
   'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
   'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported',
   'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders',
   'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
-  'org.apache.beam.sdk.testing.UsesSchema'
+  'org.apache.beam.sdk.testing.UsesSchema',
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
@@ -368,6 +370,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'

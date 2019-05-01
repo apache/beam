@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
@@ -60,14 +61,13 @@ import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
+import org.apache.samza.context.TaskContext;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
-import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */
@@ -82,16 +82,19 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   private final K key;
   private final byte[] keyBytes;
   private final int batchGetSize;
+  private final String stageId;
 
   private SamzaStoreStateInternals(
       Map<String, KeyValueStore<byte[], byte[]>> stores,
       @Nullable K key,
       @Nullable byte[] keyBytes,
+      String stageId,
       int batchGetSize) {
     this.stores = stores;
     this.key = key;
     this.keyBytes = keyBytes;
     this.batchGetSize = batchGetSize;
+    this.stageId = stageId;
   }
 
   @SuppressWarnings("unchecked")
@@ -100,11 +103,11 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   }
 
   static Factory createStateInternalFactory(
+      String id,
       Coder<?> keyCoder,
       TaskContext context,
       SamzaPipelineOptions pipelineOptions,
-      DoFnSignature signature,
-      TupleTag<?> mainOutputTag) {
+      DoFnSignature signature) {
     final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
     final Map<String, KeyValueStore<byte[], byte[]>> stores = new HashMap<>();
     stores.put(BEAM_STORE, getBeamStore(context));
@@ -121,12 +124,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     } else {
       stateKeyCoder = VoidCoder.of();
     }
-    return new Factory<>(
-        // TODO: ??? what to do with empty output?
-        mainOutputTag == null ? "null" : mainOutputTag.getId(),
-        stores,
-        stateKeyCoder,
-        batchGetSize);
+    return new Factory<>(Objects.toString(id), stores, stateKeyCoder, batchGetSize);
   }
 
   @Override
@@ -231,7 +229,6 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       final DataOutputStream dos = new DataOutputStream(baos);
 
       try {
-        dos.writeUTF(stageId);
         if (key != null) {
           keyCoder.encode(key, baos);
         }
@@ -244,7 +241,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
         throw new RuntimeException("Cannot encode key for state store", e);
       }
 
-      return new SamzaStoreStateInternals<>(stores, key, baos.toByteArray(), batchGetSize);
+      return new SamzaStoreStateInternals<>(stores, key, baos.toByteArray(), stageId, batchGetSize);
     }
   }
 
@@ -273,7 +270,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
         dos.writeUTF(namespace.stringKey());
 
         if (userStore == null) {
-          // for system state, we need to differentiate based on the address
+          // for system state, we need to differentiate based on the following:
+          dos.writeUTF(stageId);
           dos.writeUTF(address.getId());
         }
       } catch (IOException e) {

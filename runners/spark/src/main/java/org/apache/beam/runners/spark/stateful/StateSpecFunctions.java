@@ -206,7 +206,7 @@ public class StateSpecFunctions {
               Lists.newArrayList(Iterators.unmodifiableIterator(readValues.iterator()));
 
           return new Tuple2<>(
-              (Iterable<byte[]>) payload,
+              payload,
               new Metadata(
                   readValues.size(),
                   lowWatermark,

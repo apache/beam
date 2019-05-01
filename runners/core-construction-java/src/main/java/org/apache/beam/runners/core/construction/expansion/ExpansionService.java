@@ -21,10 +21,14 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
@@ -32,13 +36,13 @@ import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,7 +51,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
@@ -85,7 +89,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    * Exposes Java transforms via {@link org.apache.beam.sdk.expansion.ExternalTransformRegistrar}.
    */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
-  public static class ExternalTransformRegistrarLoader<ConfigT>
+  public static class ExternalTransformRegistrarLoader
       implements ExpansionService.ExpansionServiceRegistrar {
 
     @Override
@@ -94,10 +98,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           ImmutableMap.builder();
       for (ExternalTransformRegistrar registrar :
           ServiceLoader.load(ExternalTransformRegistrar.class)) {
-        for (Map.Entry<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> entry :
+        for (Map.Entry<String, Class<? extends ExternalTransformBuilder>> entry :
             registrar.knownBuilders().entrySet()) {
           String urn = entry.getKey();
-          Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass = entry.getValue();
+          Class<? extends ExternalTransformBuilder> builderClass = entry.getValue();
           builder.put(
               urn,
               spec -> {
@@ -117,7 +121,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     private static PTransform translate(
         ExternalTransforms.ExternalConfigurationPayload payload,
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass)
+        Class<? extends ExternalTransformBuilder> builderClass)
         throws Exception {
       Preconditions.checkState(
           ExternalTransformBuilder.class.isAssignableFrom(builderClass),
@@ -129,8 +133,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       return buildTransform(builderClass, configObject);
     }
 
-    private static Object initConfiguration(
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass) throws Exception {
+    private static Object initConfiguration(Class<? extends ExternalTransformBuilder> builderClass)
+        throws Exception {
       for (Method method : builderClass.getMethods()) {
         if (method.getName().equals("buildExternal")) {
           Preconditions.checkState(
@@ -148,24 +152,22 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       throw new RuntimeException("Couldn't find build method on ExternalTransformBuilder.");
     }
 
-    private static void populateConfiguration(
+    @VisibleForTesting
+    static void populateConfiguration(
         Object config, ExternalTransforms.ExternalConfigurationPayload payload) throws Exception {
       Converter<String, String> camelCaseConverter =
           CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
       for (Map.Entry<String, ExternalTransforms.ConfigValue> entry :
           payload.getConfigurationMap().entrySet()) {
-        String fieldName = camelCaseConverter.convert(entry.getKey());
-        String coderUrn = entry.getValue().getCoderUrn();
+        String key = entry.getKey();
+        ExternalTransforms.ConfigValue value = entry.getValue();
 
-        final Coder coder;
-        final Class type;
-        if (BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT).equals(coderUrn)) {
-          coder = VarLongCoder.of();
-          type = Long.class;
-        } else {
-          // TODO Use RehydratedComponents with coder ids instead
-          throw new RuntimeException("Unsupported coder urn " + coderUrn);
-        }
+        String fieldName = camelCaseConverter.convert(key);
+        List<String> coderUrns = value.getCoderUrnList();
+        Preconditions.checkArgument(coderUrns.size() > 0, "No Coder URN provided.");
+        Coder coder = resolveCoder(coderUrns);
+        Class type = coder.getEncodedTypeDescriptor().getRawType();
+
         String setterName =
             "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
         Method method;
@@ -183,10 +185,52 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       }
     }
 
+    private static Coder resolveCoder(List<String> coderUrns) throws Exception {
+      Preconditions.checkArgument(coderUrns.size() > 0, "No Coder URN provided.");
+      RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
+      Deque<String> coderQueue = new ArrayDeque<>(coderUrns);
+      RunnerApi.Coder coder = buildProto(coderQueue, componentsBuilder);
+
+      RehydratedComponents rehydratedComponents =
+          RehydratedComponents.forComponents(componentsBuilder.build());
+      return CoderTranslation.fromProto(coder, rehydratedComponents);
+    }
+
+    private static RunnerApi.Coder buildProto(
+        Deque<String> coderUrns, RunnerApi.Components.Builder componentsBuilder) {
+      Preconditions.checkArgument(coderUrns.size() > 0, "No URNs left to construct coder from");
+
+      final String coderUrn = coderUrns.pop();
+      RunnerApi.Coder.Builder coderBuilder =
+          RunnerApi.Coder.newBuilder()
+              .setSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build())
+                      .build());
+
+      if (coderUrn.equals(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))) {
+        RunnerApi.Coder elementCoder = buildProto(coderUrns, componentsBuilder);
+        String coderId = UUID.randomUUID().toString();
+        componentsBuilder.putCoders(coderId, elementCoder);
+        coderBuilder.addComponentCoderIds(coderId);
+      } else if (coderUrn.equals(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.KV))) {
+        RunnerApi.Coder element1Coder = buildProto(coderUrns, componentsBuilder);
+        RunnerApi.Coder element2Coder = buildProto(coderUrns, componentsBuilder);
+        String coderId1 = UUID.randomUUID().toString();
+        String coderId2 = UUID.randomUUID().toString();
+        componentsBuilder.putCoders(coderId1, element1Coder);
+        componentsBuilder.putCoders(coderId2, element2Coder);
+        coderBuilder.addComponentCoderIds(coderId1);
+        coderBuilder.addComponentCoderIds(coderId2);
+      }
+
+      return coderBuilder.build();
+    }
+
     private static PTransform buildTransform(
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass, Object configObject)
+        Class<? extends ExternalTransformBuilder> builderClass, Object configObject)
         throws Exception {
-      Constructor<? extends ExternalTransformBuilder<?, ?, ?>> constructor =
+      Constructor<? extends ExternalTransformBuilder> constructor =
           builderClass.getDeclaredConstructor();
       constructor.setAccessible(true);
       ExternalTransformBuilder<?, ?, ?> externalTransformBuilder = constructor.newInstance();
@@ -200,10 +244,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    * Provides a mapping of {@link RunnerApi.FunctionSpec} to a {@link PTransform}, together with
    * mappings of its inputs and outputs to maps of PCollections.
    *
-   * @param <InputT> input {@link PValue} type of the transform
-   * @param <OutputT> output {@link PValue} type of the transform
+   * @param <InputT> input {@link PInput} type of the transform
+   * @param <OutputT> output {@link POutput} type of the transform
    */
-  public interface TransformProvider<InputT extends PInput, OutputT extends PValue> {
+  public interface TransformProvider<InputT extends PInput, OutputT extends POutput> {
 
     default InputT createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
       if (inputs.size() == 0) {

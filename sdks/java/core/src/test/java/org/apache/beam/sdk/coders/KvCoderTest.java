@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
@@ -128,12 +127,5 @@ public class KvCoderTest {
     TypeDescriptor<KV<String, Integer>> typeDescriptor =
         new TypeDescriptor<KV<String, Integer>>() {};
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(typeDescriptor));
-  }
-
-  @Test
-  public void testStructuralValueReturnTheSameValue() {
-    KV<String, Integer> expected = KV.of("test", 10);
-    Object actual = TEST_CODER.structuralValue(expected);
-    assertEquals(expected, actual);
   }
 }

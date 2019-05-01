@@ -28,10 +28,12 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=top --identifiers=combineFn
+//go:generate go fmt
 
 var (
 	sig = funcx.MakePredicate(beam.TType, beam.TType) // (T, T) -> bool
@@ -57,8 +59,7 @@ func Largest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.P
 
 // LargestPerKey returns the largest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
-// single-element PCollection<KV<K,[]T>> with a slice of the N largest elements for
-// each key.
+// PCollection<KV<K,[]T>> with a slice of the N largest elements for each key.
 func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.LargestPerKey(%v)", n))
 
@@ -88,8 +89,7 @@ func Smallest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.
 
 // SmallestPerKey returns the smallest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
-// single-element PCollection<KV<K,[]T>> with a slice of the N smallest elements for
-// each key.
+// PCollection<KV<K,[]T>> with a slice of the N smallest elements for each key.
 func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.SmallestPerKey(%v)", n))
 
@@ -139,7 +139,7 @@ func (a *accum) unmarshal() error {
 	for _, val := range a.data {
 		element, err := a.dec.Decode(bytes.NewBuffer(val))
 		if err != nil {
-			return fmt.Errorf("top.accum: error unmarshal: %v", err)
+			return errors.WithContextf(err, "top.accum: unmarshalling")
 		}
 		a.list = append(a.list, element)
 	}
@@ -150,13 +150,13 @@ func (a *accum) unmarshal() error {
 // MarshalJSON uses the hook into the JSON encoder library to encode the accumulator.
 func (a accum) MarshalJSON() ([]byte, error) {
 	if a.enc == nil {
-		return nil, fmt.Errorf("top.accum: element encoder unspecified")
+		return nil, errors.Errorf("top.accum: element encoder unspecified")
 	}
 	var values [][]byte
 	for _, value := range a.list {
 		var buf bytes.Buffer
 		if err := a.enc.Encode(value, &buf); err != nil {
-			return nil, fmt.Errorf("top.accum: marshalling of %v failed: %v", value, err)
+			return nil, errors.WithContextf(err, "top.accum: marshalling %v", value)
 		}
 		values = append(values, buf.Bytes())
 	}

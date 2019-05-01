@@ -75,6 +75,25 @@ def default_encoder(obj):
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
 
 
+def get_hashable_destination(destination):
+  """Parses a table reference into a (project, dataset, table) tuple.
+
+  Args:
+    destination: Either a TableReference object from the bigquery API.
+      The object has the following attributes: projectId, datasetId, and
+      tableId. Or a string representing the destination containing
+      'PROJECT:DATASET.TABLE'.
+  Returns:
+    A string representing the destination containing
+    'PROJECT:DATASET.TABLE'.
+  """
+  if isinstance(destination, bigquery.TableReference):
+    return '%s:%s.%s' % (
+        destination.projectId, destination.datasetId, destination.tableId)
+  else:
+    return destination
+
+
 def parse_table_schema_from_json(schema_string):
   """Parse the Table Schema provided as string.
 
@@ -347,16 +366,16 @@ class BigQueryWrapper(object):
             jobReference=reference))
 
     response = self.client.jobs.Insert(request)
-    return response.jobReference.jobId
+    return response.jobReference.jobId, response.jobReference.location
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_query_results(self, project_id, job_id,
-                         page_token=None, max_results=10000):
+                         page_token=None, max_results=10000, location=None):
     request = bigquery.BigqueryJobsGetQueryResultsRequest(
         jobId=job_id, pageToken=page_token, projectId=project_id,
-        maxResults=max_results)
+        maxResults=max_results, location=location)
     response = self.client.jobs.GetQueryResults(request)
     return response
 
@@ -649,16 +668,18 @@ class BigQueryWrapper(object):
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
-    job_id = self._start_query_job(project_id, query, use_legacy_sql,
-                                   flatten_results, job_id=uuid.uuid4().hex,
-                                   dry_run=dry_run)
+    job_id, location = self._start_query_job(project_id, query,
+                                             use_legacy_sql, flatten_results,
+                                             job_id=uuid.uuid4().hex,
+                                             dry_run=dry_run)
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
       return
     page_token = None
     while True:
-      response = self._get_query_results(project_id, job_id, page_token)
+      response = self._get_query_results(project_id, job_id,
+                                         page_token, location=location)
       if not response.jobComplete:
         # The jobComplete field can be False if the query request times out
         # (default is 10 seconds). Note that this is a timeout for the query

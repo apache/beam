@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Hash validates that the incoming PCollection<string> has the given size and
@@ -58,7 +59,7 @@ func (f *hashFn) ProcessElement(_ int, lines func(*string) bool) error {
 	hash := base64.StdEncoding.EncodeToString(md5W.Sum(nil))
 
 	if f.Size != len(col) || f.Hash != hash {
-		return fmt.Errorf("passert.Hash(%v) = (%v,%v), want (%v,%v)", f.Name, len(col), hash, f.Size, f.Hash)
+		return errors.Errorf("passert.Hash(%v) = (%v,%v), want (%v,%v)", f.Name, len(col), hash, f.Size, f.Hash)
 	}
 	return nil
 }

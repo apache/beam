@@ -25,6 +25,7 @@ import mock
 import apache_beam as beam
 from apache_beam.coders import BytesCoder
 from apache_beam.coders import IterableCoder
+from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import VarIntCoder
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -366,6 +367,48 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         [b'A1A2A3', b'A1A2A3A4'],
         StatefulDoFnOnDirectRunnerTest.all_records)
 
+  def test_clearing_bag_state(self):
+    class BagStateClearingStatefulDoFn(beam.DoFn):
+
+      BAG_STATE = BagStateSpec('bag_state', StrUtf8Coder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+      CLEAR_TIMER = TimerSpec('clear_timer', TimeDomain.WATERMARK)
+
+      def process(self,
+                  element,
+                  bag_state=beam.DoFn.StateParam(BAG_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER),
+                  clear_timer=beam.DoFn.TimerParam(CLEAR_TIMER)):
+        value = element[1]
+        bag_state.add(value)
+        clear_timer.set(100)
+        emit_timer.set(1000)
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self, bag_state=beam.DoFn.StateParam(BAG_STATE)):
+        for value in bag_state.read():
+          yield value
+        yield 'extra'
+
+      @on_timer(CLEAR_TIMER)
+      def clear_values(self, bag_state=beam.DoFn.StateParam(BAG_STATE)):
+        bag_state.clear()
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(0)
+                     .add_elements([('key', 'value')])
+                     .advance_watermark_to(100))
+
+      _ = (p
+           | test_stream
+           | beam.ParDo(BagStateClearingStatefulDoFn())
+           | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(
+        ['extra'],
+        StatefulDoFnOnDirectRunnerTest.all_records)
+
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()
     values = p | beam.Create([1, 2, 3])
@@ -374,6 +417,65 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         ('Input elements to the transform .* with stateful DoFn must be '
          'key-value pairs.')):
       values | beam.ParDo(TestStatefulDoFn())
+
+  def test_generate_sequence_with_realtime_timer(self):
+    from apache_beam.transforms.combiners import CountCombineFn
+
+    class GenerateRecords(beam.DoFn):
+
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.REAL_TIME)
+      COUNT_STATE = CombiningValueStateSpec(
+          'count_state', VarIntCoder(), CountCombineFn())
+
+      def __init__(self, frequency, total_records):
+        self.total_records = total_records
+        self.frequency = frequency
+
+      def process(self,
+                  element,
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+        # Processing time timers should be set on ABSOLUTE TIME.
+        emit_timer.set(self.frequency)
+        yield element[1]
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self,
+                      emit_timer=beam.DoFn.TimerParam(EMIT_TIMER),
+                      count_state=beam.DoFn.StateParam(COUNT_STATE)):
+        count = count_state.read() or 0
+        if self.total_records == count:
+          return
+
+        count_state.add(1)
+        # Processing time timers should be set on ABSOLUTE TIME.
+        emit_timer.set(count + 1 + self.frequency)
+        yield 'value'
+
+    TOTAL_RECORDS = 3
+    FREQUENCY = 1
+
+    test_stream = (TestStream()
+                   .advance_watermark_to(0)
+                   .add_elements([('key', 0)])
+                   .advance_processing_time(1) # Timestamp: 1
+                   .add_elements([('key', 1)])
+                   .advance_processing_time(1) # Timestamp: 2
+                   .add_elements([('key', 2)])
+                   .advance_processing_time(1) # Timestamp: 3
+                   .add_elements([('key', 3)]))
+
+    with beam.Pipeline(argv=['--streaming', '--runner=DirectRunner']) as p:
+      _ = (p
+           | test_stream
+           | beam.ParDo(GenerateRecords(FREQUENCY, TOTAL_RECORDS))
+           | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(
+        # 4 RECORDS go through process
+        # 3 values are emitted from timer
+        # Timestamp moves gradually.
+        [0, 'value', 1, 'value', 2, 'value', 3],
+        StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_simple_stateful_dofn_combining(self):
     class SimpleTestStatefulDoFn(DoFn):

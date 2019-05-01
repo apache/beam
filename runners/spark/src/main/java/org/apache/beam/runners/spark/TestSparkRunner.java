@@ -61,7 +61,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestSparkRunner.class);
   private final PipelineOptions options;
-  private SparkRunner delegate;
+  private final SparkRunner delegate;
 
   private TestSparkRunner(PipelineOptions options) {
     this.delegate = SparkRunner.fromOptions(options);

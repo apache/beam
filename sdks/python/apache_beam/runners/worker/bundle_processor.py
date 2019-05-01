@@ -47,7 +47,6 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
@@ -105,8 +104,7 @@ class DataOutputOperation(RunnerIOOperation):
 
 
 class DataInputOperation(RunnerIOOperation):
-  """A source-like operation that gathers input from the runner.
-  """
+  """A source-like operation that gathers input from the runner."""
 
   def __init__(self, operation_name, step_name, consumers, counter_factory,
                state_sampler, windowed_coder, input_target, data_channel):
@@ -119,11 +117,14 @@ class DataInputOperation(RunnerIOOperation):
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(itervalues(consumers))), self.windowed_coder)]
     self.splitting_lock = threading.Lock()
+    self.started = False
 
   def start(self):
     super(DataInputOperation, self).start()
-    self.index = -1
-    self.stop = float('inf')
+    with self.splitting_lock:
+      self.index = -1
+      self.stop = float('inf')
+      self.started = True
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -141,6 +142,8 @@ class DataInputOperation(RunnerIOOperation):
 
   def try_split(self, fraction_of_remainder, total_buffer_size):
     with self.splitting_lock:
+      if not self.started:
+        return
       if total_buffer_size < self.index + 1:
         total_buffer_size = self.index + 1
       elif self.stop and total_buffer_size > self.stop:
@@ -178,6 +181,10 @@ class DataInputOperation(RunnerIOOperation):
       if stop_index < self.stop:
         self.stop = stop_index
         return self.stop - 1, None, None, self.stop
+
+  def finish(self):
+    with self.splitting_lock:
+      self.started = False
 
 
 class _StateBackedIterable(object):
@@ -236,9 +243,7 @@ class StateBackedSideInputMap(object):
         raw_view = _StateBackedIterable(
             state_handler, state_key, self._element_coder)
 
-      elif (access_pattern == common_urns.side_inputs.MULTIMAP.urn or
-            access_pattern ==
-            dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN):
+      elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
         cache = {}
         key_coder_impl = self._element_coder.key_coder().get_impl()
         value_coder = self._element_coder.value_coder()
@@ -375,13 +380,29 @@ class OutputTimer(object):
         windowed_value.WindowedValue(
             (self._key, dict(timestamp=ts)), ts, (self._window,)))
 
-  def clear(self, timestamp):
-    self._receiver.receive((self._key, dict(clear=True)))
+  def clear(self):
+    dummy_millis = int(common_urns.constants.MAX_TIMESTAMP_MILLIS.constant) + 1
+    clear_ts = timestamp.Timestamp(micros=dummy_millis * 1000)
+    self._receiver.receive(
+        windowed_value.WindowedValue(
+            (self._key, dict(timestamp=clear_ts)), 0, (self._window,)))
 
 
 class FnApiUserStateContext(userstate.UserStateContext):
+  """Interface for state and timers from SDK to Fn API servicer of state.."""
+
   def __init__(
       self, state_handler, transform_id, key_coder, window_coder, timer_specs):
+    """Initialize a ``FnApiUserStateContext``.
+
+    Args:
+      state_handler: A StateServicer object.
+      transform_id: The name of the PTransform that this context is associated.
+      key_coder:
+      window_coder:
+      timer_specs: A list of ``userstate.TimerSpec`` objects specifying the
+        timers associated with this operation.
+    """
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._key_coder = key_coder
@@ -391,6 +412,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._all_states = {}
 
   def update_timer_receivers(self, receivers):
+    """TODO"""
     self._timer_receivers = {}
     for tag in self._timer_specs:
       self._timer_receivers[tag] = receivers.pop(tag)
@@ -451,9 +473,20 @@ def only_element(iterable):
 
 
 class BundleProcessor(object):
-  """A class for processing bundles of elements."""
+  """A class for processing bundles of elements.
+
+  """
+
   def __init__(
       self, process_bundle_descriptor, state_handler, data_channel_factory):
+    """Initialize a bundle processor.
+
+    Args:
+      process_bundle_descriptor (``beam_fn_api_pb2.ProcessBundleDescriptor``):
+        a description of the stage that this ``BundleProcessor``is to execute.
+      state_handler (beam_fn_api_pb2_grpc.BeamFnStateServicer).
+      data_channel_factory (``data_plane.DataChannelFactory``).
+    """
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
@@ -933,7 +966,7 @@ def create(factory, transform_id, transform_proto, serialized_fn, consumers):
     beam_runner_api_pb2.ParDoPayload)
 def create(*args):
 
-  class CreateRestriction(beam.DoFn):
+  class PairWithRestriction(beam.DoFn):
     def __init__(self, fn, restriction_provider):
       self.restriction_provider = restriction_provider
 
@@ -946,28 +979,29 @@ def create(*args):
       # that can be distributed.)
       yield element, self.restriction_provider.initial_restriction(element)
 
-  return _create_sdf_operation(CreateRestriction, *args)
+  return _create_sdf_operation(PairWithRestriction, *args)
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+    common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create(*args):
 
-  class SplitRestriction(beam.DoFn):
+  class SplitAndSizeRestrictions(beam.DoFn):
     def __init__(self, fn, restriction_provider):
       self.restriction_provider = restriction_provider
 
     def process(self, element_restriction, *args, **kwargs):
       element, restriction = element_restriction
-      for part in self.restriction_provider.split(element, restriction):
-        yield element, part
+      for part, size in self.restriction_provider.split_and_size(
+          element, restriction):
+        yield ((element, part), size)
 
-  return _create_sdf_operation(SplitRestriction, *args)
+  return _create_sdf_operation(SplitAndSizeRestrictions, *args)
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+    common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
@@ -975,7 +1009,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       serialized_fn, parameter,
-      operation_cls=operations.SdfProcessElements)
+      operation_cls=operations.SdfProcessSizedElements)
 
 
 def _create_sdf_operation(

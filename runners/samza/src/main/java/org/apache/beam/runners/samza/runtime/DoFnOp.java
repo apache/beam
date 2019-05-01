@@ -49,13 +49,14 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.TimerRegistry;
-import org.apache.samza.task.TaskContext;
+import org.apache.samza.context.Context;
+import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,8 +75,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // NOTE: we use HashMap here to guarantee Serializability
   private final HashMap<String, PCollectionView<?>> idToViewMap;
   private final String stepName;
+  private final String stepId;
   private final Coder<InT> inputCoder;
   private final HashMap<TupleTag<?>, Coder<?>> outputCoders;
+  private final PCollection.IsBounded isBounded;
 
   // portable api related
   private final boolean isPortable;
@@ -114,6 +117,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       Map<String, PCollectionView<?>> idToViewMap,
       OutputManagerFactory<OutT> outputManagerFactory,
       String stepName,
+      String stepId,
+      PCollection.IsBounded isBounded,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
       Map<String, TupleTag<?>> idToTupleTagMap,
@@ -128,7 +133,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.idToViewMap = new HashMap<>(idToViewMap);
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
+    this.stepId = stepId;
     this.keyCoder = keyCoder;
+    this.isBounded = isBounded;
     this.isPortable = isPortable;
     this.stagePayload = stagePayload;
     this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
@@ -138,8 +145,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void open(
       Config config,
-      TaskContext context,
-      TimerRegistry<KeyedTimerData<Void>> timerRegistry,
+      Context context,
+      Scheduler<KeyedTimerData<Void>> timerRegistry,
       OpEmitter<OutT> emitter) {
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -152,17 +159,19 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             .get()
             .as(SamzaPipelineOptions.class);
 
+    final String stateId = "pardo-" + stepId;
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            null, context, pipelineOptions, signature, mainOutputTag);
+            stateId, null, context.getTaskContext(), pipelineOptions, signature);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
             keyCoder,
-            (TimerRegistry) timerRegistry,
+            (Scheduler) timerRegistry,
             getTimerStateId(signature),
             nonKeyedStateInternalsFactory,
             windowingStrategy,
+            isBounded,
             pipelineOptions);
 
     this.sideInputHandler =
@@ -170,7 +179,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     if (isPortable) {
       SamzaExecutionContext samzaExecutionContext =
-          (SamzaExecutionContext) context.getUserContext();
+          (SamzaExecutionContext) context.getApplicationContainerContext();
       ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       stageBundleFactory = samzaExecutionContext.getJobBundleFactory().forStage(executableStage);
       this.fnRunner =
@@ -188,6 +197,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               doFn,
               windowingStrategy,
               stepName,
+              stateId,
               context,
               mainOutputTag,
               sideInputHandler,

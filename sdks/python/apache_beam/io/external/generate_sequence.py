@@ -15,45 +15,78 @@
 # limitations under the License.
 #
 
-"""
-A PTransform that provides a bounded or unbounded stream of integers.
-"""
 from __future__ import absolute_import
 
 from apache_beam import ExternalTransform
+from apache_beam import pvalue
 from apache_beam.coders import VarIntCoder
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.transforms import ptransform
 
 
-class GenerateSequence(ExternalTransform):
+class GenerateSequence(ptransform.PTransform):
+  """
+    An external PTransform which provides a bounded or unbounded stream of
+    integers.
+
+    Note: To use this transform, you need to start the Java expansion service.
+    Please refer to the portability documentation on how to do that. The
+    expansion service address has to be provided when instantiating this
+    transform. During pipeline translation this transform will be replaced by
+    the Java SDK's GenerateSequence.
+
+    If you start Flink's job server, the expansion service will be started on
+    port 8097. This is also the configured default for this transform. For a
+    different address, please set the expansion_service parameter.
+
+    For more information see:
+    - https://beam.apache.org/documentation/runners/flink/
+    - https://beam.apache.org/roadmap/portability/
+
+    Note: Runners need to support translating Read operations in order to use
+    this source. At the moment only the Flink Runner supports this.
+  """
 
   def __init__(self, start, stop=None,
                elements_per_period=None, max_read_time=None,
-               expansion_service=None):
+               expansion_service='localhost:8097'):
+    super(GenerateSequence, self).__init__()
+    self._urn = 'beam:external:java:generate_sequence:v1'
+    self.start = start
+    self.stop = stop
+    self.elements_per_period = elements_per_period
+    self.max_read_time = max_read_time
+    self.expansion_service = expansion_service
+
+  def expand(self, pbegin):
+    if not isinstance(pbegin, pvalue.PBegin):
+      raise Exception("GenerateSequence must be a root transform")
+
     coder = VarIntCoder()
-    coder_urn = 'beam:coder:varint:v1'
+    coder_urn = ['beam:coder:varint:v1']
     args = {
         'start':
-            ConfigValue(
-                coder_urn=coder_urn,
-                payload=coder.encode(start))
+        ConfigValue(
+            coder_urn=coder_urn,
+            payload=coder.encode(self.start))
     }
-    if stop:
+    if self.stop:
       args['stop'] = ConfigValue(
           coder_urn=coder_urn,
-          payload=coder.encode(stop))
-    if elements_per_period:
+          payload=coder.encode(self.stop))
+    if self.elements_per_period:
       args['elements_per_period'] = ConfigValue(
           coder_urn=coder_urn,
-          payload=coder.encode(elements_per_period))
-    if max_read_time:
+          payload=coder.encode(self.elements_per_period))
+    if self.max_read_time:
       args['max_read_time'] = ConfigValue(
           coder_urn=coder_urn,
-          payload=coder.encode(max_read_time))
+          payload=coder.encode(self.max_read_time))
 
     payload = ExternalConfigurationPayload(configuration=args)
-    super(GenerateSequence, self).__init__(
-        'beam:external:java:generate_sequence:v1',
-        payload.SerializeToString(),
-        expansion_service)
+    return pbegin.apply(
+        ExternalTransform(
+            self._urn,
+            payload.SerializeToString(),
+            self.expansion_service))

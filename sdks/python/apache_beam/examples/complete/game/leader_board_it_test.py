@@ -52,10 +52,6 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-6711')
 class LeaderBoardIT(unittest.TestCase):
 
   # Input event containing user, team, score, processing time, window start.
@@ -104,12 +100,17 @@ class LeaderBoardIT(unittest.TestCase):
 
     for _ in range(message_count):
       self.pub_client.publish(topic.name,
-                              self.INPUT_EVENT % self._test_timestamp)
+                              (self.INPUT_EVENT % self._test_timestamp
+                              ).encode('utf-8'))
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
+  @unittest.skipIf(sys.version[0:3] == '3.6' and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6 '
+                   'TODO: BEAM-7182')
   @attr('IT')
   def test_leader_board_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)

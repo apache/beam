@@ -299,6 +299,43 @@ class FnApiRunnerTest(unittest.TestCase):
       expected = [('fired', ts) for ts in (20, 200)]
       assert_that(actual, equal_to(expected))
 
+  def test_pardo_timers_clear(self):
+    if type(self).__name__ != 'FlinkRunnerTest':
+      # FnApiRunner fails to wire multiple timer collections
+      # this method can replace test_pardo_timers when the issue is fixed
+      self.skipTest('BEAM-7074: Multiple timer definitions not supported.')
+
+    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+    clear_timer_spec = userstate.TimerSpec('clear_timer',
+                                           userstate.TimeDomain.WATERMARK)
+
+    class TimerDoFn(beam.DoFn):
+      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec),
+                  clear_timer=beam.DoFn.TimerParam(clear_timer_spec)):
+        unused_key, ts = element
+        timer.set(ts)
+        timer.set(2 * ts)
+        clear_timer.set(ts)
+        clear_timer.clear()
+
+      @userstate.on_timer(timer_spec)
+      def process_timer(self):
+        yield 'fired'
+
+      @userstate.on_timer(clear_timer_spec)
+      def process_clear_timer(self):
+        yield 'should not fire'
+
+    with self.create_pipeline() as p:
+      actual = (
+          p
+          | beam.Create([('k1', 10), ('k2', 100)])
+          | beam.ParDo(TimerDoFn())
+          | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
+
+      expected = [('fired', ts) for ts in (20, 200)]
+      assert_that(actual, equal_to(expected))
+
   def test_pardo_state_timers(self):
     self._run_pardo_state_timers(False)
 
@@ -364,20 +401,25 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_sdf(self):
 
+    class ExpandingStringsDoFn(beam.DoFn):
+      def process(self, element, restriction_tracker=ExpandStringsProvider()):
+        assert isinstance(
+            restriction_tracker,
+            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
+        for k in range(*restriction_tracker.current_restriction()):
+          yield element[k]
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (
+          p
+          | beam.Create(data)
+          | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+
     counter = beam.metrics.Metrics.counter('ns', 'my_counter')
-
-    class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
-      def initial_restriction(self, element):
-        return (0, len(element))
-
-      def create_tracker(self, restriction):
-        return restriction_trackers.OffsetRestrictionTracker(
-            restriction[0], restriction[1])
-
-      def split(self, element, restriction):
-        start, end = restriction
-        middle = (end - start) // 2
-        return [(start, middle), (middle, end)]
 
     class ExpandStringsDoFn(beam.DoFn):
       def process(self, element, restriction_tracker=ExpandStringsProvider()):
@@ -845,7 +887,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     results = event_recorder.events()
     event_recorder.cleanup()
-    self.assertEquals(results, sorted(elements_list))
+    self.assertEqual(results, sorted(elements_list))
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
@@ -1035,6 +1077,9 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         # Don't do any initial splitting to simplify test.
         return [restriction]
 
+      def restriction_size(self, element, restriction):
+        return restriction[1] - restriction[0]
+
     class EnumerateSdf(beam.DoFn):
       def process(self, element, restriction_tracker=EnumerateProvider()):
         to_emit = []
@@ -1159,6 +1204,24 @@ class EventRecorder(object):
 
   def cleanup(self):
     shutil.rmtree(self.tmp_dir)
+
+
+class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
+  """A RestrictionProvider that used for sdf related tests."""
+  def initial_restriction(self, element):
+    return (0, len(element))
+
+  def create_tracker(self, restriction):
+    return restriction_trackers.OffsetRestrictionTracker(
+        restriction[0], restriction[1])
+
+  def split(self, element, restriction):
+    start, end = restriction
+    middle = (end - start) // 2
+    return [(start, middle), (middle, end)]
+
+  def restriction_size(self, element, restriction):
+    return restriction[1] - restriction[0]
 
 
 if __name__ == '__main__':

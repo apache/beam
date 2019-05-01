@@ -52,13 +52,13 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Counter droppedDueToLateness =
       Metrics.counter(StatefulDoFnRunner.class, DROPPED_DUE_TO_LATENESS_COUNTER);
-  private final CleanupTimer cleanupTimer;
+  private final CleanupTimer<InputT> cleanupTimer;
   private final StateCleaner stateCleaner;
 
   public StatefulDoFnRunner(
       DoFnRunner<InputT, OutputT> doFnRunner,
       WindowingStrategy<?, ?> windowingStrategy,
-      CleanupTimer cleanupTimer,
+      CleanupTimer<InputT> cleanupTimer,
       StateCleaner<W> stateCleaner) {
     this.doFnRunner = doFnRunner;
     this.windowingStrategy = windowingStrategy;
@@ -103,7 +103,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             window,
             cleanupTimer.currentInputWatermarkTime());
       } else {
-        cleanupTimer.setForWindow(window);
+        cleanupTimer.setForWindow(value.getValue(), window);
         doFnRunner.processElement(value);
       }
     }
@@ -151,7 +151,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
    * time or (b) not need a timer at all because it is a batch runner that discards state when it is
    * done.
    */
-  public interface CleanupTimer {
+  public interface CleanupTimer<InputT> {
 
     /**
      * Return the current, local input watermark timestamp for this computation in the {@link
@@ -160,7 +160,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     Instant currentInputWatermarkTime();
 
     /** Set the garbage collect time of the window to timer. */
-    void setForWindow(BoundedWindow window);
+    void setForWindow(InputT value, BoundedWindow window);
 
     /** Checks whether the given timer is a cleanup timer for the window. */
     boolean isForWindow(
@@ -174,7 +174,8 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   /** A {@link StatefulDoFnRunner.CleanupTimer} implemented via {@link TimerInternals}. */
-  public static class TimeInternalsCleanupTimer implements StatefulDoFnRunner.CleanupTimer {
+  public static class TimeInternalsCleanupTimer<InputT>
+      implements StatefulDoFnRunner.CleanupTimer<InputT> {
 
     public static final String GC_TIMER_ID = "__StatefulParDoGcTimerId";
 
@@ -202,7 +203,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public void setForWindow(BoundedWindow window) {
+    public void setForWindow(InputT input, BoundedWindow window) {
       Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
       // make sure this fires after any window.maxTimestamp() timers
       gcTime = gcTime.plus(GC_DELAY_MS);

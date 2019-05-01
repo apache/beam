@@ -112,11 +112,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     return sideInputAccessor.sideInput(view);
   }
 
-  final void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
-    this.sideInputAccessor = sideInputAccessor;
-  }
-
-  final void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
+  void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
     this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
   }
 

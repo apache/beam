@@ -34,6 +34,7 @@ import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -46,10 +47,12 @@ import net.bytebuddy.implementation.Implementation.Context;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
 import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
 import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
@@ -87,6 +90,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Primitives;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
 public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
@@ -663,13 +667,29 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(SchemaElementParameter p) {
-            // Ignore FieldAccess id for now.
-            return new StackManipulation.Compound(
-                pushDelegate,
-                MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(
-                        SCHEMA_ELEMENT_PARAMETER_METHOD, DoFn.class)),
-                TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
+            ForLoadedType elementType = new ForLoadedType(p.elementT().getRawType());
+            ForLoadedType castType =
+                elementType.isPrimitive()
+                    ? new ForLoadedType(Primitives.wrap(p.elementT().getRawType()))
+                    : elementType;
+
+            StackManipulation stackManipulation =
+                new StackManipulation.Compound(
+                    IntegerConstant.forValue(p.index()),
+                    MethodInvocation.invoke(
+                        getExtraContextFactoryMethodDescription(
+                            SCHEMA_ELEMENT_PARAMETER_METHOD, int.class)),
+                    TypeCasting.to(castType));
+            if (elementType.isPrimitive()) {
+              stackManipulation =
+                  new Compound(
+                      stackManipulation,
+                      Assigner.DEFAULT.assign(
+                          elementType.asBoxed().asGenericType(),
+                          elementType.asUnboxed().asGenericType(),
+                          Typing.STATIC));
+            }
+            return stackManipulation;
           }
 
           @Override

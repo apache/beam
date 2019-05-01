@@ -23,8 +23,14 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
+import java.io.File;
 import java.io.Serializable;
+import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -58,8 +64,8 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
   private static final String CASSANDRA_PARTITIONER_CLASS_VALUE = "Murmur3Partitioner";
   private static final String CASSANDRA_KEYSPACE_PROPERTY = "cassandra.input.keyspace";
   private static final String CASSANDRA_COLUMNFAMILY_PROPERTY = "cassandra.input.columnfamily";
-  private static final String CASSANDRA_PORT = "9062";
-  private static final String CASSANDRA_NATIVE_PORT = "9043";
+  private static int cassandraPort;
+  private static int cassandraNativePort;
   private static transient Cluster cluster;
   private static transient Session session;
   private static final long TEST_DATA_ROW_COUNT = 10L;
@@ -140,8 +146,8 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
    */
   private Configuration getConfiguration() {
     Configuration conf = new Configuration();
-    conf.set(CASSANDRA_NATIVE_PORT_PROPERTY, CASSANDRA_NATIVE_PORT);
-    conf.set(CASSANDRA_THRIFT_PORT_PROPERTY, CASSANDRA_PORT);
+    conf.set(CASSANDRA_NATIVE_PORT_PROPERTY, String.valueOf(cassandraNativePort));
+    conf.set(CASSANDRA_THRIFT_PORT_PROPERTY, String.valueOf(cassandraPort));
     conf.set(CASSANDRA_THRIFT_ADDRESS_PROPERTY, CASSANDRA_HOST);
     conf.set(CASSANDRA_PARTITIONER_CLASS_PROPERTY, CASSANDRA_PARTITIONER_CLASS_VALUE);
     conf.set(CASSANDRA_KEYSPACE_PROPERTY, CASSANDRA_KEYSPACE);
@@ -178,6 +184,9 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
 
   @BeforeClass
   public static void startCassandra() throws Exception {
+    cassandraPort = NetworkTestHelper.getAvailableLocalPort();
+    cassandraNativePort = NetworkTestHelper.getAvailableLocalPort();
+    replacePortsInConfFile();
     // Start the Embedded Cassandra Service
     cassandra.start();
     final SocketOptions socketOptions = new SocketOptions();
@@ -190,10 +199,19 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
             .addContactPoint(CASSANDRA_HOST)
             .withClusterName("beam")
             .withSocketOptions(socketOptions)
-            .withPort(Integer.valueOf(CASSANDRA_NATIVE_PORT))
+            .withPort(cassandraNativePort)
             .build();
     session = cluster.connect();
     createCassandraData();
+  }
+
+  private static void replacePortsInConfFile() throws Exception {
+    URI uri = HIFIOWithEmbeddedCassandraTest.class.getResource("/cassandra.yaml").toURI();
+    Path cassandraYamlPath = new File(uri).toPath();
+    String content = new String(Files.readAllBytes(cassandraYamlPath), Charset.defaultCharset());
+    content = content.replaceAll("9043", String.valueOf(cassandraNativePort));
+    content = content.replaceAll("9161", String.valueOf(cassandraPort));
+    Files.write(cassandraYamlPath, content.getBytes(Charset.defaultCharset()));
   }
 
   @AfterClass

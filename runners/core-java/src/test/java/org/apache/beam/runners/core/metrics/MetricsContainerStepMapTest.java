@@ -208,8 +208,11 @@ public class MetricsContainerStepMapTest {
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("ns", "name1");
-    builder.setPTransformLabel(STEP1);
+    builder
+        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1");
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, STEP1);
     builder.setInt64Value(7);
     expected.add(builder.build());
 
@@ -218,7 +221,7 @@ public class MetricsContainerStepMapTest {
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actual.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actual.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
     }
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }

@@ -19,6 +19,8 @@
 
 from __future__ import absolute_import
 
+import os
+import sys
 import typing
 import unittest
 
@@ -46,6 +48,10 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(repeat, 3)
 
+  @unittest.skipIf(sys.version_info >= (3, 7, 0) and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.7. '
+                   'See BEAM-6988')
   def test_non_function(self):
     result = ['a', 'bb', 'c'] | beam.Map(str.upper)
     self.assertEqual(['A', 'BB', 'C'], sorted(result))
@@ -101,7 +107,18 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
+  def test_filter_type_hint(self):
+    @typehints.with_input_types(int)
+    def filter_fn(data):
+      return data % 2
 
+    self.assertEquals([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
+
+
+@unittest.skipIf(sys.version_info >= (3, 7, 0) and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3.7. '
+                 'See BEAM-6987')
 class NativeTypesTest(unittest.TestCase):
 
   def test_good_main_input(self):

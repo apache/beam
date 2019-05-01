@@ -98,7 +98,6 @@ public class GlobalWatermarkHolder {
   /**
    * Returns the {@link Broadcast} containing the {@link SparkWatermarks} mapped to their sources.
    */
-  @SuppressWarnings("unchecked")
   public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
     if (canBypassRemoteWatermarkFetching()) {
       /*
@@ -142,7 +141,7 @@ public class GlobalWatermarkHolder {
    * Advances the watermarks to the next-in-line watermarks. SparkWatermarks are monotonically
    * increasing.
    */
-  public static void advance(final String batchId) {
+  private static void advance(final String batchId) {
     synchronized (GlobalWatermarkHolder.class) {
       final BlockManager blockManager = SparkEnv.get().blockManager();
       final Map<Integer, SparkWatermarks> newWatermarks = computeNewWatermarks(blockManager);
@@ -285,7 +284,6 @@ public class GlobalWatermarkHolder {
 
   private static class WatermarksLoader extends CacheLoader<String, Map<Integer, SparkWatermarks>> {
 
-    @SuppressWarnings("unchecked")
     @Override
     public Map<Integer, SparkWatermarks> load(@Nonnull String key) throws Exception {
       final BlockManager blockManager = SparkEnv.get().blockManager();

@@ -24,7 +24,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Set;
@@ -32,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListSet;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -49,10 +49,13 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests of {@link MqttIO}. */
+@RunWith(JUnit4.class)
 public class MqttIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIOTest.class);
@@ -65,11 +68,7 @@ public class MqttIOTest {
 
   @Before
   public void startBroker() throws Exception {
-    LOG.info("Finding free network port");
-    try (ServerSocket socket = new ServerSocket(0)) {
-      port = socket.getLocalPort();
-    }
-
+    port = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting ActiveMQ brokerService on {}", port);
     brokerService = new BrokerService();
     brokerService.setDeleteAllMessagesOnStartup(true);
@@ -150,8 +149,8 @@ public class MqttIOTest {
         pipeline.apply(
             MqttIO.read()
                 .withConnectionConfiguration(
-                    MqttIO.ConnectionConfiguration.create(
-                        "tcp://localhost:" + port, "READ_TOPIC", "READ_PIPELINE"))
+                    MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, "READ_TOPIC")
+                        .withClientId("READ_PIPELINE"))
                 .withMaxReadTime(Duration.standardSeconds(3)));
     PAssert.that(output)
         .containsInAnyOrder(
@@ -212,8 +211,8 @@ public class MqttIOTest {
     pipeline.apply(
         MqttIO.read()
             .withConnectionConfiguration(
-                MqttIO.ConnectionConfiguration.create(
-                    "tcp://localhost:" + port, "READ_TOPIC", "READ_PIPELINE"))
+                MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, "READ_TOPIC")
+                    .withClientId("READ_PIPELINE"))
             .withMaxReadTime(Duration.standardSeconds(2)));
 
     // should stop before the test timeout

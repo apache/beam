@@ -55,6 +55,9 @@ excluded_patterns=(
     apache_beam/examples/
     apache_beam/internal/clients/
     apache_beam/io/gcp/internal/
+    # TODO(BEAM-4543): Remove datastore paths once they no longer exist.
+    apache_beam/io/gcp/datastore/v1/
+    apache_beam/io/gcp/datastore_write_it_*
     apache_beam/io/gcp/tests/
     apache_beam/metrics/execution.*
     apache_beam/runners/common.*
@@ -114,6 +117,7 @@ import apache_beam as beam
 intersphinx_mapping = {
   'python': ('https://docs.python.org/2', None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
+  'google-cloud': ('https://googleapis.github.io/google-cloud-python/latest/', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
@@ -141,6 +145,8 @@ ignore_identifiers = [
   'apache_beam.io._AvroSource',
   'apache_beam.io.gcp.bigquery.RowAsDictJsonCoder',
   'apache_beam.io.gcp.datastore.v1.datastoreio._Mutate',
+  'apache_beam.io.gcp.datastore.v1new.datastoreio._Mutate',
+  'apache_beam.io.gcp.datastore.v1new.datastoreio.DatastoreMutateFn',
   'apache_beam.io.gcp.internal.clients.bigquery.'
       'bigquery_v2_messages.TableSchema',
   'apache_beam.io.iobase.SourceBase',

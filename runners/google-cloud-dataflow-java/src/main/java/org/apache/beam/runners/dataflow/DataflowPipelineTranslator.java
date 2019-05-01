@@ -88,6 +88,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -941,6 +942,20 @@ public class DataflowPipelineTranslator {
                 transform.getMainOutputTag(),
                 outputCoders,
                 doFnSchemaInformation);
+
+            // TODO: Move this logic into translateFn once the legacy ProcessKeyedElements is
+            // removed.
+            if (context.isFnApi()) {
+              DoFnSignature signature = DoFnSignatures.signatureForDoFn(transform.getFn());
+              if (signature.processElement().isSplittable()) {
+                Coder<?> restrictionCoder =
+                    DoFnInvokers.invokerFor(transform.getFn())
+                        .invokeGetRestrictionCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry());
+                stepContext.addInput(
+                    PropertyNames.RESTRICTION_ENCODING, translateCoder(restrictionCoder, context));
+              }
+            }
           }
         });
 
@@ -983,6 +998,20 @@ public class DataflowPipelineTranslator {
                 transform.getMainOutputTag(),
                 outputCoders,
                 doFnSchemaInformation);
+
+            // TODO: Move this logic into translateFn once the legacy ProcessKeyedElements is
+            // removed.
+            if (context.isFnApi()) {
+              DoFnSignature signature = DoFnSignatures.signatureForDoFn(transform.getFn());
+              if (signature.processElement().isSplittable()) {
+                Coder<?> restrictionCoder =
+                    DoFnInvokers.invokerFor(transform.getFn())
+                        .invokeGetRestrictionCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry());
+                stepContext.addInput(
+                    PropertyNames.RESTRICTION_ENCODING, translateCoder(restrictionCoder, context));
+              }
+            }
           }
         });
 
@@ -1013,7 +1042,7 @@ public class DataflowPipelineTranslator {
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
 
     ///////////////////////////////////////////////////////////////////////////
-    // Splittable DoFn translation.
+    // Legacy Splittable DoFn translation.
 
     registerTransformTranslator(
         SplittableParDo.ProcessKeyedElements.class,

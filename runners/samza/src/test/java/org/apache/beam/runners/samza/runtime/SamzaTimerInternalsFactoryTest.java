@@ -36,14 +36,16 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.MapConfig;
+import org.apache.samza.context.TaskContext;
 import org.apache.samza.metrics.MetricsRegistryMap;
-import org.apache.samza.operators.TimerRegistry;
+import org.apache.samza.operators.Scheduler;
+import org.apache.samza.storage.kv.KeyValueStore;
 import org.apache.samza.storage.kv.KeyValueStoreMetrics;
 import org.apache.samza.storage.kv.RocksDbKeyValueStore;
-import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.rocksdb.FlushOptions;
@@ -73,15 +75,15 @@ public class SamzaTimerInternalsFactoryTest {
   private static SamzaStoreStateInternals.Factory<?> createNonKeyedStateInternalsFactory(
       SamzaPipelineOptions pipelineOptions, RocksDbKeyValueStore store) {
     final TaskContext context = mock(TaskContext.class);
-    when(context.getStore(anyString())).thenReturn(store);
+    when(context.getStore(anyString())).thenReturn((KeyValueStore) store);
     final TupleTag<?> mainOutputTag = new TupleTag<>("output");
 
     return SamzaStoreStateInternals.createStateInternalFactory(
-        null, context, pipelineOptions, null, mainOutputTag);
+        "42", null, context, pipelineOptions, null);
   }
 
   private static SamzaTimerInternalsFactory<String> createTimerInternalsFactory(
-      TimerRegistry<KeyedTimerData<String>> timerRegistry,
+      Scheduler<KeyedTimerData<String>> timerRegistry,
       String timerStateId,
       SamzaPipelineOptions pipelineOptions,
       RocksDbKeyValueStore store) {
@@ -95,14 +97,15 @@ public class SamzaTimerInternalsFactoryTest {
         timerStateId,
         nonKeyedStateInternalsFactory,
         (WindowingStrategy) WindowingStrategy.globalDefault(),
+        PCollection.IsBounded.BOUNDED,
         pipelineOptions);
   }
 
-  private static class TestTimerRegistry implements TimerRegistry<KeyedTimerData<String>> {
+  private static class TestTimerRegistry implements Scheduler<KeyedTimerData<String>> {
     private final List<KeyedTimerData<String>> timers = new ArrayList<>();
 
     @Override
-    public void register(KeyedTimerData<String> key, long timestamp) {
+    public void schedule(KeyedTimerData<String> key, long timestamp) {
       timers.add(key);
     }
 

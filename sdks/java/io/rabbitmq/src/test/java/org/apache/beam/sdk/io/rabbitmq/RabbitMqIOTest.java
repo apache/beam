@@ -29,12 +29,12 @@ import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -67,10 +67,8 @@ public class RabbitMqIOTest implements Serializable {
   private static transient Broker broker;
 
   @BeforeClass
-  public static void startBroker() throws Exception {
-    try (ServerSocket serverSocket = new ServerSocket(0)) {
-      port = serverSocket.getLocalPort();
-    }
+  public static void beforeClass() throws Exception {
+    port = NetworkTestHelper.getAvailableLocalPort();
 
     System.setProperty("derby.stream.error.field", "MyApp.DEV_NULL");
     broker = new Broker();
@@ -82,7 +80,7 @@ public class RabbitMqIOTest implements Serializable {
   }
 
   @AfterClass
-  public static void stopBroker() {
+  public static void afterClass() {
     broker.shutdown();
   }
 

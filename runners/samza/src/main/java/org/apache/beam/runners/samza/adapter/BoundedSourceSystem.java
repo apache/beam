@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
  */
 // TODO: instrumentation for the consumer
 public class BoundedSourceSystem {
+  private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceSystem.class);
 
   private static <T> List<BoundedSource<T>> split(
       BoundedSource<T> source, SamzaPipelineOptions pipelineOptions) throws Exception {
@@ -417,7 +418,8 @@ public class BoundedSourceSystem {
 
     @Override
     public SystemProducer getProducer(String systemName, Config config, MetricsRegistry registry) {
-      throw new UnsupportedOperationException("Cannot create a producer for an input system");
+      LOG.info("System " + systemName + " does not have producer.");
+      return null;
     }
 
     @Override
