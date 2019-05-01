@@ -90,9 +90,9 @@ class BigtableIOTest(unittest.TestCase):
       logging.info('Table {} has been created!'.format(TABLE_ID))
 
   def test_bigtable_io(self):
-    print 'Project ID: ', PROJECT_ID
-    print 'Instance ID:', INSTANCE_ID
-    print 'Table ID:   ', TABLE_ID
+    print('Project ID: {}'.format(PROJECT_ID))
+    print('Instance ID:{}'.format(INSTANCE_ID))
+    print('Table ID:   {}'.format(TABLE_ID))
 
     pipeline_options = PipelineOptions(PIPELINE_PARAMETERS)
     p = beam.Pipeline(options=pipeline_options)

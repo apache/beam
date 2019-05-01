@@ -24,7 +24,7 @@ import mock
 import sys
 import unittest
 
-from beam_bigtable import BigtableSource
+from bigtableio import BigtableSource
 
 try:
   from google.cloud.bigtable import Client
@@ -122,7 +122,7 @@ class BigtableSourceTest(unittest.TestCase):
     bundles = list(BigtableSource(self.project_id, self.instance_id, self.table_id)
                    .split(desired_bundle_size=None))
     bundles.sort()
-    print 'len(bundles) = ', len(bundles)
+    print('len(bundles) = {}'.format(len(bundles)))
 
     self.assertEqual(len(list(bundles)), len(KEYS_1))
 
