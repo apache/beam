@@ -201,7 +201,7 @@ class BigtableSourceTest(unittest.TestCase):
   @mock.patch.object(Table, 'sample_row_keys')
   @mock.patch.object(Table, 'read_rows')
   def test_dynamic_work_rebalancing(self, mock_read_rows, mock_sample_row_keys):
-    """ [BYPASSED]
+    """ [INTENTIONALLY BYPASSED]
 
 		This test has been temporarily disabled due to the issues with the LexicographicKeyRangeTracker() class
 		and/or its interaction with the test code in 'source_test_utils.assert_split_at_fraction_exhaustive()'
@@ -214,6 +214,5 @@ class BigtableSourceTest(unittest.TestCase):
     pass
 
 if __name__ == '__main__':
-  # logging.getLogger().setLevel(logging.INFO)
-  logging.getLogger().setLevel(logging.DEBUG)
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()

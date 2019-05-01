@@ -115,8 +115,7 @@ class BigtableIOTest(unittest.TestCase):
              | 'Read from Bigtable' >> Read(bigtableio.BigtableSource(project_id=PROJECT_ID,
                                                                       instance_id=INSTANCE_ID,
                                                                       table_id=TABLE_ID))
-             | 'Count Rows' >> Count.Globally()
-             )
+             | 'Count Rows' >> Count.Globally())
     self.result = p.run()
     self.result.wait_until_finish()
     assert_that(count, equal_to([ROW_COUNT]))
