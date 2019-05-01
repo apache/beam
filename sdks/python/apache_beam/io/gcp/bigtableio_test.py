@@ -24,6 +24,7 @@ import sys
 import unittest
 import mock
 
+import apache_beam.io.source_test_utils as source_test_utils
 from beam_bigtable import BigtableSource
 
 try:
@@ -53,20 +54,20 @@ KEYS_2 = [b'beam_key0952711', b'beam_key2', b'beam_key2797065',
           b'beam_key943', b'']
 
 RANGES_DICT = {
-  '': (0, 1),
-  'beam_key0952711': (952711, 952712),
-  'beam_key2': (2000000, 2000001),
-  'beam_key2797065': (2797065, 2797066),
-  'beam_key3518235': (3518235, 3518236),
-  'beam_key41': (4100000, 4100001),
-  'beam_key4730550': (4730550, 4730551),
-  'beam_key54': (5400000, 5400001),
-  'beam_key6404724': (6404724, 6404725),
-  'beam_key7123742': (7123742, 7123743),
-  'beam_key7683967': (7683967, 7683968),
-  'beam_key83': (8300000, 8300001),
-  'beam_key8892594': (8892594, 8892595),
-  'beam_key943': (9430000, 9430001),
+  '': (0, 952),
+  'beam_key0952': (952, 2000),
+  'beam_key2': (2000, 2797),
+  'beam_key2797': (2797, 3518),
+  'beam_key3518': (3518, 4100),
+  'beam_key41': (4100, 4730),
+  'beam_key4730': (4730, 5400),
+  'beam_key54': (5400, 6404),
+  'beam_key6404': (6404, 7123),
+  'beam_key7123': (7123, 7683),
+  'beam_key7683': (7683, 8300),
+  'beam_key83': (8300, 8892),
+  'beam_key8892': (8892, 9430),
+  'beam_key943': (9430, 9930),
 }
 
 SIZE_768M = 805306368
@@ -87,6 +88,10 @@ class BigtableSourceTest(unittest.TestCase):
 
   def _mock_sample_keys(self, keys=None):
     if keys is None:
+      # sample_row = SampleRowKeysResponse()
+      # sample_row.row_key = b''
+      # sample_row.offset_bytes = 0
+      # yield sample_row
       sample_row = SampleRowKeysResponse()
       sample_row.row_key = b''
       sample_row.offset_bytes = SIZE_768M
@@ -95,24 +100,24 @@ class BigtableSourceTest(unittest.TestCase):
 
     for i, key in enumerate(keys):
       sample_row = SampleRowKeysResponse()
-      if i == 0 and key != b'':
-        sample_row.row_key = b''
-        sample_row.offset_bytes = 0
-        yield sample_row
       sample_row.row_key = key
       sample_row.offset_bytes = (i + 1) * SIZE_768M
       yield sample_row
 
-  @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  # @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  @mock.patch.object(Table, 'sample_row_keys')
   def test_estimate_size(self, mock_sample_row_keys):
-    mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_1)
+    # mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_1)
+    mock_sample_row_keys.return_value = list(self._mock_sample_keys(KEYS_1))
     self.assertTrue(mock_sample_row_keys)
     self.assertEqual(BigtableSource(self.project_id, self.instance_id, self.table_id)
                      .estimate_size(), SIZE_768M * len(KEYS_1))
 
-  @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  # @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  @mock.patch.object(Table, 'sample_row_keys')
   def test_get_range_tracker(self, mock_sample_row_keys):
-    mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_1)
+    # mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_1)
+    mock_sample_row_keys.return_value = list(self._mock_sample_keys(KEYS_1))
     pos_start = b'beam_key0672496'
     pos_stop = b'beam_key1582279'
     source = BigtableSource(self.project_id, self.instance_id, self.table_id)
@@ -120,18 +125,22 @@ class BigtableSourceTest(unittest.TestCase):
     self.assertEqual(range_tracker.start_position(), pos_start)
     self.assertEqual(range_tracker.stop_position(), pos_stop)
 
-  @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  # @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  @mock.patch.object(Table, 'sample_row_keys')
   def test_split(self, mock_sample_row_keys):
-    mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_1)
-    bundles = list(BigtableSource(self.project_id, self.instance_id, self.table_id).split(None))
+    # mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_1)
+    mock_sample_row_keys.return_value = list(self._mock_sample_keys(KEYS_1))
+    bundles = list(BigtableSource(self.project_id, self.instance_id, self.table_id)
+                   .split(desired_bundle_size=None))
+    bundles.sort()
+    print 'len(bundles) = ', len(bundles)
+    # for i, bundle in enumerate(bundles):
+    #   print 'BUNDLE[{}]: start_position = {}, stop_position = {}'.format(i, bundle.start_position, bundle.stop_position)
+
     self.assertEqual(len(list(bundles)), len(KEYS_1))
 
   def _key_bytes(self, key):
     return bytes(key) if sys.version_info < (3, 0) else bytes(key, 'utf8')
-
-  # def __read_list_rebalancing(self):
-  #   for i in range(35000, 1214999):
-  #     yield PartialRowData(self._key_bytes("beam_key%07d" % i))
 
   @mock.patch.object(Table, 'read_rows')
   def test_read(self, mock_read_rows):
@@ -151,7 +160,8 @@ class BigtableSourceTest(unittest.TestCase):
       self.assertIsInstance(row, PartialRowData)
       self.assertNotEqual(row.row_key, b'')
 
-  @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  # @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  @mock.patch.object(Table, 'sample_row_keys')
   @mock.patch.object(Table, 'read_rows')
   def test_read_small_table(self, mock_read_rows, mock_sample_row_keys):
     row_count = 10000
@@ -160,7 +170,8 @@ class BigtableSourceTest(unittest.TestCase):
       for i in range(0, row_count):
         yield PartialRowData(self._key_bytes('beam_key%07d' % i))
 
-    mock_sample_row_keys.return_value = self._mock_sample_keys()
+    # mock_sample_row_keys.return_value = self._mock_sample_keys()
+    mock_sample_row_keys.return_value = list(self._mock_sample_keys())
     mock_read_rows.return_value = _mock_read_rows()
     source = BigtableSource(self.project_id, self.instance_id, self.table_id)
 
@@ -173,27 +184,104 @@ class BigtableSourceTest(unittest.TestCase):
         self.assertIsInstance(row, PartialRowData)
 
   def _mocking_read_rows(self, **kwargs):  # 12.2 KB
-    current_range = RANGES_DICT[kwargs['start_key']]
-    # print current_range[1] - current_range[0]
-    for i in range(current_range[0], current_range[1]):
-      yield PartialRowData(self._key_bytes("beam_key%07d" % i))
+    start_key = kwargs['start_key'] if kwargs['start_key'] is not None else b''
+    end_key = kwargs['end_key']
 
-  @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+    from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
+
+    index_start = 0
+    index_stop = RANGES_DICT[b''][1]
+    if start_key != b'':
+      fraction = LexicographicKeyRangeTracker.position_to_fraction(start_key)
+      index_start = int(fraction * index_stop)
+    elif end_key is not None:
+      fraction = LexicographicKeyRangeTracker.position_to_fraction(end_key)
+      index_stop = int(fraction * index_stop)
+
+    # print '{:>40}(): start_key, end_key = [{}], [{}] | fraction = {} | range = [{}..{})' \
+    #   .format(sys._getframe().f_code.co_name, self._key_bytes(start_key), self._key_bytes(end_key), fraction, index_start, index_stop)
+
+
+    # count = 0
+    # for _ in range(index_start, index_stop):
+    #   count += 1
+    # print '_mocking_read_rows(): about to generate {} rows...'.format(count)
+
+    # if start_key > '\x20':
+    #   # print 'start_key = {}'.format(start_key)
+    #   row_key = start_key
+    # else:
+    #   # print 'invalid start_key: [{}]'.format(start_key)
+    #   row_key = 'beam'
+
+    for i in range(index_start, index_stop):
+      # yield PartialRowData(self._key_bytes("beam_key%07d" % i))
+      yield PartialRowData(self._key_bytes('{}\x00{:07d}'.format(start_key, i)))
+
+    # if start_key in RANGES_DICT:
+    #   current_range = RANGES_DICT[start_key]
+    #
+    #   # print 'currect_range = {}'.format(current_range)
+    #   # print 'current_range size = {}'.format(current_range[1] - current_range[0])
+    #   for i in range(current_range[0], current_range[1]):
+    #     yield PartialRowData(self._key_bytes("beam_key%07d" % i))
+    # else:
+    #   # print 'start_key is not in RANGES_DICT!'
+    #   # current_range = (0, 1000)
+    #   # current_range = RANGES_DICT[b'']
+    #   # for i in range(current_range[0], current_range[1]):
+    #   # yield None
+    #   # yield PartialRowData(self._key_bytes(start_key))
+    #   return
+    #   # for i in range(1000):
+    #   #   yield PartialRowData(self._key_bytes(start_key))
+
+
+  # @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  @mock.patch.object(Table, 'sample_row_keys')
   @mock.patch.object(Table, 'read_rows')
   def test_read_table(self, mock_read_rows, mock_sample_row_keys):
-    mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_2)
+    # mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_2)
+    mock_sample_row_keys.return_value = list(self._mock_sample_keys(KEYS_2))
     mock_read_rows.side_effect = self._mocking_read_rows
     source = BigtableSource(self.project_id, self.instance_id, self.table_id)
 
     # TODO: Need to implement mock-reader and row counter
 
-    bundles = []
-    for bundle in source.split(None):
-      bundles.append(bundle)
-
+    bundles = [b for b in source.split(None)]
     self.assertEqual(len(bundles), len(KEYS_2)) # Create One Row for each Bundle in the read_rows method.
 
+  # def __read_list_rebalancing(self):
+  #   for i in range(35000, 1214999):
+  #     yield PartialRowData(self._key_bytes("beam_key%07d" % i))
+
+  # @mock.patch.object(BigtableSource, 'get_sample_row_keys')
+  @mock.patch.object(Table, 'sample_row_keys')
+  @mock.patch.object(Table, 'read_rows')
+  def test_dynamic_work_rebalancing(self, mock_read_rows, mock_sample_row_keys):
+    # mock_sample_row_keys.return_value = self._mock_sample_keys(KEYS_2)
+    mock_sample_row_keys.return_value = list(self._mock_sample_keys(KEYS_2))
+    mock_read_rows.side_effect = self._mocking_read_rows
+    source = BigtableSource(self.project_id, self.instance_id, self.table_id)
+
+    # keys = list(source.get_sample_row_keys())
+    # keys.sort()
+    # for i, key in enumerate(keys):
+    #   print 'key[{}] = {}, offset = {}'.format(i, key.row_key, key.offset_bytes)
+
+    # bundles = list(source.split(desired_bundle_size=None))
+    # bundles.sort()
+    # print 'len(bundles) = ', len(bundles)
+    # for i, bundle in enumerate(bundles):
+    #   print 'BUNDLE[{}]: start_position = {}, stop_position = {}'.format(i, bundle.start_position, bundle.stop_position)
+
+    # assert len(bundles) > 0
+    # source_test_utils.assert_split_at_fraction_exhaustive(
+    #   bundles[0].source, bundles[0].start_position, bundles[0].stop_position)
+    source_test_utils.assert_split_at_fraction_exhaustive(source)
+    # source_test_utils.assert_split_at_fraction_exhaustive(source, bundles[1].start_position, bundles[1].stop_position)
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
+  # logging.getLogger().setLevel(logging.INFO)
+  logging.getLogger().setLevel(logging.DEBUG)
   unittest.main()

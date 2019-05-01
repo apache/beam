@@ -143,24 +143,6 @@ if __name__ == '__main__':
   parser.add_argument('--log_level', type=int, default=logging.INFO)
   args = parser.parse_args()
 
-  print 'project argument               =', args.project
-  print 'instance argument              =', args.instance
-  print 'table argument                 =', args.table
-  print 'region argument                =', args.region
-  print 'staging_location argument      =', args.staging_location
-  print 'temp_location argument         =', args.temp_location
-  print 'setup_file argument            =', args.setup_file
-  print 'extra_package argument         =', args.extra_package
-  print 'num_workers argument           =', args.num_workers
-  print 'autoscaling_algorithm argument =', args.autoscaling_algorithm
-  print 'experiments argument           =', args.experiments
-  print 'runner argument                =', args.runner
-  print 'disk_size_gb argument          =', args.disk_size_gb
-  print 'row_count argument             =', args.row_count
-  print 'column_count argument          =', args.column_count
-  print 'cell_size argument             =', args.cell_size
-  print 'log_level argument             =', args.log_level
-
   PROJECT_ID = args.project
   INSTANCE_ID = args.instance
   ROW_COUNT = args.row_count

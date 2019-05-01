@@ -177,7 +177,6 @@ class BigtableSource(iobase.BoundedSource):
     self.sample_row_keys = None
     self.row_count = Metrics.counter(self.__class__.__name__, 'Row count')
 
-
   def _get_table(self):
     if self.table is None:
       self.table = Client(project=self.beam_options['project_id'])\
@@ -194,13 +193,13 @@ class BigtableSource(iobase.BoundedSource):
     :returns: A cancel-able iterator. Can be consumed by calling ``next()``
     			  or by casting to a :class:`list` and can be cancelled by
     			  calling ``cancel()``.
+
+    ***** NOTE: For unclear reasons, the function returns generator even
+    after wrapping the result as a list. In order to be used as a list, the
+    result should be wrapped as a list AGAIN! E.g., see 'estimate_size()'
     """
     if self.sample_row_keys is None:
-      self.sample_row_keys = self._get_table().sample_row_keys()
-      if self.sample_row_keys[0].row_key != b'':
-        SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
-        first_key = SampleRowKey(b'', 0)
-        self.sample_row_keys.insert(0, first_key)
+      self.sample_row_keys = list(self._get_table().sample_row_keys())
     return self.sample_row_keys
 
   def get_range_tracker(self, start_position=b'', stop_position=b''):
@@ -210,7 +209,7 @@ class BigtableSource(iobase.BoundedSource):
       return LexicographicKeyRangeTracker(start_position, stop_position)
 
   def estimate_size(self):
-    return list(self.get_sample_row_keys()[-1]).offset_bytes
+    return list(self.get_sample_row_keys())[-1].offset_bytes
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     """ Splits the source into a set of bundles, using the row_set if it is set.
@@ -231,6 +230,13 @@ class BigtableSource(iobase.BoundedSource):
     # TODO: Allow users to provide their own row sets
 
     sample_row_keys = list(self.get_sample_row_keys())
+
+    if len(sample_row_keys) > 1 and sample_row_keys[0].row_key != b'':
+      SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
+      first_key = SampleRowKey(b'', 0)
+      sample_row_keys.insert(0, first_key)
+      sample_row_keys = list(sample_row_keys)
+
     bundles = []
     for i in range(1, len(sample_row_keys)):
       key_1 = sample_row_keys[i - 1].row_key
@@ -267,7 +273,3 @@ class BigtableSource(iobase.BoundedSource):
                                        label='Bigtable Filter',
                                        key='filter_')
             }
-
-  # def to_runner_api_parameter(self, unused_context):
-  #   return 'simple', None
-
