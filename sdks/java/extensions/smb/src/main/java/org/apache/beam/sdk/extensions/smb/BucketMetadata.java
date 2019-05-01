@@ -23,11 +23,14 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
@@ -57,6 +60,9 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
     this.hashType = hashType;
     this.hashFunction = hashType.create();
   }
+
+  @JsonIgnore
+  public abstract Coder<SortingKeyT> getSortingKeyCoder() throws CannotProvideCoderException;
 
   /** Enumerated hashing schemes available for an SMB sink. */
   public enum HashType {
@@ -117,6 +123,17 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   ////////////////////////////////////////
   // Business logic
   ////////////////////////////////////////
+
+  public byte[] keyToBytes(SortingKeyT key) {
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    try {
+      getSortingKeyCoder().encode(key, baos);
+    } catch (Exception e) {
+      throw new RuntimeException("Could not encode key " + key, e);
+    }
+
+    return baos.toByteArray();
+  }
 
   public abstract SortingKeyT extractSortingKey(ValueT value);
 

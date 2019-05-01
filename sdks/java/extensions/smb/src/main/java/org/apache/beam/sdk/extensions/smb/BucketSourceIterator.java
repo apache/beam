@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Iterator;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -34,18 +35,14 @@ import org.apache.beam.sdk.io.fs.ResourceIdCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * Iterates over shards in a bucket one record at a time.
- *
- * @param <KeyT>
- */
+/** Iterates over shards in a bucket one record at a time. */
 class BucketSourceIterator<KeyT> implements Serializable {
   private final TupleTag tupleTag;
   private final Reader<?> reader;
   private final ResourceId resourceId;
   private final BucketMetadata<KeyT, Object> metadata;
 
-  private KV<KeyT, ?> nextKv;
+  private KV<byte[], ?> nextKv;
 
   BucketSourceIterator(
       Reader<?> reader,
@@ -70,7 +67,7 @@ class BucketSourceIterator<KeyT> implements Serializable {
     if (value == null) {
       nextKv = null;
     } else {
-      nextKv = KV.of(metadata.extractSortingKey(value), value);
+      nextKv = KV.of(metadata.keyToBytes(metadata.extractSortingKey(value)), value);
     }
   }
 
@@ -83,8 +80,8 @@ class BucketSourceIterator<KeyT> implements Serializable {
   }
 
   // group next continuous values of the same key in an iterator
-  KV<KeyT, Iterator<?>> nextKeyGroup() {
-    KeyT key = nextKv.getKey();
+  KV<byte[], Iterator<?>> nextKeyGroup() {
+    byte[] key = nextKv.getKey();
 
     Iterator<?> iterator =
         new Iterator<Object>() {
@@ -105,8 +102,8 @@ class BucketSourceIterator<KeyT> implements Serializable {
                 value = null;
                 nextKv = null;
               } else {
-                KeyT k = metadata.extractSortingKey(v);
-                if (key.equals(k)) {
+                byte[] k = metadata.keyToBytes(metadata.extractSortingKey(v));
+                if (Arrays.equals(key, k)) {
                   // same key, update next value
                   value = v;
                 } else {
@@ -125,11 +122,11 @@ class BucketSourceIterator<KeyT> implements Serializable {
     return KV.of(key, iterator);
   }
 
-  static class BucketSourceIteratorCoder<K> extends AtomicCoder<BucketSourceIterator<K>> {
+  static class BucketSourceIteratorCoder extends AtomicCoder<BucketSourceIterator> {
     BucketSourceIteratorCoder() {}
 
     @Override
-    public void encode(BucketSourceIterator<K> value, OutputStream outStream)
+    public void encode(BucketSourceIterator value, OutputStream outStream)
         throws CoderException, IOException {
       try {
         ResourceIdCoder.of().encode(value.resourceId, outStream);
@@ -142,12 +139,12 @@ class BucketSourceIterator<KeyT> implements Serializable {
     }
 
     @Override
-    public BucketSourceIterator<K> decode(InputStream inStream) throws CoderException, IOException {
+    public BucketSourceIterator decode(InputStream inStream) throws CoderException, IOException {
       try {
         final ResourceId resourceId = ResourceIdCoder.of().decode(inStream);
         final TupleTag<?> tupleTag = SerializableCoder.of(TupleTag.class).decode(inStream);
         final Reader<?> reader = SerializableCoder.of(Reader.class).decode(inStream);
-        final BucketMetadata<K, Object> metadata =
+        final BucketMetadata<?, Object> metadata =
             BucketMetadata.from(new ByteArrayInputStream(ByteArrayCoder.of().decode(inStream)));
 
         return new BucketSourceIterator<>(reader, resourceId, tupleTag, metadata);

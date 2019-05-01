@@ -63,7 +63,6 @@ public class AvroSortedBucketSinkTest {
     final SortedBucketSink<Integer, GenericRecord> sink =
         AvroSortedBucketIO.sink(
             metadata,
-            VarIntCoder.of(),
             LocalResources.fromFile(outputFolder1.getRoot(), true),
             LocalResources.fromFile(tmpFolder.getRoot(), true),
             TestUtils.USER_SCHEMA);
@@ -138,7 +137,6 @@ public class AvroSortedBucketSinkTest {
     final SortedBucketSink<Integer, AvroGeneratedUser> sink =
         AvroSortedBucketIO.sink(
             metadata,
-            VarIntCoder.of(),
             LocalResources.fromFile(outputFolder2.getRoot(), true),
             LocalResources.fromFile(tmpFolder.getRoot(), true),
             AvroGeneratedUser.class,

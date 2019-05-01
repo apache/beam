@@ -20,18 +20,17 @@ package org.apache.beam.sdk.extensions.smb.json;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.beam.sdk.extensions.smb.BucketMetadata;
-
 import java.util.Map;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
 public class JsonBucketMetadata<SortingKeyT>
     extends BucketMetadata<SortingKeyT, Map<String, Object>> {
 
-  @JsonProperty
-  private final String keyField;
+  @JsonProperty private final String keyField;
 
-  @JsonIgnore
-  private String[] keyPath;
+  @JsonIgnore private String[] keyPath;
 
   @JsonCreator
   public JsonBucketMetadata(
@@ -42,6 +41,11 @@ public class JsonBucketMetadata<SortingKeyT>
     super(numBuckets, sortingKeyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");
+  }
+
+  @Override
+  public Coder<SortingKeyT> getSortingKeyCoder() throws CannotProvideCoderException {
+    return null;
   }
 
   @SuppressWarnings("unchecked")

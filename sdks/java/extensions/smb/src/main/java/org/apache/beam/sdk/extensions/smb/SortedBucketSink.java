@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -41,7 +42,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -69,16 +69,13 @@ public class SortedBucketSink<SortingKeyT, ValueT>
   private final SMBFilenamePolicy smbFilenamePolicy;
   private final Supplier<Writer<ValueT>> writerSupplier;
   private final ResourceId tempDirectory;
-  private final Coder<SortingKeyT> sortingKeyCoder;
 
   public SortedBucketSink(
       BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
-      Coder<SortingKeyT> sortingKeyCoder,
       SMBFilenamePolicy smbFilenamePolicy,
       Supplier<Writer<ValueT>> writerSupplier,
       ResourceId tempDirectory) {
     this.bucketingMetadata = bucketingMetadata;
-    this.sortingKeyCoder = sortingKeyCoder;
     this.smbFilenamePolicy = smbFilenamePolicy;
     this.writerSupplier = writerSupplier;
     this.tempDirectory = tempDirectory;
@@ -86,14 +83,16 @@ public class SortedBucketSink<SortingKeyT, ValueT>
 
   @Override
   public final WriteResult expand(PCollection<ValueT> input) {
-    final Coder<KV<Integer, KV<SortingKeyT, ValueT>>> bucketedCoder =
-        KvCoder.of(VarIntCoder.of(), KvCoder.of(sortingKeyCoder, input.getCoder()));
+    final Coder<SortingKeyT> sortingKeyCoder;
+    try {
+      sortingKeyCoder = (Coder<SortingKeyT>) bucketingMetadata.getSortingKeyCoder();
+    } catch (CannotProvideCoderException e) {
+      throw new RuntimeException("Could not find a coder for key type", e);
+    }
 
     return input
-        .apply(
-            "Assign buckets",
-            ParDo.of(new ExtractBucketAndSortKey<>(this.bucketingMetadata, this.sortingKeyCoder)))
-        .setCoder(bucketedCoder)
+        .apply("Assign buckets", ParDo.of(new ExtractBucketAndSortKey<>(this.bucketingMetadata)))
+        .setCoder(KvCoder.of(VarIntCoder.of(), KvCoder.of(sortingKeyCoder, input.getCoder())))
         .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
         .apply(
@@ -107,18 +106,16 @@ public class SortedBucketSink<SortingKeyT, ValueT>
    */
   static final class ExtractBucketAndSortKey<K, V> extends DoFn<V, KV<Integer, KV<K, V>>> {
     private final BucketMetadata<K, V> bucketMetadata;
-    private final Coder<K> sortingKeyCoder;
 
-    ExtractBucketAndSortKey(BucketMetadata<K, V> bucketMetadata, Coder<K> sortingKeyCoder) {
+    ExtractBucketAndSortKey(BucketMetadata<K, V> bucketMetadata) {
       this.bucketMetadata = bucketMetadata;
-      this.sortingKeyCoder = sortingKeyCoder;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       final V record = c.element();
       final K key = bucketMetadata.extractSortingKey(record);
-      final byte[] keyBytes = CoderUtils.encodeToByteArray(sortingKeyCoder, key);
+      final byte[] keyBytes = bucketMetadata.keyToBytes(key);
 
       final int bucket =
           Math.abs(bucketMetadata.getHashFunction().hashBytes(keyBytes).asInt())

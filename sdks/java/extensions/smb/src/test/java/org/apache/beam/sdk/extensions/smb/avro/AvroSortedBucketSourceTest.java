@@ -19,10 +19,7 @@ package org.apache.beam.sdk.extensions.smb.avro;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
-import java.util.Comparator;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
 import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
@@ -91,7 +88,7 @@ public class AvroSortedBucketSourceTest {
     writer.write(userB);
     writer.finishWrite();
 
-    final BucketMetadata<Integer, GenericRecord> metadata =
+    final AvroBucketMetadata<Integer, GenericRecord> metadata =
         new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "age");
 
     final ObjectMapper objectMapper = new ObjectMapper();
@@ -105,8 +102,7 @@ public class AvroSortedBucketSourceTest {
 
     final SortedBucketSource<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>
         sourceTransform =
-            AvroSortedBucketIO.SortedBucketSourceJoinBuilder.create(
-                    VarIntCoder.of(), Comparator.naturalOrder())
+            AvroSortedBucketIO.SortedBucketSourceJoinBuilder.forKeyType(Integer.class)
                 .of(LocalResources.fromFile(source1Folder.getRoot(), true), TestUtils.USER_SCHEMA)
                 .and(LocalResources.fromFile(source2Folder.getRoot(), true), TestUtils.USER_SCHEMA)
                 .build();
@@ -157,7 +153,7 @@ public class AvroSortedBucketSourceTest {
     writer.write(userB);
     writer.finishWrite();
 
-    final BucketMetadata<Integer, GenericRecord> metadata =
+    final AvroBucketMetadata<Integer, GenericRecord> metadata =
         new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "favorite_number");
 
     final ObjectMapper objectMapper = new ObjectMapper();
@@ -171,8 +167,7 @@ public class AvroSortedBucketSourceTest {
 
     final SortedBucketSource<Integer, KV<Iterable<AvroGeneratedUser>, Iterable<AvroGeneratedUser>>>
         sourceTransform =
-            AvroSortedBucketIO.SortedBucketSourceJoinBuilder.create(
-                    VarIntCoder.of(), Comparator.naturalOrder())
+            AvroSortedBucketIO.SortedBucketSourceJoinBuilder.forKeyType(Integer.class)
                 .of(
                     LocalResources.fromFile(source1Folder.getRoot(), true),
                     AvroGeneratedUser.SCHEMA$,

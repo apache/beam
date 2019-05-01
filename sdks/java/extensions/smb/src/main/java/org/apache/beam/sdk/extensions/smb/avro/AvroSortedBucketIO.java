@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.smb.avro;
 
 import java.io.Serializable;
-import java.util.Comparator;
 import java.util.Optional;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -50,24 +49,21 @@ public class AvroSortedBucketIO {
 
   public static <SortingKeyT> SortedBucketSink<SortingKeyT, GenericRecord> sink(
       AvroBucketMetadata<SortingKeyT, GenericRecord> bucketingMetadata,
-      Coder<SortingKeyT> sortingKeyCoder,
       ResourceId outputDirectory,
       ResourceId tempDirectory,
       Schema schema) {
-    return sink(bucketingMetadata, sortingKeyCoder, outputDirectory, tempDirectory, null, schema);
+    return sink(bucketingMetadata, outputDirectory, tempDirectory, null, schema);
   }
 
   public static <SortingKeyT, ValueT extends GenericRecord>
       SortedBucketSink<SortingKeyT, ValueT> sink(
           AvroBucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
-          Coder<SortingKeyT> sortingKeyCoder,
           ResourceId outputDirectory,
           ResourceId tempDirectory,
           Class<ValueT> recordClass,
           Schema schema) {
     return new SortedBucketSink<>(
         bucketingMetadata,
-        sortingKeyCoder,
         new SMBFilenamePolicy(outputDirectory, "avro"),
         new AvroWriterSupplier<>(recordClass, schema),
         tempDirectory);
@@ -94,6 +90,7 @@ public class AvroSortedBucketIO {
    * @param <V2>
    */
   public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> implements Serializable {
+    private Class<KeyT> keyClass;
 
     private KeyedBucketSource<KeyT, V1> leftSource;
     private Coder<V1> leftCoder;
@@ -101,33 +98,20 @@ public class AvroSortedBucketIO {
     private KeyedBucketSource<KeyT, V2> rightSource;
     private Coder<V2> rightCoder;
 
-    private Coder<KeyT> keyCoder;
-    private Comparator<KeyT> keyComparator;
-
-    SortedBucketSourceJoinBuilder(Coder<KeyT> keyCoder, Comparator<KeyT> keyComparator) {
-      this.keyCoder = keyCoder;
-      this.keyComparator = keyComparator;
+    private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass) {
+      this.keyClass = keyClass;
     }
 
-    SortedBucketSourceJoinBuilder(
-        Coder<KeyT> keyCoder,
-        KeyedBucketSource<KeyT, V1> leftSource,
-        Coder<V1> leftCoder,
-        Comparator<KeyT> keyComparator) {
-      this.keyCoder = keyCoder;
+    private SortedBucketSourceJoinBuilder(
+        Class<KeyT> keyClass, KeyedBucketSource<KeyT, V1> leftSource, Coder<V1> leftCoder) {
+      this(keyClass);
       this.leftCoder = leftCoder;
       this.leftSource = leftSource;
-      this.keyComparator = keyComparator;
     }
 
-    public static <K extends Comparable<K>> SortedBucketSourceJoinBuilder<K, ?, ?> create(
-        Coder<K> keyCoder) {
-      return new SortedBucketSourceJoinBuilder<>(keyCoder, Comparator.naturalOrder());
-    }
-
-    public static <K> SortedBucketSourceJoinBuilder<K, ?, ?> create(
-        Coder<K> keyCoder, Comparator<K> keyComparator) {
-      return new SortedBucketSourceJoinBuilder<>(keyCoder, keyComparator);
+    public static <KeyT> SortedBucketSourceJoinBuilder<KeyT, ?, ?> forKeyType(
+        Class<KeyT> keyClass) {
+      return new SortedBucketSourceJoinBuilder<>(keyClass);
     }
 
     public SortedBucketSourceJoinBuilder<KeyT, GenericRecord, ?> of(
@@ -137,8 +121,9 @@ public class AvroSortedBucketIO {
 
     public <ValueT> SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> of(
         ResourceId filenamePrefix, Schema schema, Class<ValueT> recordClass) {
+
       final SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> builderCopy =
-          new SortedBucketSourceJoinBuilder<>(keyCoder, keyComparator);
+          new SortedBucketSourceJoinBuilder<>(keyClass);
 
       builderCopy.leftSource =
           new KeyedBucketSource<>(
@@ -161,7 +146,7 @@ public class AvroSortedBucketIO {
         ResourceId filenamePrefix, Schema schema, Class<ValueT> recordClass) {
 
       final SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> builderCopy =
-          new SortedBucketSourceJoinBuilder<>(keyCoder, leftSource, leftCoder, keyComparator);
+          new SortedBucketSourceJoinBuilder<KeyT, V1, ValueT>(keyClass, leftSource, leftCoder);
 
       builderCopy.rightSource =
           new KeyedBucketSource<>(
@@ -176,7 +161,6 @@ public class AvroSortedBucketIO {
 
     public SortedBucketSource<KeyT, KV<Iterable<V1>, Iterable<V2>>> build() {
       return new SortedBucketSource<>(
-          keyCoder,
           new ToResult<KV<Iterable<V1>, Iterable<V2>>>() {
             @Override
             public KV<Iterable<V1>, Iterable<V2>> apply(SMBCoGbkResult input) {
@@ -193,7 +177,7 @@ public class AvroSortedBucketIO {
             }
           },
           ImmutableList.of(leftSource, rightSource),
-          keyComparator);
+          keyClass);
     }
   }
 }
