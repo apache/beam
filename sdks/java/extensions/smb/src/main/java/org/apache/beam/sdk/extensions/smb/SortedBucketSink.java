@@ -82,7 +82,6 @@ public class SortedBucketSink<SortingKeyT, ValueT>
     this.smbFilenamePolicy = smbFilenamePolicy;
     this.writerSupplier = writerSupplier;
     this.tempDirectory = tempDirectory;
-    ;
   }
 
   @Override
@@ -93,10 +92,8 @@ public class SortedBucketSink<SortingKeyT, ValueT>
     return input
         .apply(
             "Assign buckets",
-            ParDo.of(
-                new ExtractBucketAndSortKey<SortingKeyT, ValueT>(
-                    this.bucketingMetadata, this.sortingKeyCoder)))
-        .setCoder(bucketedCoder) // @Todo: Verify fusion of these steps
+            ParDo.of(new ExtractBucketAndSortKey<>(this.bucketingMetadata, this.sortingKeyCoder))
+        ).setCoder(bucketedCoder)
         .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
         .apply(
