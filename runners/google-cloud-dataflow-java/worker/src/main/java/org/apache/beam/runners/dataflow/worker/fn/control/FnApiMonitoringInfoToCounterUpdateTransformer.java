@@ -35,19 +35,22 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 public class FnApiMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  final UserMonitoringInfoToCounterUpdateTransformer userCounterTransformer;
-  final UserDistributionMonitoringInfoToCounterUpdateTransformer userDistributionCounterTransformer;
   final Map<String, MonitoringInfoToCounterUpdateTransformer> counterTransformers = new HashMap<>();
 
   public FnApiMonitoringInfoToCounterUpdateTransformer(
       Map<String, DataflowStepContext> stepContextMap,
       Map<String, NameContext> sdkPCollectionIdToNameContext) {
     SpecMonitoringInfoValidator specValidator = new SpecMonitoringInfoValidator();
-    this.userCounterTransformer =
-        new UserMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
 
-    this.userDistributionCounterTransformer =
+    UserMonitoringInfoToCounterUpdateTransformer userCounterTransformer =
+        new UserMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
+    counterTransformers.put(userCounterTransformer.getSupportedUrnPrefix(), userCounterTransformer);
+
+    UserDistributionMonitoringInfoToCounterUpdateTransformer userDistributionCounterTransformer =
         new UserDistributionMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
+    counterTransformers.put(
+        userDistributionCounterTransformer.getSupportedUrnPrefix(),
+        userDistributionCounterTransformer);
 
     MSecMonitoringInfoToCounterUpdateTransformer msecTransformer =
         new MSecMonitoringInfoToCounterUpdateTransformer(specValidator, stepContextMap);
@@ -67,11 +70,7 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
   /** Allows for injection of user and generic counter transformers for more convenient testing. */
   @VisibleForTesting
   public FnApiMonitoringInfoToCounterUpdateTransformer(
-      UserMonitoringInfoToCounterUpdateTransformer userCounterTransformer,
-      UserDistributionMonitoringInfoToCounterUpdateTransformer userDistributionCounterTransformer,
       Map<String, MonitoringInfoToCounterUpdateTransformer> counterTransformers) {
-    this.userCounterTransformer = userCounterTransformer;
-    this.userDistributionCounterTransformer = userDistributionCounterTransformer;
     this.counterTransformers.putAll(counterTransformers);
   }
 
@@ -79,12 +78,6 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
   @Nullable
   public CounterUpdate transform(MonitoringInfo src) {
     String urn = src.getUrn();
-    if (urn.startsWith(userCounterTransformer.getSupportedUrnPrefix())) {
-      return userCounterTransformer.transform(src);
-    } else if (urn.startsWith(userDistributionCounterTransformer.getSupportedUrnPrefix())) {
-      return this.userDistributionCounterTransformer.transform(src);
-    }
-
     MonitoringInfoToCounterUpdateTransformer transformer = counterTransformers.get(urn);
     return transformer == null ? null : transformer.transform(src);
   }
