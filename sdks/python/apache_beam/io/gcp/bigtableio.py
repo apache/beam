@@ -48,8 +48,8 @@ from apache_beam.transforms.display import DisplayDataItem
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable.row_set import RowSet
   from google.cloud.bigtable.row_set import RowRange
+  from google.cloud.bigtable.row_set import RowSet
 except ImportError:
   Client = None
 
@@ -97,7 +97,7 @@ class _BigTableWriteFn(beam.DoFn):
       self.table = instance.table(self.beam_options['table_id'])
     self.batcher = self.table.mutations_batcher()
 
-  def process(self, row, *args, **kwargs):
+  def process(self, row):
     self.written.inc()
     # You need to set the timestamp in the cells in this row object,
     # when we do a retry we will mutating the same object, but, with this
@@ -129,7 +129,8 @@ class WriteToBigTable(beam.PTransform):
   A PTransform that write a list of `DirectRow` into the Bigtable Table
 
   """
-  def __init__(self, project_id=None, instance_id=None, table_id=None):
+  def __init__(self, project_id=None, instance_id=None,
+               table_id=None):
     """ The PTransform to access the Bigtable Write connector
     Args:
       project_id(str): GCP Project of to write the Rows
