@@ -47,7 +47,6 @@ from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 
 __all__ = [
-    'Sum',
     'Count',
     'Mean',
     'Sample',
@@ -60,48 +59,6 @@ __all__ = [
 T = TypeVariable('T')
 K = TypeVariable('K')
 V = TypeVariable('V')
-
-
-class Sum(object):
-  """Combiners for computing sums of elements."""
-
-  class Globally(ptransform.PTransform):
-    """Computes the global sum of an integer PCollection."""
-
-    def expand(self, pcoll):
-      return pcoll | core.CombineGlobally(SumCombineFn())
-
-  class PerKey(ptransform.PTransform):
-    """Sums the values for each key in the PCollection."""
-
-    def expand(self, pcoll):
-      return pcoll | core.CombinePerKey(SumCombineFn())
-
-
-@with_input_types(Union[float, int, long])
-@with_output_types(float)
-class SumCombineFn(core.CombineFn):
-  """CombineFn for computing a sum."""
-
-  def create_accumulator(self):
-    return 0
-
-  def add_input(self, current_sum, element):
-    return current_sum + element
-
-  def merge_accumulators(self, accumulators):
-    return sum(accumulators)
-
-  def extract_output(self, accumulator):
-    return accumulator
-
-  def for_input_type(self, input_type):
-    if input_type is int:
-      return cy_combiners.SumInt64Fn()
-    elif input_type is float:
-      return cy_combiners.SumFloatFn()
-    else:
-      return self
 
 
 class Mean(object):

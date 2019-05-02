@@ -294,9 +294,7 @@ new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 
 ```py
 class IndexAssigningStatefulDoFn(DoFn):
-  INDEX_STATE = CombiningStateSpec('index',
-                                   VarIntCoder(),
-                                   combiners.SumCombineFn())
+  INDEX_STATE = CombiningStateSpec('index', sum)
 
   def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
     unused_key, value = element

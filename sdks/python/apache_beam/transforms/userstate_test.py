@@ -31,7 +31,6 @@ from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms import combiners
 from apache_beam.transforms import userstate
 from apache_beam.transforms.combiners import ToListCombineFn
 from apache_beam.transforms.combiners import TopCombineFn
@@ -501,8 +500,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
   def test_index_assignment(self):
     class IndexAssigningStatefulDoFn(DoFn):
-      INDEX_STATE = CombiningValueStateSpec('index', VarIntCoder(),
-                                            combiners.SumCombineFn())
+      INDEX_STATE = CombiningValueStateSpec('index', sum)
 
       def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
         unused_key, value = element
