@@ -64,9 +64,22 @@ class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 
   def __init__(self, name, coder=None, combine_fn=None):
+    """Initialize the specification for CombiningValue state.
+
+    CombiningValueStateSpec(name, combine_fn) -> Coder-inferred combining value
+      state spec.
+    CombiningValueStateSpec(name, coder, combine_fn) -> Combining value state
+      spec with coder and combine_fn specified.
+
+    Args:
+      name (str): The name by which the state is identified.
+      coder (coder): Coder specifying how to encode the values to be combined.
+        May be inferred.
+      combine_fn (``CombineFn`` or ``callable``): Function specifying how to
+        combine the values passed to state.
+    """
     # Avoid circular import.
     from apache_beam.transforms.core import CombineFn
-
     # We want the coder to be optional, but unfortunately it comes
     # before the non-optional combine_fn parameter, which we can't
     # change for backwards compatibility reasons.
