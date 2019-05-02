@@ -72,8 +72,9 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     this.keyCoder = getKeyCoder();
   }
 
+  @SuppressWarnings("unchecked")
   @JsonIgnore
-  public Coder<KeyT> getKeyCoder() throws CannotProvideCoderException {
+  Coder<KeyT> getKeyCoder() throws CannotProvideCoderException {
     final Coder overriddenCoder = coderOverrides().get(getKeyClass());
 
     if (overriddenCoder != null) {
@@ -84,7 +85,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
   }
 
   @JsonIgnore
-  public Map<Class<?>, Coder<?>> coderOverrides() {
+  protected Map<Class<?>, Coder<?>> coderOverrides() {
     return Collections.emptyMap();
   }
 
