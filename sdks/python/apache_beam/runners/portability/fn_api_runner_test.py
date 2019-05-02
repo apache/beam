@@ -31,6 +31,9 @@ import unittest
 import uuid
 from builtins import range
 
+import hamcrest
+from hamcrest.core.matcher import Matcher
+from hamcrest.core.string_description import StringDescription
 from tenacity import retry
 from tenacity import stop_after_attempt
 
@@ -54,6 +57,23 @@ if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
 else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
+
+
+def _matcher_or_equal_to(value_or_matcher):
+  """Pass-thru for matchers, and wraps value inputs in an equal_to matcher."""
+  if value_or_matcher is None:
+    return None
+  if isinstance(value_or_matcher, Matcher):
+    return value_or_matcher
+  return hamcrest.equal_to(value_or_matcher)
+
+
+def has_urn_and_labels(mi, urn, labels):
+  """Returns true if it the monitoring_info contains the labels and urn."""
+  def contains_labels(mi, labels):
+    # Check all the labels and their values exist in the monitoring_info
+    return all(item in mi.labels.items() for item in labels.items())
+  return contains_labels(mi, labels) and mi.urn == urn
 
 
 class FnApiRunnerTest(unittest.TestCase):
@@ -609,6 +629,121 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertEqual(dist.committed.mean, 2.0)
     self.assertEqual(gaug.committed.value, 3)
 
+  def test_callbacks_with_exception(self):
+    elements_list = ['1', '2']
+
+    def raise_expetion():
+      raise Exception('raise exception when calling callback')
+
+    class FinalizebleDoFnWithException(beam.DoFn):
+
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(raise_expetion)
+        yield element
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizebleDoFnWithException()))
+      assert_that(res, equal_to(['1', '2']))
+
+  def test_register_finalizations(self):
+    event_recorder = EventRecorder(tempfile.gettempdir())
+    elements_list = ['2', '1']
+
+    class FinalizableDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(lambda: event_recorder.record(element))
+        yield element
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizableDoFn()))
+
+      assert_that(res, equal_to(elements_list))
+
+    results = event_recorder.events()
+    event_recorder.cleanup()
+    self.assertEqual(results, sorted(elements_list))
+
+
+# These tests are kept in a separate group so that they are
+# not ran in he FnApiRunnerTestWithBundleRepeat which repeats
+# bundle processing. This breaks the byte sampling metrics as
+# it makes the probability of sampling far too small
+# upon repeating bundle processing due to unncessarily incrementing
+# the sampling counter.
+class FnApiRunnerMetricsTest(unittest.TestCase):
+
+  def assert_has_counter(
+      self, monitoring_infos, urn, labels, value=None, ge_value=None):
+    # TODO(ajamato): Consider adding a matcher framework
+    found = 0
+    for mi in monitoring_infos:
+      if has_urn_and_labels(mi, urn, labels):
+        if ge_value is not None:
+          if mi.metric.counter_data.int64_value >= ge_value:
+            found = found + 1
+        elif value is not None:
+          if mi.metric.counter_data.int64_value == value:
+            found = found + 1
+        else:
+          found = found + 1
+    ge_value_str = {'ge_value' : ge_value} if ge_value else ''
+    value_str = {'value' : value} if value else ''
+    self.assertEqual(
+        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
+        (found, (urn, labels, value_str, ge_value_str),))
+
+  def assert_has_distribution(
+      self, monitoring_infos, urn, labels,
+      sum=None, count=None, min=None, max=None):
+    # TODO(ajamato): Consider adding a matcher framework
+    sum = _matcher_or_equal_to(sum)
+    count = _matcher_or_equal_to(count)
+    min = _matcher_or_equal_to(min)
+    max = _matcher_or_equal_to(max)
+    found = 0
+    description = StringDescription()
+    for mi in monitoring_infos:
+      if has_urn_and_labels(mi, urn, labels):
+        int_dist = mi.metric.distribution_data.int_distribution_data
+        increment = 1
+        if sum is not None:
+          description.append_text(' sum: ')
+          sum.describe_to(description)
+          if not sum.matches(int_dist.sum):
+            increment = 0
+        if count is not None:
+          description.append_text(' count: ')
+          count.describe_to(description)
+          if not count.matches(int_dist.count):
+            increment = 0
+        if min is not None:
+          description.append_text(' min: ')
+          min.describe_to(description)
+          if not min.matches(int_dist.min):
+            increment = 0
+        if max is not None:
+          description.append_text(' max: ')
+          max.describe_to(description)
+          if not max.matches(int_dist.max):
+            increment = 0
+        found += increment
+    self.assertEqual(
+        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
+        (found, (urn, labels, str(description)),))
+
+  def create_pipeline(self):
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
+
   def test_element_count_metrics(self):
     class GenerateTwoOutputs(beam.DoFn):
       def process(self, element):
@@ -617,9 +752,8 @@ class FnApiRunnerTest(unittest.TestCase):
         yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
         yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3')
 
-    class PrintElements(beam.DoFn):
+    class PassThrough(beam.DoFn):
       def process(self, element):
-        logging.debug(element)
         yield element
 
     p = self.create_pipeline()
@@ -628,7 +762,9 @@ class FnApiRunnerTest(unittest.TestCase):
       # internal way of accessing progress metrics.
       self.skipTest('Metrics not supported.')
 
-    pcoll = p | beam.Create(['a1', 'a2'])
+    # Produce enough elements to make sure byte sampling occurs.
+    num_source_elems = 100
+    pcoll = p | beam.Create(['a%d' % i for i in range(num_source_elems)])
 
     # pylint: disable=expression-not-assigned
     pardo = ('StepThatDoesTwoOutputs' >> beam.ParDo(
@@ -641,43 +777,121 @@ class FnApiRunnerTest(unittest.TestCase):
 
     # consume some of elements
     merged = ((first_output, second_output, third_output) | beam.Flatten())
-    merged | ('PrintingStep') >> beam.ParDo(PrintElements())
-    second_output | ('PrintingStep2') >> beam.ParDo(PrintElements())
+    merged | ('PassThrough') >> beam.ParDo(PassThrough())
+    second_output | ('PassThrough2') >> beam.ParDo(PassThrough())
 
     res = p.run()
     res.wait_until_finish()
 
     result_metrics = res.monitoring_metrics()
 
-    def assert_contains_metric(src, urn, pcollection, value):
-      for item in src:
-        if item.urn == urn:
-          if item.labels['PCOLLECTION'] == pcollection:
-            self.assertEqual(item.metric.counter_data.int64_value, value,
-                             str(("Metric has incorrect value", value, item)))
-            return
-      self.fail(str(("Metric not found", urn, pcollection, src)))
-
     counters = result_metrics.monitoring_infos()
+    # All element count and byte count metrics must have a PCOLLECTION_LABEL.
     self.assertFalse([x for x in counters if
-                      x.urn == monitoring_infos.ELEMENT_COUNT_URN
+                      x.urn in [monitoring_infos.ELEMENT_COUNT_URN,
+                                monitoring_infos.SAMPLED_BYTE_SIZE_URN]
                       and
                       monitoring_infos.PCOLLECTION_LABEL not in x.labels])
+    try:
+      labels = {monitoring_infos.PCOLLECTION_LABEL : 'Impulse'}
+      self.assert_has_counter(
+          counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 1)
 
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'Impulse', 1)
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'ref_PCollection_PCollection_1', 2)
+      # Create/Read, "out" output.
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                    'ref_PCollection_PCollection_1'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
 
-    # Skipping other pcollections due to non-deterministic naming for multiple
-    # outputs.
+      # GenerateTwoOutputs, main output.
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                    'ref_PCollection_PCollection_2'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
 
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'ref_PCollection_PCollection_5', 8)
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'ref_PCollection_PCollection_6', 8)
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'ref_PCollection_PCollection_7', 2)
+      # GenerateTwoOutputs, "SecondOutput" output.
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                    'ref_PCollection_PCollection_3'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, 2 * num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+
+      # GenerateTwoOutputs, "ThirdOutput" output.
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                    'ref_PCollection_PCollection_4'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+
+      # Skipping other pcollections due to non-deterministic naming for multiple
+      # outputs.
+      # Flatten/Read, main output.
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                    'ref_PCollection_PCollection_5'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+
+      # PassThrough, main output
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                    'ref_PCollection_PCollection_6'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+
+      # PassThrough2, main output
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                    'ref_PCollection_PCollection_7'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+    except:
+      print(res._monitoring_infos_by_stage)
+      raise
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
@@ -745,9 +959,9 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-    def has_mi_for_ptransform(monitoring_infos, ptransform):
-      for mi in monitoring_infos:
-        if ptransform in mi.labels['PTRANSFORM']:
+    def has_mi_for_ptransform(mon_infos, ptransform):
+      for mi in mon_infos:
+        if ptransform in mi.labels[monitoring_infos.PTRANSFORM_LABEL]:
           return True
       return False
 
@@ -798,95 +1012,43 @@ class FnApiRunnerTest(unittest.TestCase):
         # The monitoring infos above are actually unordered. Swap.
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
-      def assert_has_monitoring_info(
-          monitoring_infos, urn, labels, value=None, ge_value=None):
-        def contains_labels(monitoring_info, labels):
-          return len([x for x in labels.items() if
-                      x[0] in monitoring_info.labels and monitoring_info.labels[
-                          x[0]] == x[1]]) == len(labels)
-
-        # TODO(ajamato): Consider adding a matcher framework
-        found = 0
-        for mi in monitoring_infos:
-          if contains_labels(mi, labels) and mi.urn == urn:
-            if (ge_value is not None and
-                mi.metric.counter_data.int64_value >= ge_value):
-              found = found + 1
-            elif (value is not None and
-                  mi.metric.counter_data.int64_value == value):
-              found = found + 1
-        ge_value_str = {'ge_value' : ge_value} if ge_value else ''
-        value_str = {'value' : value} if value else ''
-        self.assertEqual(
-            1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-            (found, (urn, labels, value_str, ge_value_str),))
-
       # pregbk monitoring infos
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_1'}
-      assert_has_monitoring_info(
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                'ref_PCollection_PCollection_1'}
+      self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_2'}
-      assert_has_monitoring_info(
+      self.assert_has_distribution(
+          pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                'ref_PCollection_PCollection_2'}
+      self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
-      labels = {'PTRANSFORM' : 'Map(sleep)'}
-      assert_has_monitoring_info(
+      self.assert_has_distribution(
+          pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+
+      labels = {monitoring_infos.PTRANSFORM_LABEL : 'Map(sleep)'}
+      self.assert_has_counter(
           pregbk_mis, monitoring_infos.TOTAL_MSECS_URN,
           labels, ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
 
       # postgbk monitoring infos
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
-      assert_has_monitoring_info(
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                'ref_PCollection_PCollection_6'}
+      self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
-      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
-      assert_has_monitoring_info(
+      self.assert_has_distribution(
+          postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+
+      labels = {monitoring_infos.PCOLLECTION_LABEL :
+                'ref_PCollection_PCollection_7'}
+      self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
+      self.assert_has_distribution(
+          postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
     except:
       print(res._monitoring_infos_by_stage)
       raise
-
-  def test_callbacks_with_exception(self):
-    elements_list = ['1', '2']
-
-    def raise_expetion():
-      raise Exception('raise exception when calling callback')
-
-    class FinalizebleDoFnWithException(beam.DoFn):
-
-      def process(
-          self,
-          element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        bundle_finalizer.register(raise_expetion)
-        yield element
-
-    with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(elements_list)
-             | beam.ParDo(FinalizebleDoFnWithException()))
-      assert_that(res, equal_to(['1', '2']))
-
-  def test_register_finalizations(self):
-    event_recorder = EventRecorder(tempfile.gettempdir())
-    elements_list = ['2', '1']
-
-    class FinalizableDoFn(beam.DoFn):
-      def process(
-          self,
-          element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        bundle_finalizer.register(lambda: event_recorder.record(element))
-        yield element
-
-    with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(elements_list)
-             | beam.ParDo(FinalizableDoFn()))
-
-      assert_that(res, equal_to(elements_list))
-
-    results = event_recorder.events()
-    event_recorder.cleanup()
-    self.assertEqual(results, sorted(elements_list))
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):

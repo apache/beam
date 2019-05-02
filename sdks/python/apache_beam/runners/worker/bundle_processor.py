@@ -66,6 +66,8 @@ IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
 OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
+URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
+                                 monitoring_infos.SAMPLED_BYTE_SIZE_URN])
 
 
 class RunnerIOOperation(operations.Operation):
@@ -698,14 +700,14 @@ class BundleProcessor(object):
 
     infos_list = list(all_monitoring_infos_dict.values())
 
-    def inject_pcollection_into_element_count(monitoring_info):
+    def inject_pcollection(monitoring_info):
       """
       If provided metric is element count metric:
       Finds relevant transform output info in current process_bundle_descriptor
       and adds tag with PCOLLECTION_LABEL and pcollection_id into monitoring
       info.
       """
-      if monitoring_info.urn == monitoring_infos.ELEMENT_COUNT_URN:
+      if monitoring_info.urn in URNS_NEEDING_PCOLLECTIONS:
         if not monitoring_infos.PTRANSFORM_LABEL in monitoring_info.labels:
           return
         ptransform_label = monitoring_info.labels[
@@ -722,6 +724,7 @@ class BundleProcessor(object):
 
         pcollection_name = (self.process_bundle_descriptor
                             .transforms[ptransform_label].outputs[tag_label])
+
         monitoring_info.labels[
             monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
 
@@ -730,7 +733,7 @@ class BundleProcessor(object):
         monitoring_info.labels.pop(monitoring_infos.TAG_LABEL)
 
     for mi in infos_list:
-      inject_pcollection_into_element_count(mi)
+      inject_pcollection(mi)
 
     return infos_list
 
