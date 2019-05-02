@@ -17,30 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.smb.avro;
 
-import java.io.Serializable;
-import java.util.Optional;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.extensions.smb.*;
-import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
-import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
-import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
+import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
-/**
- * Abstracts SMB sources and sinks for Avro-typed values.
- *
- * <p>Todo - use AutoValue builders
- */
+/** Abstracts SMB sources and sinks for Avro-typed values. */
 public class AvroSortedBucketIO {
 
   public static <SortingKeyT> SortedBucketSink<SortingKeyT, GenericRecord> sink(
@@ -48,7 +31,12 @@ public class AvroSortedBucketIO {
       ResourceId outputDirectory,
       ResourceId tempDirectory,
       Schema schema) {
-    return sink(bucketingMetadata, outputDirectory, tempDirectory, null, schema);
+    return SortedBucketIO.sink(
+        bucketingMetadata,
+        outputDirectory,
+        "avro",
+        tempDirectory,
+        new AvroFileOperations<>(null, schema));
   }
 
   public static <SortingKeyT, ValueT extends GenericRecord>
@@ -58,122 +46,11 @@ public class AvroSortedBucketIO {
           ResourceId tempDirectory,
           Class<ValueT> recordClass,
           Schema schema) {
-    return new SortedBucketSink<>(
+    return SortedBucketIO.sink(
         bucketingMetadata,
-        new SMBFilenamePolicy(outputDirectory, "avro"),
-        new AvroWriterSupplier<>(recordClass, schema),
-        tempDirectory);
-  }
-
-  static class AvroWriterSupplier<ValueT> implements SerializableSupplier<Writer<ValueT>> {
-    FileOperations<ValueT> fileOperations;
-
-    AvroWriterSupplier(Class<ValueT> recordClass, Schema schema) {
-      this.fileOperations = new AvroFileOperations<>(recordClass, schema);
-    }
-
-    @Override
-    public Writer<ValueT> get() {
-      return fileOperations.createWriter();
-    }
-  }
-
-  /**
-   * Implements a typed SortedBucketSource for 2 sources.
-   *
-   * @param <KeyT>
-   * @param <V1>
-   * @param <V2>
-   */
-  public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> implements Serializable {
-    private Class<KeyT> keyClass;
-
-    private BucketedInput<KeyT, V1> leftSource;
-    private Coder<V1> leftCoder;
-
-    private BucketedInput<KeyT, V2> rightSource;
-    private Coder<V2> rightCoder;
-
-    private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass) {
-      this.keyClass = keyClass;
-    }
-
-    private SortedBucketSourceJoinBuilder(
-        Class<KeyT> keyClass, BucketedInput<KeyT, V1> leftSource, Coder<V1> leftCoder) {
-      this(keyClass);
-      this.leftCoder = leftCoder;
-      this.leftSource = leftSource;
-    }
-
-    public static <KeyT> SortedBucketSourceJoinBuilder<KeyT, ?, ?> forKeyType(
-        Class<KeyT> keyClass) {
-      return new SortedBucketSourceJoinBuilder<>(keyClass);
-    }
-
-    public SortedBucketSourceJoinBuilder<KeyT, GenericRecord, ?> of(
-        ResourceId filenamePrefix, Schema schema) {
-      return of(filenamePrefix, schema, null);
-    }
-
-    public <ValueT> SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> of(
-        ResourceId filenamePrefix, Schema schema, Class<ValueT> recordClass) {
-
-      final SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> builderCopy =
-          new SortedBucketSourceJoinBuilder<>(keyClass);
-
-      builderCopy.leftSource =
-          new BucketedInput<>(
-              new TupleTag<>("left"),
-              new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
-              new AvroFileOperations<>(recordClass, schema).createReader());
-      builderCopy.leftCoder =
-          AvroCoder.of(
-              Optional.ofNullable(recordClass).orElse((Class<ValueT>) GenericRecord.class), schema);
-
-      return builderCopy;
-    }
-
-    public SortedBucketSourceJoinBuilder<KeyT, V1, GenericRecord> and(
-        ResourceId filenamePrefix, Schema schema) {
-      return and(filenamePrefix, schema, null);
-    }
-
-    public <ValueT> SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> and(
-        ResourceId filenamePrefix, Schema schema, Class<ValueT> recordClass) {
-
-      final SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> builderCopy =
-          new SortedBucketSourceJoinBuilder<KeyT, V1, ValueT>(keyClass, leftSource, leftCoder);
-
-      builderCopy.rightSource =
-          new BucketedInput<>(
-              new TupleTag<>("right"),
-              new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
-              new AvroFileOperations<>(recordClass, schema).createReader());
-      builderCopy.rightCoder =
-          AvroCoder.of(
-              Optional.ofNullable(recordClass).orElse((Class<ValueT>) GenericRecord.class), schema);
-      return builderCopy;
-    }
-
-    public SortedBucketSource<KeyT, KV<Iterable<V1>, Iterable<V2>>> build() {
-      return new SortedBucketSource<>(
-          new ToFinalResult<KV<Iterable<V1>, Iterable<V2>>>() {
-            @Override
-            public KV<Iterable<V1>, Iterable<V2>> apply(SMBCoGbkResult input) {
-              return KV.of(
-                  input.getValuesForTag(new TupleTag<>("left")),
-                  input.getValuesForTag(new TupleTag<>("right")));
-            }
-
-            @Override
-            public Coder<KV<Iterable<V1>, Iterable<V2>>> resultCoder() {
-              return KvCoder.of(
-                  NullableCoder.of(IterableCoder.of(leftCoder)),
-                  NullableCoder.of(IterableCoder.of(rightCoder)));
-            }
-          },
-          ImmutableList.of(leftSource, rightSource),
-          keyClass);
-    }
+        outputDirectory,
+        "avro",
+        tempDirectory,
+        new AvroFileOperations<>(recordClass, schema));
   }
 }

@@ -28,10 +28,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Map;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
@@ -57,16 +60,30 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   public BucketMetadata(int numBuckets, Class<KeyT> sortingKeyClass, HashType hashType)
       throws CannotProvideCoderException {
+    Preconditions.checkState(
+        numBuckets > 0 && ((numBuckets & (numBuckets - 1)) == 0),
+        "numBuckets must be a power of 2");
+
     this.numBuckets = numBuckets;
     this.sortingKeyClass = sortingKeyClass;
     this.hashType = hashType;
     this.hashFunction = hashType.create();
-
     this.keyCoder = getSortingKeyCoder();
   }
 
   @JsonIgnore
-  public abstract Coder<KeyT> getSortingKeyCoder() throws CannotProvideCoderException;
+  public Coder<KeyT> getSortingKeyCoder() throws CannotProvideCoderException {
+    final Coder overriddenCoder = coderOverrides().get(getSortingKeyClass());
+
+    if (overriddenCoder != null) {
+      return (Coder<KeyT>) overriddenCoder;
+    } else {
+      return CoderRegistry.createDefault().getCoder(sortingKeyClass);
+    }
+  }
+
+  @JsonIgnore
+  public abstract Map<Class<?>, Coder<?>> coderOverrides();
 
   /** Enumerated hashing schemes available for an SMB sink. */
   public enum HashType {
@@ -86,22 +103,10 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     public abstract HashFunction create();
   }
 
-  // Todo: more sophisticated comparison rules.
+  // Todo: support sources with different # buckets.
   @VisibleForTesting
   public boolean compatibleWith(BucketMetadata other) {
-    if (other == null) {
-      return false;
-    }
-
-    boolean bucketsCompatible =
-        (this.numBuckets == other.numBuckets)
-            || Math.max(this.numBuckets, other.numBuckets)
-                    % Math.min(this.numBuckets, other.numBuckets)
-                == 0;
-
-    return bucketsCompatible
-        && this.hashType == other.hashType
-        && this.sortingKeyClass == other.sortingKeyClass;
+    return other != null && this.hashType == other.hashType && this.numBuckets == other.numBuckets;
   }
 
   ////////////////////////////////////////
@@ -130,7 +135,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   byte[] extractKeyBytes(ValueT value) {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    KeyT key = extractKey(value);
+    final KeyT key = extractKey(value);
     try {
       keyCoder.encode(key, baos);
     } catch (Exception e) {

@@ -17,38 +17,149 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
+/** Abstractions for SMB sink/source creation. */
 public class SortedBucketIO {
 
-  public static class TwoSourceJoinResult<ValueT1, ValueT2>
-      extends ToFinalResult<KV<Iterable<ValueT1>, Iterable<ValueT2>>> {
-    private final Coder<ValueT1> leftCoder;
-    private final Coder<ValueT2> rightCoder;
+  private static final String LEFT_TUPLE_TAG_ID = "left";
+  private static final String RIGHT_TUPLE_TAG_ID = "right";
 
-    public TwoSourceJoinResult(Coder<ValueT1> leftCoder, Coder<ValueT2> rightCoder) {
+  // Joins
+
+  /**
+   * Pre-built transform for an SortedBucketSource transform with two bucketed inputs.
+   *
+   * @param <V1>
+   * @param <V2>
+   */
+  static class TwoSourceJoinResult<V1, V2> extends ToFinalResult<KV<Iterable<V1>, Iterable<V2>>> {
+    private final Coder<V1> leftCoder; // @Todo: can we get these from Coder registry?
+    private final Coder<V2> rightCoder;
+
+    TwoSourceJoinResult(Coder<V1> leftCoder, Coder<V2> rightCoder) {
       this.leftCoder = leftCoder;
       this.rightCoder = rightCoder;
     }
 
     @Override
-    public KV<Iterable<ValueT1>, Iterable<ValueT2>> apply(SMBCoGbkResult input) {
+    public KV<Iterable<V1>, Iterable<V2>> apply(SMBCoGbkResult input) {
       return KV.of(
-          input.getValuesForTag(new TupleTag<>("left")),
-          input.getValuesForTag(new TupleTag<>("right")));
+          input.getValuesForTag(new TupleTag<>(LEFT_TUPLE_TAG_ID)),
+          input.getValuesForTag(new TupleTag<>(RIGHT_TUPLE_TAG_ID)));
     }
 
     @Override
-    public Coder<KV<Iterable<ValueT1>, Iterable<ValueT2>>> resultCoder() {
+    public Coder<KV<Iterable<V1>, Iterable<V2>>> resultCoder() {
       return KvCoder.of(
           NullableCoder.of(IterableCoder.of(leftCoder)),
           NullableCoder.of(IterableCoder.of(rightCoder)));
     }
+  }
+
+  /**
+   * Implements a typed SortedBucketSource for 2 sources.
+   *
+   * @param <KeyT>
+   * @param <V1>
+   * @param <V2>
+   */
+  public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> implements Serializable {
+    private Class<KeyT> keyClass;
+
+    private BucketedInput<KeyT, V1> leftSource;
+    private Coder<V1> leftCoder;
+
+    private BucketedInput<KeyT, V2> rightSource;
+    private Coder<V2> rightCoder;
+
+    private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass) {
+      this.keyClass = keyClass;
+    }
+
+    private SortedBucketSourceJoinBuilder(
+        Class<KeyT> keyClass, BucketedInput<KeyT, V1> leftSource, Coder<V1> leftCoder) {
+      this(keyClass);
+      this.leftCoder = leftCoder;
+      this.leftSource = leftSource;
+    }
+
+    public static <KeyT> SortedBucketSourceJoinBuilder<KeyT, ?, ?> withFinalKeyType(
+        Class<KeyT> keyClass) {
+      return new SortedBucketSourceJoinBuilder<>(keyClass);
+    }
+
+    public <ValueT> SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> of(
+        ResourceId filenamePrefix,
+        String filenameSuffix,
+        FileOperations<ValueT> fileOperations,
+        Coder<ValueT> coder) {
+      final SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> builderCopy =
+          new SortedBucketSourceJoinBuilder<>(keyClass);
+
+      builderCopy.leftSource =
+          new BucketedInput<>(
+              new TupleTag<>(LEFT_TUPLE_TAG_ID),
+              new SMBFilenamePolicy(filenamePrefix, filenameSuffix).forDestination(),
+              fileOperations.createReader());
+      builderCopy.leftCoder = coder;
+
+      return builderCopy;
+    }
+
+    public <ValueT> SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> and(
+        ResourceId filenamePrefix,
+        String filenameSuffix,
+        FileOperations<ValueT> fileOperations,
+        Coder<ValueT> coder) {
+      final SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> builderCopy =
+          new SortedBucketSourceJoinBuilder<KeyT, V1, ValueT>(keyClass, leftSource, leftCoder);
+
+      builderCopy.rightSource =
+          new BucketedInput<>(
+              new TupleTag<>(RIGHT_TUPLE_TAG_ID),
+              new SMBFilenamePolicy(filenamePrefix, filenameSuffix).forDestination(),
+              fileOperations.createReader());
+      builderCopy.rightCoder = coder;
+      return builderCopy;
+    }
+
+    public SortedBucketSource<KeyT, KV<Iterable<V1>, Iterable<V2>>> build() {
+      return new SortedBucketSource<>(
+          new SortedBucketIO.TwoSourceJoinResult<>(leftCoder, rightCoder),
+          ImmutableList.of(leftSource, rightSource),
+          keyClass);
+    }
+  }
+
+  // Sinks
+
+  public static <SortingKeyT, ValueT> SortedBucketSink<SortingKeyT, ValueT> sink(
+      BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
+      ResourceId outputDirectory,
+      String filenameSuffix,
+      ResourceId tempDirectory,
+      FileOperations<ValueT> fileOperations) {
+    return new SortedBucketSink<>(
+        bucketingMetadata,
+        new SMBFilenamePolicy(outputDirectory, filenameSuffix),
+        new SerializableSupplier<Writer<ValueT>>() {
+          @Override
+          public Writer<ValueT> get() {
+            return fileOperations.createWriter();
+          }
+        },
+        tempDirectory);
   }
 }

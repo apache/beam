@@ -20,9 +20,11 @@ package org.apache.beam.sdk.extensions.smb.avro;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
+import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.FileSystems;
@@ -102,9 +104,17 @@ public class AvroSortedBucketSourceTest {
 
     final SortedBucketSource<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>
         sourceTransform =
-            AvroSortedBucketIO.SortedBucketSourceJoinBuilder.forKeyType(Integer.class)
-                .of(LocalResources.fromFile(source1Folder.getRoot(), true), TestUtils.USER_SCHEMA)
-                .and(LocalResources.fromFile(source2Folder.getRoot(), true), TestUtils.USER_SCHEMA)
+            SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(Integer.class)
+                .of(
+                    LocalResources.fromFile(source1Folder.getRoot(), true),
+                    "avro",
+                    new AvroFileOperations<>(null, TestUtils.USER_SCHEMA),
+                    AvroCoder.of(TestUtils.USER_SCHEMA))
+                .and(
+                    LocalResources.fromFile(source2Folder.getRoot(), true),
+                    "avro",
+                    new AvroFileOperations<>(null, TestUtils.USER_SCHEMA),
+                    AvroCoder.of(TestUtils.USER_SCHEMA))
                 .build();
 
     final PCollection<KV<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>>
@@ -167,15 +177,17 @@ public class AvroSortedBucketSourceTest {
 
     final SortedBucketSource<Integer, KV<Iterable<AvroGeneratedUser>, Iterable<AvroGeneratedUser>>>
         sourceTransform =
-            AvroSortedBucketIO.SortedBucketSourceJoinBuilder.forKeyType(Integer.class)
+            SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(Integer.class)
                 .of(
                     LocalResources.fromFile(source1Folder.getRoot(), true),
-                    AvroGeneratedUser.SCHEMA$,
-                    AvroGeneratedUser.class)
+                    "avro",
+                    new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$),
+                    AvroCoder.of(AvroGeneratedUser.class))
                 .and(
                     LocalResources.fromFile(source2Folder.getRoot(), true),
-                    AvroGeneratedUser.SCHEMA$,
-                    AvroGeneratedUser.class)
+                    "avro",
+                    new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$),
+                    AvroCoder.of(AvroGeneratedUser.class))
                 .build();
 
     final PCollection<KV<Integer, KV<Iterable<AvroGeneratedUser>, Iterable<AvroGeneratedUser>>>>

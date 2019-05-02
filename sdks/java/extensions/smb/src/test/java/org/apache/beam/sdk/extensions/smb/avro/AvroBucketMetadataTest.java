@@ -26,6 +26,7 @@ import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
+import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
@@ -59,10 +60,10 @@ public class AvroBucketMetadataTest {
               new Field("location", SCHEMA_NESTED_FIELD, "", null)));
 
   @Test
-  public void testGRMetadataCoding() throws Exception {
+  public void testMetadataCoding() throws Exception {
     final BucketMetadata<String, GenericRecord> metadata =
         new AvroBucketMetadata<>(
-            10, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry");
+            16, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry");
 
     final BucketMetadata<String, GenericRecord> roundtripMetadata =
         BucketMetadata.from(metadata.toString());
@@ -82,6 +83,26 @@ public class AvroBucketMetadataTest {
   }
 
   @Test
+  public void testBucketCompatibility() throws Exception {
+    final BucketMetadata<String, GenericRecord> m1 =
+        new AvroBucketMetadata<>(2, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
+
+    final BucketMetadata<String, GenericRecord> m2 =
+        new AvroBucketMetadata<>(2, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
+
+    final BucketMetadata<String, GenericRecord> m3 =
+        new AvroBucketMetadata<>(16, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
+
+    final BucketMetadata<String, GenericRecord> m4 =
+        new AvroBucketMetadata<>(2, String.class, HashType.MURMUR3_128, "name");
+
+    Assert.assertTrue(m1.compatibleWith(m2));
+    Assert.assertFalse(m1.compatibleWith(m3));
+    Assert.assertFalse(m2.compatibleWith(m3));
+    Assert.assertFalse(m2.compatibleWith(m4));
+  }
+
+  @Test
   public void testGRExtractSortingKey() throws Exception {
     final GenericRecord location = new Record(SCHEMA_NESTED_FIELD);
     location.put("currentCountry", "US");
@@ -94,61 +115,19 @@ public class AvroBucketMetadataTest {
     Assert.assertEquals(
         "US",
         new AvroBucketMetadata<>(
-                10, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry")
+                16, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry")
             .extractKey(user));
 
     Assert.assertEquals(
         (Long) 10L,
-        new AvroBucketMetadata<>(10, Long.class, BucketMetadata.HashType.MURMUR3_32, "id")
+        new AvroBucketMetadata<>(16, Long.class, BucketMetadata.HashType.MURMUR3_32, "id")
             .extractKey(user));
 
     Assert.assertEquals(
         Arrays.asList("CN", "MX"),
         new AvroBucketMetadata<>(
-                10, ArrayList.class, BucketMetadata.HashType.MURMUR3_32, "location.prevCountries")
+                16, ArrayList.class, BucketMetadata.HashType.MURMUR3_32, "location.prevCountries")
             .extractKey(user));
-  }
-
-  @Test
-  public void testGRBucketCompatibility() throws Exception {
-    final BucketMetadata<String, GenericRecord> m1 =
-        new AvroBucketMetadata<>(2, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
-
-    final BucketMetadata<String, GenericRecord> m2 =
-        new AvroBucketMetadata<>(2, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
-
-    final BucketMetadata<String, GenericRecord> m3 =
-        new AvroBucketMetadata<>(3, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
-
-    Assert.assertTrue(m1.compatibleWith(m2));
-    Assert.assertFalse(m1.compatibleWith(m3));
-    Assert.assertFalse(m2.compatibleWith(m3));
-  }
-
-  // SpecificRecord tests
-
-  @Test
-  public void testSRMetadataCoding() throws Exception {
-    final BucketMetadata<String, GenericRecord> metadata =
-        new AvroBucketMetadata<>(
-            10, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color");
-
-    final BucketMetadata<String, AvroGeneratedUser> roundtripMetadata =
-        BucketMetadata.from(metadata.toString());
-
-    Assert.assertEquals(roundtripMetadata.getNumBuckets(), metadata.getNumBuckets());
-    Assert.assertEquals(roundtripMetadata.getSortingKeyClass(), metadata.getSortingKeyClass());
-    Assert.assertEquals(roundtripMetadata.getHashType(), metadata.getHashType());
-
-    final SerializableCoder<AvroFileOperations> coder =
-        SerializableCoder.of(AvroFileOperations.class);
-    final AvroFileOperations<AvroGeneratedUser> file =
-        new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$);
-    final AvroFileOperations<AvroGeneratedUser> roundtripFile =
-        CoderUtils.decodeFromBase64(coder, CoderUtils.encodeToBase64(coder, file));
-
-    Assert.assertEquals(roundtripFile.getRecordClass(), file.getRecordClass());
-    Assert.assertEquals(roundtripFile.getSchema(), file.getSchema());
   }
 
   @Test
@@ -158,32 +137,13 @@ public class AvroBucketMetadataTest {
     Assert.assertEquals(
         "green",
         new AvroBucketMetadata<>(
-                10, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color")
+                16, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color")
             .extractKey(user));
 
     Assert.assertEquals(
         (Integer) 50,
         new AvroBucketMetadata<>(
-                10, Integer.class, BucketMetadata.HashType.MURMUR3_32, "favorite_number")
+                16, Integer.class, BucketMetadata.HashType.MURMUR3_32, "favorite_number")
             .extractKey(user));
-  }
-
-  @Test
-  public void testSRBucketCompatibility() throws Exception {
-    final AvroBucketMetadata<String, AvroGeneratedUser> m1 =
-        new AvroBucketMetadata<>(
-            10, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color");
-
-    final AvroBucketMetadata<String, AvroGeneratedUser> m2 =
-        new AvroBucketMetadata<>(
-            10, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color");
-
-    final AvroBucketMetadata<String, AvroGeneratedUser> m3 =
-        new AvroBucketMetadata<>(
-            3, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color");
-
-    Assert.assertTrue(m1.compatibleWith(m2));
-    Assert.assertFalse(m1.compatibleWith(m3));
-    Assert.assertFalse(m2.compatibleWith(m3));
   }
 }

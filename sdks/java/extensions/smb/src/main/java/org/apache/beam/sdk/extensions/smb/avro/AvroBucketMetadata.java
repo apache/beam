@@ -24,15 +24,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** Avro-specific metadata encoding. */
 public class AvroBucketMetadata<KeyT, ValueT extends GenericRecord>
@@ -47,28 +48,18 @@ public class AvroBucketMetadata<KeyT, ValueT extends GenericRecord>
       @JsonProperty("numBuckets") int numBuckets,
       @JsonProperty("sortingKeyClass") Class<KeyT> sortingKeyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
-      @JsonProperty("keyField") String keyField) throws CannotProvideCoderException {
+      @JsonProperty("keyField") String keyField)
+      throws CannotProvideCoderException {
     super(numBuckets, sortingKeyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");
   }
 
-  // @Todo: BucketMetadata could have an abstract method "CoderOverrides" returning a
-  // Map of class->coder, and make getSortingKeyCoder() non-abstract.
   @Override
-  public Coder<KeyT> getSortingKeyCoder() throws CannotProvideCoderException {
-    final Class<KeyT> sortingKeyClass = this.getSortingKeyClass();
-
-    Coder<?> coder;
-    if (sortingKeyClass == ByteBuffer.class) {
-      coder = ByteBufferCoder.of();
-    } else if (sortingKeyClass == CharSequence.class) {
-      coder = CharSequenceCoder.of();
-    } else {
-      coder = CoderRegistry.createDefault().getCoder(sortingKeyClass);
-    }
-
-    return (Coder<KeyT>) coder;
+  public Map<Class<?>, Coder<?>> coderOverrides() {
+    return ImmutableMap.of(
+        ByteBuffer.class, ByteBufferCoder.of(),
+        CharSequence.class, CharSequenceCoder.of());
   }
 
   @SuppressWarnings("unchecked")
