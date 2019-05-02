@@ -74,8 +74,9 @@ import org.joda.time.Duration;
  * <p>To read a {@link PCollection} from one or more Avro files with the same schema known at
  * pipeline construction time, use {@link #read}, using {@link AvroIO.Read#from} to specify the
  * filename or filepattern to read from. If the filepatterns to be read are themselves in a {@link
- * PCollection}, apply {@link #readAll}. If the schema is unknown at pipeline construction time, use
- * {@link #parseGenericRecords} or {@link #parseAllGenericRecords}.
+ * PCollection} you can use {@link FileIO} to match them and {@link TextIO#readFiles} to read them.
+ * If the schema is unknown at pipeline construction time, use {@link #parseGenericRecords} or
+ * {@link #parseFilesGenericRecords}.
  *
  * <p>Many configuration options below apply to several or all of these transforms.
  *
@@ -83,12 +84,15 @@ import org.joda.time.Duration;
  *
  * <h3>Filepattern expansion and watching</h3>
  *
- * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readAll}
- * allows them in case the filepattern contains a glob wildcard character. Use {@link
- * Read#withEmptyMatchTreatment} to configure this behavior.
+ * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} or the
+ * combination of {@link FileIO.Match#continuously(Duration, TerminationCondition)} and {@link
+ * AvroIO#readFiles(Class)} allow streaming of new files matching the filepattern(s).
  *
- * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} allows
- * streaming of new files matching the filepattern(s).
+ * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link
+ * AvroIO#readFiles(Class)} allows them in case the filepattern contains a glob wildcard character.
+ * Use {@link Read#withEmptyMatchTreatment} or {@link
+ * FileIO.Match#withEmptyMatchTreatment(EmptyMatchTreatment)} plus {@link AvroIO#readFiles(Class)}
+ * to configure this behavior.
  *
  * <h3>Reading records of a known schema</h3>
  *
@@ -96,8 +100,8 @@ import org.joda.time.Duration;
  * {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes a
  * {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
  * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
- * schema. Likewise, to read a {@link PCollection} of filepatterns, apply {@link
- * #readAllGenericRecords}.
+ * schema. Likewise, to read a {@link PCollection} of filepatterns, apply {@link FileIO} matching
+ * plus {@link #readFilesGenericRecords}.
  *
  * <p>For example:
  *
@@ -120,8 +124,8 @@ import org.joda.time.Duration;
  * <p>To read records from files whose schema is unknown at pipeline construction time or differs
  * between files, use {@link #parseGenericRecords} - in this case, you will need to specify a
  * parsing function for converting each {@link GenericRecord} into a value of your custom type.
- * Likewise, to read a {@link PCollection} of filepatterns with unknown schema, use {@link
- * #parseAllGenericRecords}.
+ * Likewise, to read a {@link PCollection} of filepatterns with unknown schema, use {@link FileIO}
+ * matching plus {@link #parseFilesGenericRecords(SerializableFunction)}.
  *
  * <p>For example:
  *
@@ -145,10 +149,18 @@ import org.joda.time.Duration;
  * PCollection<String> filepatterns = p.apply(...);
  * PCollection<AvroAutoGenClass> records =
  *     filepatterns.apply(AvroIO.read(AvroAutoGenClass.class));
+ * PCollection<AvroAutoGenClass> records =
+ *     filepatterns
+ *         .apply(FileIO.matchAll())
+ *         .apply(FileIO.readMatches())
+ *         .apply(AvroIO.readFiles(AvroAutoGenClass.class));
  * PCollection<GenericRecord> genericRecords =
  *     filepatterns.apply(AvroIO.readGenericRecords(schema));
  * PCollection<Foo> records =
- *     filepatterns.apply(AvroIO.parseAllGenericRecords(new SerializableFunction...);
+ *     filepatterns
+ *         .apply(FileIO.matchAll())
+ *         .apply(FileIO.readMatches())
+ *         .apply(AvroIO.parseFilesGenericRecords(new SerializableFunction...);
  * }</pre>
  *
  * <h3>Streaming new files matching a filepattern</h3>
@@ -299,7 +311,14 @@ public class AvroIO {
         .build();
   }
 
-  /** Like {@link #read}, but reads each filepattern in the input {@link PCollection}. */
+  /**
+   * Like {@link #read}, but reads each filepattern in the input {@link PCollection}.
+   *
+   * @deprecated You can achieve The functionality of {@link #readAll} using {@link FileIO} matching
+   *     plus {@link #readFiles(Class)}. This is the preferred method to make composition explicit.
+   *     {@link ReadAll} will not receive upgrades and will be removed in a future version of Beam.
+   */
+  @Deprecated
   public static <T> ReadAll<T> readAll(Class<T> recordClass) {
     return new AutoValue_AvroIO_ReadAll.Builder<T>()
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
@@ -337,7 +356,13 @@ public class AvroIO {
   /**
    * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
    * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
+   *
+   * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(Schema)} using
+   *     {@link FileIO} matching plus {@link #readGenericRecords(Schema)}. This is the preferred
+   *     method to make composition explicit. {@link ReadAll} will not receive upgrades and will be
+   *     removed in a future version of Beam.
    */
+  @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(Schema schema) {
     return new AutoValue_AvroIO_ReadAll.Builder<GenericRecord>()
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
@@ -364,7 +389,13 @@ public class AvroIO {
   /**
    * Like {@link #readGenericRecords(String)}, but reads each filepattern in the input {@link
    * PCollection}.
+   *
+   * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(String)} using
+   *     {@link FileIO} matching plus {@link #readGenericRecords(String)}. This is the preferred
+   *     method to make composition explicit. {@link ReadAll} will not receive upgrades and will be
+   *     removed in a future version of Beam.
    */
+  @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(String schema) {
     return readAllGenericRecords(new Schema.Parser().parse(schema));
   }
@@ -396,7 +427,14 @@ public class AvroIO {
   /**
    * Like {@link #parseGenericRecords(SerializableFunction)}, but reads each filepattern in the
    * input {@link PCollection}.
+   *
+   * @deprecated You can achieve The functionality of {@link
+   *     #parseAllGenericRecords(SerializableFunction)} using {@link FileIO} matching plus {@link
+   *     #parseFilesGenericRecords(SerializableFunction)} ()}. This is the preferred method to make
+   *     composition explicit. {@link ParseAll} will not receive upgrades and will be removed in a
+   *     future version of Beam.
    */
+  @Deprecated
   public static <T> ParseAll<T> parseAllGenericRecords(
       SerializableFunction<GenericRecord, T> parseFn) {
     return new AutoValue_AvroIO_ParseAll.Builder<T>()
@@ -725,7 +763,12 @@ public class AvroIO {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Implementation of {@link #readAll}. */
+  /**
+   * Implementation of {@link #readAll}.
+   *
+   * @deprecated See {@link #readAll(Class)} for details.
+   */
+  @Deprecated
   @AutoValue
   public abstract static class ReadAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
     abstract MatchConfiguration getMatchConfiguration();
@@ -1027,7 +1070,12 @@ public class AvroIO {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Implementation of {@link #parseAllGenericRecords}. */
+  /**
+   * Implementation of {@link #parseAllGenericRecords}.
+   *
+   * @deprecated See {@link #parseAllGenericRecords(SerializableFunction)} for details.
+   */
+  @Deprecated
   @AutoValue
   public abstract static class ParseAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
     abstract MatchConfiguration getMatchConfiguration();
