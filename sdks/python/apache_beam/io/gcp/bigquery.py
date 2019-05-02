@@ -884,6 +884,7 @@ class BigQueryWriteFn(DoFn):
                                 GlobalWindows.windowed_value(
                                     (destination, row))) for row in failed_rows]
 
+
 # Flag to be passed to WriteToBigQuery to force schema autodetection
 SCHEMA_AUTODETECT = 'SCHEMA_AUTODETECT'
 
