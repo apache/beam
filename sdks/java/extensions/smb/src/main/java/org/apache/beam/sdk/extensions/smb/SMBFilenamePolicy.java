@@ -19,15 +19,24 @@ package org.apache.beam.sdk.extensions.smb;
 
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 /** Naming policy for SMB files, on a per-bucket per-shard basis. */
 public final class SMBFilenamePolicy implements Serializable {
-  private static final String TEMPDIR_TIMESTAMP = "yyyy-MM-dd_HH-mm-ss";
-  private static final String BEAM_TEMPDIR_PATTERN = ".temp-beam-%s";
+  private static final String TEMP_DIRECTORY_PREFIX = ".temp-beam";
+  private static final AtomicLong TEMP_COUNT = new AtomicLong(0);
+  private static final DateTimeFormatter TEMPDIR_TIMESTAMP =
+      DateTimeFormat.forPattern("yyyy-MM-dd_HH-mm-ss");
+  private static final String BEAM_TEMPDIR_PATTERN = ".temp-beam-%s-%s";
+
+  private final String timestamp = Instant.now().toString(TEMPDIR_TIMESTAMP);
+  private final Long tempId = TEMP_COUNT.getAndIncrement();
 
   private final ResourceId filenamePrefix;
   private final String fileNameSuffix;
@@ -42,12 +51,11 @@ public final class SMBFilenamePolicy implements Serializable {
   }
 
   public FileAssignment forTempFiles(ResourceId tempDirectory) {
+    String tempDirName = String.format(TEMP_DIRECTORY_PREFIX + "-%s-%s", timestamp, tempId);
     return new FileAssignment(
-        tempDirectory.resolve(
-            String.format(
-                BEAM_TEMPDIR_PATTERN,
-                Instant.now().toString(DateTimeFormat.forPattern(TEMPDIR_TIMESTAMP))),
-            StandardResolveOptions.RESOLVE_DIRECTORY),
+        tempDirectory
+            .getCurrentDirectory()
+            .resolve(tempDirName, StandardResolveOptions.RESOLVE_DIRECTORY),
         fileNameSuffix,
         true);
   }
