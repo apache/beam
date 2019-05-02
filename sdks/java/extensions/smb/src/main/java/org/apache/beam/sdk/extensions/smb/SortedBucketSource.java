@@ -91,12 +91,12 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       }
     }
 
-    Preconditions.checkState(first.getSortingKeyClass() == resultKeyClass);
+    Preconditions.checkState(first.getKeyClass() == resultKeyClass);
 
     final int numBuckets = first.getNumBuckets();
     Coder<FinalKeyT> resultKeyCoder;
     try {
-      resultKeyCoder = (Coder<FinalKeyT>) first.getSortingKeyCoder();
+      resultKeyCoder = (Coder<FinalKeyT>) first.getKeyCoder();
     } catch (CannotProvideCoderException e) {
       throw new RuntimeException("Could not find a coder for key type", e);
     }

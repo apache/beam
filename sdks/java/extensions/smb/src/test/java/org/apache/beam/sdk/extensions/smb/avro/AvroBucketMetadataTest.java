@@ -69,7 +69,7 @@ public class AvroBucketMetadataTest {
         BucketMetadata.from(metadata.toString());
 
     Assert.assertEquals(roundtripMetadata.getNumBuckets(), metadata.getNumBuckets());
-    Assert.assertEquals(roundtripMetadata.getSortingKeyClass(), metadata.getSortingKeyClass());
+    Assert.assertEquals(roundtripMetadata.getKeyClass(), metadata.getKeyClass());
     Assert.assertEquals(roundtripMetadata.getHashType(), metadata.getHashType());
 
     final SerializableCoder<AvroFileOperations> coder =

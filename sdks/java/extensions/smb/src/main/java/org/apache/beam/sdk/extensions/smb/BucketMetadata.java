@@ -51,7 +51,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   @JsonProperty private final int numBuckets;
 
-  @JsonProperty private final Class<KeyT> sortingKeyClass;
+  @JsonProperty private final Class<KeyT> keyClass;
 
   @JsonProperty private final HashType hashType;
 
@@ -59,27 +59,27 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   @JsonIgnore private final Coder<KeyT> keyCoder;
 
-  public BucketMetadata(int numBuckets, Class<KeyT> sortingKeyClass, HashType hashType)
+  public BucketMetadata(int numBuckets, Class<KeyT> keyClass, HashType hashType)
       throws CannotProvideCoderException {
     Preconditions.checkState(
         numBuckets > 0 && ((numBuckets & (numBuckets - 1)) == 0),
         "numBuckets must be a power of 2");
 
     this.numBuckets = numBuckets;
-    this.sortingKeyClass = sortingKeyClass;
+    this.keyClass = keyClass;
     this.hashType = hashType;
     this.hashFunction = hashType.create();
-    this.keyCoder = getSortingKeyCoder();
+    this.keyCoder = getKeyCoder();
   }
 
   @JsonIgnore
-  public Coder<KeyT> getSortingKeyCoder() throws CannotProvideCoderException {
-    final Coder overriddenCoder = coderOverrides().get(getSortingKeyClass());
+  public Coder<KeyT> getKeyCoder() throws CannotProvideCoderException {
+    final Coder overriddenCoder = coderOverrides().get(getKeyClass());
 
     if (overriddenCoder != null) {
       return (Coder<KeyT>) overriddenCoder;
     } else {
-      return CoderRegistry.createDefault().getCoder(sortingKeyClass);
+      return CoderRegistry.createDefault().getCoder(keyClass);
     }
   }
 
@@ -124,8 +124,8 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     return numBuckets;
   }
 
-  public Class<KeyT> getSortingKeyClass() {
-    return sortingKeyClass;
+  public Class<KeyT> getKeyClass() {
+    return keyClass;
   }
 
   public HashType getHashType() {
