@@ -104,10 +104,11 @@ def _match_issubclass(match_against):
 
 
 def _matcher_(derived, parent):
-  """ Follow structure of _safe_issubclass, uses __orign__ due to updates in typehing of python3"""
+  """ Follow structure of _safe_issubclass, 
+  uses __orign__ due to updates in typehing of python3"""
   try:
     return derived.__origin__ is parent
-  except:
+  except AttributeError:
     return type(derived) == type(parent)
 
 
@@ -116,7 +117,7 @@ def _match_same_type(match_against):
   # Have to compare their types directly.
   return lambda user_type: _matcher_(user_type, match_against)
 
-  
+
 def _match_is_named_tuple(user_type):
   return (_safe_issubclass(user_type, typing.Tuple) and
           hasattr(user_type, '_field_types'))
