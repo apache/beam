@@ -26,14 +26,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult;
-import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToResult;
-import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
 import org.apache.beam.sdk.extensions.smb.FileOperations;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
+import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult;
+import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
+import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource;
-import org.apache.beam.sdk.extensions.smb.SortedBucketSource.KeyedBucketSources.KeyedBucketSource;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -92,10 +92,10 @@ public class AvroSortedBucketIO {
   public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> implements Serializable {
     private Class<KeyT> keyClass;
 
-    private KeyedBucketSource<KeyT, V1> leftSource;
+    private BucketedInput<KeyT, V1> leftSource;
     private Coder<V1> leftCoder;
 
-    private KeyedBucketSource<KeyT, V2> rightSource;
+    private BucketedInput<KeyT, V2> rightSource;
     private Coder<V2> rightCoder;
 
     private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass) {
@@ -103,7 +103,7 @@ public class AvroSortedBucketIO {
     }
 
     private SortedBucketSourceJoinBuilder(
-        Class<KeyT> keyClass, KeyedBucketSource<KeyT, V1> leftSource, Coder<V1> leftCoder) {
+        Class<KeyT> keyClass, BucketedInput<KeyT, V1> leftSource, Coder<V1> leftCoder) {
       this(keyClass);
       this.leftCoder = leftCoder;
       this.leftSource = leftSource;
@@ -126,7 +126,7 @@ public class AvroSortedBucketIO {
           new SortedBucketSourceJoinBuilder<>(keyClass);
 
       builderCopy.leftSource =
-          new KeyedBucketSource<>(
+          new BucketedInput<>(
               new TupleTag<>("left"),
               new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
               new AvroFileOperations<>(recordClass, schema).createReader());
@@ -149,7 +149,7 @@ public class AvroSortedBucketIO {
           new SortedBucketSourceJoinBuilder<KeyT, V1, ValueT>(keyClass, leftSource, leftCoder);
 
       builderCopy.rightSource =
-          new KeyedBucketSource<>(
+          new BucketedInput<>(
               new TupleTag<>("right"),
               new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
               new AvroFileOperations<>(recordClass, schema).createReader());
@@ -161,7 +161,7 @@ public class AvroSortedBucketIO {
 
     public SortedBucketSource<KeyT, KV<Iterable<V1>, Iterable<V2>>> build() {
       return new SortedBucketSource<>(
-          new ToResult<KV<Iterable<V1>, Iterable<V2>>>() {
+          new ToFinalResult<KV<Iterable<V1>, Iterable<V2>>>() {
             @Override
             public KV<Iterable<V1>, Iterable<V2>> apply(SMBCoGbkResult input) {
               return KV.of(

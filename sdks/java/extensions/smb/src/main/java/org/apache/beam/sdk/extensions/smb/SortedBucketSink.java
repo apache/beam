@@ -28,8 +28,8 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
+import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
@@ -58,19 +58,18 @@ import org.slf4j.LoggerFactory;
  * Writes a PCollection representing sorted, bucketized data to files, where the # of files is equal
  * to the # of buckets, assuming the contents of each bucket fit on a single worker.
  *
- * @param <SortingKeyT>
+ * @param <KeyT>
  * @param <ValueT>
  */
-public class SortedBucketSink<SortingKeyT, ValueT>
-    extends PTransform<PCollection<ValueT>, WriteResult> {
+public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<ValueT>, WriteResult> {
 
-  private final BucketMetadata<SortingKeyT, ValueT> bucketingMetadata;
+  private final BucketMetadata<KeyT, ValueT> bucketingMetadata;
   private final SMBFilenamePolicy smbFilenamePolicy;
   private final Supplier<Writer<ValueT>> writerSupplier;
   private final ResourceId tempDirectory;
 
   public SortedBucketSink(
-      BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
+      BucketMetadata<KeyT, ValueT> bucketingMetadata,
       SMBFilenamePolicy smbFilenamePolicy,
       Supplier<Writer<ValueT>> writerSupplier,
       ResourceId tempDirectory) {
@@ -82,9 +81,9 @@ public class SortedBucketSink<SortingKeyT, ValueT>
 
   @Override
   public final WriteResult expand(PCollection<ValueT> input) {
-    final Coder<SortingKeyT> sortingKeyCoder;
+    final Coder<KeyT> sortingKeyCoder;
     try {
-      sortingKeyCoder = (Coder<SortingKeyT>) bucketingMetadata.getSortingKeyCoder();
+      sortingKeyCoder = bucketingMetadata.getSortingKeyCoder();
     } catch (CannotProvideCoderException e) {
       throw new RuntimeException("Could not find a coder for key type", e);
     }
@@ -214,10 +213,10 @@ public class SortedBucketSink<SortingKeyT, ValueT>
     public PCollectionTuple expand(PCollection<KV<Integer, Iterable<KV<K, V>>>> input) {
 
       return PCollectionTuple.of(
-              new TupleTag<ResourceId>("tempMetadata"),
+              new TupleTag<>("tempMetadata"),
               input.getPipeline().apply(Create.of(Collections.singletonList(writeMetadataFile()))))
           .and(
-              new TupleTag<KV<Integer, ResourceId>>("tempBuckets"),
+              new TupleTag<>("tempBuckets"),
               input.apply(
                   ParDo.of(
                       new DoFn<KV<Integer, Iterable<KV<K, V>>>, KV<Integer, ResourceId>>() {
@@ -259,6 +258,7 @@ public class SortedBucketSink<SortingKeyT, ValueT>
       try {
         channel = FileSystems.create(file, "application/json");
         BucketMetadata.to(bucketMetadata, Channels.newOutputStream(channel));
+        // new ObjectMapper().writeValue(Channels.newOutputStream(channel), bucketMetadata);
       } catch (Exception e) {
         closeChannelOrThrow(channel, e);
       }

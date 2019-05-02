@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,9 +24,9 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Reader;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -36,7 +35,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Iterates over shards in a bucket one record at a time. */
-class BucketSourceIterator<KeyT> implements Serializable {
+class BucketedInputIterator<KeyT> implements Serializable {
   private final TupleTag tupleTag;
   private final Reader<?> reader;
   private final ResourceId resourceId;
@@ -44,7 +43,7 @@ class BucketSourceIterator<KeyT> implements Serializable {
 
   private KV<byte[], ?> nextKv;
 
-  BucketSourceIterator(
+  BucketedInputIterator(
       Reader<?> reader,
       ResourceId resourceId,
       TupleTag<?> tupleTag,
@@ -122,34 +121,34 @@ class BucketSourceIterator<KeyT> implements Serializable {
     return KV.of(key, iterator);
   }
 
-  static class BucketSourceIteratorCoder extends AtomicCoder<BucketSourceIterator> {
+  static class BucketSourceIteratorCoder extends AtomicCoder<BucketedInputIterator> {
     BucketSourceIteratorCoder() {}
 
     @Override
-    public void encode(BucketSourceIterator value, OutputStream outStream)
+    public void encode(BucketedInputIterator value, OutputStream outStream)
         throws CoderException, IOException {
       try {
         ResourceIdCoder.of().encode(value.resourceId, outStream);
         SerializableCoder.of(TupleTag.class).encode(value.tupleTag, outStream);
         SerializableCoder.of(Reader.class).encode(value.reader, outStream);
-        BucketMetadata.to(value.metadata, outStream);
+        StringUtf8Coder.of().encode(value.metadata.toString(), outStream);
       } catch (Exception e) {
-        throw new CoderException("Encoding BucketSourceReader failed: " + e);
+        throw new CoderException("Encoding BucketedInputIterator failed: ", e);
       }
     }
 
     @Override
-    public BucketSourceIterator decode(InputStream inStream) throws CoderException, IOException {
+    public BucketedInputIterator decode(InputStream inStream) throws CoderException, IOException {
       try {
         final ResourceId resourceId = ResourceIdCoder.of().decode(inStream);
         final TupleTag<?> tupleTag = SerializableCoder.of(TupleTag.class).decode(inStream);
         final Reader<?> reader = SerializableCoder.of(Reader.class).decode(inStream);
         final BucketMetadata<?, Object> metadata =
-            BucketMetadata.from(new ByteArrayInputStream(ByteArrayCoder.of().decode(inStream)));
+            BucketMetadata.from(StringUtf8Coder.of().decode(inStream));
 
-        return new BucketSourceIterator<>(reader, resourceId, tupleTag, metadata);
+        return new BucketedInputIterator<>(reader, resourceId, tupleTag, metadata);
       } catch (Exception e) {
-        throw new CoderException("Decoding BucketSourceReader failed: " + e);
+        throw new CoderException("Decoding BucketedInputIterator failed: ", e);
       }
     }
   }

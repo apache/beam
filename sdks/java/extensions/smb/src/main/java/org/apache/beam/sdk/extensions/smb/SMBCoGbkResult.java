@@ -39,7 +39,7 @@ public class SMBCoGbkResult {
    *
    * @param <ResultT>
    */
-  public abstract static class ToResult<ResultT>
+  public abstract static class ToFinalResult<ResultT>
       implements SerializableFunction<SMBCoGbkResult, ResultT> {
     public abstract Coder<ResultT> resultCoder();
   }

@@ -163,8 +163,8 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   public static <SortingKeyT, ValueT> void to(
       BucketMetadata<SortingKeyT, ValueT> bucketMetadata, OutputStream outputStream)
       throws IOException {
-    // Calling .writeValue directly on outputStream tries to close the underlying channel
-    byteArrayCoder.encode(objectMapper.writeValueAsBytes(bucketMetadata), outputStream);
+
+    objectMapper.writeValue(outputStream, bucketMetadata);
   }
 
   @Override
