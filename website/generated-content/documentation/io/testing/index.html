@@ -615,7 +615,7 @@ limitations under the License.
 
 <p>Example usage on Cloud Dataflow runner:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew integrationTest -p sdks/java/io/hadoop-input-format -DintegrationTestPipelineOptions='["--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET", "--numberOfRecords=1000", "--postgresPort=5432", "--postgresServerName=SERVER_NAME", "--postgresUsername=postgres", "--postgresPassword=PASSWORD", "--postgresDatabaseName=postgres", "--postgresSsl=false", "--runner=TestDataflowRunner"]' -DintegrationTestRunner=dataflow --tests=org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew integrationTest -p sdks/java/io/hadoop-format -DintegrationTestPipelineOptions='["--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET", "--numberOfRecords=1000", "--postgresPort=5432", "--postgresServerName=SERVER_NAME", "--postgresUsername=postgres", "--postgresPassword=PASSWORD", "--postgresDatabaseName=postgres", "--postgresSsl=false", "--runner=TestDataflowRunner"]' -DintegrationTestRunner=dataflow --tests=org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT
 </code></pre>
 </div>
 
@@ -705,9 +705,9 @@ limitations under the License.
      </td>
     </tr>
     <tr>
-     <td>HadoopInputFormatIOIT
+     <td>HadoopFormatIOIT
      </td>
-     <td>Run Java HadoopInputFormatIO Performance Test
+     <td>Run Java HadoopFormatIO Performance Test
      </td>
     </tr>
     <tr>
@@ -799,7 +799,7 @@ If you modified/added new Jenkins job definitions in your Pull Request, run the 
 <ul>
   <li><strong>Your test should use pipeline options to receive connection information.</strong>
     <ul>
-      <li>For Java, there is a shared pipeline options object in the io/common directory. This means that if there are two tests for the same data store (e.g. for <code class="highlighter-rouge">Elasticsearch</code> and the <code class="highlighter-rouge">HadoopInputFormatIO</code> tests), those tests share the same pipeline options.</li>
+      <li>For Java, there is a shared pipeline options object in the io/common directory. This means that if there are two tests for the same data store (e.g. for <code class="highlighter-rouge">Elasticsearch</code> and the <code class="highlighter-rouge">HadoopFormatIO</code> tests), those tests share the same pipeline options.</li>
     </ul>
   </li>
   <li><strong>Generate test data programmatically and parameterize the amount of data used for testing.</strong>
@@ -1131,7 +1131,7 @@ dynamic_pipeline_options:
   <li>Having your test take a pipeline option that decides whether to generate a small or large amount of test data (where small and large are sizes appropriate to your data store)</li>
 </ol>
 
-<p>An example of this is <a href="https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-input-format">HadoopInputFormatIO</a>’s tests.</p>
+<p>An example of this is <a href="https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-format">HadoopFormatIO</a>’s tests.</p>
 
 <!--
 # Next steps
