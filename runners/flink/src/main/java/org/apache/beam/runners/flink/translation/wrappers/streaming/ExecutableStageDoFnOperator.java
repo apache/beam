@@ -271,7 +271,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         public Iterable<V> get(K key, W window) {
           try {
             stateBackendLock.lock();
-            prepareStateBackend(key, keyCoder);
+            prepareStateBackend(key);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
             if (LOG.isDebugEnabled()) {
               LOG.debug(
@@ -293,7 +293,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         public void append(K key, W window, Iterator<V> values) {
           try {
             stateBackendLock.lock();
-            prepareStateBackend(key, keyCoder);
+            prepareStateBackend(key);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
             if (LOG.isDebugEnabled()) {
               LOG.debug(
@@ -317,7 +317,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         public void clear(K key, W window) {
           try {
             stateBackendLock.lock();
-            prepareStateBackend(key, keyCoder);
+            prepareStateBackend(key);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
             if (LOG.isDebugEnabled()) {
               LOG.debug(
@@ -335,13 +335,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           }
         }
 
-        private void prepareStateBackend(K key, Coder<K> keyCoder) {
-          // TODO: use ByteString, eliminate double encoding
-          // https://issues.apache.org/jira/browse/BEAM-7126
-          // We need to have NESTED context here with the ByteStringCoder.
-          // See StateRequestHandlers.
-          final ByteBuffer encodedKey =
-              FlinkKeyUtils.encodeKey(key, keyCoder, Coder.Context.NESTED);
+        private void prepareStateBackend(K key) {
+          // Key for state request is shipped already encoded as ByteString,
+          // this is mostly a wrapping with ByteBuffer. We still follow the
+          // usual key encoding procedure.
+          final ByteBuffer encodedKey = FlinkKeyUtils.encodeKey(key, keyCoder);
           keyedStateBackend.setCurrentKey(encodedKey);
         }
       };
@@ -773,8 +771,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       // make sure this fires after any window.maxTimestamp() timers
       Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
       // needs to match the encoding in prepareStateBackend for state request handler
-      final ByteBuffer key =
-          FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder, Coder.Context.NESTED);
+      final ByteBuffer key = FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder);
       // Ensure the state backend is not concurrently accessed by the state requests
       try {
         stateBackendLock.lock();
