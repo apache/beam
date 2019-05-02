@@ -73,7 +73,7 @@ class CombiningValueStateSpec(StateSpec):
 
     Args:
       name (str): The name by which the state is identified.
-      coder (coder): Coder specifying how to encode the values to be combined.
+      coder (Coder): Coder specifying how to encode the values to be combined.
         May be inferred.
       combine_fn (``CombineFn`` or ``callable``): Function specifying how to
         combine the values passed to state.
