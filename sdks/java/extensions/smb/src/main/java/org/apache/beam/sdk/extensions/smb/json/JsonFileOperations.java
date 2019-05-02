@@ -17,23 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.smb.json;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.services.bigquery.model.TableRow;
+import org.apache.beam.sdk.extensions.smb.FileOperations;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
+
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Map;
-import org.apache.beam.sdk.extensions.smb.FileOperations;
 
-public class JsonFileOperations extends FileOperations<Map<String, Object>> {
+public class JsonFileOperations extends FileOperations<TableRow> {
   @Override
-  public Reader<Map<String, Object>> createReader() {
+  public Reader<TableRow> createReader() {
     return new JsonReader();
   }
 
   @Override
-  public Writer<Map<String, Object>> createWriter() {
+  public Writer<TableRow> createWriter() {
     return new JsonWriter();
   }
 
@@ -41,21 +42,20 @@ public class JsonFileOperations extends FileOperations<Map<String, Object>> {
   // Reader
   ////////////////////////////////////////
 
-  private static class JsonReader extends FileOperations.Reader<Map<String, Object>> {
+  private static class JsonReader extends FileOperations.Reader<TableRow> {
 
-    private transient ObjectMapper objectMapper;
+    private transient TableRowJsonCoder tableRowJsonCoder;
     private transient InputStream inputStream;
 
     @Override
     public void prepareRead(ReadableByteChannel channel) throws Exception {
-      objectMapper = new ObjectMapper();
+      tableRowJsonCoder = TableRowJsonCoder.of();
       inputStream = Channels.newInputStream(channel);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public Map<String, Object> read() throws Exception {
-      return (Map<String, Object>) objectMapper.readValue(inputStream, Map.class);
+    public TableRow read() throws Exception {
+      return tableRowJsonCoder.decode(inputStream);
     }
 
     @Override
@@ -68,9 +68,9 @@ public class JsonFileOperations extends FileOperations<Map<String, Object>> {
   // Writer
   ////////////////////////////////////////
 
-  private static class JsonWriter extends FileOperations.Writer<Map<String, Object>> {
+  private static class JsonWriter extends FileOperations.Writer<TableRow> {
 
-    private transient ObjectMapper objectMapper;
+    private transient TableRowJsonCoder tableRowJsonCoder;
     private transient OutputStream outputStream;
 
     @Override
@@ -80,13 +80,13 @@ public class JsonFileOperations extends FileOperations<Map<String, Object>> {
 
     @Override
     public void prepareWrite(WritableByteChannel channel) throws Exception {
-      objectMapper = new ObjectMapper();
+      tableRowJsonCoder = TableRowJsonCoder.of();
       outputStream = Channels.newOutputStream(channel);
     }
 
     @Override
-    public void write(Map<String, Object> value) throws Exception {
-      objectMapper.writeValue(outputStream, value);
+    public void write(TableRow value) throws Exception {
+      tableRowJsonCoder.encode(value, outputStream);
     }
 
     @Override

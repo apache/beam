@@ -20,14 +20,14 @@ package org.apache.beam.sdk.extensions.smb.json;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.HashMap;
-import java.util.Map;
+import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
 public class JsonBucketMetadata<SortingKeyT>
-    extends BucketMetadata<SortingKeyT, Map<String, Object>> {
+    extends BucketMetadata<SortingKeyT, TableRow> {
 
   @JsonProperty private final String keyField;
 
@@ -52,10 +52,10 @@ public class JsonBucketMetadata<SortingKeyT>
 
   @SuppressWarnings("unchecked")
   @Override
-  public SortingKeyT extractKey(Map<String, Object> value) {
-    Map<String, Object> node = value;
+  public SortingKeyT extractKey(TableRow value) {
+    TableRow node = value;
     for (int i = 0; i < keyPath.length - 1; i++) {
-      node = (Map<String, Object>) node.get(keyPath[i]);
+      node = (TableRow) node.get(keyPath[i]);
     }
     return (SortingKeyT) node.get(keyPath[keyPath.length - 1]);
   }
