@@ -54,7 +54,7 @@ public final class SMBFilenamePolicy implements Serializable {
 
   /** A file name assigner based on a specific output directory and file suffix. */
   public static class FileAssignment implements Serializable {
-    private static final String BUCKET_TEMPLATE = "bucket-%d-of-%d.%s";
+    private static final String BUCKET_TEMPLATE = "bucket-%d-of-%d%s";
     private static final String METADATA_FILENAME = "metadata.json";
     private static final String TIMESTAMP_TEMPLATE = "yyyy-MM-dd_HH-mm-ss-";
 
