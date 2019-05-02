@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -83,7 +84,9 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
   }
 
   @JsonIgnore
-  public abstract Map<Class<?>, Coder<?>> coderOverrides();
+  public Map<Class<?>, Coder<?>> coderOverrides() {
+    return Collections.emptyMap();
+  }
 
   /** Enumerated hashing schemes available for an SMB sink. */
   public enum HashType {

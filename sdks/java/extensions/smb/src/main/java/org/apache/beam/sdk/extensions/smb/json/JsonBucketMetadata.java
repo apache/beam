@@ -22,8 +22,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
 public class JsonBucketMetadata<SortingKeyT>
@@ -43,11 +41,6 @@ public class JsonBucketMetadata<SortingKeyT>
     super(numBuckets, sortingKeyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");
-  }
-
-  @Override
-  public Map<Class<?>, Coder<?>> coderOverrides() {
-    return new HashMap<>();
   }
 
   @SuppressWarnings("unchecked")
