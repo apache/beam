@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.extensions.smb.avro.AvroFileOperations;
 import org.apache.beam.sdk.extensions.smb.json.JsonBucketMetadata;
 import org.apache.beam.sdk.extensions.smb.json.JsonFileOperations;
 import org.apache.beam.sdk.io.LocalResources;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -73,11 +76,8 @@ public class MixedSourcesEndToEndTest implements Serializable {
     return result;
   }
 
-  private static Map<String, Object> createUserJson(String name, String country) {
-    Map<String, Object> result = new HashMap<>();
-    result.put("name", name);
-    result.put("country", country);
-    return result;
+  private static TableRow createUserJson(String name, String country) {
+    return new TableRow().set("name", name).set("country", country);
   }
 
   @Test
@@ -108,8 +108,6 @@ public class MixedSourcesEndToEndTest implements Serializable {
     JsonBucketMetadata<String> jsonMetadata =
         new JsonBucketMetadata<>(2, String.class, HashType.MURMUR3_32, "name");
 
-    Coder<Map<String, Object>> jsonCoder = null; // @TODO needs a handcrafted coder to work
-
     pipeline2
         .apply(
             Create.of(
@@ -119,7 +117,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     createUserJson("d", "DE"),
                     createUserJson("e", "AU"),
                     createUserJson("g", "SE"))
-                .withCoder(jsonCoder))
+                .withCoder(TableRowJsonCoder.of()))
         .apply(
             SortedBucketIO.sink(
                 jsonMetadata,
@@ -130,7 +128,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
 
     pipeline2.run().waitUntilFinish();
 
-    final SortedBucketSource<String, KV<Iterable<GenericRecord>, Iterable<Map<String, Object>>>>
+    final SortedBucketSource<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>>
         sourceTransform =
             SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
                 .of(
@@ -142,10 +140,10 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     LocalResources.fromFile(source2Folder.getRoot(), true),
                     "json",
                     new JsonFileOperations(),
-                    jsonCoder)
+                    TableRowJsonCoder.of())
                 .build();
 
-    final PCollection<KV<String, KV<Iterable<GenericRecord>, Iterable<Map<String, Object>>>>>
+    final PCollection<KV<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>>>
         joinedSources = pipeline3.apply(sourceTransform);
 
     PAssert.that(joinedSources)
