@@ -785,7 +785,12 @@ class BigQueryWriteFn(DoFn):
     logging.debug('Creating or getting table %s with schema %s.',
                   table_reference, schema)
 
-    table_schema = self.get_table_schema(schema)
+    if schema == SCHEMA_AUTODETECT:
+      raise ValueError('Schema auto-detection is not supported for streaming '
+                       'inserts into BigQuery. Only for File Loads.')
+    else:
+      table_schema = self.get_table_schema(schema)
+
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
@@ -879,6 +884,9 @@ class BigQueryWriteFn(DoFn):
                                 GlobalWindows.windowed_value(
                                     (destination, row))) for row in failed_rows]
 
+# Flag to be passed to WriteToBigQuery to force schema autodetection
+SCHEMA_AUTODETECT = 'SCHEMA_AUTODETECT'
+
 
 class WriteToBigQuery(PTransform):
   """Write data to BigQuery.
@@ -943,8 +951,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         fields, repeated fields, or specifying a BigQuery mode for fields
         (mode will always be set to ``'NULLABLE'``).
         If a callable, then it should receive a destination (in the form of
-        a TableReference or a string, and return a str, dict or TableSchema, and
-        it should return a str, dict or TableSchema.
+        a TableReference or a string, and return a str, dict or TableSchema.
+        One may also pass ``SCHEMA_AUTODETECT`` here, and BigQuery will try to
+        infer the schema for the files that are being loaded.
       create_disposition (BigQueryDisposition): A string describing what
         happens if the table does not exist. Possible values are:
 
@@ -1004,7 +1013,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         create_disposition)
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
-    self.schema = WriteToBigQuery.get_dict_table_schema(schema)
+    if schema == SCHEMA_AUTODETECT:
+      self.schema = schema
+    else:
+      self.schema = WriteToBigQuery.get_dict_table_schema(schema)
     self.batch_size = batch_size
     self.kms_key = kms_key
     self.test_client = test_client
