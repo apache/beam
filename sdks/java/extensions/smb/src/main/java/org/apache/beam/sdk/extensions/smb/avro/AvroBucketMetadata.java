@@ -47,14 +47,14 @@ public class AvroBucketMetadata<KeyT, ValueT extends GenericRecord>
       @JsonProperty("numBuckets") int numBuckets,
       @JsonProperty("sortingKeyClass") Class<KeyT> sortingKeyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
-      @JsonProperty("keyField") String keyField) {
+      @JsonProperty("keyField") String keyField) throws CannotProvideCoderException {
     super(numBuckets, sortingKeyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");
   }
 
-  // @Todo: BucketMetadata can have an abstract method "CoderOverrides" returning a
-  // Map of class->coder, and make getSortingKeyCoder() non-abstract. 
+  // @Todo: BucketMetadata could have an abstract method "CoderOverrides" returning a
+  // Map of class->coder, and make getSortingKeyCoder() non-abstract.
   @Override
   public Coder<KeyT> getSortingKeyCoder() throws CannotProvideCoderException {
     final Class<KeyT> sortingKeyClass = this.getSortingKeyClass();

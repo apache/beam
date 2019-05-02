@@ -53,11 +53,16 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   @JsonIgnore private final HashFunction hashFunction;
 
-  public BucketMetadata(int numBuckets, Class<KeyT> sortingKeyClass, HashType hashType) {
+  @JsonIgnore private final Coder<KeyT> keyCoder;
+
+  public BucketMetadata(int numBuckets, Class<KeyT> sortingKeyClass, HashType hashType)
+      throws CannotProvideCoderException {
     this.numBuckets = numBuckets;
     this.sortingKeyClass = sortingKeyClass;
     this.hashType = hashType;
     this.hashFunction = hashType.create();
+
+    this.keyCoder = getSortingKeyCoder();
   }
 
   @JsonIgnore
@@ -127,7 +132,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     KeyT key = extractKey(value);
     try {
-      getSortingKeyCoder().encode(key, baos);
+      keyCoder.encode(key, baos);
     } catch (Exception e) {
       throw new RuntimeException("Could not encode key " + key, e);
     }

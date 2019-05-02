@@ -82,13 +82,6 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
 
   @Override
   public final WriteResult expand(PCollection<ValueT> input) {
-    final Coder<KeyT> sortingKeyCoder;
-    try {
-      sortingKeyCoder = bucketingMetadata.getSortingKeyCoder();
-    } catch (CannotProvideCoderException e) {
-      throw new RuntimeException("Could not find a coder for key type", e);
-    }
-
     return input
         .apply("Assign buckets", ParDo.of(new ExtractBucketAndSortKey<>(this.bucketingMetadata)))
         .setCoder(KvCoder.of(VarIntCoder.of(), KvCoder.of(ByteArrayCoder.of(), input.getCoder())))

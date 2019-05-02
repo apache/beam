@@ -37,7 +37,7 @@ public class JsonBucketMetadata<SortingKeyT>
       @JsonProperty("numBuckets") int numBuckets,
       @JsonProperty("sortingKeyClass") Class<SortingKeyT> sortingKeyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
-      @JsonProperty("keyField") String keyField) {
+      @JsonProperty("keyField") String keyField) throws CannotProvideCoderException {
     super(numBuckets, sortingKeyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");
