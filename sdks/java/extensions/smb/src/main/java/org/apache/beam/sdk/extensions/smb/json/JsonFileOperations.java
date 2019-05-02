@@ -24,9 +24,9 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.smb.SortedBucketFile;
+import org.apache.beam.sdk.extensions.smb.FileOperations;
 
-public class JsonSortedBucketFile extends SortedBucketFile<Map<String, Object>> {
+public class JsonFileOperations extends FileOperations<Map<String, Object>> {
   @Override
   public Reader<Map<String, Object>> createReader() {
     return null;
@@ -41,7 +41,7 @@ public class JsonSortedBucketFile extends SortedBucketFile<Map<String, Object>> 
   // Reader
   ////////////////////////////////////////
 
-  private static class JsonReader extends SortedBucketFile.Reader<Map<String, Object>> {
+  private static class JsonReader extends FileOperations.Reader<Map<String, Object>> {
 
     private transient ObjectMapper objectMapper;
     private transient InputStream inputStream;
@@ -68,7 +68,7 @@ public class JsonSortedBucketFile extends SortedBucketFile<Map<String, Object>> 
   // Writer
   ////////////////////////////////////////
 
-  private static class JsonWriter extends SortedBucketFile.Writer<Map<String, Object>> {
+  private static class JsonWriter extends FileOperations.Writer<Map<String, Object>> {
 
     private transient ObjectMapper objectMapper;
     private transient OutputStream outputStream;

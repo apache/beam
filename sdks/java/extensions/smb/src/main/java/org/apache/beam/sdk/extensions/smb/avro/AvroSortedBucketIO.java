@@ -29,8 +29,8 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToResult;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
-import org.apache.beam.sdk.extensions.smb.SortedBucketFile;
-import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
+import org.apache.beam.sdk.extensions.smb.FileOperations;
+import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.KeyedBucketSources.KeyedBucketSource;
@@ -70,15 +70,15 @@ public class AvroSortedBucketIO {
   }
 
   static class AvroWriterSupplier<ValueT> implements Supplier<Writer<ValueT>>, Serializable {
-    SortedBucketFile<ValueT> sortedBucketFile;
+    FileOperations<ValueT> fileOperations;
 
     AvroWriterSupplier(Class<ValueT> recordClass, Schema schema) {
-      this.sortedBucketFile = new AvroSortedBucketFile<>(recordClass, schema);
+      this.fileOperations = new AvroFileOperations<>(recordClass, schema);
     }
 
     @Override
     public Writer<ValueT> get() {
-      return sortedBucketFile.createWriter();
+      return fileOperations.createWriter();
     }
   }
 
@@ -129,7 +129,7 @@ public class AvroSortedBucketIO {
           new KeyedBucketSource<>(
               new TupleTag<>("left"),
               new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
-              new AvroSortedBucketFile<>(recordClass, schema).createReader());
+              new AvroFileOperations<>(recordClass, schema).createReader());
       builderCopy.leftCoder =
           AvroCoder.of(
               Optional.ofNullable(recordClass).orElse((Class<ValueT>) GenericRecord.class), schema);
@@ -152,7 +152,7 @@ public class AvroSortedBucketIO {
           new KeyedBucketSource<>(
               new TupleTag<>("right"),
               new SMBFilenamePolicy(filenamePrefix, "avro").forDestination(),
-              new AvroSortedBucketFile<>(recordClass, schema).createReader());
+              new AvroFileOperations<>(recordClass, schema).createReader());
       builderCopy.rightCoder =
           AvroCoder.of(
               Optional.ofNullable(recordClass).orElse((Class<ValueT>) GenericRecord.class), schema);

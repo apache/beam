@@ -22,7 +22,7 @@ import java.io.File;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
-import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
+import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.FileSystems;
@@ -58,8 +58,8 @@ public class AvroSortedBucketSourceTest {
   public void testGenericRecordSources() throws Exception {
 
     // Setup: write GenericRecords to sink
-    final AvroSortedBucketFile<GenericRecord> file =
-        new AvroSortedBucketFile<>(null, TestUtils.USER_SCHEMA);
+    final AvroFileOperations<GenericRecord> file =
+        new AvroFileOperations<>(null, TestUtils.USER_SCHEMA);
 
     final GenericRecord userA = TestUtils.createUserRecord("a", 50);
     final GenericRecord userB = TestUtils.createUserRecord("b", 50);
@@ -123,8 +123,8 @@ public class AvroSortedBucketSourceTest {
   public void testSpecificRecordSources() throws Exception {
     // Setup: write SpecificRecords to sink
 
-    final AvroSortedBucketFile<AvroGeneratedUser> file =
-        new AvroSortedBucketFile<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$);
+    final AvroFileOperations<AvroGeneratedUser> file =
+        new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$);
 
     final AvroGeneratedUser userA = new AvroGeneratedUser("a", 50, "red");
     final AvroGeneratedUser userB = new AvroGeneratedUser("b", 50, "green");

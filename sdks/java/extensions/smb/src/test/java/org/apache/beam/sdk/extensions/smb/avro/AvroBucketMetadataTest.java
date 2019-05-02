@@ -71,10 +71,10 @@ public class AvroBucketMetadataTest {
     Assert.assertEquals(roundtripMetadata.getSortingKeyClass(), metadata.getSortingKeyClass());
     Assert.assertEquals(roundtripMetadata.getHashType(), metadata.getHashType());
 
-    final SerializableCoder<AvroSortedBucketFile> coder =
-        SerializableCoder.of(AvroSortedBucketFile.class);
-    final AvroSortedBucketFile<GenericRecord> file = new AvroSortedBucketFile<>(null, SCHEMA);
-    final AvroSortedBucketFile<GenericRecord> roundtripFile =
+    final SerializableCoder<AvroFileOperations> coder =
+        SerializableCoder.of(AvroFileOperations.class);
+    final AvroFileOperations<GenericRecord> file = new AvroFileOperations<>(null, SCHEMA);
+    final AvroFileOperations<GenericRecord> roundtripFile =
         CoderUtils.decodeFromBase64(coder, CoderUtils.encodeToBase64(coder, file));
 
     Assert.assertEquals(roundtripFile.getRecordClass(), file.getRecordClass());
@@ -140,11 +140,11 @@ public class AvroBucketMetadataTest {
     Assert.assertEquals(roundtripMetadata.getSortingKeyClass(), metadata.getSortingKeyClass());
     Assert.assertEquals(roundtripMetadata.getHashType(), metadata.getHashType());
 
-    final SerializableCoder<AvroSortedBucketFile> coder =
-        SerializableCoder.of(AvroSortedBucketFile.class);
-    final AvroSortedBucketFile<AvroGeneratedUser> file =
-        new AvroSortedBucketFile<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$);
-    final AvroSortedBucketFile<AvroGeneratedUser> roundtripFile =
+    final SerializableCoder<AvroFileOperations> coder =
+        SerializableCoder.of(AvroFileOperations.class);
+    final AvroFileOperations<AvroGeneratedUser> file =
+        new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$);
+    final AvroFileOperations<AvroGeneratedUser> roundtripFile =
         CoderUtils.decodeFromBase64(coder, CoderUtils.encodeToBase64(coder, file));
 
     Assert.assertEquals(roundtripFile.getRecordClass(), file.getRecordClass());

@@ -25,7 +25,7 @@ import java.nio.channels.WritableByteChannel;
 // read/write individual records sequentially from a sorted bucket file
 // Serializable so it can be shipped to DoFns
 // @Todo: this goes in a PCollection, needs Coder, or is SerializableCoder OK?
-public abstract class SortedBucketFile<ValueT> implements Serializable {
+public abstract class FileOperations<ValueT> implements Serializable {
 
   public abstract Reader<ValueT> createReader();
 

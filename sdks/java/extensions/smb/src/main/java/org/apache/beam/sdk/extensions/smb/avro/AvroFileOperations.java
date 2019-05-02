@@ -31,7 +31,7 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.beam.sdk.extensions.smb.SortedBucketFile;
+import org.apache.beam.sdk.extensions.smb.FileOperations;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 
@@ -40,11 +40,11 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
  *
  * @param <ValueT>
  */
-public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
+public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
   private final Class<ValueT> recordClass;
   private final SerializableSchemaSupplier schemaSupplier;
 
-  AvroSortedBucketFile(Class<ValueT> recordClass, Schema schema) {
+  AvroFileOperations(Class<ValueT> recordClass, Schema schema) {
     this.recordClass = recordClass;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
   }
@@ -100,7 +100,7 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
   // Reader
   ////////////////////////////////////////
 
-  private static class AvroReader<ValueT> extends SortedBucketFile.Reader<ValueT> {
+  private static class AvroReader<ValueT> extends FileOperations.Reader<ValueT> {
     private Class<ValueT> recordClass;
     private SerializableSchemaSupplier schemaSupplier;
     private transient DataFileStream<ValueT> reader;
@@ -137,7 +137,7 @@ public class AvroSortedBucketFile<ValueT> extends SortedBucketFile<ValueT> {
   // Writer
   ////////////////////////////////////////
 
-  private static class AvroWriter<ValueT> extends SortedBucketFile.Writer<ValueT> {
+  private static class AvroWriter<ValueT> extends FileOperations.Writer<ValueT> {
 
     private final Class<ValueT> recordClass;
     private final SerializableSchemaSupplier schemaSupplier;

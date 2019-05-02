@@ -29,7 +29,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
-import org.apache.beam.sdk.extensions.smb.SortedBucketFile.Writer;
+import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
@@ -230,7 +230,7 @@ public class SortedBucketSink<SortingKeyT, ValueT>
                               tempFileAssignment.forBucket(
                                   bucketId, bucketMetadata.getNumBuckets());
 
-                          final SortedBucketFile.Writer<V> writer = writerSupplier.get();
+                          final FileOperations.Writer<V> writer = writerSupplier.get();
 
                           writer.prepareWrite(FileSystems.create(tmpDst, writer.getMimeType()));
 
