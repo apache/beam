@@ -103,7 +103,7 @@ public class AvroBucketMetadataTest {
   }
 
   @Test
-  public void testGRExtractSortingKey() throws Exception {
+  public void testGRExtractKey() throws Exception {
     final GenericRecord location = new Record(SCHEMA_NESTED_FIELD);
     location.put("currentCountry", "US");
     location.put("prevCountries", Arrays.asList("CN", "MX"));
@@ -131,7 +131,7 @@ public class AvroBucketMetadataTest {
   }
 
   @Test
-  public void testSRExtractSortingKey() throws Exception {
+  public void testSRExtractKey() throws Exception {
     final AvroGeneratedUser user = new AvroGeneratedUser("foo", 50, "green");
 
     Assert.assertEquals(

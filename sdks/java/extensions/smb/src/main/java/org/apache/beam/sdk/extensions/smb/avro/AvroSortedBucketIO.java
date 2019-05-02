@@ -26,8 +26,8 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 /** Abstracts SMB sources and sinks for Avro-typed values. */
 public class AvroSortedBucketIO {
 
-  public static <SortingKeyT> SortedBucketSink<SortingKeyT, GenericRecord> sink(
-      AvroBucketMetadata<SortingKeyT, GenericRecord> bucketingMetadata,
+  public static <KeyT> SortedBucketSink<KeyT, GenericRecord> sink(
+      AvroBucketMetadata<KeyT, GenericRecord> bucketingMetadata,
       ResourceId outputDirectory,
       ResourceId tempDirectory,
       Schema schema) {
@@ -39,9 +39,9 @@ public class AvroSortedBucketIO {
         new AvroFileOperations<>(null, schema));
   }
 
-  public static <SortingKeyT, ValueT extends GenericRecord>
-      SortedBucketSink<SortingKeyT, ValueT> sink(
-          AvroBucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
+  public static <KeyT, ValueT extends GenericRecord>
+      SortedBucketSink<KeyT, ValueT> sink(
+          AvroBucketMetadata<KeyT, ValueT> bucketingMetadata,
           ResourceId outputDirectory,
           ResourceId tempDirectory,
           Class<ValueT> recordClass,

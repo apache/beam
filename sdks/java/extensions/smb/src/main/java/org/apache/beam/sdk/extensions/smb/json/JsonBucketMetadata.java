@@ -24,8 +24,8 @@ import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
-public class JsonBucketMetadata<SortingKeyT>
-    extends BucketMetadata<SortingKeyT, TableRow> {
+public class JsonBucketMetadata<KeyT>
+    extends BucketMetadata<KeyT, TableRow> {
 
   @JsonProperty private final String keyField;
 
@@ -34,22 +34,22 @@ public class JsonBucketMetadata<SortingKeyT>
   @JsonCreator
   public JsonBucketMetadata(
       @JsonProperty("numBuckets") int numBuckets,
-      @JsonProperty("sortingKeyClass") Class<SortingKeyT> sortingKeyClass,
+      @JsonProperty("keyClass") Class<KeyT> keyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
       @JsonProperty("keyField") String keyField)
       throws CannotProvideCoderException {
-    super(numBuckets, sortingKeyClass, hashType);
+    super(numBuckets, keyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public SortingKeyT extractKey(TableRow value) {
+  public KeyT extractKey(TableRow value) {
     TableRow node = value;
     for (int i = 0; i < keyPath.length - 1; i++) {
       node = (TableRow) node.get(keyPath[i]);
     }
-    return (SortingKeyT) node.get(keyPath[keyPath.length - 1]);
+    return (KeyT) node.get(keyPath[keyPath.length - 1]);
   }
 }

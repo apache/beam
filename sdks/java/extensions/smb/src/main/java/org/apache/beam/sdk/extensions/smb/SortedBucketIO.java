@@ -22,7 +22,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -145,8 +144,8 @@ public class SortedBucketIO {
 
   // Sinks
 
-  public static <SortingKeyT, ValueT> SortedBucketSink<SortingKeyT, ValueT> sink(
-      BucketMetadata<SortingKeyT, ValueT> bucketingMetadata,
+  public static <KeyT, ValueT> SortedBucketSink<KeyT, ValueT> sink(
+      BucketMetadata<KeyT, ValueT> bucketingMetadata,
       ResourceId outputDirectory,
       String filenameSuffix,
       ResourceId tempDirectory,
@@ -154,12 +153,7 @@ public class SortedBucketIO {
     return new SortedBucketSink<>(
         bucketingMetadata,
         new SMBFilenamePolicy(outputDirectory, filenameSuffix),
-        new SerializableSupplier<Writer<ValueT>>() {
-          @Override
-          public Writer<ValueT> get() {
-            return fileOperations.createWriter();
-          }
-        },
+        fileOperations::createWriter,
         tempDirectory);
   }
 }
