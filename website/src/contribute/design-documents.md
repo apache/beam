@@ -119,6 +119,7 @@ This is a collection of documents that may or may not be up to date.
 - Portability API: How to Finalize Bundles [[doc](https://s.apache.org/beam-finalizing-bundles)]
 - Side Input in Universal Reference Runner [[doc](https://docs.google.com/document/d/13N0OJ7QJm81wcgu13pi9GuN29UUxN2iIFn_H8lKpDks)]
 - Spark Portable Runner Overview [[doc](https://docs.google.com/document/d/1j8GERTiHUuc6CzzCXZHc38rBn41uWfATBh2-5JN8hro)]
+- Cross-Language Pipelines & Legacy IO [[doc](https://s.apache.org/beam-cross-language-io)]
 
 ### Build / Testing
 - More Expressive PAsserts [[doc](https://docs.google.com/document/d/1fZUUbG2LxBtqCVabQshldXIhkMcXepsbv2vuuny8Ix4)]
