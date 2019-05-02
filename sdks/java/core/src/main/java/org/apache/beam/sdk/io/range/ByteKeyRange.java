@@ -28,6 +28,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -65,7 +66,11 @@ import org.slf4j.LoggerFactory;
  *
  * @see ByteKey
  */
-public final class ByteKeyRange implements Serializable {
+public final class ByteKeyRange
+    implements Serializable,
+        HasDefaultTracker<
+            ByteKeyRange, org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker> {
+
   private static final Logger LOG = LoggerFactory.getLogger(ByteKeyRange.class);
 
   /** The range of all keys, with empty start and end keys. */
@@ -359,5 +364,10 @@ public final class ByteKeyRange implements Serializable {
         bytePaddingNeeded >= 0, "Required bytes.length {} < length {}", bytes.length, length);
     BigInteger ret = new BigInteger(1, bytes);
     return (bytePaddingNeeded == 0) ? ret : ret.shiftLeft(8 * bytePaddingNeeded);
+  }
+
+  @Override
+  public org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker newTracker() {
+    return org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker.of(this);
   }
 }
