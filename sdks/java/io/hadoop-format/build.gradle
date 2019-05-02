@@ -53,6 +53,7 @@ dependencies {
   provided library.java.hadoop_mapreduce_client_core
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
   testCompile project(path: ":beam-examples-java", configuration: "shadowTest")
 
