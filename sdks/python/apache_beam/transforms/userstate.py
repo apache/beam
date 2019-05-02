@@ -63,16 +63,30 @@ class BagStateSpec(StateSpec):
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 
-  def __init__(self, name, coder, combine_fn):
+  def __init__(self, name, coder=None, combine_fn=None):
     # Avoid circular import.
     from apache_beam.transforms.core import CombineFn
+
+    # We want the coder to be optional, but unfortunately it comes
+    # before the non-optional combine_fn parameter, which we can't
+    # change for backwards compatibility reasons.
+    #
+    # Instead, allow it to be omitted (by either passing two arguments
+    # or combine_fn by keyword.)
+    if combine_fn is None:
+      if coder is None:
+        raise ValueError('combine_fn must be provided')
+      else:
+        coder, combine_fn = None, coder
+    self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
+    if coder is None:
+      coder = self.combine_fn.get_accumulator_coder()
 
     assert isinstance(name, str)
     assert isinstance(coder, Coder)
     self.name = name
     # The coder here should be for the accumulator type of the given CombineFn.
     self.coder = coder
-    self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.StateSpec(
