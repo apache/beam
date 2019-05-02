@@ -79,6 +79,7 @@ public class SortedBucketSource<KeyT, ResultT>
   public final PCollection<KV<KeyT, ResultT>> expand(PBegin begin) {
 
     // @TODO: Support asymmetric, but still compatible, bucket sizes in reader.
+    Preconditions.checkState(sources.size() > 1, "Must have more than one Source");
 
     BucketMetadata<?, ?> first = null;
     for (KeyedBucketSource<?, ?> source : sources) {

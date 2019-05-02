@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -259,7 +258,7 @@ public class SortedBucketSink<SortingKeyT, ValueT>
       WritableByteChannel channel = null;
       try {
         channel = FileSystems.create(file, "application/json");
-        new ObjectMapper().writeValue(Channels.newOutputStream(channel), bucketMetadata);
+        BucketMetadata.to(bucketMetadata, Channels.newOutputStream(channel));
       } catch (Exception e) {
         closeChannelOrThrow(channel, e);
       }
