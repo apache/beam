@@ -325,12 +325,30 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   /**
+   * Return the field names accessed. Should not be called until after {@link #resolve} is called.
+   */
+  public Set<String> fieldNamesAccessed() {
+    return getFieldsAccessed().stream()
+        .map(FieldDescriptor::getFieldName)
+        .collect(Collectors.toSet());
+  }
+
+  /**
    * Return the nested fields keyed by field ids. Should not be called until after {@link #resolve}
    * is called.
    */
   public Map<Integer, FieldAccessDescriptor> nestedFieldsById() {
     return getNestedFieldsAccessed().entrySet().stream()
         .collect(Collectors.toMap(f -> f.getKey().getFieldId(), f -> f.getValue()));
+  }
+
+  /**
+   * Return the nested fields keyed by field name. Should not be called until after {@link #resolve}
+   * is called.
+   */
+  public Map<String, FieldAccessDescriptor> nestedFieldsByName() {
+    return getNestedFieldsAccessed().entrySet().stream()
+        .collect(Collectors.toMap(f -> f.getKey().getFieldName(), f -> f.getValue()));
   }
 
   /** Returns true if this descriptor references only a single, non-wildcard field. */
