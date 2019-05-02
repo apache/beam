@@ -18,7 +18,7 @@
 
 import CommonJobProperties as commonJobProperties
 
-String jobName = "beam_PerformanceTests_HadoopInputFormat"
+String jobName = "beam_PerformanceTests_HadoopFormat"
 
 job(jobName) {
     // Set default Beam job properties.
@@ -32,8 +32,8 @@ job(jobName) {
 
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
             delegate,
-            'Java HadoopInputFormatIO Performance Test',
-            'Run Java HadoopInputFormatIO Performance Test')
+            'Java HadoopFormatIO Performance Test',
+            'Run Java HadoopFormatIO Performance Test')
 
     def pipelineOptions = [
             tempRoot       : 'gs://temp-storage-for-perf-tests',
@@ -41,7 +41,7 @@ job(jobName) {
             postgresPort   : '5432',
             numberOfRecords: '600000',
             bigQueryDataset: 'beam_performance',
-            bigQueryTable  : 'hadoopinputformatioit_results'
+            bigQueryTable  : 'hadoopformatioit_results'
     ]
 
     String namespace = commonJobProperties.getKubernetesNamespace(jobName)
@@ -53,12 +53,12 @@ job(jobName) {
             benchmarks              : 'beam_integration_benchmark',
             beam_prebuilt           : 'false',
             beam_sdk                : 'java',
-            beam_it_module          : 'sdks/java/io/hadoop-input-format',
-            beam_it_class           : 'org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT',
+            beam_it_module          : 'sdks/java/io/hadoop-format',
+            beam_it_class           : 'org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT',
             beam_it_options         : commonJobProperties.joinPipelineOptions(pipelineOptions),
             beam_kubernetes_scripts : commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),
             beam_options_config_file: commonJobProperties.makePathAbsolute('src/.test-infra/kubernetes/postgres/pkb-config-local.yml'),
-            bigquery_table          : 'beam_performance.hadoopinputformatioit_pkb_results'
+            bigquery_table          : 'beam_performance.hadoopformatioit_pkb_results'
     ]
 
     commonJobProperties.setupKubernetes(delegate, namespace, kubeconfig)
