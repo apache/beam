@@ -36,10 +36,9 @@ from apache_beam.transforms.combiners import Count
 
 try:
   from google.cloud.bigtable import enums, row, column_family, Client
-  import gcp.bigtableio
+  from gcp.bigtableio import BigtableSource, WriteToBigTable
 except ImportError:
   Client = None
-  bigtableio = None
 
 
 class GenerateTestRows(beam.PTransform):
@@ -68,9 +67,9 @@ class GenerateTestRows(beam.PTransform):
   def expand(self, pvalue):
     return (pvalue
             | beam.Create(self._generate())
-            | bigtableio.WriteToBigTable(project_id=self.beam_options['project_id'],
-                                         instance_id=self.beam_options['instance_id'],
-                                         table_id=self.beam_options['table_id']))
+            | WriteToBigTable(project_id=self.beam_options['project_id'],
+                              instance_id=self.beam_options['instance_id'],
+                              table_id=self.beam_options['table_id']))
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOTest(unittest.TestCase):
@@ -112,9 +111,9 @@ class BigtableIOTest(unittest.TestCase):
 
     p = beam.Pipeline(options=pipeline_options)
     count = (p
-             | 'Read from Bigtable' >> Read(bigtableio.BigtableSource(project_id=PROJECT_ID,
-                                                                      instance_id=INSTANCE_ID,
-                                                                      table_id=TABLE_ID))
+             | 'Read from Bigtable' >> Read(BigtableSource(project_id=PROJECT_ID,
+                                                           instance_id=INSTANCE_ID,
+                                                           table_id=TABLE_ID))
              | 'Count Rows' >> Count.Globally())
     self.result = p.run()
     self.result.wait_until_finish()
@@ -158,18 +157,18 @@ if __name__ == '__main__':
   JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
 
   PIPELINE_PARAMETERS = [
-    '--experiments={}'.format(args.experiments),
-    '--project={}'.format(PROJECT_ID),
-    '--job_name={}'.format(JOB_NAME),
-    '--disk_size_gb={}'.format(args.disk_size_gb),
-    '--region={}'.format(args.region),
-    '--runner={}'.format(args.runner),
-    '--autoscaling_algorithm={}'.format(args.autoscaling_algorithm),
-    '--num_workers={}'.format(NUM_WORKERS),
-    '--setup_file={}'.format(args.setup_file),
-    '--extra_package={}'.format(args.extra_package),
-    '--staging_location={}'.format(args.staging_location),
-    '--temp_location={}'.format(args.temp_location),
+      '--experiments={}'.format(args.experiments),
+      '--project={}'.format(PROJECT_ID),
+      '--job_name={}'.format(JOB_NAME),
+      '--disk_size_gb={}'.format(args.disk_size_gb),
+      '--region={}'.format(args.region),
+      '--runner={}'.format(args.runner),
+      '--autoscaling_algorithm={}'.format(args.autoscaling_algorithm),
+      '--num_workers={}'.format(NUM_WORKERS),
+      '--setup_file={}'.format(args.setup_file),
+      '--extra_package={}'.format(args.extra_package),
+      '--staging_location={}'.format(args.staging_location),
+      '--temp_location={}'.format(args.temp_location),
   ]
 
   logging.getLogger().setLevel(args.log_level)
