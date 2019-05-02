@@ -26,13 +26,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.extensions.smb.FileOperations;
+import org.apache.beam.sdk.extensions.smb.*;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
-import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
-import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
-import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
-import org.apache.beam.sdk.extensions.smb.SortedBucketSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.values.KV;
@@ -69,7 +65,7 @@ public class AvroSortedBucketIO {
         tempDirectory);
   }
 
-  static class AvroWriterSupplier<ValueT> implements Supplier<Writer<ValueT>>, Serializable {
+  static class AvroWriterSupplier<ValueT> implements SerializableSupplier<Writer<ValueT>> {
     FileOperations<ValueT> fileOperations;
 
     AvroWriterSupplier(Class<ValueT> recordClass, Schema schema) {

@@ -66,13 +66,13 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
 
   private final BucketMetadata<KeyT, ValueT> bucketingMetadata;
   private final SMBFilenamePolicy smbFilenamePolicy;
-  private final Supplier<Writer<ValueT>> writerSupplier;
+  private final SerializableSupplier<Writer<ValueT>> writerSupplier;
   private final ResourceId tempDirectory;
 
   public SortedBucketSink(
       BucketMetadata<KeyT, ValueT> bucketingMetadata,
       SMBFilenamePolicy smbFilenamePolicy,
-      Supplier<Writer<ValueT>> writerSupplier,
+      SerializableSupplier<Writer<ValueT>> writerSupplier,
       ResourceId tempDirectory) {
     this.bucketingMetadata = bucketingMetadata;
     this.smbFilenamePolicy = smbFilenamePolicy;
