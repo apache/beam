@@ -16,5 +16,4 @@
  * limitations under the License.
  */
 
-/** Implementation of the Beam runner for Apache Apex. */
 package org.apache.beam.sdk.extensions.smb;
