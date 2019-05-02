@@ -36,7 +36,7 @@ from apache_beam.transforms.combiners import Count
 
 try:
   from google.cloud.bigtable import enums, row, column_family, Client
-  import bigtableio
+  import gcp.bigtableio
 except ImportError:
   Client = None
   bigtableio = None
