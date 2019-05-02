@@ -260,6 +260,32 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   }
 }
 
+task sparkValidatesRunner() {
+  dependsOn 'createProcessWorker'
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-runners-spark-job-server:shadowJar'
+  doLast {
+    def environment_config = "'{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'"
+    def argMap = [
+            "environment_type"    : "PROCESS",
+            "spark_job_server_jar": project(":beam-runners-spark-job-server:").shadowJar.archivePath,
+            "environment_config": environment_config,
+    ]
+    def argString = project.mapToArgString(argMap)
+
+    // Optionally specify test function names separated by space e.g.:
+    // ./gradlew :beam-sdks-python:sparkValidatesRunner -Ptests="test_external_transforms test_read"
+    // Otherwise run all test functions under SparkRunnerTest
+    def tests = project.hasProperty('tests') ?
+            project.property('tests').split().collect{ "SparkRunnerTest.$it" }.join(' ') : ''
+
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
+    }
+  }
+}
+
 class CompatibilityMatrixConfig {
   // Execute batch or streaming pipelines.
   boolean streaming = false
