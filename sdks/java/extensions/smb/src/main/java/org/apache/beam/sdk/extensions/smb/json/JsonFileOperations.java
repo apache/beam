@@ -29,12 +29,12 @@ import org.apache.beam.sdk.extensions.smb.FileOperations;
 public class JsonFileOperations extends FileOperations<Map<String, Object>> {
   @Override
   public Reader<Map<String, Object>> createReader() {
-    return null;
+    return new JsonReader();
   }
 
   @Override
   public Writer<Map<String, Object>> createWriter() {
-    return null;
+    return new JsonWriter();
   }
 
   ////////////////////////////////////////

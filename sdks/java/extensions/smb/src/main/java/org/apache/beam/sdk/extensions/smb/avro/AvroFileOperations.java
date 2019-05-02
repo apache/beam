@@ -44,7 +44,7 @@ public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
   private final Class<ValueT> recordClass;
   private final SerializableSchemaSupplier schemaSupplier;
 
-  AvroFileOperations(Class<ValueT> recordClass, Schema schema) {
+  public AvroFileOperations(Class<ValueT> recordClass, Schema schema) {
     this.recordClass = recordClass;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
   }
