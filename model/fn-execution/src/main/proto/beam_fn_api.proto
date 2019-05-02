@@ -757,10 +757,6 @@ message ProcessBundleSplitRequest {
     // Set to 0 to "checkpoint" as soon as possible (keeping as little work as
     // possible and returning the remainder).
     float fraction_of_remainder = 1;
- 
-    // A set of allowed indices where the SDK may split. When this is empty,
-    // there are no constraints on where to split.
-    repeated int64 allowed_split_points = 3;
 
     // (Required for GrpcRead operations) Number of total elements expected
     // to be sent to this GrpcRead operation, required to correctly account
@@ -768,6 +764,7 @@ message ProcessBundleSplitRequest {
     int64 estimated_input_elements = 2;
 
     // TODO(SDF): Allow providing weights rather than sizes.
+    // TODO(SDF): Allow specifying allowed/preferred split points.
   }
 
   // (Required) Specifies the desired split for each transform.
