@@ -120,7 +120,6 @@ class WriteToBigTable(beam.PTransform):
   """ A transform to write to the Bigtable Table.
 
   A PTransform that write a list of `DirectRow` into the Bigtable Table
-
   """
   def __init__(self, project_id=None, instance_id=None,
                table_id=None):
