@@ -190,6 +190,17 @@ nitpick_ignore = []
 nitpick_ignore += [('py:class', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:obj', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:exc', 'ValueError')]
+
+# Monkey patch functools.wraps to retain original function argument signature
+# for documentation.
+# https://github.com/sphinx-doc/sphinx/issues/1711
+import functools
+def fake_wraps(wrapped):
+  def wrapper(decorator):
+    return wrapped
+  return wrapper
+
+functools.wraps = fake_wraps
 EOF
 
 #=== index.rst ===#
