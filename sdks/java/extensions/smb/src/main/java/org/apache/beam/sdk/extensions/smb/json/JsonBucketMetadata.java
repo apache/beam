@@ -50,7 +50,7 @@ public class JsonBucketMetadata<SortingKeyT>
 
   @SuppressWarnings("unchecked")
   @Override
-  public SortingKeyT extractSortingKey(Map<String, Object> value) {
+  public SortingKeyT extractKey(Map<String, Object> value) {
     Map<String, Object> node = value;
     for (int i = 0; i < keyPath.length - 1; i++) {
       node = (Map<String, Object>) node.get(keyPath[i]);

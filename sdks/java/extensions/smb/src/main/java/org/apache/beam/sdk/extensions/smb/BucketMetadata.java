@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
@@ -39,22 +38,22 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 /**
  * Represents SMB metadata in a JSON-serializable format to be stored along with bucketed data.
  *
- * @param <SortingKeyT>
+ * @param <KeyT>
  * @param <ValueT>
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({@JsonSubTypes.Type(value = AvroBucketMetadata.class)})
-public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializable {
+public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   @JsonProperty private final int numBuckets;
 
-  @JsonProperty private final Class<SortingKeyT> sortingKeyClass;
+  @JsonProperty private final Class<KeyT> sortingKeyClass;
 
   @JsonProperty private final HashType hashType;
 
   @JsonIgnore private final HashFunction hashFunction;
 
-  public BucketMetadata(int numBuckets, Class<SortingKeyT> sortingKeyClass, HashType hashType) {
+  public BucketMetadata(int numBuckets, Class<KeyT> sortingKeyClass, HashType hashType) {
     this.numBuckets = numBuckets;
     this.sortingKeyClass = sortingKeyClass;
     this.hashType = hashType;
@@ -62,7 +61,7 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   }
 
   @JsonIgnore
-  public abstract Coder<SortingKeyT> getSortingKeyCoder() throws CannotProvideCoderException;
+  public abstract Coder<KeyT> getSortingKeyCoder() throws CannotProvideCoderException;
 
   /** Enumerated hashing schemes available for an SMB sink. */
   public enum HashType {
@@ -112,7 +111,7 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
     return numBuckets;
   }
 
-  public Class<SortingKeyT> getSortingKeyClass() {
+  public Class<KeyT> getSortingKeyClass() {
     return sortingKeyClass;
   }
 
@@ -124,8 +123,9 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
   // Business logic
   ////////////////////////////////////////
 
-  public byte[] keyToBytes(SortingKeyT key) {
+  byte[] extractKeyBytes(ValueT value) {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    KeyT key = extractKey(value);
     try {
       getSortingKeyCoder().encode(key, baos);
     } catch (Exception e) {
@@ -135,7 +135,7 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
     return baos.toByteArray();
   }
 
-  public abstract SortingKeyT extractSortingKey(ValueT value);
+  public abstract KeyT extractKey(ValueT value);
 
   ////////////////////////////////////////
   // Serialization
@@ -143,26 +143,20 @@ public abstract class BucketMetadata<SortingKeyT, ValueT> implements Serializabl
 
   @JsonIgnore private static ObjectMapper objectMapper = new ObjectMapper();
 
-  // Using ObjectMapper directly on OutputStream tries to modify the underlying channel
-  // by closing it, which throws an error in Beam. So write first to a byte array then copy.
-  @JsonIgnore private static ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
+  @VisibleForTesting
+  public static <KeyT, ValueT> BucketMetadata<KeyT, ValueT> from(String src) throws IOException {
+    return objectMapper.readerFor(BucketMetadata.class).readValue(src);
+  }
 
   @VisibleForTesting
-  public static <SortingKeyT, ValueT> BucketMetadata<SortingKeyT, ValueT> from(String src)
+  public static <KeyT, ValueT> BucketMetadata<KeyT, ValueT> from(InputStream src)
       throws IOException {
     return objectMapper.readerFor(BucketMetadata.class).readValue(src);
   }
 
   @VisibleForTesting
-  public static <SortingKeyT, ValueT> BucketMetadata<SortingKeyT, ValueT> from(InputStream src)
-      throws IOException {
-    return objectMapper.readerFor(BucketMetadata.class).readValue(src);
-  }
-
-  @VisibleForTesting
-  public static <SortingKeyT, ValueT> void to(
-      BucketMetadata<SortingKeyT, ValueT> bucketMetadata, OutputStream outputStream)
-      throws IOException {
+  public static <KeyT, ValueT> void to(
+      BucketMetadata<KeyT, ValueT> bucketMetadata, OutputStream outputStream) throws IOException {
 
     objectMapper.writeValue(outputStream, bucketMetadata);
   }

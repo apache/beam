@@ -66,7 +66,7 @@ class BucketedInputIterator<KeyT> implements Serializable {
     if (value == null) {
       nextKv = null;
     } else {
-      nextKv = KV.of(metadata.keyToBytes(metadata.extractSortingKey(value)), value);
+      nextKv = KV.of(metadata.extractKeyBytes(value), value);
     }
   }
 
@@ -101,7 +101,7 @@ class BucketedInputIterator<KeyT> implements Serializable {
                 value = null;
                 nextKv = null;
               } else {
-                byte[] k = metadata.keyToBytes(metadata.extractSortingKey(v));
+                byte[] k = metadata.extractKeyBytes(v);
                 if (Arrays.equals(key, k)) {
                   // same key, update next value
                   value = v;

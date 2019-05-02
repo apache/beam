@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Package for SMB extension.
- */
+/** Package for SMB extension. */
 package org.apache.beam.sdk.extensions.smb;

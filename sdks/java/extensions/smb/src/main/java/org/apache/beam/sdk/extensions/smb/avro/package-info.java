@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Avro-specific SMB operations.
- */
+/** Avro-specific SMB operations. */
 package org.apache.beam.sdk.extensions.smb.avro;

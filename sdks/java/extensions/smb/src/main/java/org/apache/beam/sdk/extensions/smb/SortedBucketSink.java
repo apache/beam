@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -90,7 +91,7 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
 
     return input
         .apply("Assign buckets", ParDo.of(new ExtractBucketAndSortKey<>(this.bucketingMetadata)))
-        .setCoder(KvCoder.of(VarIntCoder.of(), KvCoder.of(sortingKeyCoder, input.getCoder())))
+        .setCoder(KvCoder.of(VarIntCoder.of(), KvCoder.of(ByteArrayCoder.of(), input.getCoder())))
         .apply("Group per bucket", GroupByKey.create())
         .apply("Sort values in bucket", SortValues.create(BufferedExternalSorter.options()))
         .apply(
@@ -102,7 +103,7 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
   /*
    *
    */
-  static final class ExtractBucketAndSortKey<K, V> extends DoFn<V, KV<Integer, KV<K, V>>> {
+  static final class ExtractBucketAndSortKey<K, V> extends DoFn<V, KV<Integer, KV<byte[], V>>> {
     private final BucketMetadata<K, V> bucketMetadata;
 
     ExtractBucketAndSortKey(BucketMetadata<K, V> bucketMetadata) {
@@ -112,14 +113,13 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       final V record = c.element();
-      final K key = bucketMetadata.extractSortingKey(record);
-      final byte[] keyBytes = bucketMetadata.keyToBytes(key);
+      final byte[] keyBytes = bucketMetadata.extractKeyBytes(record);
 
       final int bucket =
           Math.abs(bucketMetadata.getHashFunction().hashBytes(keyBytes).asInt())
               % bucketMetadata.getNumBuckets();
 
-      c.output(KV.of(bucket, KV.of(key, record)));
+      c.output(KV.of(bucket, KV.of(keyBytes, record)));
     }
   }
 
@@ -161,16 +161,16 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
    * Handles writing bucket data and SMB metadata to a uniquely named temp directory. @Todo: Retry
    * policy, sharding per bucket, etc...
    */
-  static final class WriteOperation<K, V>
-      extends PTransform<PCollection<KV<Integer, Iterable<KV<K, V>>>>, WriteResult> {
+  static final class WriteOperation<V>
+      extends PTransform<PCollection<KV<Integer, Iterable<KV<byte[], V>>>>, WriteResult> {
     private final SMBFilenamePolicy smbFilenamePolicy;
-    private final BucketMetadata<K, V> bucketMetadata;
+    private final BucketMetadata<?, V> bucketMetadata;
     private final Supplier<Writer<V>> writerSupplier;
     private final ResourceId tempDirectory;
 
     WriteOperation(
         SMBFilenamePolicy smbFilenamePolicy,
-        BucketMetadata<K, V> bucketMetadata,
+        BucketMetadata<?, V> bucketMetadata,
         Supplier<Writer<V>> writerSupplier,
         ResourceId tempDirectory) {
       this.smbFilenamePolicy = smbFilenamePolicy;
@@ -180,7 +180,7 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
     }
 
     @Override
-    public WriteResult expand(PCollection<KV<Integer, Iterable<KV<K, V>>>> input) {
+    public WriteResult expand(PCollection<KV<Integer, Iterable<KV<byte[], V>>>> input) {
       return input
           .apply(
               "Write buckets to temp directory",
@@ -192,8 +192,8 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
     }
   }
 
-  static class WriteTempFiles<K, V>
-      extends PTransform<PCollection<KV<Integer, Iterable<KV<K, V>>>>, PCollectionTuple> {
+  static class WriteTempFiles<V>
+      extends PTransform<PCollection<KV<Integer, Iterable<KV<byte[], V>>>>, PCollectionTuple> {
     private static final Logger LOG = LoggerFactory.getLogger(WriteTempFiles.class);
 
     private final FileAssignment tempFileAssignment;
@@ -210,7 +210,7 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<KV<Integer, Iterable<KV<K, V>>>> input) {
+    public PCollectionTuple expand(PCollection<KV<Integer, Iterable<KV<byte[], V>>>> input) {
 
       return PCollectionTuple.of(
               new TupleTag<>("tempMetadata"),
@@ -219,11 +219,11 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
               new TupleTag<>("tempBuckets"),
               input.apply(
                   ParDo.of(
-                      new DoFn<KV<Integer, Iterable<KV<K, V>>>, KV<Integer, ResourceId>>() {
+                      new DoFn<KV<Integer, Iterable<KV<byte[], V>>>, KV<Integer, ResourceId>>() {
                         @ProcessElement
                         public void processElement(ProcessContext c) throws Exception {
                           final Integer bucketId = c.element().getKey();
-                          final Iterable<KV<K, V>> records = c.element().getValue();
+                          final Iterable<KV<byte[], V>> records = c.element().getValue();
 
                           final ResourceId tmpDst =
                               tempFileAssignment.forBucket(

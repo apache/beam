@@ -35,8 +35,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
 /** Avro-specific metadata encoding. */
-public class AvroBucketMetadata<SortingKeyT, ValueT extends GenericRecord>
-    extends BucketMetadata<SortingKeyT, ValueT> {
+public class AvroBucketMetadata<KeyT, ValueT extends GenericRecord>
+    extends BucketMetadata<KeyT, ValueT> {
 
   @JsonProperty private final String keyField;
 
@@ -45,7 +45,7 @@ public class AvroBucketMetadata<SortingKeyT, ValueT extends GenericRecord>
   @JsonCreator
   public AvroBucketMetadata(
       @JsonProperty("numBuckets") int numBuckets,
-      @JsonProperty("sortingKeyClass") Class<SortingKeyT> sortingKeyClass,
+      @JsonProperty("sortingKeyClass") Class<KeyT> sortingKeyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
       @JsonProperty("keyField") String keyField) {
     super(numBuckets, sortingKeyClass, hashType);
@@ -53,20 +53,32 @@ public class AvroBucketMetadata<SortingKeyT, ValueT extends GenericRecord>
     this.keyPath = keyField.split("\\.");
   }
 
-  // @Todo: offer custom Avro coder types
+  // @Todo: BucketMetadata can have an abstract method "CoderOverrides" returning a
+  // Map of class->coder, and make getSortingKeyCoder() non-abstract. 
   @Override
-  public Coder<SortingKeyT> getSortingKeyCoder() throws CannotProvideCoderException {
-    return CoderRegistry.createDefault().getCoder(getSortingKeyClass());
+  public Coder<KeyT> getSortingKeyCoder() throws CannotProvideCoderException {
+    final Class<KeyT> sortingKeyClass = this.getSortingKeyClass();
+
+    Coder<?> coder;
+    if (sortingKeyClass == ByteBuffer.class) {
+      coder = ByteBufferCoder.of();
+    } else if (sortingKeyClass == CharSequence.class) {
+      coder = CharSequenceCoder.of();
+    } else {
+      coder = CoderRegistry.createDefault().getCoder(sortingKeyClass);
+    }
+
+    return (Coder<KeyT>) coder;
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public SortingKeyT extractSortingKey(ValueT value) {
+  public KeyT extractKey(ValueT value) {
     GenericRecord node = value;
     for (int i = 0; i < keyPath.length - 1; i++) {
       node = (GenericRecord) node.get(keyPath[i]);
     }
-    return (SortingKeyT) node.get(keyPath[keyPath.length - 1]);
+    return (KeyT) node.get(keyPath[keyPath.length - 1]);
   }
 
   // Coders for common Avro types

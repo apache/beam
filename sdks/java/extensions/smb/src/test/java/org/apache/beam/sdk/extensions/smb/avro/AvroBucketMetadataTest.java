@@ -95,18 +95,18 @@ public class AvroBucketMetadataTest {
         "US",
         new AvroBucketMetadata<>(
                 10, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry")
-            .extractSortingKey(user));
+            .extractKey(user));
 
     Assert.assertEquals(
         (Long) 10L,
         new AvroBucketMetadata<>(10, Long.class, BucketMetadata.HashType.MURMUR3_32, "id")
-            .extractSortingKey(user));
+            .extractKey(user));
 
     Assert.assertEquals(
         Arrays.asList("CN", "MX"),
         new AvroBucketMetadata<>(
                 10, ArrayList.class, BucketMetadata.HashType.MURMUR3_32, "location.prevCountries")
-            .extractSortingKey(user));
+            .extractKey(user));
   }
 
   @Test
@@ -159,13 +159,13 @@ public class AvroBucketMetadataTest {
         "green",
         new AvroBucketMetadata<>(
                 10, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color")
-            .extractSortingKey(user));
+            .extractKey(user));
 
     Assert.assertEquals(
         (Integer) 50,
         new AvroBucketMetadata<>(
                 10, Integer.class, BucketMetadata.HashType.MURMUR3_32, "favorite_number")
-            .extractSortingKey(user));
+            .extractKey(user));
   }
 
   @Test
