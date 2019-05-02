@@ -261,7 +261,7 @@ class FnApiRunner(runner.PipelineRunner):
     return str(self._last_uid)
 
   def run_pipeline(self, pipeline, options):
-    MetricsEnvironment.set_metrics_supported(True)
+    MetricsEnvironment.set_metrics_supported(False)
     RuntimeValueProvider.set_runtime_options({})
     # This is sometimes needed if type checking is disabled
     # to enforce that the inputs (and outputs) of GroupByKey operations
