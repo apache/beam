@@ -32,6 +32,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	rapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
@@ -118,7 +119,7 @@ func (c *controlServer) readSession(filename string) {
 	for {
 		b, err := br.Peek(peekLen)
 		if err != nil && err != io.EOF {
-			panic(fmt.Sprintf("problem peeking length value: %v", err))
+			panic(errors.Wrap(err, "Problem peeking length value"))
 		}
 		if err == io.EOF {
 			break
@@ -130,18 +131,18 @@ func (c *controlServer) readSession(filename string) {
 		b, err = br.Peek(int(l))
 		var hMsg session.EntryHeader
 		if err := proto.Unmarshal(b, &hMsg); err != nil {
-			panic(fmt.Sprintf("Error decoding entry header: %v", err))
+			panic(errors.Wrap(err, "Error decoding entry header"))
 		}
 		br.Discard(int(l))
 
 		msgBytes, err := br.Peek(int(hMsg.Len))
 		if err != nil {
-			panic(fmt.Sprintf("Couldn't peek message: %v", err))
+			panic(errors.Wrap(err, "Couldn't peek message"))
 		}
 
 		var bMsg session.Entry
 		if err := proto.Unmarshal(msgBytes, &bMsg); err != nil {
-			panic(fmt.Sprintf("Error decoding message: %v", err))
+			panic(errors.Wrap(err, "Error decoding message"))
 		}
 		c.handleEntry(&bMsg)
 		br.Discard(int(hMsg.Len))
@@ -261,7 +262,7 @@ func (l *loggingServer) Logging(stream fnapi_pb.BeamFnLogging_LoggingServer) err
 func Execute(ctx context.Context, p *beam.Pipeline) error {
 	worker, err := buildLocalBinary(ctx)
 	if err != nil {
-		return fmt.Errorf("Couldn't build worker binary: %v", err)
+		return errors.WithContext(err, "building worker binary")
 	}
 
 	log.Infof(ctx, "built worker binary at %s\n", worker)
@@ -320,7 +321,7 @@ func buildLocalBinary(ctx context.Context) (string, error) {
 		program = file
 	}
 	if program == "" {
-		return "", fmt.Errorf("could not detect user main")
+		return "", errors.New("could not detect user main")
 	}
 
 	log.Infof(ctx, "Compiling %v as %v", program, ret)
@@ -331,7 +332,7 @@ func buildLocalBinary(ctx context.Context) (string, error) {
 	cmd := exec.Command(build[0], build[1:]...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		log.Info(ctx, string(out))
-		return "", fmt.Errorf("failed to compile %v: %v", program, err)
+		return "", errors.Wrapf(err, "failed to compile %v: %v", program)
 	}
 	return ret, nil
 }
