@@ -157,18 +157,18 @@ if __name__ == '__main__':
   JOB_NAME = 'bigtableio-it-test-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
 
   PIPELINE_PARAMETERS = [
-      '--experiments={}'.format(args.experiments),
-      '--project={}'.format(PROJECT_ID),
-      '--job_name={}'.format(JOB_NAME),
-      '--disk_size_gb={}'.format(args.disk_size_gb),
-      '--region={}'.format(args.region),
-      '--runner={}'.format(args.runner),
-      '--autoscaling_algorithm={}'.format(args.autoscaling_algorithm),
-      '--num_workers={}'.format(NUM_WORKERS),
-      '--setup_file={}'.format(args.setup_file),
-      '--extra_package={}'.format(args.extra_package),
-      '--staging_location={}'.format(args.staging_location),
-      '--temp_location={}'.format(args.temp_location),
+    '--experiments={}'.format(args.experiments),
+    '--project={}'.format(PROJECT_ID),
+    '--job_name={}'.format(JOB_NAME),
+    '--disk_size_gb={}'.format(args.disk_size_gb),
+    '--region={}'.format(args.region),
+    '--runner={}'.format(args.runner),
+    '--autoscaling_algorithm={}'.format(args.autoscaling_algorithm),
+    '--num_workers={}'.format(NUM_WORKERS),
+    '--setup_file={}'.format(args.setup_file),
+    '--extra_package={}'.format(args.extra_package),
+    '--staging_location={}'.format(args.staging_location),
+    '--temp_location={}'.format(args.temp_location),
   ]
 
   logging.getLogger().setLevel(args.log_level)
