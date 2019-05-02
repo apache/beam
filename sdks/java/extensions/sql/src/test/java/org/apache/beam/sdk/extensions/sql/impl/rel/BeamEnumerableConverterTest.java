@@ -44,8 +44,10 @@ import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.linq4j.Enumerator;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.prepare.RelOptTableImpl;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
@@ -119,6 +121,34 @@ public class BeamEnumerableConverterTest {
       BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
 
       List<Row> rowList = BeamEnumerableConverter.toRowList(options, node);
+      assertTrue(rowList.size() == 1);
+      assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
+    }
+
+    @Test
+    public void testToListRow_limitCollect() {
+      Schema schema = Schema.builder().addInt64Field("id").addInt64Field("otherid").build();
+      RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
+      ImmutableList<ImmutableList<RexLiteral>> tuples =
+          ImmutableList.of(
+              ImmutableList.of(
+                  rexBuilder.makeBigintLiteral(BigDecimal.ZERO),
+                  rexBuilder.makeBigintLiteral(BigDecimal.ONE)),
+              ImmutableList.of(
+                  rexBuilder.makeBigintLiteral(BigDecimal.ZERO),
+                  rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
+      BeamRelNode nodeValues = new BeamValuesRel(cluster, type, tuples, null);
+
+      BeamRelNode nodeLimit =
+          new BeamSortRel(
+              cluster,
+              RelTraitSet.createEmpty(),
+              nodeValues,
+              RelCollations.of(ImmutableList.of()),
+              null,
+              rexBuilder.makeBigintLiteral(new BigDecimal(1)));
+
+      List<Row> rowList = BeamEnumerableConverter.toRowList(options, nodeLimit);
       assertTrue(rowList.size() == 1);
       assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
     }

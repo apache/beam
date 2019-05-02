@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -141,19 +142,25 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   static List<Row> toRowList(PipelineOptions options, BeamRelNode node) {
+    checkAndFailOnNonDirectRunner(options, "toRowList is only available in DirectRunner.");
+
     if (node instanceof BeamIOSinkRel) {
       throw new UnsupportedOperationException("Does not support BeamIOSinkRel in toRowList.");
     } else if (isLimitQuery(node)) {
-      throw new UnsupportedOperationException("Does not support queries with LIMIT in toRowList.");
+      return new ArrayList<>(limitCollectRows(options, node));
     }
-    return collectRows(options, node).stream().collect(Collectors.toList());
+
+    return new ArrayList<>(collectRows(options, node));
   }
 
   static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
+    checkAndFailOnNonDirectRunner(
+        options, "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
+
     if (node instanceof BeamIOSinkRel) {
       return count(options, node);
     } else if (isLimitQuery(node)) {
-      return limitCollect(options, node);
+      return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(limitCollectRows(options, node)));
     }
     return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues((collectRows(options, node))));
   }
@@ -205,13 +212,6 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     long id = options.getOptionsId();
     Queue<Row> values = new ConcurrentLinkedQueue<>();
 
-    checkArgument(
-        options
-            .getRunner()
-            .getCanonicalName()
-            .equals("org.apache.beam.runners.direct.DirectRunner"),
-        "collectRowList is only available in direct runner.");
-
     Collector.globalValues.put(id, values);
 
     runCollector(options, node);
@@ -220,16 +220,18 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return values;
   }
 
-  private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
-    long id = options.getOptionsId();
-    ConcurrentLinkedQueue<Row> values = new ConcurrentLinkedQueue<>();
-
+  private static void checkAndFailOnNonDirectRunner(PipelineOptions options, String errorMessage) {
     checkArgument(
         options
             .getRunner()
             .getCanonicalName()
             .equals("org.apache.beam.runners.direct.DirectRunner"),
-        "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
+        errorMessage);
+  }
+
+  private static Queue<Row> limitCollectRows(PipelineOptions options, BeamRelNode node) {
+    long id = options.getOptionsId();
+    ConcurrentLinkedQueue<Row> values = new ConcurrentLinkedQueue<>();
 
     int limitCount = getLimitCount(node);
 
@@ -242,7 +244,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       values.remove();
     }
 
-    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(values));
+    return values;
   }
 
   private static class Collector extends DoFn<Row, Void> {
