@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.smb.json;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.extensions.smb.FileOperations;
-import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.Charset;
 
 public class JsonFileOperations extends FileOperations<TableRow> {
   @Override
@@ -44,23 +44,24 @@ public class JsonFileOperations extends FileOperations<TableRow> {
 
   private static class JsonReader extends FileOperations.Reader<TableRow> {
 
-    private transient TableRowJsonCoder tableRowJsonCoder;
-    private transient InputStream inputStream;
+    private transient ObjectMapper objectMapper;
+    private transient BufferedReader reader;
 
     @Override
     public void prepareRead(ReadableByteChannel channel) throws Exception {
-      tableRowJsonCoder = TableRowJsonCoder.of();
-      inputStream = Channels.newInputStream(channel);
+      objectMapper = new ObjectMapper();
+      reader = new BufferedReader(new InputStreamReader(
+          Channels.newInputStream(channel), Charset.defaultCharset()));
     }
 
     @Override
     public TableRow read() throws Exception {
-      return tableRowJsonCoder.decode(inputStream);
+      return objectMapper.readValue(reader.readLine(), TableRow.class);
     }
 
     @Override
     public void finishRead() throws Exception {
-      inputStream.close();
+      reader.close();
     }
   }
 
@@ -70,8 +71,8 @@ public class JsonFileOperations extends FileOperations<TableRow> {
 
   private static class JsonWriter extends FileOperations.Writer<TableRow> {
 
-    private transient TableRowJsonCoder tableRowJsonCoder;
-    private transient OutputStream outputStream;
+    private transient ObjectMapper objectMapper;
+    private transient BufferedWriter writer;
 
     @Override
     public String getMimeType() {
@@ -80,18 +81,20 @@ public class JsonFileOperations extends FileOperations<TableRow> {
 
     @Override
     public void prepareWrite(WritableByteChannel channel) throws Exception {
-      tableRowJsonCoder = TableRowJsonCoder.of();
-      outputStream = Channels.newOutputStream(channel);
+      objectMapper = new ObjectMapper();
+      writer = new BufferedWriter(new OutputStreamWriter(
+          Channels.newOutputStream(channel), Charset.defaultCharset()));
     }
 
     @Override
     public void write(TableRow value) throws Exception {
-      tableRowJsonCoder.encode(value, outputStream);
+      writer.write(objectMapper.writeValueAsString(value));
+      writer.newLine();
     }
 
     @Override
     public void finishWrite() throws Exception {
-      outputStream.close();
+      writer.close();
     }
   }
 }
