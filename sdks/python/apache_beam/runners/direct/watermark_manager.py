@@ -224,6 +224,14 @@ class _TransformWatermarks(object):
         self._pending.remove(completed)
 
   def refresh(self):
+    """Refresh the watermark for a given transform.
+
+    This method looks at the watermark coming from all input PTransforms, and
+    the timestamp of the minimum element, as well as any watermark holds.
+
+    Returns:
+      True if the watermark has advanced, and False if it has not.
+    """
     with self._lock:
       min_pending_timestamp = WatermarkManager.WATERMARK_POS_INF
       has_pending_elements = False

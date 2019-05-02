@@ -32,6 +32,10 @@ from apache_beam.utils import counters
 
 
 class _ExecutionContext(object):
+  """Contains the context for the execution of a single PTransform.
+
+  It holds the watermarks for that transform, as well as keyed states.
+  """
 
   def __init__(self, watermarks, keyed_states):
     self.watermarks = watermarks
@@ -230,6 +234,10 @@ class EvaluationContext(object):
     self._lock = threading.Lock()
 
   def _initialize_keyed_states(self, root_transforms, value_to_consumers):
+    """Initialize user state dicts.
+
+    These dicts track user state per-key, per-transform and per-window.
+    """
     transform_keyed_states = {}
     for transform in root_transforms:
       transform_keyed_states[transform] = {}
@@ -260,7 +268,7 @@ class EvaluationContext(object):
       completed_bundle: the bundle that was processed to produce the result.
       completed_timers: the timers that were delivered to produce the
                         completed_bundle.
-      result: the TransformResult of evaluating the input bundle
+      result: the ``TransformResult`` of evaluating the input bundle
 
     Returns:
       the committed bundles contained within the handled result.
