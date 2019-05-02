@@ -398,15 +398,17 @@ public class TextIO {
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
       }
-      // All other cases go through ReadAll.
+
+      // All other cases go through FileIO + ReadFiles
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(
-              "Via ReadAll",
-              readAll()
+              "Read Matches",
+              FileIO.readMatches()
                   .withCompression(getCompression())
-                  .withMatchConfiguration(getMatchConfiguration())
-                  .withDelimiter(getDelimiter()));
+                  .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply("Via ReadFiles", readFiles().withDelimiter(getDelimiter()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -517,7 +519,6 @@ public class TextIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
       builder
           .add(
               DisplayData.item("compressionType", getCompression().toString())
@@ -568,6 +569,14 @@ public class TextIO {
               getDesiredBundleSizeBytes(),
               new CreateTextSourceFn(getDelimiter()),
               StringUtf8Coder.of()));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.addIfNotNull(
+          DisplayData.item("delimiter", Arrays.toString(getDelimiter()))
+              .withLabel("Custom delimiter to split records"));
     }
 
     private static class CreateTextSourceFn
