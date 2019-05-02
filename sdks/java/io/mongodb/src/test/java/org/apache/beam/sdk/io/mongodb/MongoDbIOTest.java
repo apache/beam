@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -206,11 +205,9 @@ public class MongoDbIOTest {
     MongoDbIO.Read read =
         MongoDbIO.read()
             .withUri("mongodb://localhost:" + port)
-            .withKeepAlive(false)
             .withMaxConnectionIdleTime(10)
             .withDatabase(DATABASE)
             .withCollection(COLLECTION);
-    assertFalse(read.keepAlive());
     assertEquals(10, read.maxConnectionIdleTime());
 
     PCollection<Document> documents = pipeline.apply(read);
