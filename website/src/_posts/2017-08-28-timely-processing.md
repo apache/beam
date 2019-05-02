@@ -239,7 +239,7 @@ new DoFn<Event, EnrichedEvent>() {
     countState.write(count);
     bufferState.add(context.element());
 
-    if (count > MAX_BUFFER_SIZE) {
+    if (count >= MAX_BUFFER_SIZE) {
       for (EnrichedEvent enrichedEvent : enrichEvents(bufferState.read())) {
         context.output(enrichedEvent);
       }
@@ -272,10 +272,9 @@ class StatefulBufferingFn(beam.DoFn):
     count_state.add(1)
     count = count_state.read()
 
-    if count > MAX_BUFFER_SIZE:
+    if count >= MAX_BUFFER_SIZE:
       for event in buffer_state.read():
         yield event
-
       count_state.clear()
       buffer_state.clear()
 ```
@@ -496,7 +495,7 @@ class StatefulBufferingFn(beam.DoFn):
               stale_timer=beam.DoFn.TimerParam(STALE_TIMER)):
 
     if count_state.read() == 0:
-      # In Python, real-time timers are set on absolute time.
+      # We set an absolute timestamp here (not an offset like in the Java SDK)
       stale_timer.set(time.time() + StatefulBufferingFn.MAX_BUFFER_DURATION)
 
     … same logic as above …
