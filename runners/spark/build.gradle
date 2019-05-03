@@ -165,11 +165,60 @@ task validatesRunnerStreaming(type: Test) {
   }
 }
 
+task validatesStructuredStreamingRunnerBatch(type: Test) {
+  group = "Verification"
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=SparkStructuredStreamingRunner",
+          "--streaming=false",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project(":beam-sdks-java-io-hadoop-format").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+    // Unbounded
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    // State and Timers
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    // Metrics
+    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    // SDF
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    // Portability
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    // Schema
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
+  }
+}
+
 task validatesRunner {
   group = "Verification"
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
+  dependsOn validatesStructuredStreamingRunnerBatch
 }
 
 // Generates :beam-runners-spark:runQuickstartJavaSpark
