@@ -330,6 +330,7 @@ class SyntheticSDFAsSource(beam.DoFn):
 
   This SDF accepts a PCollection of record-based source description.
   A typical description is like:
+
     {
       'key_size': 1,
       'value_size': 1,
