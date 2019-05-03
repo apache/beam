@@ -279,20 +279,20 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
         restriction[0], restriction[1])
 
   def split(self, element, restriction):
+    bundle_ranges = []
     start_position, stop_position = restriction
     element_size = element['key_size'] + element['value_size']
     estimate_size = element_size * element['num_records']
     if element['initial_splitting'] == 'zipf':
       desired_num_bundles = (
           element['initial_splitting_num_bundles'] or
-          math.ceil(float(estimate_size) /
-                    element['initial_splitting_desired_bundle_size']))
+          div_round_up(estimate_size,
+                       element['initial_splitting_desired_bundle_size']))
       samples = np.random.zipf(
           element['initial_splitting_distribution_parameter'],
           desired_num_bundles)
       total = sum(samples)
       relative_bundle_sizes = [(float(sample) / total) for sample in samples]
-      bundle_ranges = []
       start = start_position
       index = 0
       while start < stop_position:
@@ -314,7 +314,6 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
             div_round_up(
                 element['initial_splitting_desired_bundle_size'], element_size),
             int(math.floor(math.sqrt(element['num_records'])))))
-      bundle_ranges = []
       for start in range(start_position, stop_position,
                          bundle_size_in_elements):
         stop = min(start + bundle_size_in_elements, stop_position)
@@ -327,7 +326,25 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
 
 
 class SyntheticSDFAsSource(beam.DoFn):
-  """A SDF that generates records like a source"""
+  """A SDF that generates records like a source.
+
+  This SDF accepts a PCollection of record-based source description.
+  A typical description is like:
+    {
+      'key_size': 1,
+      'value_size': 1,
+      'initial_splitting_num_bundles': 2,
+      'initial_splitting_desired_bundle_size': 2,
+      'sleep_per_input_record_sec': 0,
+      'initial_splitting' : 'const'
+
+    }
+
+  A simple pipeline taking this SDF as a source is like:
+    p
+    | beam.Create([description1, description2,...])
+    | beam.ParDo(SyntheticSDFAsSource())
+  """
 
   def process(
       self,
