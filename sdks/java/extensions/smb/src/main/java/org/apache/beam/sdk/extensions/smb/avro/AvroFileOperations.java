@@ -27,10 +27,13 @@ import org.apache.avro.file.DataFileStream;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.beam.sdk.extensions.smb.FileOperations;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
@@ -44,9 +47,21 @@ public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
   private final Class<ValueT> recordClass;
   private final SerializableSchemaSupplier schemaSupplier;
 
-  public AvroFileOperations(Class<ValueT> recordClass, Schema schema) {
+  private AvroFileOperations(Class<ValueT> recordClass, Schema schema) {
     this.recordClass = recordClass;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
+  }
+
+  public static AvroFileOperations<GenericRecord> forGenericRecord(Schema schema) {
+    return new AvroFileOperations<>(null, schema);
+  }
+
+  public static <V extends SpecificRecordBase> AvroFileOperations<V> forSpecificRecord(
+      Class<V> recordClass) {
+    // Use reflection to get SR schema
+    final Schema schema = new ReflectData(recordClass.getClassLoader()).getSchema(recordClass);
+
+    return new AvroFileOperations<>(recordClass, schema);
   }
 
   @Override

@@ -26,8 +26,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.extensions.smb.avro.AvroFileOperations;
-import org.apache.beam.sdk.extensions.smb.json.JsonFileOperations;
+import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder;
+import org.apache.beam.sdk.extensions.smb.avro.AvroSortedBucketIO;
+import org.apache.beam.sdk.extensions.smb.json.JsonSortedBucketIO;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
@@ -54,19 +55,13 @@ public class SmbBenchmark {
     SourceOptions sourceOptions = PipelineOptionsFactory.fromArgs(args).as(SourceOptions.class);
     Pipeline pipeline = Pipeline.create(sourceOptions);
 
-    SortedBucketSource<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>> source =
-        SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
-            .of(
-                FileSystems.matchNewResource(sourceOptions.getAvroSource(), true),
-                ".avro",
-                new AvroFileOperations<>(null, AvroGeneratedUser.getClassSchema()),
-                AvroCoder.of(AvroGeneratedUser.getClassSchema()))
-            .and(
-                FileSystems.matchNewResource(sourceOptions.getJsonSource(), true),
-                ".json",
-                new JsonFileOperations(),
-                TableRowJsonCoder.of())
-            .build();
+    SortedBucketSource<String, KV<Iterable<AvroGeneratedUser>, Iterable<TableRow>>> source =
+        SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
+            .of(AvroSortedBucketIO.avroSource(AvroGeneratedUser.class,
+                FileSystems.matchNewResource(sourceOptions.getAvroSource(), true))
+            ).and(JsonSortedBucketIO.jsonSource(
+                FileSystems.matchNewResource(sourceOptions.getJsonSource(), true)
+            )).build();
 
     pipeline
         .apply(source)
@@ -80,7 +75,7 @@ public class SmbBenchmark {
                 .via(
                     kv -> {
                       String key = kv.getKey();
-                      Iterable<GenericRecord> il = kv.getValue().getKey();
+                      Iterable<AvroGeneratedUser> il = kv.getValue().getKey();
                       Iterable<TableRow> ir = kv.getValue().getValue();
                       List<KV<String, KV<GenericRecord, TableRow>>> output = new ArrayList<>();
                       for (GenericRecord l : il) {

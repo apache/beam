@@ -24,11 +24,9 @@ import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
@@ -71,15 +69,6 @@ public class AvroBucketMetadataTest {
     Assert.assertEquals(roundtripMetadata.getNumBuckets(), metadata.getNumBuckets());
     Assert.assertEquals(roundtripMetadata.getKeyClass(), metadata.getKeyClass());
     Assert.assertEquals(roundtripMetadata.getHashType(), metadata.getHashType());
-
-    final SerializableCoder<AvroFileOperations> coder =
-        SerializableCoder.of(AvroFileOperations.class);
-    final AvroFileOperations<GenericRecord> file = new AvroFileOperations<>(null, SCHEMA);
-    final AvroFileOperations<GenericRecord> roundtripFile =
-        CoderUtils.decodeFromBase64(coder, CoderUtils.encodeToBase64(coder, file));
-
-    Assert.assertEquals(roundtripFile.getRecordClass(), file.getRecordClass());
-    Assert.assertEquals(roundtripFile.getSchema(), file.getSchema());
   }
 
   @Test

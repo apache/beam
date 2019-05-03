@@ -108,7 +108,7 @@ public class SortedBucketBenchmark {
         new SMBFilenamePolicy(
             FileSystems.matchNewResource(sinkOptions.getAvroDestination(), true), ".avro");
     AvroFileOperations<AvroGeneratedUser> avroOps =
-        new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.getClassSchema());
+        AvroFileOperations.forSpecificRecord(AvroGeneratedUser.class);
     SortedBucketSink<CharSequence, AvroGeneratedUser> avroSink =
         new SortedBucketSink<>(avroMetadata, avroPolicy, avroOps::createWriter, tempDirectory);
 

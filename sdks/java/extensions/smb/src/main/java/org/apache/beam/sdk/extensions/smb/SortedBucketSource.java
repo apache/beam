@@ -256,16 +256,26 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
      * @param <V>
      */
     public static class BucketedInput<K, V> implements Serializable {
-      final TupleTag<V> tupleTag;
+      TupleTag<V> tupleTag;
       final FileAssignment fileAssignment;
       final Reader<V> reader;
       transient BucketMetadata<K, Object> metadata;
 
-      public BucketedInput(TupleTag<V> tupleTag, FileAssignment fileAssignment, Reader<V> reader) {
+      BucketedInput(TupleTag<V> tupleTag, FileAssignment fileAssignment, Reader<V> reader) {
         this.tupleTag = tupleTag;
         this.fileAssignment = fileAssignment;
         this.reader = reader;
         this.metadata = null;
+      }
+
+      public BucketedInput(FileAssignment fileAssignment, Reader<V> reader) {
+        this.fileAssignment = fileAssignment;
+        this.reader = reader;
+        this.metadata = null;
+      }
+
+      void setTupleTag(TupleTag<V> tupleTag) {
+        this.tupleTag = tupleTag;
       }
 
       BucketMetadata<K, Object> readMetadata() {

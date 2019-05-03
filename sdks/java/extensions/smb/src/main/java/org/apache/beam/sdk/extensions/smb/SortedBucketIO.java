@@ -35,8 +35,6 @@ public class SortedBucketIO {
   private static final String LEFT_TUPLE_TAG_ID = "left";
   private static final String RIGHT_TUPLE_TAG_ID = "right";
 
-  // Joins
-
   /**
    * Pre-built transform for an SortedBucketSource transform with two bucketed inputs.
    *
@@ -76,21 +74,31 @@ public class SortedBucketIO {
    */
   public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> implements Serializable {
     private Class<KeyT> keyClass;
+    private JoinSource<KeyT, V1> leftSource;
+    private JoinSource<KeyT, V2> rightSource;
 
-    private BucketedInput<KeyT, V1> leftSource;
-    private Coder<V1> leftCoder;
+    /**
+     * Represents a typed input to an SMB join.
+     *
+     * @param <K>
+     * @param <V>
+     */
+    public static class JoinSource<K, V> {
+      private final BucketedInput<K, V> bucketedInput;
+      private final Coder<V> valueCoder;
 
-    private BucketedInput<KeyT, V2> rightSource;
-    private Coder<V2> rightCoder;
+      public JoinSource(BucketedInput<K, V> bucketedInput, Coder<V> valueCoder) {
+        this.bucketedInput = bucketedInput;
+        this.valueCoder = valueCoder;
+      }
+    }
 
     private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass) {
       this.keyClass = keyClass;
     }
 
-    private SortedBucketSourceJoinBuilder(
-        Class<KeyT> keyClass, BucketedInput<KeyT, V1> leftSource, Coder<V1> leftCoder) {
+    private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass, JoinSource<KeyT, V1> leftSource) {
       this(keyClass);
-      this.leftCoder = leftCoder;
       this.leftSource = leftSource;
     }
 
@@ -100,44 +108,29 @@ public class SortedBucketIO {
     }
 
     public <ValueT> SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> of(
-        ResourceId filenamePrefix,
-        String filenameSuffix,
-        FileOperations<ValueT> fileOperations,
-        Coder<ValueT> coder) {
+        JoinSource<KeyT, ValueT> leftSource) {
       final SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> builderCopy =
           new SortedBucketSourceJoinBuilder<>(keyClass);
 
-      builderCopy.leftSource =
-          new BucketedInput<>(
-              new TupleTag<>(LEFT_TUPLE_TAG_ID),
-              new SMBFilenamePolicy(filenamePrefix, filenameSuffix).forDestination(),
-              fileOperations.createReader());
-      builderCopy.leftCoder = coder;
-
+      leftSource.bucketedInput.setTupleTag(new TupleTag<>(LEFT_TUPLE_TAG_ID));
+      builderCopy.leftSource = leftSource;
       return builderCopy;
     }
 
     public <ValueT> SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> and(
-        ResourceId filenamePrefix,
-        String filenameSuffix,
-        FileOperations<ValueT> fileOperations,
-        Coder<ValueT> coder) {
+        JoinSource<KeyT, ValueT> rightSource) {
       final SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> builderCopy =
-          new SortedBucketSourceJoinBuilder<KeyT, V1, ValueT>(keyClass, leftSource, leftCoder);
+          new SortedBucketSourceJoinBuilder<>(keyClass, leftSource);
 
-      builderCopy.rightSource =
-          new BucketedInput<>(
-              new TupleTag<>(RIGHT_TUPLE_TAG_ID),
-              new SMBFilenamePolicy(filenamePrefix, filenameSuffix).forDestination(),
-              fileOperations.createReader());
-      builderCopy.rightCoder = coder;
+      rightSource.bucketedInput.setTupleTag(new TupleTag<>(RIGHT_TUPLE_TAG_ID));
+      builderCopy.rightSource = rightSource;
       return builderCopy;
     }
 
     public SortedBucketSource<KeyT, KV<Iterable<V1>, Iterable<V2>>> build() {
       return new SortedBucketSource<>(
-          new SortedBucketIO.TwoSourceJoinResult<>(leftCoder, rightCoder),
-          ImmutableList.of(leftSource, rightSource),
+          new SortedBucketIO.TwoSourceJoinResult<>(leftSource.valueCoder, rightSource.valueCoder),
+          ImmutableList.of(leftSource.bucketedInput, rightSource.bucketedInput),
           keyClass);
     }
   }

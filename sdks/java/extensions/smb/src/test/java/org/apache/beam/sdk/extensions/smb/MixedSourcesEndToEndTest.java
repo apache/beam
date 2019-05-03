@@ -28,10 +28,11 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
+import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
-import org.apache.beam.sdk.extensions.smb.avro.AvroFileOperations;
+import org.apache.beam.sdk.extensions.smb.avro.AvroSortedBucketIO;
 import org.apache.beam.sdk.extensions.smb.json.JsonBucketMetadata;
-import org.apache.beam.sdk.extensions.smb.json.JsonFileOperations;
+import org.apache.beam.sdk.extensions.smb.json.JsonSortedBucketIO;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -92,12 +93,11 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     createUserGR("d", 4))
                 .withCoder(AvroCoder.of(GR_USER_SCHEMA)))
         .apply(
-            SortedBucketIO.sink(
+            AvroSortedBucketIO.sink(
                 avroMetadata,
                 LocalResources.fromFile(source1Folder.getRoot(), true),
-                "avro",
                 LocalResources.fromFile(tmpFolder.getRoot(), true),
-                new AvroFileOperations<>(null, GR_USER_SCHEMA)));
+                GR_USER_SCHEMA));
 
     pipeline.run().waitUntilFinish();
 
@@ -114,28 +114,22 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     createUserJson("e", "AU"))
                 .withCoder(TableRowJsonCoder.of()))
         .apply(
-            SortedBucketIO.sink(
+            JsonSortedBucketIO.sink(
                 jsonMetadata,
                 LocalResources.fromFile(source2Folder.getRoot(), true),
-                "json",
-                LocalResources.fromFile(tmpFolder2.getRoot(), true),
-                new JsonFileOperations()));
+                LocalResources.fromFile(tmpFolder2.getRoot(), true)));
 
     pipeline2.run().waitUntilFinish();
 
     final SortedBucketSource<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>>
         sourceTransform =
-            SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
+            SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
                 .of(
-                    LocalResources.fromFile(source1Folder.getRoot(), true),
-                    ".avro",
-                    new AvroFileOperations<>(null, GR_USER_SCHEMA),
-                    AvroCoder.of(GR_USER_SCHEMA))
+                    AvroSortedBucketIO.avroSource(
+                        GR_USER_SCHEMA, LocalResources.fromFile(source2Folder.getRoot(), true)))
                 .and(
-                    LocalResources.fromFile(source2Folder.getRoot(), true),
-                    ".json",
-                    new JsonFileOperations(),
-                    TableRowJsonCoder.of())
+                    JsonSortedBucketIO.jsonSource(
+                        LocalResources.fromFile(source2Folder.getRoot(), true)))
                 .build();
 
     final PCollection<KV<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>>> joinedSources =

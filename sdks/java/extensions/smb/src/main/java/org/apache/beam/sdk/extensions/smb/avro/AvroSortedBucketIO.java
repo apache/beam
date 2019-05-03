@@ -19,8 +19,13 @@ package org.apache.beam.sdk.extensions.smb.avro;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
+import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder.JoinSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
 
 /** Abstracts SMB sources and sinks for Avro-typed values. */
@@ -36,20 +41,38 @@ public class AvroSortedBucketIO {
         outputDirectory,
         ".avro",
         tempDirectory,
-        new AvroFileOperations<>(null, schema));
+        AvroFileOperations.forGenericRecord(schema));
   }
 
-  public static <KeyT, ValueT extends GenericRecord> SortedBucketSink<KeyT, ValueT> sink(
+  public static <KeyT, ValueT extends SpecificRecordBase> SortedBucketSink<KeyT, ValueT> sink(
       AvroBucketMetadata<KeyT, ValueT> bucketingMetadata,
       ResourceId outputDirectory,
       ResourceId tempDirectory,
-      Class<ValueT> recordClass,
-      Schema schema) {
+      Class<ValueT> recordClass) {
     return SortedBucketIO.sink(
         bucketingMetadata,
         outputDirectory,
         ".avro",
         tempDirectory,
-        new AvroFileOperations<>(recordClass, schema));
+        AvroFileOperations.forSpecificRecord(recordClass));
+  }
+
+  // Joins
+  public static <KeyT> JoinSource<KeyT, GenericRecord> avroSource(
+      Schema schema, ResourceId filenamePrefix) {
+    return new JoinSource<>(
+        new BucketedInput<>(
+            new SMBFilenamePolicy(filenamePrefix, ".avro").forDestination(),
+            AvroFileOperations.forGenericRecord(schema).createReader()),
+        AvroCoder.of(schema));
+  }
+
+  public static <KeyT, ValueT extends SpecificRecordBase> JoinSource<KeyT, ValueT> avroSource(
+      Class<ValueT> recordClass, ResourceId filenamePrefix) {
+    return new JoinSource<>(
+        new BucketedInput<>(
+            new SMBFilenamePolicy(filenamePrefix, ".avro").forDestination(),
+            AvroFileOperations.forSpecificRecord(recordClass).createReader()),
+        AvroCoder.of(recordClass));
   }
 }

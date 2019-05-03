@@ -139,8 +139,7 @@ public class AvroSortedBucketSinkTest {
             metadata,
             LocalResources.fromFile(outputFolder2.getRoot(), true),
             LocalResources.fromFile(tmpFolder.getRoot(), true),
-            AvroGeneratedUser.class,
-            AvroGeneratedUser.SCHEMA$);
+            AvroGeneratedUser.class);
 
     final PCollection<AvroGeneratedUser> users =
         pipeline.apply(

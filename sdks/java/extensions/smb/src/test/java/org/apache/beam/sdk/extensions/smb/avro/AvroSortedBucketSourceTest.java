@@ -20,11 +20,11 @@ package org.apache.beam.sdk.extensions.smb.avro;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
+import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.FileSystems;
@@ -61,7 +61,7 @@ public class AvroSortedBucketSourceTest {
 
     // Setup: write GenericRecords to sink
     final AvroFileOperations<GenericRecord> file =
-        new AvroFileOperations<>(null, TestUtils.USER_SCHEMA);
+        AvroFileOperations.forGenericRecord(TestUtils.USER_SCHEMA);
 
     final GenericRecord userA = TestUtils.createUserRecord("a", 50);
     final GenericRecord userB = TestUtils.createUserRecord("b", 50);
@@ -104,17 +104,15 @@ public class AvroSortedBucketSourceTest {
 
     final SortedBucketSource<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>
         sourceTransform =
-            SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(Integer.class)
+            SortedBucketSourceJoinBuilder.withFinalKeyType(Integer.class)
                 .of(
-                    LocalResources.fromFile(source1Folder.getRoot(), true),
-                    "avro",
-                    new AvroFileOperations<>(null, TestUtils.USER_SCHEMA),
-                    AvroCoder.of(TestUtils.USER_SCHEMA))
+                    AvroSortedBucketIO.avroSource(
+                        TestUtils.USER_SCHEMA,
+                        LocalResources.fromFile(source1Folder.getRoot(), true)))
                 .and(
-                    LocalResources.fromFile(source2Folder.getRoot(), true),
-                    "avro",
-                    new AvroFileOperations<>(null, TestUtils.USER_SCHEMA),
-                    AvroCoder.of(TestUtils.USER_SCHEMA))
+                    AvroSortedBucketIO.avroSource(
+                        TestUtils.USER_SCHEMA,
+                        LocalResources.fromFile(source2Folder.getRoot(), true)))
                 .build();
 
     final PCollection<KV<Integer, KV<Iterable<GenericRecord>, Iterable<GenericRecord>>>>
@@ -134,7 +132,7 @@ public class AvroSortedBucketSourceTest {
     // Setup: write SpecificRecords to sink
 
     final AvroFileOperations<AvroGeneratedUser> file =
-        new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$);
+        AvroFileOperations.forSpecificRecord(AvroGeneratedUser.class);
 
     final AvroGeneratedUser userA = new AvroGeneratedUser("a", 50, "red");
     final AvroGeneratedUser userB = new AvroGeneratedUser("b", 50, "green");
@@ -179,15 +177,13 @@ public class AvroSortedBucketSourceTest {
         sourceTransform =
             SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(Integer.class)
                 .of(
-                    LocalResources.fromFile(source1Folder.getRoot(), true),
-                    "avro",
-                    new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$),
-                    AvroCoder.of(AvroGeneratedUser.class))
+                    AvroSortedBucketIO.avroSource(
+                        AvroGeneratedUser.class,
+                        LocalResources.fromFile(source1Folder.getRoot(), true)))
                 .and(
-                    LocalResources.fromFile(source2Folder.getRoot(), true),
-                    "avro",
-                    new AvroFileOperations<>(AvroGeneratedUser.class, AvroGeneratedUser.SCHEMA$),
-                    AvroCoder.of(AvroGeneratedUser.class))
+                    AvroSortedBucketIO.avroSource(
+                        AvroGeneratedUser.class,
+                        LocalResources.fromFile(source2Folder.getRoot(), true)))
                 .build();
 
     final PCollection<KV<Integer, KV<Iterable<AvroGeneratedUser>, Iterable<AvroGeneratedUser>>>>
