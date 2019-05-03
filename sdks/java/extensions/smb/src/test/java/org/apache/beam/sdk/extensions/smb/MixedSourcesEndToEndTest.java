@@ -21,16 +21,12 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.sdk.extensions.smb.avro.AvroFileOperations;
@@ -48,6 +44,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+/**
+ * E2E test for heterogeneously-typed SMB join.
+ */
 public class MixedSourcesEndToEndTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final transient TestPipeline pipeline2 = TestPipeline.create();
@@ -82,6 +81,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
 
   @Test
   public void testE2E() throws Exception {
+
     AvroBucketMetadata<ByteBuffer, GenericRecord> avroMetadata =
         new AvroBucketMetadata<>(2, ByteBuffer.class, HashType.MURMUR3_32, "name");
 
@@ -90,10 +90,9 @@ public class MixedSourcesEndToEndTest implements Serializable {
             Create.of(
                     createUserGR("a", 1),
                     createUserGR("b", 2),
-                    createUserGR("c", 3),
-                    createUserGR("d", 4),
                     createUserGR("e", 5),
-                    createUserGR("f", 6))
+                    createUserGR("c", 3),
+                    createUserGR("d", 4))
                 .withCoder(AvroCoder.of(GR_USER_SCHEMA)))
         .apply(
             SortedBucketIO.sink(
@@ -112,11 +111,10 @@ public class MixedSourcesEndToEndTest implements Serializable {
         .apply(
             Create.of(
                     createUserJson("a", "US"),
-                    createUserJson("b", "CN"),
-                    createUserJson("c", "MX"),
+                    createUserJson("g", "SE"),
                     createUserJson("d", "DE"),
-                    createUserJson("e", "AU"),
-                    createUserJson("g", "SE"))
+                    createUserJson("c", "MX"),
+                    createUserJson("e", "AU"))
                 .withCoder(TableRowJsonCoder.of()))
         .apply(
             SortedBucketIO.sink(
@@ -143,15 +141,34 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     TableRowJsonCoder.of())
                 .build();
 
-    final PCollection<KV<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>>>
-        joinedSources = pipeline3.apply(sourceTransform);
+    final PCollection<KV<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>>> joinedSources =
+        pipeline3.apply(sourceTransform);
 
     PAssert.that(joinedSources)
-        .satisfies(
-            s -> {
-              s.forEach(System.out::println);
-              return null;
-            });
+        .containsInAnyOrder(
+            KV.of(
+                "a",
+                KV.of(
+                    Lists.newArrayList(createUserGR("a", 1)),
+                    Lists.newArrayList(createUserJson("a", "US")))),
+            KV.of("b", KV.of(Lists.newArrayList(createUserGR("b", 2)), null)),
+            KV.of(
+                "c",
+                KV.of(
+                    Lists.newArrayList(createUserGR("c", 3)),
+                    Lists.newArrayList(createUserJson("c", "MX")))),
+            KV.of(
+                "d",
+                KV.of(
+                    Lists.newArrayList(createUserGR("d", 4)),
+                    Lists.newArrayList(createUserJson("d", "DE")))),
+            KV.of(
+                "e",
+                KV.of(
+                    Lists.newArrayList(createUserGR("e", 5)),
+                    Lists.newArrayList(createUserJson("e", "AU")))),
+            KV.of("g", KV.of(null, Lists.newArrayList(createUserJson("g", "SE")))));
+
     pipeline3.run();
   }
 }

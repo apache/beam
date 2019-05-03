@@ -77,11 +77,11 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
   @Override
   public final PCollection<KV<FinalKeyT, FinalResultT>> expand(PBegin begin) {
-
-    // @TODO: Support asymmetric, but still compatible, bucket sizes in reader.
     Preconditions.checkState(sources.size() > 1, "Must have more than one Source");
 
     BucketMetadata<?, ?> first = null;
+    Coder<FinalKeyT> resultKeyCoder = null;
+
     for (BucketedInput<?, ?> source : sources) {
       BucketMetadata<?, ?> current = source.readMetadata();
       if (first == null) {
@@ -89,17 +89,19 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       } else {
         Preconditions.checkState(first.compatibleWith(current));
       }
+      if (current.getKeyClass() == resultKeyClass && resultKeyCoder == null) {
+        try {
+          resultKeyCoder = (Coder<FinalKeyT>) current.getKeyCoder();
+        } catch (CannotProvideCoderException e) {
+          throw new RuntimeException("Could not provide a coder for key type", e);
+        }
+      }
     }
 
-    Preconditions.checkState(first.getKeyClass() == resultKeyClass);
+    Preconditions.checkNotNull(resultKeyCoder, "No source metadata matched FinalKeyT");
 
+    // @TODO: Support asymmetric, but still compatible, bucket sizes in reader.
     final int numBuckets = first.getNumBuckets();
-    Coder<FinalKeyT> resultKeyCoder;
-    try {
-      resultKeyCoder = (Coder<FinalKeyT>) first.getKeyCoder();
-    } catch (CannotProvideCoderException e) {
-      throw new RuntimeException("Could not find a coder for key type", e);
-    }
 
     final PCollection<KV<Integer, List<BucketedInputIterator<FinalKeyT>>>> openedReaders =
         (PCollection<KV<Integer, List<BucketedInputIterator<FinalKeyT>>>>)
@@ -127,7 +129,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           Map.Entry<TupleTag, KV<byte[], Iterator<?>>> o1,
           Map.Entry<TupleTag, KV<byte[], Iterator<?>>> o2) {
         return UnsignedBytes.lexicographicalComparator()
-            .compare(o1.getValue().getKey(), o1.getValue().getKey());
+            .compare(o1.getValue().getKey(), o2.getValue().getKey());
       }
     }
 
@@ -177,7 +179,6 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         while (nextKeyGroupsIt.hasNext()) {
           final List<Object> values = new ArrayList<>();
           Map.Entry<TupleTag, KV<byte[], Iterator<?>>> entry = nextKeyGroupsIt.next();
-
           if (keyComparator.compare(entry, minKeyEntry) == 0) {
             entry.getValue().getValue().forEachRemaining(values::add);
 

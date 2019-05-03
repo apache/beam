@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
+import org.apache.beam.sdk.extensions.smb.json.JsonBucketMetadata;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
@@ -46,7 +47,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
  * @param <ValueT>
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes({@JsonSubTypes.Type(value = AvroBucketMetadata.class)})
+@JsonSubTypes({
+  @JsonSubTypes.Type(value = AvroBucketMetadata.class),
+  @JsonSubTypes.Type(value = JsonBucketMetadata.class)
+})
 public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   @JsonProperty private final int numBuckets;

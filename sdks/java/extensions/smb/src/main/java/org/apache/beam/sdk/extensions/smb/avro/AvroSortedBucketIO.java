@@ -39,13 +39,12 @@ public class AvroSortedBucketIO {
         new AvroFileOperations<>(null, schema));
   }
 
-  public static <KeyT, ValueT extends GenericRecord>
-      SortedBucketSink<KeyT, ValueT> sink(
-          AvroBucketMetadata<KeyT, ValueT> bucketingMetadata,
-          ResourceId outputDirectory,
-          ResourceId tempDirectory,
-          Class<ValueT> recordClass,
-          Schema schema) {
+  public static <KeyT, ValueT extends GenericRecord> SortedBucketSink<KeyT, ValueT> sink(
+      AvroBucketMetadata<KeyT, ValueT> bucketingMetadata,
+      ResourceId outputDirectory,
+      ResourceId tempDirectory,
+      Class<ValueT> recordClass,
+      Schema schema) {
     return SortedBucketIO.sink(
         bucketingMetadata,
         outputDirectory,

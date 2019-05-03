@@ -19,14 +19,17 @@ package org.apache.beam.sdk.extensions.smb.json;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.bigquery.model.TableRow;
-import org.apache.beam.sdk.extensions.smb.FileOperations;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
+import org.apache.beam.sdk.extensions.smb.FileOperations;
 
+/** Reader and writer for TableRow-encoded JSON records. */
 public class JsonFileOperations extends FileOperations<TableRow> {
   @Override
   public Reader<TableRow> createReader() {
@@ -50,13 +53,19 @@ public class JsonFileOperations extends FileOperations<TableRow> {
     @Override
     public void prepareRead(ReadableByteChannel channel) throws Exception {
       objectMapper = new ObjectMapper();
-      reader = new BufferedReader(new InputStreamReader(
-          Channels.newInputStream(channel), Charset.defaultCharset()));
+      reader =
+          new BufferedReader(
+              new InputStreamReader(Channels.newInputStream(channel), Charset.defaultCharset()));
     }
 
     @Override
     public TableRow read() throws Exception {
-      return objectMapper.readValue(reader.readLine(), TableRow.class);
+      String next = reader.readLine();
+      if (next == null) {
+        return null;
+      }
+
+      return objectMapper.readValue(next, TableRow.class);
     }
 
     @Override
@@ -82,8 +91,9 @@ public class JsonFileOperations extends FileOperations<TableRow> {
     @Override
     public void prepareWrite(WritableByteChannel channel) throws Exception {
       objectMapper = new ObjectMapper();
-      writer = new BufferedWriter(new OutputStreamWriter(
-          Channels.newOutputStream(channel), Charset.defaultCharset()));
+      writer =
+          new BufferedWriter(
+              new OutputStreamWriter(Channels.newOutputStream(channel), Charset.defaultCharset()));
     }
 
     @Override

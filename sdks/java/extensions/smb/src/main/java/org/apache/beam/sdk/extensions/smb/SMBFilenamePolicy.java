@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.smb;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.joda.time.Instant;
