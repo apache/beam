@@ -91,7 +91,13 @@ public final class SMBFilenamePolicy implements Serializable {
     }
 
     public ResourceId forMetadata() {
-      return filenamePrefix.resolve(METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
+      String prefix = "";
+      if (doTimestampFiles) {
+        prefix += Instant.now().toString(DateTimeFormat.forPattern(TIMESTAMP_TEMPLATE));
+      }
+
+      return filenamePrefix.resolve(
+          prefix + METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
     }
   }
 }
