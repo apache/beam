@@ -58,11 +58,14 @@ public class SmbBenchmark {
 
     SortedBucketSource<String, KV<Iterable<AvroGeneratedUser>, Iterable<TableRow>>> source =
         SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
-            .of(AvroSortedBucketIO.avroSource(AvroGeneratedUser.class,
-                FileSystems.matchNewResource(sourceOptions.getAvroSource(), true))
-            ).and(JsonSortedBucketIO.jsonSource(
-                FileSystems.matchNewResource(sourceOptions.getJsonSource(), true)
-            )).build();
+            .of(
+                AvroSortedBucketIO.avroSource(
+                    AvroGeneratedUser.class,
+                    FileSystems.matchNewResource(sourceOptions.getAvroSource(), true)))
+            .and(
+                JsonSortedBucketIO.jsonSource(
+                    FileSystems.matchNewResource(sourceOptions.getJsonSource(), true)))
+            .build();
 
     pipeline
         .apply(source)
