@@ -83,7 +83,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
     Coder<FinalKeyT> resultKeyCoder = null;
 
     for (BucketedInput<?, ?> source : sources) {
-      BucketMetadata<?, ?> current = source.readMetadata();
+      final BucketMetadata<?, ?> current = source.readMetadata();
       if (first == null) {
         first = current;
       } else {
@@ -98,7 +98,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       }
     }
 
-    Preconditions.checkNotNull(resultKeyCoder, "No source metadata matched FinalKeyT");
+    Preconditions.checkNotNull(resultKeyCoder, "Couldn't infer a matching Coder for FinalKeyT");
 
     // @TODO: Support asymmetric, but still compatible, bucket sizes in reader.
     final int numBuckets = first.getNumBuckets();
@@ -145,11 +145,11 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      List<BucketedInputIterator<?>> readers = new ArrayList<>(c.element().getValue());
+      final List<BucketedInputIterator<?>> readers = new ArrayList<>(c.element().getValue());
 
       readers.forEach(BucketedInputIterator::initializeReader);
 
-      Map<TupleTag, KV<byte[], Iterator<?>>> nextKeyGroups = new HashMap<>();
+      final Map<TupleTag, KV<byte[], Iterator<?>>> nextKeyGroups = new HashMap<>();
 
       while (true) {
         Iterator<BucketedInputIterator<?>> readersIt = readers.iterator();
@@ -189,11 +189,11 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
         final ByteArrayInputStream groupKeyBytes =
             new ByteArrayInputStream(minKeyEntry.getValue().getKey());
-        FinalKeyT groupKey;
+        final FinalKeyT groupKey;
         try {
           groupKey = keyCoder.decode(groupKeyBytes);
         } catch (Exception e) {
-          throw new RuntimeException("Couldn't decode key bytes: {}", e);
+          throw new RuntimeException("Couldn't decode key bytes for group: {}", e);
         }
 
         c.output(KV.of(groupKey, toResult.apply(new SMBCoGbkResult(valueMap))));
@@ -247,13 +247,6 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           pipeline.apply("Create bucket readers", Create.of(readers).withCoder(coder)));
 
       return map;
-    }
-
-    private static List<BucketedInput<?, ?>> copyAddLast(
-        List<BucketedInput<?, ?>> keyedCollections, BucketedInput<?, ?> taggedCollection) {
-      final List<BucketedInput<?, ?>> copy = new ArrayList<>(keyedCollections);
-      copy.add(taggedCollection);
-      return copy;
     }
 
     /**

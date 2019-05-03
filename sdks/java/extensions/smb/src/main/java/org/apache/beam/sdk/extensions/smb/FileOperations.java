@@ -21,10 +21,7 @@ import java.io.Serializable;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-/** Abstracts IO operations for different data types. */
-// read/write individual records sequentially from a sorted bucket file
-// Serializable so it can be shipped to DoFns
-// @Todo: this goes in a PCollection, needs Coder, or is SerializableCoder OK?
+/** Abstracts IO operations for different data types with the granularity of a single record. */
 public abstract class FileOperations<ValueT> implements Serializable {
 
   public abstract Reader<ValueT> createReader();
@@ -32,13 +29,17 @@ public abstract class FileOperations<ValueT> implements Serializable {
   public abstract Writer<ValueT> createWriter();
 
   /**
-   * Reader.
+   * Reader for Collection type.
    *
    * @param <ValueT>
    */
   public abstract static class Reader<ValueT> implements Serializable {
     public abstract void prepareRead(ReadableByteChannel channel) throws Exception;
 
+    /**
+     * Reads next record in the collection. Should return null if EOF is reached.
+     * (@Todo: should we have more clearly defined behavior for EOF?)
+     */
     public abstract ValueT read() throws Exception;
 
     public abstract void finishRead() throws Exception;

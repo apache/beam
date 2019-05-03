@@ -80,7 +80,7 @@ class BucketedInputIterator<KeyT> implements Serializable {
 
   // group next continuous values of the same key in an iterator
   KV<byte[], Iterator<?>> nextKeyGroup() {
-    byte[] key = nextKv.getKey();
+    final byte[] key = nextKv.getKey();
 
     Iterator<?> iterator =
         new Iterator<Object>() {
@@ -94,14 +94,14 @@ class BucketedInputIterator<KeyT> implements Serializable {
           @Override
           public Object next() {
             try {
-              Object result = value;
-              Object v = reader.read();
+              final Object result = value;
+              final Object v = reader.read();
               if (v == null) {
                 // end of file, reset outer
                 value = null;
                 nextKv = null;
               } else {
-                byte[] k = metadata.extractKeyBytes(v);
+                final byte[] k = metadata.extractKeyBytes(v);
                 if (Arrays.equals(key, k)) {
                   // same key, update next value
                   value = v;

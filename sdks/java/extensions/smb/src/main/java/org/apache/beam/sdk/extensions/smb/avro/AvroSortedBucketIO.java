@@ -34,7 +34,7 @@ public class AvroSortedBucketIO {
     return SortedBucketIO.sink(
         bucketingMetadata,
         outputDirectory,
-        "avro",
+        ".avro",
         tempDirectory,
         new AvroFileOperations<>(null, schema));
   }
@@ -48,7 +48,7 @@ public class AvroSortedBucketIO {
     return SortedBucketIO.sink(
         bucketingMetadata,
         outputDirectory,
-        "avro",
+        ".avro",
         tempDirectory,
         new AvroFileOperations<>(recordClass, schema));
   }

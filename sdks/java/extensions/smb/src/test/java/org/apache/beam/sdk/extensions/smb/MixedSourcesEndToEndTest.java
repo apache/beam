@@ -81,8 +81,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
 
   @Test
   public void testE2E() throws Exception {
-
-    AvroBucketMetadata<ByteBuffer, GenericRecord> avroMetadata =
+    final AvroBucketMetadata<ByteBuffer, GenericRecord> avroMetadata =
         new AvroBucketMetadata<>(2, ByteBuffer.class, HashType.MURMUR3_32, "name");
 
     pipeline
@@ -104,7 +103,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
 
     pipeline.run().waitUntilFinish();
 
-    JsonBucketMetadata<String> jsonMetadata =
+    final JsonBucketMetadata<String> jsonMetadata =
         new JsonBucketMetadata<>(2, String.class, HashType.MURMUR3_32, "name");
 
     pipeline2
@@ -131,12 +130,12 @@ public class MixedSourcesEndToEndTest implements Serializable {
             SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
                 .of(
                     LocalResources.fromFile(source1Folder.getRoot(), true),
-                    "avro",
+                    ".avro",
                     new AvroFileOperations<>(null, GR_USER_SCHEMA),
                     AvroCoder.of(GR_USER_SCHEMA))
                 .and(
                     LocalResources.fromFile(source2Folder.getRoot(), true),
-                    "json",
+                    ".json",
                     new JsonFileOperations(),
                     TableRowJsonCoder.of())
                 .build();

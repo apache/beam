@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.smb;
 
 import java.io.Serializable;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -26,13 +25,13 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-/** Naming policy for SMB files, on a per-bucket per-shard basis. */
+/** Naming policy for SMB files, on a per-bucket basis. */
 public final class SMBFilenamePolicy implements Serializable {
+
   private static final String TEMP_DIRECTORY_PREFIX = ".temp-beam";
   private static final AtomicLong TEMP_COUNT = new AtomicLong(0);
   private static final DateTimeFormatter TEMPDIR_TIMESTAMP =
       DateTimeFormat.forPattern("yyyy-MM-dd_HH-mm-ss");
-  private static final String BEAM_TEMPDIR_PATTERN = ".temp-beam-%s-%s";
 
   private final String timestamp = Instant.now().toString(TEMPDIR_TIMESTAMP);
   private final Long tempId = TEMP_COUNT.getAndIncrement();
@@ -50,7 +49,7 @@ public final class SMBFilenamePolicy implements Serializable {
   }
 
   public FileAssignment forTempFiles(ResourceId tempDirectory) {
-    String tempDirName = String.format(TEMP_DIRECTORY_PREFIX + "-%s-%s", timestamp, tempId);
+    final String tempDirName = String.format(TEMP_DIRECTORY_PREFIX + "-%s-%s", timestamp, tempId);
     return new FileAssignment(
         tempDirectory
             .getCurrentDirectory()
@@ -59,8 +58,11 @@ public final class SMBFilenamePolicy implements Serializable {
         true);
   }
 
-  /** A file name assigner based on a specific output directory and file suffix. */
+  /**
+   * A file name assigner based on a specific output directory and file suffix.
+   */
   public static class FileAssignment implements Serializable {
+
     private static final String BUCKET_TEMPLATE = "bucket-%05d-of-%05d%s";
     private static final String METADATA_FILENAME = "metadata.json";
     private static final String TIMESTAMP_TEMPLATE = "yyyy-MM-dd_HH-mm-ss-";
@@ -92,25 +94,6 @@ public final class SMBFilenamePolicy implements Serializable {
 
     public ResourceId forMetadata() {
       return filenamePrefix.resolve(METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      FileAssignment that = (FileAssignment) o;
-      return doTimestampFiles == that.doTimestampFiles
-          && Objects.equals(filenamePrefix, that.filenamePrefix)
-          && Objects.equals(fileNameSuffix, that.fileNameSuffix);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(filenamePrefix, fileNameSuffix, doTimestampFiles);
     }
   }
 }
