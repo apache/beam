@@ -20,10 +20,11 @@ package org.apache.beam.sdk.schemas.transforms;
 import static junit.framework.TestCase.assertEquals;
 
 import com.google.common.collect.ImmutableList;
-import java.util.List;
-
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -231,24 +232,25 @@ public class AddFieldsTest {
     Row subRow = Row.withSchema(nested).addValue("value").build();
     Row row = Row.withSchema(schema).addArray(subRow, subRow).build();
     PCollection<Row> added =
-            pipeline
-                    .apply(Create.of(row).withRowSchema(schema))
-                    .apply(
-                            AddFields.<Row>create()
-                                    .field("array.field2", Schema.FieldType.INT32)
-                                    .field("array.field3", Schema.FieldType.array(Schema.FieldType.STRING)));
+        pipeline
+            .apply(Create.of(row).withRowSchema(schema))
+            .apply(
+                AddFields.<Row>create()
+                    .field("array.field2", Schema.FieldType.INT32)
+                    .field("array.field3", Schema.FieldType.array(Schema.FieldType.STRING)));
 
     Schema expectedNestedSchema =
-            Schema.builder()
-                    .addStringField("field1")
-                    .addNullableField("field2", Schema.FieldType.INT32)
-                    .addNullableField("field3", Schema.FieldType.array(Schema.FieldType.STRING))
-                    .build();
-    Schema expectedSchema = Schema.builder().addArrayField("array", Schema.FieldType.row(expectedNestedSchema)).build();
+        Schema.builder()
+            .addStringField("field1")
+            .addNullableField("field2", Schema.FieldType.INT32)
+            .addNullableField("field3", Schema.FieldType.array(Schema.FieldType.STRING))
+            .build();
+    Schema expectedSchema =
+        Schema.builder().addArrayField("array", Schema.FieldType.row(expectedNestedSchema)).build();
     assertEquals(expectedSchema, added.getSchema());
 
     Row expectedNested =
-            Row.withSchema(expectedNestedSchema).addValues("value", null, null).build();
+        Row.withSchema(expectedNestedSchema).addValues("value", null, null).build();
     Row expected = Row.withSchema(expectedSchema).addArray(expectedNested, expectedNested).build();
 
     PAssert.that(added).containsInAnyOrder(expected);
@@ -257,38 +259,73 @@ public class AddFieldsTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void recursivelyAddNestedArrayField() {
+    Schema schema = Schema.builder().build();
+    Row row = Row.withSchema(schema).build();
+    PCollection<Row> added =
+        pipeline
+            .apply(Create.of(row).withRowSchema(schema))
+            .apply(
+                AddFields.<Row>create()
+                    .field("array[].field1", FieldType.STRING)
+                    .field("array[].field2", Schema.FieldType.INT32)
+                    .field("array[].field3", Schema.FieldType.array(Schema.FieldType.STRING)));
+
+    Schema expectedNestedSchema =
+        Schema.builder()
+            .addNullableField("field1", FieldType.STRING)
+            .addNullableField("field2", Schema.FieldType.INT32)
+            .addNullableField("field3", Schema.FieldType.array(Schema.FieldType.STRING))
+            .build();
+    Schema expectedSchema =
+        Schema.builder()
+            .addNullableField(
+                "array",
+                Schema.FieldType.array(
+                    Schema.FieldType.row(expectedNestedSchema).withNullable(true)))
+            .build();
+    assertEquals(expectedSchema, added.getSchema());
+
+    Row expected = Row.withSchema(expectedSchema).addValue(Collections.emptyList()).build();
+    PAssert.that(added).containsInAnyOrder(expected);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void addNestedMapField() {
     Schema nested = Schema.builder().addStringField("field1").build();
-    Schema schema = Schema.builder().addMapField(
-            "map",
-            Schema.FieldType.STRING,
-            Schema.FieldType.row(nested)).build();
+    Schema schema =
+        Schema.builder()
+            .addMapField("map", Schema.FieldType.STRING, Schema.FieldType.row(nested))
+            .build();
 
     Row subRow = Row.withSchema(nested).addValue("value").build();
     Row row = Row.withSchema(schema).addValue(ImmutableMap.of("key", subRow)).build();
     PCollection<Row> added =
-            pipeline
-                    .apply(Create.of(row).withRowSchema(schema))
-                    .apply(
-                            AddFields.<Row>create()
-                                    .field("map.field2", Schema.FieldType.INT32)
-                                    .field("map.field3", Schema.FieldType.array(Schema.FieldType.STRING)));
+        pipeline
+            .apply(Create.of(row).withRowSchema(schema))
+            .apply(
+                AddFields.<Row>create()
+                    .field("map.field2", Schema.FieldType.INT32)
+                    .field("map.field3", Schema.FieldType.array(Schema.FieldType.STRING)));
 
     Schema expectedNestedSchema =
-            Schema.builder()
-                    .addStringField("field1")
-                    .addNullableField("field2", Schema.FieldType.INT32)
-                    .addNullableField("field3", Schema.FieldType.array(Schema.FieldType.STRING))
-                    .build();
-    Schema expectedSchema = Schema.builder().addMapField(
-            "map",
-            Schema.FieldType.STRING,
-            Schema.FieldType.row(expectedNestedSchema)).build();
+        Schema.builder()
+            .addStringField("field1")
+            .addNullableField("field2", Schema.FieldType.INT32)
+            .addNullableField("field3", Schema.FieldType.array(Schema.FieldType.STRING))
+            .build();
+    Schema expectedSchema =
+        Schema.builder()
+            .addMapField("map", Schema.FieldType.STRING, Schema.FieldType.row(expectedNestedSchema))
+            .build();
     assertEquals(expectedSchema, added.getSchema());
 
     Row expectedNested =
-            Row.withSchema(expectedNestedSchema).addValues("value", null, null).build();
-    Row expected = Row.withSchema(expectedSchema).addValue(ImmutableMap.of("key", expectedNested)).build();
+        Row.withSchema(expectedNestedSchema).addValues("value", null, null).build();
+    Row expected =
+        Row.withSchema(expectedSchema).addValue(ImmutableMap.of("key", expectedNested)).build();
 
     PAssert.that(added).containsInAnyOrder(expected);
     pipeline.run();

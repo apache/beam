@@ -26,7 +26,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier.Kind;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -41,14 +44,18 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimaps;
 
 /**
  * A transform to add new nullable fields to a PCollection's schema. Elements are extended to have
- * the new schema, with null values used for the new fields. Any new fields added must be nullable.
+ * the new schema. By default new fields are nullable, and input rows will be extended to the new
+ * schema by inserting null values. However explicit default values for new fields can be set using
+ * {@link Inner#field(String, Schema.FieldType, Object)}. Nested fields can be added as well.
  *
  * <p>Example use:
  *
  * <pre>{@code PCollection<Event> events = readEvents();
  * PCollection<Row> augmentedEvents =
- *   events.apply(AddFields.fields(Field.nullable("newField1", FieldType.STRING),
- *                                 Field.nullable("newField2", FieldType.INT64)));
+ *   events.apply(AddFields.<Event>create()
+ *       .field("userId", FieldType.STRING)
+ *       .field("location.zipcode", FieldType.INT32)
+ *       .field("userDetails.isSpecialUser", "FieldType.BOOLEAN", false));
  * }</pre>
  */
 public class AddFields {
@@ -58,6 +65,7 @@ public class AddFields {
 
   /** Inner PTransform for AddFields. */
   public static class Inner<T> extends PTransform<PCollection<T>, PCollection<Row>> {
+    /** Internal object representing a new field added. */
     @AutoValue
     abstract static class NewField implements Serializable {
       abstract String getName();
@@ -96,6 +104,7 @@ public class AddFields {
             .build();
       }
 
+      // If this field represents a nested value, pop the FieldAccessDescriptor one level down.
       NewField descend() {
         FieldAccessDescriptor descriptor =
             Iterables.getOnlyElement(getDescriptor().getNestedFieldsAccessed().values());
@@ -109,24 +118,39 @@ public class AddFields {
           return Iterables.getOnlyElement(descriptor.nestedFieldsByName().keySet());
         }
       }
+
+      FieldAccessDescriptor.FieldDescriptor getFieldDescriptor() {
+        if (!getDescriptor().getFieldsAccessed().isEmpty()) {
+          return Iterables.getOnlyElement(getDescriptor().getFieldsAccessed());
+        } else {
+          return Iterables.getOnlyElement(getDescriptor().getNestedFieldsAccessed().keySet());
+        }
+      }
     }
 
+    /** This class encapsulates all data needed to add a a new field to the schema. */
     @AutoValue
     abstract static class AddFieldsInformation implements Serializable {
+      // The new output fieldtype after adding the new field.
       @Nullable
       abstract Schema.FieldType getOutputFieldType();
 
-      abstract List<Object> getNewValues();
+      // A list of default values corresponding to this level of the schema.
+      abstract List<Object> getDefaultValues();
 
+      // A list of nested values. This list corresponds to the output schema fields, and is
+      // populated for fields that
+      // have new nested values. For other fields, the list contains a null value.
       abstract List<AddFieldsInformation> getNestedNewValues();
 
       @AutoValue.Builder
       abstract static class Builder {
         abstract AddFieldsInformation.Builder setOutputFieldType(Schema.FieldType outputFieldType);
 
-        abstract AddFieldsInformation.Builder setNewValues(List<Object> newValues);
+        abstract AddFieldsInformation.Builder setDefaultValues(List<Object> defaultValues);
 
-        abstract AddFieldsInformation.Builder setNestedNewValues(List<AddFieldsInformation> nestedNewValues);
+        abstract AddFieldsInformation.Builder setNestedNewValues(
+            List<AddFieldsInformation> nestedNewValues);
 
         abstract AddFieldsInformation build();
       }
@@ -135,11 +159,11 @@ public class AddFields {
 
       static AddFieldsInformation of(
           Schema.FieldType outputFieldType,
-          List<Object> newValues,
+          List<Object> defaultValues,
           List<AddFieldsInformation> nestedNewValues) {
         return new AutoValue_AddFields_Inner_AddFieldsInformation.Builder()
             .setOutputFieldType(outputFieldType)
-            .setNewValues(newValues)
+            .setDefaultValues(defaultValues)
             .setNestedNewValues(nestedNewValues)
             .build();
       }
@@ -155,10 +179,18 @@ public class AddFields {
       this.newFields = newFields;
     }
 
+    /**
+     * Add a new field of the specified type. The new field will be nullable and will be filled in
+     * with null values.
+     */
     public Inner<T> field(String fieldName, Schema.FieldType fieldType) {
       return field(fieldName, fieldType.withNullable(true), null);
     }
 
+    /**
+     * Add a new field of the specified type. The new field will be filled in with the specified
+     * value.
+     */
     public Inner<T> field(String fieldName, Schema.FieldType fieldType, Object defaultValue) {
       if (defaultValue == null) {
         checkArgument(fieldType.getNullable());
@@ -184,11 +216,13 @@ public class AddFields {
           fieldsToAdd.stream()
               .filter(n -> !n.getDescriptor().getNestedFieldsAccessed().isEmpty())
               .collect(Collectors.toList());
-
+      // Group all nested fields together by the field at the current level. For example, if adding
+      // a.b, a.c, a.d
+      // this map will contain a -> {a.b, a.c, a.d}/
       Multimap<String, NewField> newNestedFieldsMap =
           Multimaps.index(newNestedFields, NewField::getName);
 
-      Map<Integer, AddFieldsInformation> nestedNewValues = Maps.newHashMap();
+      Map<Integer, AddFieldsInformation> resolvedNestedNewValues = Maps.newHashMap();
       Schema.Builder builder = Schema.builder();
       for (int i = 0; i < inputSchema.getFieldCount(); ++i) {
         Schema.Field field = inputSchema.getField(i);
@@ -203,47 +237,68 @@ public class AddFields {
           AddFieldsInformation nestedInformation =
               getAddFieldsInformation(field.getType(), nestedFields);
           field = field.withType(nestedInformation.getOutputFieldType());
-          nestedNewValues.put(i, nestedInformation);
+          resolvedNestedNewValues.put(i, nestedInformation);
         }
         builder.addField(field);
       }
 
       // Add any new fields at this level.
-      List<Object> newValues = new ArrayList<>(newTopLevelFields.size());
+      List<Object> newValuesThisLevel = new ArrayList<>(newTopLevelFields.size());
       for (NewField newField : newTopLevelFields) {
         builder.addField(newField.getName(), newField.getFieldType());
-        newValues.add(newField.getDefaultValue());
+        newValuesThisLevel.add(newField.getDefaultValue());
       }
 
       // If there are any nested field additions left that are not already processed, that means
       // that the root of the
       // nested field doesn't exist in the schema. In this case we'll walk down the new nested
-      // fields and recursively
-      // create each nested level as necessary.
+      // fields and recursively create each nested level as necessary.
       for (Map.Entry<String, Collection<NewField>> newNested :
           newNestedFieldsMap.asMap().entrySet()) {
-        if (!inputSchema.hasField(newNested.getKey())) {
+        String fieldName = newNested.getKey();
+
+        // If the user specifies the same nested field twice in different ways (e.g. a[].x, a{}.x)
+        FieldAccessDescriptor.FieldDescriptor fieldDescriptor =
+            Iterables.getOnlyElement(
+                newNested.getValue().stream()
+                    .map(NewField::getFieldDescriptor)
+                    .distinct()
+                    .collect(Collectors.toList()));
+        FieldType fieldType = Schema.FieldType.row(Schema.of()).withNullable(true);
+        for (Qualifier qualifier : fieldDescriptor.getQualifiers()) {
+          // The problem with adding recursive map fields is that we don't know what the map key
+          // type should be.
+          // In a field descriptor of the form mapField{}.subField, the subField is assumed to be in
+          // the map value.
+          // Since in this code path the mapField field does not already exist this means we need to
+          // create the new
+          // map field, and we have no way of knowing what type the key should be.
+          // Alternatives would be to always create a default key type (e.g. FieldType.STRING) or
+          // extend our selector
+          // syntax to allow specifying key types.
+          checkArgument(!qualifier.getKind().equals(Kind.MAP), "Map qualifiers not supported here");
+          fieldType = FieldType.array(fieldType).withNullable(true);
+        }
+        if (!inputSchema.hasField(fieldName)) {
           // This is a brand-new nested field with no matching field in the input schema. We will
-          // recursively create
-          // a nested schema to match it.
+          // recursively create a nested schema to match it.
           Collection<NewField> nestedNewFields =
               newNested.getValue().stream().map(NewField::descend).collect(Collectors.toList());
           AddFieldsInformation addFieldsInformation =
-              getAddFieldsInformation(
-                  Schema.FieldType.row(Schema.of()).withNullable(true), nestedNewFields);
-          builder.addField(newNested.getKey(), addFieldsInformation.getOutputFieldType());
-          nestedNewValues.put(builder.getLastFieldId(), addFieldsInformation);
+              getAddFieldsInformation(fieldType, nestedNewFields);
+          builder.addField(fieldName, addFieldsInformation.getOutputFieldType());
+          resolvedNestedNewValues.put(builder.getLastFieldId(), addFieldsInformation);
         }
       }
-
       Schema schema = builder.build();
+
       List<AddFieldsInformation> nestedNewValueList =
-              new ArrayList<>(Collections.nCopies(schema.getFieldCount(), null));
-      for (Map.Entry<Integer, AddFieldsInformation> entry : nestedNewValues.entrySet()) {
+          new ArrayList<>(Collections.nCopies(schema.getFieldCount(), null));
+      for (Map.Entry<Integer, AddFieldsInformation> entry : resolvedNestedNewValues.entrySet()) {
         nestedNewValueList.set(entry.getKey(), entry.getValue());
       }
       return AddFieldsInformation.of(
-          Schema.FieldType.row(schema), newValues, nestedNewValueList);
+          Schema.FieldType.row(schema), newValuesThisLevel, nestedNewValueList);
     }
 
     AddFieldsInformation getAddFieldsInformation(
@@ -266,7 +321,9 @@ public class AddFields {
         case MAP:
           addFieldsInformation =
               getAddFieldsInformation(inputFieldType.getMapValueType(), nestedFields);
-          fieldType = Schema.FieldType.map(inputFieldType.getMapKeyType(), addFieldsInformation.getOutputFieldType());
+          fieldType =
+              Schema.FieldType.map(
+                  inputFieldType.getMapKeyType(), addFieldsInformation.getOutputFieldType());
           break;
 
         default:
@@ -283,18 +340,23 @@ public class AddFields {
       for (int i = 0; i < row.getFieldCount(); ++i) {
         AddFieldsInformation nested = addFieldsInformation.getNestedNewValues().get(i);
         if (nested != null) {
-          Object newValue =
-              fillNewFields(row.getValue(i), row.getSchema().getField(i).getType(), nested);
+          // New fields were added to nested subfields of this value. Recursively fill them out
+          // before adding to the new row.
+          Object newValue = fillNewFields(row.getValue(i), nested.getOutputFieldType(), nested);
           newValues.add(newValue);
         } else {
+          // Nothing changed. Just copy the old value into the new row.
           newValues.add(row.getValue(i));
         }
       }
-      newValues.addAll(addFieldsInformation.getNewValues());
-      for (int i = row.getFieldCount(); i < addFieldsInformation.getNestedNewValues().size(); ++i) {
+      // If there are brand new simple (i.e. have no nested values) fields at this level, then add
+      // the default values for all of them.
+      newValues.addAll(addFieldsInformation.getDefaultValues());
+      // If we are creating new recursive fields, populate new values for the here.
+      for (int i = newValues.size(); i < addFieldsInformation.getNestedNewValues().size(); ++i) {
         AddFieldsInformation newNestedField = addFieldsInformation.getNestedNewValues().get(i);
         if (newNestedField != null) {
-          newValues.add(fillNewFields(null, addFieldsInformation.getOutputFieldType(), newNestedField));
+          newValues.add(fillNewFields(null, newNestedField.getOutputFieldType(), newNestedField));
         }
       }
 
@@ -316,9 +378,11 @@ public class AddFields {
           }
           List<Object> list = (List<Object>) original;
           List<Object> filledList = new ArrayList<>(list.size());
+          Schema.FieldType elementType = fieldType.getCollectionElementType();
+          AddFieldsInformation elementAddFieldInformation =
+              addFieldsInformation.toBuilder().setOutputFieldType(elementType).build();
           for (Object element : list) {
-            filledList.add(
-                fillNewFields(element, fieldType.getCollectionElementType(), addFieldsInformation));
+            filledList.add(fillNewFields(element, elementType, elementAddFieldInformation));
           }
           return filledList;
 
@@ -328,10 +392,13 @@ public class AddFields {
           }
           Map<Object, Object> originalMap = (Map<Object, Object>) original;
           Map<Object, Object> filledMap = Maps.newHashMapWithExpectedSize(originalMap.size());
+          Schema.FieldType mapValueType = fieldType.getMapValueType();
+          AddFieldsInformation mapValueAddFieldInformation =
+              addFieldsInformation.toBuilder().setOutputFieldType(mapValueType).build();
           for (Map.Entry<Object, Object> entry : originalMap.entrySet()) {
             filledMap.put(
                 entry.getKey(),
-                fillNewFields(entry.getValue(), fieldType.getMapValueType(), addFieldsInformation));
+                fillNewFields(entry.getValue(), mapValueType, mapValueAddFieldInformation));
           }
           return filledMap;
 
