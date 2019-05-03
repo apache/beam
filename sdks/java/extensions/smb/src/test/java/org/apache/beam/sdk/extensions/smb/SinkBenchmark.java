@@ -38,11 +38,10 @@ import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** SMB benchmark. */
-public class SortedBucketBenchmark {
+/** Sink benchmark. */
+public class SinkBenchmark {
 
-  /** SMB sink Pipeline options. */
-  public interface SinkOptions extends PipelineOptions {
+  interface SinkOptions extends PipelineOptions {
     String getAvroDestination();
 
     void setAvroDestination(String value);

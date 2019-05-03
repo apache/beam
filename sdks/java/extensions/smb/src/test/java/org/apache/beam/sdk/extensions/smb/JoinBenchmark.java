@@ -42,11 +42,12 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
+/** Shuffle join benchmark pipeline. */
 public class JoinBenchmark {
 
   private static ObjectMapper objectMapper = new ObjectMapper();
 
-  public interface SourceOptions extends PipelineOptions {
+  interface SourceOptions extends PipelineOptions {
     String getAvroSource();
 
     void setAvroSource(String value);
