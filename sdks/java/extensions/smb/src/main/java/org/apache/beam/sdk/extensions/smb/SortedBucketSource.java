@@ -104,8 +104,8 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
     // @TODO: Support asymmetric, but still compatible, bucket sizes in reader.
     final int numBuckets = first.getNumBuckets();
 
-    final PCollection<KV<Integer, List<BucketedInputIterator<FinalKeyT>>>> openedReaders =
-        (PCollection<KV<Integer, List<BucketedInputIterator<FinalKeyT>>>>)
+    final PCollection<KV<Integer, List<BucketedInputIterator>>> openedReaders =
+        (PCollection<KV<Integer, List<BucketedInputIterator>>>)
             new BucketedInputs(begin.getPipeline(), numBuckets, sources)
                 .expand()
                 .get(new TupleTag<>("readers"));
@@ -120,8 +120,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
   /** @param <FinalKeyT> */
   static class MergeBuckets<FinalKeyT, FinalResultT>
-      extends DoFn<
-          KV<Integer, List<BucketedInputIterator<FinalKeyT>>>, KV<FinalKeyT, FinalResultT>> {
+      extends DoFn<KV<Integer, List<BucketedInputIterator>>, KV<FinalKeyT, FinalResultT>> {
 
     static class KeyGroupBytesComparator
         implements Comparator<Map.Entry<TupleTag, KV<byte[], Iterator<?>>>>, Serializable {
@@ -146,17 +145,17 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      final List<BucketedInputIterator<?>> readers = new ArrayList<>(c.element().getValue());
+      final List<BucketedInputIterator> readers = new ArrayList<>(c.element().getValue());
 
       readers.forEach(BucketedInputIterator::initializeReader);
 
       final Map<TupleTag, KV<byte[], Iterator<?>>> nextKeyGroups = new HashMap<>();
 
       while (true) {
-        Iterator<BucketedInputIterator<?>> readersIt = readers.iterator();
+        Iterator<BucketedInputIterator> readersIt = readers.iterator();
 
         while (readersIt.hasNext()) {
-          final BucketedInputIterator<?> reader = readersIt.next();
+          final BucketedInputIterator reader = readersIt.next();
 
           if (!reader.hasNextKeyGroup()) {
             readersIt.remove();
@@ -305,7 +304,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         ResourceId resourceId = source.fileAssignment.forBucket(bucket, metadata.getNumBuckets());
 
         if (resourceId != null) {
-          readers.add(new BucketedInputIterator<>(reader, resourceId, source.tupleTag, metadata));
+          readers.add(new BucketedInputIterator(reader, resourceId, source.tupleTag, metadata));
         }
       }
       return readers;

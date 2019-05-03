@@ -35,11 +35,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Iterates over shards in a bucket one record at a time. */
-class BucketedInputIterator<KeyT> implements Serializable {
+class BucketedInputIterator implements Serializable {
   private final TupleTag tupleTag;
   private final Reader<?> reader;
   private final ResourceId resourceId;
-  private final BucketMetadata<KeyT, Object> metadata;
+  private final BucketMetadata<?, Object> metadata;
 
   private KV<byte[], ?> nextKv;
 
@@ -47,7 +47,7 @@ class BucketedInputIterator<KeyT> implements Serializable {
       Reader<?> reader,
       ResourceId resourceId,
       TupleTag<?> tupleTag,
-      BucketMetadata<KeyT, Object> metadata) {
+      BucketMetadata<?, Object> metadata) {
     this.reader = reader;
     this.metadata = metadata;
     this.resourceId = resourceId;
@@ -146,7 +146,7 @@ class BucketedInputIterator<KeyT> implements Serializable {
         final BucketMetadata<?, Object> metadata =
             BucketMetadata.from(StringUtf8Coder.of().decode(inStream));
 
-        return new BucketedInputIterator<>(reader, resourceId, tupleTag, metadata);
+        return new BucketedInputIterator(reader, resourceId, tupleTag, metadata);
       } catch (Exception e) {
         throw new CoderException("Decoding BucketedInputIterator failed: ", e);
       }
