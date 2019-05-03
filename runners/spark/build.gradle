@@ -37,6 +37,7 @@ configurations {
 
 test {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.sql.shuffle.partitions", "4"
   systemProperty "spark.ui.enabled", "false"
   systemProperty "spark.ui.showConsoleProgress", "false"
   systemProperty "beamTestPipelineOptions", """[
@@ -172,7 +173,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
           "--streaming=false",
   ])
   systemProperty "beamTestPipelineOptions", pipelineOptions
-  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.sql.shuffle.partitions", "4"
   systemProperty "spark.ui.enabled", "false"
   systemProperty "spark.ui.showConsoleProgress", "false"
 
