@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -46,10 +47,7 @@ import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
-import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
@@ -59,16 +57,15 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
+import org.apache.beam.runners.flink.translation.utils.NoopLock;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkSplitStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -83,8 +80,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -92,6 +91,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -108,7 +108,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.Preconditions;
 import org.joda.time.Instant;
 
 /**
@@ -352,10 +351,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       setPushedBackWatermark(Long.MAX_VALUE);
     }
 
-    outputManager =
-        outputManagerFactory.create(
-            output, new FlinkSplitStateInternals<>(getOperatorStateBackend()));
-
     // StatefulPardo or WindowDoFn
     if (keyCoder != null) {
       keyedStateInternals =
@@ -368,6 +363,22 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
       timerInternals = new FlinkTimerInternals();
     }
+
+    outputManager =
+        outputManagerFactory.create(
+            output,
+            getLockToAcquireForStateAccessDuringBundles(),
+            getOperatorStateBackend(),
+            getKeyedStateBackend(),
+            keySelector);
+  }
+
+  /**
+   * Subclasses may provide a lock to ensure that the state backend is not accessed concurrently
+   * during bundle execution.
+   */
+  protected Lock getLockToAcquireForStateAccessDuringBundles() {
+    return NoopLock.get();
   }
 
   @Override
@@ -793,49 +804,57 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   /** Factory for creating an {@link BufferedOutputManager} from a Flink {@link Output}. */
   interface OutputManagerFactory<OutputT> extends Serializable {
     BufferedOutputManager<OutputT> create(
-        Output<StreamRecord<WindowedValue<OutputT>>> output, StateInternals stateInternals);
+        Output<StreamRecord<WindowedValue<OutputT>>> output,
+        Lock bufferLock,
+        @Nullable OperatorStateBackend operatorStateBackend,
+        @Nullable KeyedStateBackend keyedStateBackend,
+        @Nullable KeySelector keySelector)
+        throws Exception;
   }
 
   /**
    * A {@link DoFnRunners.OutputManager} that can buffer its outputs. Uses {@link
-   * FlinkSplitStateInternals} to buffer the data.
+   * PushedBackElementsHandler} to buffer the data. Buffering data is necessary because no elements
+   * can be emitted during {@code snapshotState}. This can be removed once we upgrade Flink to >=
+   * 1.6 which allows us to finish the bundle before the checkpoint barriers have been emitted.
    */
   public static class BufferedOutputManager<OutputT> implements DoFnRunners.OutputManager {
 
-    private TupleTag<OutputT> mainTag;
-    private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
-    private Map<TupleTag<?>, Integer> tagsToIds;
+    private final TupleTag<OutputT> mainTag;
+    private final Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
+    private final Map<TupleTag<?>, Integer> tagsToIds;
+    /**
+     * A lock to be acquired before writing to the buffer. This lock will only be acquired during
+     * buffering. It will not be acquired during flushing the buffer.
+     */
+    private final Lock bufferLock;
+
     private Map<Integer, TupleTag<?>> idsToTags;
-    protected Output<StreamRecord<WindowedValue<OutputT>>> output;
+    /** Elements buffered during a snapshot, by output id. */
+    @VisibleForTesting
+    final PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler;
+
+    protected final Output<StreamRecord<WindowedValue<OutputT>>> output;
 
     private boolean openBuffer = false;
-    private BagState<KV<Integer, WindowedValue<?>>> bufferState;
 
     BufferedOutputManager(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         TupleTag<OutputT> mainTag,
         Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
-        final Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
         Map<TupleTag<?>, Integer> tagsToIds,
-        StateInternals stateInternals) {
+        Lock bufferLock,
+        PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler) {
       this.output = output;
       this.mainTag = mainTag;
       this.tagsToOutputTags = tagsToOutputTags;
       this.tagsToIds = tagsToIds;
+      this.bufferLock = bufferLock;
       this.idsToTags = new HashMap<>();
       for (Map.Entry<TupleTag<?>, Integer> entry : tagsToIds.entrySet()) {
         idsToTags.put(entry.getValue(), entry.getKey());
       }
-
-      ImmutableMap.Builder<Integer, Coder<WindowedValue<?>>> idsToCodersBuilder =
-          ImmutableMap.builder();
-      for (Map.Entry<TupleTag<?>, Integer> entry : tagsToIds.entrySet()) {
-        idsToCodersBuilder.put(entry.getValue(), tagsToCoders.get(entry.getKey()));
-      }
-
-      StateTag<BagState<KV<Integer, WindowedValue<?>>>> bufferTag =
-          StateTags.bag("bundle-buffer-tag", new TaggedKvCoder(idsToCodersBuilder.build()));
-      bufferState = stateInternals.state(StateNamespaces.global(), bufferTag);
+      this.pushedBackElementsHandler = pushedBackElementsHandler;
     }
 
     void openBuffer() {
@@ -851,19 +870,38 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       if (!openBuffer) {
         emit(tag, value);
       } else {
-        bufferState.add(KV.of(tagsToIds.get(tag), value));
+        buffer(KV.of(tagsToIds.get(tag), value));
+      }
+    }
+
+    private void buffer(KV<Integer, WindowedValue<?>> taggedValue) {
+      try {
+        bufferLock.lock();
+        pushedBackElementsHandler.pushBack(taggedValue);
+      } catch (Exception e) {
+        throw new RuntimeException("Couldn't pushback element.", e);
+      } finally {
+        bufferLock.unlock();
       }
     }
 
     /**
-     * Flush elements of bufferState to Flink Output. This method can't be invoke in {@link
-     * #snapshotState(StateSnapshotContext)}
+     * Flush elements of bufferState to Flink Output. This method can't be invoked in {@link
+     * #snapshotState(StateSnapshotContext)}. The buffer should be flushed before starting a new
+     * bundle when the buffer cannot be concurrently accessed and thus does not need to be guarded
+     * by a lock.
      */
     void flushBuffer() {
-      for (KV<Integer, WindowedValue<?>> taggedElem : bufferState.read()) {
-        emit(idsToTags.get(taggedElem.getKey()), (WindowedValue) taggedElem.getValue());
+      try {
+        pushedBackElementsHandler
+            .getElements()
+            .forEach(
+                element ->
+                    emit(idsToTags.get(element.getKey()), (WindowedValue) element.getValue()));
+        pushedBackElementsHandler.clear();
+      } catch (Exception e) {
+        throw new RuntimeException("Couldn't flush pushed back elements.", e);
       }
-      bufferState.clear();
     }
 
     private <T> void emit(TupleTag<T> tag, WindowedValue<T> value) {
@@ -956,9 +994,49 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     @Override
     public BufferedOutputManager<OutputT> create(
-        Output<StreamRecord<WindowedValue<OutputT>>> output, StateInternals stateInternals) {
+        Output<StreamRecord<WindowedValue<OutputT>>> output,
+        Lock bufferLock,
+        OperatorStateBackend operatorStateBackend,
+        @Nullable KeyedStateBackend keyedStateBackend,
+        @Nullable KeySelector keySelector)
+        throws Exception {
+      Preconditions.checkNotNull(output);
+      Preconditions.checkNotNull(bufferLock);
+      Preconditions.checkNotNull(operatorStateBackend);
+      Preconditions.checkState(
+          (keyedStateBackend == null) == (keySelector == null),
+          "Either both KeyedStatebackend and Keyselector are provided or none.");
+
+      TaggedKvCoder taggedKvCoder = buildTaggedKvCoder();
+      ListStateDescriptor<KV<Integer, WindowedValue<?>>> taggedOutputPushbackStateDescriptor =
+          new ListStateDescriptor<>("bundle-buffer-tag", new CoderTypeSerializer<>(taggedKvCoder));
+
+      final PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler;
+      if (keyedStateBackend != null) {
+        // build a key selector for the tagged output
+        KeySelector<KV<Integer, WindowedValue<?>>, ?> taggedValueKeySelector =
+            (KeySelector<KV<Integer, WindowedValue<?>>, Object>)
+                value -> keySelector.getKey(value.getValue());
+        pushedBackElementsHandler =
+            KeyedPushedBackElementsHandler.create(
+                taggedValueKeySelector, keyedStateBackend, taggedOutputPushbackStateDescriptor);
+      } else {
+        ListState<KV<Integer, WindowedValue<?>>> listState =
+            operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
+        pushedBackElementsHandler = NonKeyedPushedBackElementsHandler.create(listState);
+      }
+
       return new BufferedOutputManager<>(
-          output, mainTag, tagsToOutputTags, tagsToCoders, tagsToIds, stateInternals);
+          output, mainTag, tagsToOutputTags, tagsToIds, bufferLock, pushedBackElementsHandler);
+    }
+
+    private TaggedKvCoder buildTaggedKvCoder() {
+      ImmutableMap.Builder<Integer, Coder<WindowedValue<?>>> idsToCodersBuilder =
+          ImmutableMap.builder();
+      for (Map.Entry<TupleTag<?>, Integer> entry : tagsToIds.entrySet()) {
+        idsToCodersBuilder.put(entry.getValue(), tagsToCoders.get(entry.getKey()));
+      }
+      return new TaggedKvCoder(idsToCodersBuilder.build());
     }
   }
 
