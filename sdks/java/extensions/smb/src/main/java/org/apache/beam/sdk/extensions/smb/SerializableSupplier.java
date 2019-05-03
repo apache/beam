@@ -22,6 +22,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 
 /**
  * A Serializable supplier for SMB-related resources.
+ *
  * @param <T>
  */
 public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}

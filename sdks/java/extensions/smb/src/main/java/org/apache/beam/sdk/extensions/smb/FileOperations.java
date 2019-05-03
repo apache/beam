@@ -37,8 +37,8 @@ public abstract class FileOperations<ValueT> implements Serializable {
     public abstract void prepareRead(ReadableByteChannel channel) throws Exception;
 
     /**
-     * Reads next record in the collection. Should return null if EOF is reached.
-     * (@Todo: should we have more clearly defined behavior for EOF?)
+     * Reads next record in the collection. Should return null if EOF is reached. (@Todo: should we
+     * have more clearly defined behavior for EOF?)
      */
     public abstract ValueT read() throws Exception;
 

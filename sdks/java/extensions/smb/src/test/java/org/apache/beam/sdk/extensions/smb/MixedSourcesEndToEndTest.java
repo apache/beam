@@ -44,9 +44,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * E2E test for heterogeneously-typed SMB join.
- */
+/** E2E test for heterogeneously-typed SMB join. */
 public class MixedSourcesEndToEndTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final transient TestPipeline pipeline2 = TestPipeline.create();

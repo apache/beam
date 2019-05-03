@@ -58,9 +58,7 @@ public final class SMBFilenamePolicy implements Serializable {
         true);
   }
 
-  /**
-   * A file name assigner based on a specific output directory and file suffix.
-   */
+  /** A file name assigner based on a specific output directory and file suffix. */
   public static class FileAssignment implements Serializable {
 
     private static final String BUCKET_TEMPLATE = "bucket-%05d-of-%05d%s";
