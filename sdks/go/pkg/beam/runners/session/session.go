@@ -332,7 +332,7 @@ func buildLocalBinary(ctx context.Context) (string, error) {
 	cmd := exec.Command(build[0], build[1:]...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		log.Info(ctx, string(out))
-		return "", errors.Wrapf(err, "failed to compile %v: %v", program)
+		return "", errors.Wrapf(err, "failed to compile %v", program)
 	}
 	return ret, nil
 }
