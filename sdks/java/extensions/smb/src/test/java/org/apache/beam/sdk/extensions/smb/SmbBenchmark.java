@@ -34,7 +34,9 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.FlatMapElements;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -97,7 +99,15 @@ public class SmbBenchmark {
             KvCoder.of(
                 StringUtf8Coder.of(),
                 KvCoder.of(
-                    AvroCoder.of(AvroGeneratedUser.getClassSchema()), TableRowJsonCoder.of())));
+                    AvroCoder.of(AvroGeneratedUser.getClassSchema()), TableRowJsonCoder.of())))
+        .apply(Count.globally())
+        .apply(
+            MapElements.into(TypeDescriptors.longs())
+                .via(
+                    c -> {
+                      System.out.println(c);
+                      return c;
+                    }));
 
     pipeline.run();
   }

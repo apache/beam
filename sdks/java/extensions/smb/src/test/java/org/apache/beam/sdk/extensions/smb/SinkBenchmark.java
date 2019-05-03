@@ -32,6 +32,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.FlatMapElements;
@@ -50,15 +51,30 @@ public class SinkBenchmark {
     String getJsonDestination();
 
     void setJsonDestination(String value);
+
+    @Default.Integer(10000000)
+    int getNumKeys();
+
+    void setNumKeys(int value);
+
+    @Default.Integer(500)
+    int getMaxRecordsPerKey();
+
+    void setMaxRecordsPerKey(int value);
+
+    @Default.Integer(128)
+    int getNumBuckets();
+
+    void setNumBuckets(int value);
   }
 
   public static void main(String[] args) throws CannotProvideCoderException {
     SinkOptions sinkOptions = PipelineOptionsFactory.fromArgs(args).as(SinkOptions.class);
     Pipeline pipeline = Pipeline.create(sinkOptions);
 
-    int numKeys = 10 * 1000 * 1000;
-    int maxRecordsPerKey = 500;
-    int numBuckets = 128;
+    int numKeys = sinkOptions.getNumKeys();
+    int maxRecordsPerKey = sinkOptions.getMaxRecordsPerKey();
+    int numBuckets = sinkOptions.getNumBuckets();
 
     PCollection<AvroGeneratedUser> avroData =
         pipeline
