@@ -37,19 +37,19 @@ those generated rows in the table.
 """
 from __future__ import absolute_import
 
-from collections import namedtuple
-from random import shuffle
+# from collections import namedtuple
+# from random import shuffle
 
 import apache_beam as beam
-from apache_beam.io import iobase
-from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
+# from apache_beam.io import iobase
+# from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable.row_set import RowRange
-  from google.cloud.bigtable.row_set import RowSet
+  # from google.cloud.bigtable.row_set import RowRange
+  # from google.cloud.bigtable.row_set import RowSet
 except ImportError:
   Client = None
 
