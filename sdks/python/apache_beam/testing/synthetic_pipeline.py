@@ -345,6 +345,14 @@ class SyntheticSDFAsSource(beam.DoFn):
     p
     | beam.Create([description1, description2,...])
     | beam.ParDo(SyntheticSDFAsSource())
+
+  NOTE:
+    The SDF.process() will have different param content between defining a DoFn
+    and runtime.
+    When defining an SDF.process, the restriction_tracker should be a
+    `RestrictionProvider`.
+    During runtime, the DoFnRunner.process_with_sized_restriction() will feed
+    a 'RestrictionTracker' based on a restriction to SDF.process().
   """
 
   def process(
