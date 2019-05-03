@@ -104,8 +104,8 @@ def _match_issubclass(match_against):
 
 
 def _matcher_(derived, parent):
-  """ Follow structure of _safe_issubclass, 
-  uses __orign__ due to updates in typehing of python3"""
+  """ Follow structure of _safe_issubclass
+  but uses __orign__ due to updates in typing package of python3"""
   try:
     return derived.__origin__ is parent
   except AttributeError:
