@@ -159,8 +159,6 @@ include "beam-sdks-java-io-hadoop-common"
 project(":beam-sdks-java-io-hadoop-common").dir = file("sdks/java/io/hadoop-common")
 include "beam-sdks-java-io-hadoop-file-system"
 project(":beam-sdks-java-io-hadoop-file-system").dir = file("sdks/java/io/hadoop-file-system")
-include "beam-sdks-java-io-hadoop-input-format"
-project(":beam-sdks-java-io-hadoop-input-format").dir = file("sdks/java/io/hadoop-input-format")
 include "beam-sdks-java-io-hadoop-format"
 project(":beam-sdks-java-io-hadoop-format").dir = file("sdks/java/io/hadoop-format")
 include "beam-sdks-java-io-hbase"
