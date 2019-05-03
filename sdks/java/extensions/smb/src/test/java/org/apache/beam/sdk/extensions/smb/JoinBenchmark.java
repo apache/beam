@@ -47,7 +47,8 @@ public class JoinBenchmark {
 
   private static ObjectMapper objectMapper = new ObjectMapper();
 
-  interface SourceOptions extends PipelineOptions {
+  /** SourceOptions */
+  public interface SourceOptions extends PipelineOptions {
     String getAvroSource();
 
     void setAvroSource(String value);
