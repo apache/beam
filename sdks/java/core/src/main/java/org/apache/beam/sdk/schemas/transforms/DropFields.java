@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -30,6 +29,8 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /**
  * A transform to drop fields from a schema.
@@ -71,6 +72,7 @@ public class DropFields {
     return new Inner<>(fieldsToDrop);
   }
 
+  /** Implementation class for DropFields. */
   public static class Inner<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     private final FieldAccessDescriptor fieldsToDrop;
 
@@ -111,7 +113,7 @@ public class DropFields {
                 throw new RuntimeException("Unexpected field descriptor type.");
             }
           }
-          Preconditions.checkArgument(fieldType.getTypeName().isCompositeType());
+          checkArgument(fieldType.getTypeName().isCompositeType());
           FieldAccessDescriptor nestedDescriptor =
               input.getNestedFieldsAccessed().get(fieldDescriptor);
           nestedFieldsToSelect.put(
