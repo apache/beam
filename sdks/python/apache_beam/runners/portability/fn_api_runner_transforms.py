@@ -200,7 +200,9 @@ class Stage(object):
       stage_components.CopyFrom(components)
 
       # Only keep the referenced PCollections.
-      for pcoll_id in stage_components.pcollections.keys():
+      # Make pcollectionKey snapshot to avoid "Map modified during iteration"
+      # in py3
+      for pcoll_id in list(stage_components.pcollections.keys()):
         if pcoll_id not in all_inputs and pcoll_id not in all_outputs:
           del stage_components.pcollections[pcoll_id]
 
