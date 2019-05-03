@@ -18,12 +18,15 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
@@ -393,6 +396,33 @@ public class CreateStreamTest implements Serializable {
     p.run();
   }
 
+  /**
+   * Test that {@link ParDo} aligns both setup and teardown calls in streaming pipelines. See
+   * https://issues.apache.org/jira/browse/BEAM-6859.
+   */
+  @Test
+  public void testParDoCallsSetupAndTeardown() {
+    Instant instant = new Instant(0);
+
+    p.apply(
+            CreateStream.of(VarIntCoder.of(), batchDuration())
+                .emptyBatch()
+                .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
+                .nextBatch(
+                    TimestampedValue.of(1, instant),
+                    TimestampedValue.of(2, instant),
+                    TimestampedValue.of(3, instant))
+                .advanceNextBatchWatermarkToInfinity())
+        .apply(ParDo.of(new LifecycleDoFn()));
+
+    p.run();
+
+    assertThat(
+        "Function should have been torn down",
+        LifecycleDoFn.teardownCalls.intValue(),
+        is(equalTo(LifecycleDoFn.setupCalls.intValue())));
+  }
+
   @Test
   public void testElementAtPositiveInfinityThrows() {
     CreateStream<Integer> source =
@@ -424,5 +454,27 @@ public class CreateStreamTest implements Serializable {
   private Duration batchDuration() {
     return Duration.millis(
         (p.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
+  }
+
+  private static class LifecycleDoFn extends DoFn<Integer, Integer> {
+    static AtomicInteger setupCalls = new AtomicInteger(0);
+    static AtomicInteger teardownCalls = new AtomicInteger(0);
+
+    @Setup
+    public void setup() {
+      setupCalls.incrementAndGet();
+    }
+
+    @Teardown
+    public void teardown() {
+      teardownCalls.incrementAndGet();
+    }
+
+    @SuppressWarnings("unused")
+    @ProcessElement
+    public void process(ProcessContext context) {
+      Integer element = context.element();
+      context.output(element);
+    }
   }
 }
