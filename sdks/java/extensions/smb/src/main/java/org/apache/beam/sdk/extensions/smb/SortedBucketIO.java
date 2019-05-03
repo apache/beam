@@ -83,7 +83,7 @@ public class SortedBucketIO {
      * @param <K>
      * @param <V>
      */
-    public static class JoinSource<K, V> {
+    public static class JoinSource<K, V> implements Serializable {
       private final BucketedInput<K, V> bucketedInput;
       private final Coder<V> valueCoder;
 

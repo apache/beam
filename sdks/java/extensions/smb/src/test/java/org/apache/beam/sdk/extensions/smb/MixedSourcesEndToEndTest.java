@@ -21,6 +21,8 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collections;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -40,7 +42,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -62,9 +63,9 @@ public class MixedSourcesEndToEndTest implements Serializable {
           "",
           "org.apache.beam.sdk.extensions.smb",
           false,
-          Lists.newArrayList(
-              new Field("name", Schema.create(Type.BYTES), "", null),
-              new Field("age", Schema.create(Type.INT), "", null)));
+          Arrays.asList(
+              new Field("name", Schema.create(Type.BYTES), "", ""),
+              new Field("age", Schema.create(Type.INT), "", -1)));
 
   private static GenericRecord createUserGR(String name, int age) {
     GenericData.Record result = new GenericData.Record(GR_USER_SCHEMA);
@@ -137,28 +138,29 @@ public class MixedSourcesEndToEndTest implements Serializable {
 
     PAssert.that(joinedSources)
         .containsInAnyOrder(
-            KV.of(
-                "a",
+            Arrays.asList(
                 KV.of(
-                    Lists.newArrayList(createUserGR("a", 1)),
-                    Lists.newArrayList(createUserJson("a", "US")))),
-            KV.of("b", KV.of(Lists.newArrayList(createUserGR("b", 2)), null)),
-            KV.of(
-                "c",
+                    "a",
+                    KV.of(
+                        Collections.singletonList(createUserGR("a", 1)),
+                        Collections.singletonList(createUserJson("a", "US")))),
+                KV.of("b", KV.of(Collections.singletonList(createUserGR("b", 2)), null)),
                 KV.of(
-                    Lists.newArrayList(createUserGR("c", 3)),
-                    Lists.newArrayList(createUserJson("c", "MX")))),
-            KV.of(
-                "d",
+                    "c",
+                    KV.of(
+                        Collections.singletonList(createUserGR("c", 3)),
+                        Collections.singletonList(createUserJson("c", "MX")))),
                 KV.of(
-                    Lists.newArrayList(createUserGR("d", 4)),
-                    Lists.newArrayList(createUserJson("d", "DE")))),
-            KV.of(
-                "e",
+                    "d",
+                    KV.of(
+                        Collections.singletonList(createUserGR("d", 4)),
+                        Collections.singletonList(createUserJson("d", "DE")))),
                 KV.of(
-                    Lists.newArrayList(createUserGR("e", 5)),
-                    Lists.newArrayList(createUserJson("e", "AU")))),
-            KV.of("g", KV.of(null, Lists.newArrayList(createUserJson("g", "SE")))));
+                    "e",
+                    KV.of(
+                        Collections.singletonList(createUserGR("e", 5)),
+                        Collections.singletonList(createUserJson("e", "AU")))),
+                KV.of("g", KV.of(null, Collections.singletonList(createUserJson("g", "SE"))))));
 
     pipeline3.run();
   }
