@@ -85,6 +85,7 @@ __all__ = [
     'Flatten',
     'Create',
     'Impulse',
+    'RestrictionProvider'
     ]
 
 # Type variables
@@ -187,9 +188,9 @@ class ProcessContinuation(object):
 class RestrictionProvider(object):
   """Provides methods for generating and manipulating restrictions.
 
-  This class should be implemented to support Splittable ``DoFn``s in Python
+  This class should be implemented to support Splittable ``DoFn`` in Python
   SDK. See https://s.apache.org/splittable-do-fn for more details about
-  Splittable ``DoFn``s.
+  Splittable ``DoFn``.
 
   To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
   method of that class should have exactly one parameter whose default value is
