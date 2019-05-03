@@ -48,6 +48,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import statesampler
+from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
@@ -1049,6 +1050,34 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     except:
       print(res._monitoring_infos_by_stage)
       raise
+
+  def test_sdf_synthetic_source(self):
+    common_attrs = {
+        'key_size': 1,
+        'value_size': 1,
+        'initial_splitting_num_bundles': 2,
+        'initial_splitting_desired_bundle_size': 2,
+        'sleep_per_input_record_sec': 0,
+        'initial_splitting': 'const'
+    }
+    num_source_description = 5
+    min_num_record = 10
+    max_num_record = 20
+
+    # pylint: disable=unused-variable
+    source_descriptions = ([dict(
+        {'num_records': random.randint(min_num_record, max_num_record)},
+        **common_attrs) for i in range(0, num_source_description)])
+    total_num_records = 0
+    for source in source_descriptions:
+      total_num_records += source['num_records']
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(source_descriptions)
+             | beam.ParDo(SyntheticSDFAsSource())
+             | beam.combiners.Count.Globally())
+      assert_that(res, equal_to([total_num_records]))
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
