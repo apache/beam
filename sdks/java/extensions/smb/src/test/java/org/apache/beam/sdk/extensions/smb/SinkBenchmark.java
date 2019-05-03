@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /** Sink benchmark. */
 public class SinkBenchmark {
 
-  /** SinkOptions */
+  /** SinkOptions. */
   public interface SinkOptions extends PipelineOptions {
     String getAvroDestination();
 

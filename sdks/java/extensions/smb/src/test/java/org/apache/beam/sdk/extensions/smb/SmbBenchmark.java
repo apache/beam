@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 /** SMB join benchmark pipeline. */
 public class SmbBenchmark {
 
-  /** SourceOptions */
+  /** SourceOptions. */
   public interface SourceOptions extends PipelineOptions {
     String getAvroSource();
 
