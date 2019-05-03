@@ -126,7 +126,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
             SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
                 .of(
                     AvroSortedBucketIO.avroSource(
-                        GR_USER_SCHEMA, LocalResources.fromFile(source2Folder.getRoot(), true)))
+                        GR_USER_SCHEMA, LocalResources.fromFile(source1Folder.getRoot(), true)))
                 .and(
                     JsonSortedBucketIO.jsonSource(
                         LocalResources.fromFile(source2Folder.getRoot(), true)))

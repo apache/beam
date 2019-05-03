@@ -51,9 +51,9 @@ public class AvroSortedBucketSourceTest {
   @Before
   public void setup() {
     filenamePolicySource1 =
-        new SMBFilenamePolicy(LocalResources.fromFile(source1Folder.getRoot(), true), "avro");
+        new SMBFilenamePolicy(LocalResources.fromFile(source1Folder.getRoot(), true), ".avro");
     filenamePolicySource2 =
-        new SMBFilenamePolicy(LocalResources.fromFile(source2Folder.getRoot(), true), "avro");
+        new SMBFilenamePolicy(LocalResources.fromFile(source2Folder.getRoot(), true), ".avro");
   }
 
   @Test
