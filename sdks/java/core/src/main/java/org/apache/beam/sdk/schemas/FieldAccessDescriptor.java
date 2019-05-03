@@ -316,11 +316,14 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return toBuilder().setFieldInsertionOrder(true).build();
   }
 
-  /** Return the field ids accessed. Should not be called until after {@link #resolve} is called. */
-  public Set<Integer> fieldIdsAccessed() {
+  /**
+   * Return the field ids accessed. Should not be called until after {@link #resolve} is called.
+   * Iteration order is consistent with {@link #getFieldsAccessed}.
+   */
+  public List<Integer> fieldIdsAccessed() {
     return getFieldsAccessed().stream()
         .map(FieldDescriptor::getFieldId)
-        .collect(Collectors.toSet());
+        .collect(Collectors.toList());
   }
 
   /**
