@@ -121,10 +121,6 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
   // Configuration
   ////////////////////////////////////////
 
-  public HashFunction getHashFunction() {
-    return hashFunction;
-  }
-
   public int getNumBuckets() {
     return numBuckets;
   }
@@ -154,6 +150,10 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
   }
 
   public abstract KeyT extractKey(ValueT value);
+
+  int assignBucket(byte[] keyBytes) {
+    return Math.abs(hashFunction.hashBytes(keyBytes).asInt()) % numBuckets;
+  }
 
   ////////////////////////////////////////
   // Serialization

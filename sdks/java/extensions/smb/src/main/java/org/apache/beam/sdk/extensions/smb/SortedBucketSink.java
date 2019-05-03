@@ -106,11 +106,7 @@ public class SortedBucketSink<KeyT, ValueT> extends PTransform<PCollection<Value
       final V record = c.element();
       final byte[] keyBytes = bucketMetadata.extractKeyBytes(record);
 
-      final int bucket =
-          Math.abs(bucketMetadata.getHashFunction().hashBytes(keyBytes).asInt())
-              % bucketMetadata.getNumBuckets();
-
-      c.output(KV.of(bucket, KV.of(keyBytes, record)));
+      c.output(KV.of(bucketMetadata.assignBucket(keyBytes), KV.of(keyBytes, record)));
     }
   }
 
