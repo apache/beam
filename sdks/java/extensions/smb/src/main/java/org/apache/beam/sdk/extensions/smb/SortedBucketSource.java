@@ -75,6 +75,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
     this.resultKeyClass = resultKeyClass;
   }
 
+  @SuppressWarnings({"deprecation", "unchecked"})
   @Override
   public final PCollection<KV<FinalKeyT, FinalResultT>> expand(PBegin begin) {
     Preconditions.checkState(sources.size() > 1, "Must have more than one Source");
