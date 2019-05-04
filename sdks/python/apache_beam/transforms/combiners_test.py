@@ -428,32 +428,6 @@ class LatestTest(unittest.TestCase):
       latest = pc | combine.Latest.PerKey()
       assert_that(latest, equal_to([]))
 
-  def test_per_key_add_timestamp_element_type_violation(self):
-    l_int = [window.GlobalWindows.windowed_value(1, 300),
-             window.GlobalWindows.windowed_value(6, 900),
-             window.GlobalWindows.windowed_value(8, 500)]
-    l_dict = [window.GlobalWindows.windowed_value({'a': 5}, 200),
-              window.GlobalWindows.windowed_value({'b': 3}, 300),
-              window.GlobalWindows.windowed_value({'a': 8}, 100)]
-    l_3_tuple = [window.GlobalWindows.windowed_value((1, 2, 3), 800),
-                 window.GlobalWindows.windowed_value((4, 5, 6), 200),
-                 window.GlobalWindows.windowed_value((7, 8, 9), 700)]
-
-    with self.assertRaises(TypeCheckError):
-      with TestPipeline() as p:
-        pc = p | Create(l_int)
-        _ = pc | beam.ParDo(combine.Latest.PerKey.add_timestamp)
-
-    with self.assertRaises(TypeCheckError):
-      with TestPipeline() as p:
-        pc = p | Create(l_dict)
-        _ = pc | beam.ParDo(combine.Latest.PerKey.add_timestamp)
-
-    with self.assertRaises(TypeCheckError):
-      with TestPipeline() as p:
-        pc = p | Create(l_3_tuple)
-        _ = pc | beam.ParDo(combine.Latest.PerKey.add_timestamp)
-
 
 class LatestCombineFnTest(unittest.TestCase):
 

@@ -45,7 +45,6 @@ from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
@@ -888,7 +887,6 @@ class Latest(object):
 
     @staticmethod
     def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
-      _check_instance_type(KV[K, V], element)
       key, value = element
       return [(key, (value, timestamp))]
 
