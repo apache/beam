@@ -152,7 +152,7 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 	}
 
 	if _, err := conf.Check(e.Package, fset, files, info); err != nil {
-		return errors.Wrapf(err, "failed to type check package %s : %v", e.Package)
+		return errors.Wrapf(err, "failed to type check package %s", e.Package)
 	}
 
 	e.Print("/*\n")
