@@ -154,6 +154,22 @@ public class ParDoLifecycleTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
+  public void testTeardownCalledAfterExceptionInSetup() {
+    ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.SETUP);
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat(
+          "Function should have been torn down after exception",
+          ExceptionThrowingFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInStartBundle() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.START_BUNDLE);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -187,70 +203,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInFinishBundle() {
-    ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.FINISH_BUNDLE);
-    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
-    try {
-      p.run();
-      fail("Pipeline should have failed with an exception");
-    } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
-    }
-  }
-
-  @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
-  public void testWithContextTeardownCalledAfterExceptionInSetup() {
-    ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.SETUP);
-    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
-    try {
-      p.run();
-      fail("Pipeline should have failed with an exception");
-    } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
-    }
-  }
-
-  @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
-  public void testWithContextTeardownCalledAfterExceptionInStartBundle() {
-    ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.START_BUNDLE);
-    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
-    try {
-      p.run();
-      fail("Pipeline should have failed with an exception");
-    } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
-    }
-  }
-
-  @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
-  public void testWithContextTeardownCalledAfterExceptionInProcessElement() {
-    ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.PROCESS_ELEMENT);
-    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
-    try {
-      p.run();
-      fail("Pipeline should have failed with an exception");
-    } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingFn.teardownCalled.get(),
-          is(true));
-    }
-  }
-
-  @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
-  public void testWithContextTeardownCalledAfterExceptionInFinishBundle() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.FINISH_BUNDLE);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
