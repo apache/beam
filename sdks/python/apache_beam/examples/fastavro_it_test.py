@@ -47,6 +47,8 @@ from __future__ import division
 
 import json
 import logging
+import os
+import sys
 import unittest
 import uuid
 
@@ -84,8 +86,10 @@ def record(i):
   }
 
 
-@unittest.skip('Due to a known issue in avro-python3 package, this'
-               'test is skipped until BEAM-6522 is addressed. ')
+@unittest.skipIf(sys.version_info[0] >= 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'Due to a known issue in avro-python3 package, this'
+                 'test is skipped until BEAM-6522 is addressed. ')
 class FastavroIT(unittest.TestCase):
 
   SCHEMA_STRING = '''
