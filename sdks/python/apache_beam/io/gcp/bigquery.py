@@ -786,11 +786,7 @@ class BigQueryWriteFn(DoFn):
     logging.debug('Creating or getting table %s with schema %s.',
                   table_reference, schema)
 
-    if schema == SCHEMA_AUTODETECT:
-      raise ValueError('Schema auto-detection is not supported for streaming '
-                       'inserts into BigQuery. Only for File Loads.')
-    else:
-      table_schema = self.get_table_schema(schema)
+    table_schema = self.get_table_schema(schema)
 
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
@@ -1139,6 +1135,11 @@ bigquery_v2_messages.TableSchema):
           GoogleCloudOptions).project
 
     method_to_use = self._compute_method(p, p.options)
+
+    if (method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS
+        and self.schema == SCHEMA_AUTODETECT):
+      raise ValueError('Schema auto-detection is not supported for streaming '
+                       'inserts into BigQuery. Only for File Loads.')
 
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
       # TODO: Support load jobs for streaming pipelines.
