@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -130,7 +131,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   abstract static class Builder {
     abstract Builder setAllFields(boolean allFields);
 
-    abstract Builder setFieldsAccessed(Set<FieldDescriptor> fieldsAccessed);
+    abstract Builder setFieldsAccessed(List<FieldDescriptor> fieldsAccessed);
 
     abstract Builder setNestedFieldsAccessed(
         Map<FieldDescriptor, FieldAccessDescriptor> nestedFieldsAccessedById);
@@ -143,7 +144,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   /** If true, all fields are being accessed. */
   public abstract boolean getAllFields();
 
-  public abstract Set<FieldDescriptor> getFieldsAccessed();
+  public abstract List<FieldDescriptor> getFieldsAccessed();
 
   public abstract Map<FieldDescriptor, FieldAccessDescriptor> getNestedFieldsAccessed();
 
@@ -155,7 +156,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return new AutoValue_FieldAccessDescriptor.Builder()
         .setAllFields(false)
         .setFieldInsertionOrder(false)
-        .setFieldsAccessed(Collections.emptySet())
+        .setFieldsAccessed(Collections.emptyList())
         .setNestedFieldsAccessed(Collections.emptyMap());
   }
 
@@ -225,7 +226,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
 
   /** Returns a {@link FieldAccessDescriptor} that accesses the specified fields. */
   public static FieldAccessDescriptor withFields(Iterable<FieldDescriptor> fields) {
-    return builder().setFieldsAccessed(Sets.newLinkedHashSet(fields)).build();
+    return builder().setFieldsAccessed(Lists.newArrayList(fields)).build();
   }
 
   // Union a set of FieldAccessDescriptors. This function currenty only supports descriptors with
@@ -342,7 +343,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
    * specified in the descriptor exist in the actual schema.
    */
   public FieldAccessDescriptor resolve(Schema schema) {
-    Set<FieldDescriptor> resolvedFieldIdsAccessed = resolveDirectFieldsAccessed(schema);
+    List<FieldDescriptor> resolvedFieldIdsAccessed = resolveDirectFieldsAccessed(schema);
     Map<FieldDescriptor, FieldAccessDescriptor> resolvedNestedFieldsAccessed =
         resolveNestedFieldsAccessed(schema);
 
@@ -361,15 +362,8 @@ public abstract class FieldAccessDescriptor implements Serializable {
         .build();
   }
 
-  private Set<FieldDescriptor> resolveDirectFieldsAccessed(Schema schema) {
-    Set<FieldDescriptor> fields;
-    if (getFieldInsertionOrder()) {
-      fields = Sets.newLinkedHashSet();
-    } else {
-      Function<FieldDescriptor, Integer> extract =
-          (Function<FieldDescriptor, Integer> & Serializable) FieldDescriptor::getFieldId;
-      fields = Sets.newTreeSet(Comparator.comparing(extract));
-    }
+  private List<FieldDescriptor> resolveDirectFieldsAccessed(Schema schema) {
+    List<FieldDescriptor> fields = new ArrayList<>();
 
     for (FieldDescriptor field : getFieldsAccessed()) {
       validateFieldDescriptor(schema, field);
@@ -381,6 +375,11 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
       field = fillInMissingQualifiers(field, schema);
       fields.add(field);
+    }
+
+    if (!getFieldInsertionOrder()) {
+      // Re-order fields based on field ID, rather than keeping them in insertion order
+      Collections.sort(fields, Comparator.comparing(FieldDescriptor::getFieldId));
     }
     return fields;
   }
