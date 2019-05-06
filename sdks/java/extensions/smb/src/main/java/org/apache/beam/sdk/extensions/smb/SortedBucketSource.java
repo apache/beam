@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -145,23 +144,23 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
     @ProcessElement
     public void processElement(ProcessContext c) {
       int bucket = c.element().getKey();
-      final List<BucketedInput<?, ?>> sources = new ArrayList<>(c.element().getValue());
+      final List<BucketedInput<?, ?>> sources = c.element().getValue();
+      final int numSources = sources.size();
 
-      List<BucketedInputIterator<?, ?>> readers =
-          sources.stream().map(s -> s.createIterator(bucket)).collect(Collectors.toList());
+      BucketedInputIterator[] iterators =
+          sources.stream().map(i -> i.createIterator(bucket)).toArray(BucketedInputIterator[]::new);
+      TupleTag[] tupleTags = sources.stream().map(i -> i.tupleTag).toArray(TupleTag[]::new);
 
       final Map<TupleTag, KV<byte[], Iterator<?>>> nextKeyGroups = new HashMap<>();
 
       while (true) {
-        Iterator<BucketedInputIterator<?, ?>> readersIt = readers.iterator();
-
-        while (readersIt.hasNext()) {
-          final BucketedInputIterator reader = readersIt.next();
-
-          if (!reader.hasNextKeyGroup()) {
-            readersIt.remove();
+        int completedSources = 0;
+        for (int i = 0; i < numSources; i++) {
+          BucketedInputIterator it = iterators[i];
+          if (it.hasNextKeyGroup()) {
+            nextKeyGroups.put(tupleTags[i], it.nextKeyGroup());
           } else {
-            nextKeyGroups.put(reader.getTupleTag(), reader.nextKeyGroup());
+            completedSources++;
           }
         }
 
@@ -181,6 +180,9 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           final List<Object> values = new ArrayList<>();
           Map.Entry<TupleTag, KV<byte[], Iterator<?>>> entry = nextKeyGroupsIt.next();
           if (keyComparator.compare(entry, minKeyEntry) == 0) {
+            // @Todo: this exhausts everything from the "lazy" iterator and can be expensive.
+            // To fix we have to make the underlying Reader range aware so that it's safe to
+            // re-iterate or stop without exhausting remaining elements in the value group.
             entry.getValue().getValue().forEachRemaining(values::add);
 
             valueMap.put(entry.getKey(), values);
@@ -199,7 +201,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
         c.output(KV.of(groupKey, toResult.apply(new SMBCoGbkResult(valueMap))));
 
-        if (readers.isEmpty()) {
+        if (completedSources == numSources) {
           break;
         }
       }
@@ -307,7 +309,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       BucketedInputIterator<K, V> createIterator(int bucket) {
         int numBuckets = getMetadata().getNumBuckets();
         ResourceId file = fileAssignment.forBucket(bucket, numBuckets);
-        return new BucketedInputIterator<>(reader, file, tupleTag, getMetadata());
+        return new BucketedInputIterator<>(reader, file, getMetadata());
       }
 
       static class BucketedInputCoder<K, V> extends AtomicCoder<BucketedInput<K, V>> {
