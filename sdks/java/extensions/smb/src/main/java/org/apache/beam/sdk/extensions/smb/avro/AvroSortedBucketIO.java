@@ -21,7 +21,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder.JoinSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
@@ -62,8 +61,7 @@ public class AvroSortedBucketIO {
       Schema schema, ResourceId filenamePrefix) {
     return new JoinSource<>(
         new BucketedInput<>(
-            new SMBFilenamePolicy(filenamePrefix, ".avro").forDestination(),
-            AvroFileOperations.forGenericRecord(schema).createReader()),
+            filenamePrefix, ".avro", AvroFileOperations.forGenericRecord(schema).createReader()),
         AvroCoder.of(schema));
   }
 
@@ -71,7 +69,8 @@ public class AvroSortedBucketIO {
       Class<ValueT> recordClass, ResourceId filenamePrefix) {
     return new JoinSource<>(
         new BucketedInput<>(
-            new SMBFilenamePolicy(filenamePrefix, ".avro").forDestination(),
+            filenamePrefix,
+            ".avro",
             AvroFileOperations.forSpecificRecord(recordClass).createReader()),
         AvroCoder.of(recordClass));
   }

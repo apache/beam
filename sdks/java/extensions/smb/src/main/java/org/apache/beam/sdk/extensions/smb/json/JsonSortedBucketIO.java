@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.smb.json;
 
 import com.google.api.services.bigquery.model.TableRow;
-import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder.JoinSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
@@ -39,9 +38,7 @@ public class JsonSortedBucketIO {
 
   public static <KeyT> JoinSource<KeyT, TableRow> jsonSource(ResourceId filenamePrefix) {
     return new JoinSource<>(
-        new BucketedInput<>(
-            new SMBFilenamePolicy(filenamePrefix, ".json").forDestination(),
-            new JsonFileOperations().createReader()),
+        new BucketedInput<>(filenamePrefix, ".json", new JsonFileOperations().createReader()),
         TableRowJsonCoder.of());
   }
 }

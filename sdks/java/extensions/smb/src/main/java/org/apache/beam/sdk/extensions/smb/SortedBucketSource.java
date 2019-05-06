@@ -257,19 +257,14 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
      */
     public static class BucketedInput<K, V> implements Serializable {
       TupleTag<V> tupleTag;
-      final FileAssignment fileAssignment;
+      final ResourceId filenamePrefix;
+      final String filenameSuffix;
       final Reader<V> reader;
       transient BucketMetadata<K, Object> metadata;
 
-      BucketedInput(TupleTag<V> tupleTag, FileAssignment fileAssignment, Reader<V> reader) {
-        this.tupleTag = tupleTag;
-        this.fileAssignment = fileAssignment;
-        this.reader = reader;
-        this.metadata = null;
-      }
-
-      public BucketedInput(FileAssignment fileAssignment, Reader<V> reader) {
-        this.fileAssignment = fileAssignment;
+      public BucketedInput(ResourceId filenamePrefix, String filenameSuffix, Reader<V> reader) {
+        this.filenamePrefix = filenamePrefix;
+        this.filenameSuffix = filenameSuffix;
         this.reader = reader;
         this.metadata = null;
       }
@@ -285,12 +280,17 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           try {
             metadata =
                 BucketMetadata.from(
-                    Channels.newInputStream(FileSystems.open(fileAssignment.forMetadata())));
+                    Channels.newInputStream(FileSystems.open(getFileAssignment().forMetadata())));
             return metadata;
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
         }
+      }
+
+      // @Todo: remove
+      FileAssignment getFileAssignment() {
+        return new FileAssignment(filenamePrefix, filenameSuffix);
       }
     }
 
@@ -301,7 +301,8 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         final BucketMetadata<?, Object> metadata = source.readMetadata();
         final Reader<?> reader = source.reader;
 
-        ResourceId resourceId = source.fileAssignment.forBucket(bucket, metadata.getNumBuckets());
+        ResourceId resourceId =
+            source.getFileAssignment().forBucket(bucket, metadata.getNumBuckets());
 
         if (resourceId != null) {
           readers.add(new BucketedInputIterator(reader, resourceId, source.tupleTag, metadata));
