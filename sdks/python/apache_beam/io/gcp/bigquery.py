@@ -265,6 +265,7 @@ __all__ = [
     'BigQuerySource',
     'BigQuerySink',
     'WriteToBigQuery',
+    'SCHEMA_AUTODETECT',
     ]
 
 
