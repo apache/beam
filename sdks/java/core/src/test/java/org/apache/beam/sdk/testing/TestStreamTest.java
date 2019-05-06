@@ -137,7 +137,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testProcessingTimeTrigger() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
@@ -335,7 +335,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testEarlyPanesOfWindow() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
@@ -387,6 +387,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
+  @Category(UsesTestStreamWithProcessingTime.class)
   public void testCoder() throws Exception {
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())

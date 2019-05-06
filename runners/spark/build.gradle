@@ -120,21 +120,27 @@ task validatesRunnerBatch(type: Test) {
   systemProperty "spark.ui.enabled", "false"
   systemProperty "spark.ui.showConsoleProgress", "false"
 
-
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project(":beam-sdks-java-io-hadoop-format").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    // Metrics
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    // Portability
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
   }
 }
 
@@ -148,7 +154,8 @@ task validatesRunnerStreaming(type: Test) {
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
