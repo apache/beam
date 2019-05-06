@@ -39,7 +39,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.BucketMetadataCoder;
-import org.apache.beam.sdk.extensions.smb.FileOperations.Reader;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
@@ -58,6 +57,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.UnmodifiableIterator;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 
 /**
@@ -129,9 +130,9 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       extends DoFn<KV<Integer, List<BucketedInput<?, ?>>>, KV<FinalKeyT, FinalResultT>> {
 
     private static final Comparator<Map.Entry<TupleTag, KV<byte[], Iterator<?>>>> keyComparator =
-        (l, r) ->
+        (o1, o2) ->
             UnsignedBytes.lexicographicalComparator()
-                .compare(l.getValue().getKey(), r.getValue().getKey());
+                .compare(o1.getValue().getKey(), o2.getValue().getKey());
 
     private final Coder<FinalKeyT> keyCoder;
     private final ToFinalResult<FinalResultT> toResult;
@@ -147,8 +148,8 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       final List<BucketedInput<?, ?>> sources = c.element().getValue();
       final int numSources = sources.size();
 
-      BucketedInputIterator[] iterators =
-          sources.stream().map(i -> i.createIterator(bucket)).toArray(BucketedInputIterator[]::new);
+      KeyGroupIterator[] iterators =
+          sources.stream().map(i -> i.createIterator(bucket)).toArray(KeyGroupIterator[]::new);
       TupleTag[] tupleTags = sources.stream().map(i -> i.tupleTag).toArray(TupleTag[]::new);
 
       final Map<TupleTag, KV<byte[], Iterator<?>>> nextKeyGroups = new HashMap<>();
@@ -156,9 +157,12 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       while (true) {
         int completedSources = 0;
         for (int i = 0; i < numSources; i++) {
-          BucketedInputIterator it = iterators[i];
-          if (it.hasNextKeyGroup()) {
-            nextKeyGroups.put(tupleTags[i], it.nextKeyGroup());
+          KeyGroupIterator it = iterators[i];
+          if (nextKeyGroups.containsKey(tupleTags[i])) {
+            continue;
+          }
+          if (it.hasNext()) {
+            nextKeyGroups.put(tupleTags[i], it.next());
           } else {
             completedSources++;
           }
@@ -306,16 +310,29 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         }
       }
 
-      BucketedInputIterator<V> createIterator(int bucket) {
+      KeyGroupIterator<byte[], V> createIterator(int bucket) {
         int numBuckets = getMetadata().getNumBuckets();
-        ResourceId file = fileAssignment.forBucket(bucket, numBuckets);
-        Reader<V> reader = fileOperations.createReader();
-        try {
-          reader.prepareRead(FileSystems.open(file));
-          return new BucketedInputIterator<>(reader, getMetadata()::extractKeyBytes);
-        } catch (Exception e) {
-          throw new RuntimeException(e);
+        int numShards = getMetadata().getNumShards();
+        List<Iterator<V>> iterators = new ArrayList<>();
+        for (int i = 0; i < numShards; i++) {
+
+          ResourceId file = fileAssignment.forBucket(BucketShardId.of(bucket, i), metadata);
+          try {
+            iterators.add(fileOperations.iterator(file));
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
         }
+
+        Comparator<byte[]> keyComparator = UnsignedBytes.lexicographicalComparator();
+        UnmodifiableIterator<V> iterator =
+            Iterators.mergeSorted(
+                iterators,
+                (o1, o2) ->
+                    keyComparator.compare(
+                        getMetadata().getKeyBytes(o1), getMetadata().getKeyBytes(o2)));
+        // @Fixme: implement sharded iterator
+        return new KeyGroupIterator<>(iterator, getMetadata()::getKeyBytes, keyComparator);
       }
 
       static class BucketedInputCoder<K, V> extends AtomicCoder<BucketedInput<K, V>> {

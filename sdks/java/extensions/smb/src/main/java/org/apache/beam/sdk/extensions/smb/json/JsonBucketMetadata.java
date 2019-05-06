@@ -38,11 +38,12 @@ public class JsonBucketMetadata<KeyT> extends BucketMetadata<KeyT, TableRow> {
   @JsonCreator
   public JsonBucketMetadata(
       @JsonProperty("numBuckets") int numBuckets,
+      @JsonProperty("numShards") int numShards,
       @JsonProperty("keyClass") Class<KeyT> keyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
       @JsonProperty("keyField") String keyField)
       throws CannotProvideCoderException {
-    super(numBuckets, keyClass, hashType);
+    super(numBuckets, numShards, keyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");
   }

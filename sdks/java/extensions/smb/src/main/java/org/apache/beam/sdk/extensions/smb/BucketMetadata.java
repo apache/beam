@@ -58,6 +58,8 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   @JsonProperty private final int numBuckets;
 
+  @JsonProperty private final int numShards;
+
   @JsonProperty private final Class<KeyT> keyClass;
 
   @JsonProperty private final HashType hashType;
@@ -66,13 +68,15 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   @JsonIgnore private final Coder<KeyT> keyCoder;
 
-  public BucketMetadata(int numBuckets, Class<KeyT> keyClass, HashType hashType)
+  public BucketMetadata(int numBuckets, int numShards, Class<KeyT> keyClass, HashType hashType)
       throws CannotProvideCoderException {
-    Preconditions.checkState(
+    Preconditions.checkArgument(
         numBuckets > 0 && ((numBuckets & (numBuckets - 1)) == 0),
         "numBuckets must be a power of 2");
+    Preconditions.checkArgument(numShards > 0, "numShards must be > 0");
 
     this.numBuckets = numBuckets;
+    this.numShards = numShards;
     this.keyClass = keyClass;
     this.hashType = hashType;
     this.hashFunction = hashType.create();
@@ -128,6 +132,10 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     return numBuckets;
   }
 
+  public int getNumShards() {
+    return numShards;
+  }
+
   public Class<KeyT> getKeyClass() {
     return keyClass;
   }
@@ -140,7 +148,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
   // Business logic
   ////////////////////////////////////////
 
-  byte[] extractKeyBytes(ValueT value) {
+  byte[] getKeyBytes(ValueT value) {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     final KeyT key = extractKey(value);
     try {
@@ -154,7 +162,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   public abstract KeyT extractKey(ValueT value);
 
-  int assignBucket(byte[] keyBytes) {
+  int getBucketId(byte[] keyBytes) {
     return Math.abs(hashFunction.hashBytes(keyBytes).asInt()) % numBuckets;
   }
 

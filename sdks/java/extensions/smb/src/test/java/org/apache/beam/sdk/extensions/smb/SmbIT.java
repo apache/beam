@@ -34,6 +34,7 @@ public class SmbIT {
           "--numKeys=1000",
           "--maxRecordsPerKey=20",
           "--numBuckets=16",
+          "--numShards=2",
         });
 
     SmbBenchmark.main(

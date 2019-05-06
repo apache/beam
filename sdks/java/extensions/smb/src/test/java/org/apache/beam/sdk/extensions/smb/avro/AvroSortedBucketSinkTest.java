@@ -29,6 +29,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
+import org.apache.beam.sdk.extensions.smb.BucketShardId;
+import org.apache.beam.sdk.extensions.smb.BucketShardId.BucketShardIdCoder;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
@@ -58,7 +60,7 @@ public class AvroSortedBucketSinkTest {
   @Test
   public void testGenericRecordSink() throws Exception {
     final AvroBucketMetadata<Integer, GenericRecord> metadata =
-        new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "age");
+        new AvroBucketMetadata<>(1, 1, Integer.class, HashType.MURMUR3_32, "age");
 
     final SortedBucketSink<Integer, GenericRecord> sink =
         AvroSortedBucketIO.sink(
@@ -79,7 +81,7 @@ public class AvroSortedBucketSinkTest {
     final WriteResult writeResult = users.apply("test sink", sink);
 
     final PCollection<ResourceId> writtenMetadata =
-        (PCollection<ResourceId>) writeResult.expand().get(new TupleTag<>("SMBMetadataWritten"));
+        (PCollection<ResourceId>) writeResult.expand().get(new TupleTag<>("WrittenMetadata"));
 
     PAssert.that(writtenMetadata)
         .satisfies(
@@ -97,15 +99,18 @@ public class AvroSortedBucketSinkTest {
               return null;
             });
 
-    final PCollection<KV<Integer, ResourceId>> writtenBuckets =
-        (PCollection<KV<Integer, ResourceId>>)
-            writeResult.expand().get(new TupleTag<>("SortedBucketsWritten"));
+    final PCollection<KV<BucketShardId, ResourceId>> writtenBuckets =
+        (PCollection<KV<BucketShardId, ResourceId>>)
+            writeResult.expand().get(new TupleTag<>("WrittenFiles"));
 
-    PAssert.that(writtenBuckets.setCoder(KvCoder.of(VarIntCoder.of(), ResourceIdCoder.of())))
+    PAssert.that(
+            writtenBuckets.setCoder(
+                KvCoder.of(BucketShardIdCoder.of(), ResourceIdCoder.of())))
         .satisfies(
             b -> {
-              final KV<Integer, ResourceId> bucketFile = b.iterator().next();
-              Assert.assertTrue(0 == bucketFile.getKey());
+              final KV<BucketShardId, ResourceId> bucketFile = b.iterator().next();
+              Assert.assertTrue(0 == bucketFile.getKey().getBucketId());
+              Assert.assertTrue(0 == bucketFile.getKey().getShardId());
 
               try {
                 final ReadableByteChannel channel = FileSystems.open(bucketFile.getValue());
@@ -132,7 +137,7 @@ public class AvroSortedBucketSinkTest {
   @Test
   public void testSpecificRecordSink() throws Exception {
     final AvroBucketMetadata<Integer, AvroGeneratedUser> metadata =
-        new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "favorite_number");
+        new AvroBucketMetadata<>(1, 1, Integer.class, HashType.MURMUR3_32, "favorite_number");
 
     final SortedBucketSink<Integer, AvroGeneratedUser> sink =
         AvroSortedBucketIO.sink(
@@ -153,7 +158,7 @@ public class AvroSortedBucketSinkTest {
     final WriteResult writeResult = users.apply("test sink", sink);
 
     final PCollection<ResourceId> writtenMetadata =
-        (PCollection<ResourceId>) writeResult.expand().get(new TupleTag<>("SMBMetadataWritten"));
+        (PCollection<ResourceId>) writeResult.expand().get(new TupleTag<>("WrittenMetadata"));
 
     PAssert.that(writtenMetadata)
         .satisfies(
@@ -171,15 +176,18 @@ public class AvroSortedBucketSinkTest {
               return null;
             });
 
-    final PCollection<KV<Integer, ResourceId>> writtenBuckets =
-        (PCollection<KV<Integer, ResourceId>>)
-            writeResult.expand().get(new TupleTag<>("SortedBucketsWritten"));
+    final PCollection<KV<BucketShardId, ResourceId>> writtenBuckets =
+        (PCollection<KV<BucketShardId, ResourceId>>)
+            writeResult.expand().get(new TupleTag<>("WrittenFiles"));
 
-    PAssert.that(writtenBuckets.setCoder(KvCoder.of(VarIntCoder.of(), ResourceIdCoder.of())))
+    PAssert.that(
+            writtenBuckets.setCoder(
+                KvCoder.of(BucketShardIdCoder.of(), ResourceIdCoder.of())))
         .satisfies(
             b -> {
-              final KV<Integer, ResourceId> bucketFile = b.iterator().next();
-              Assert.assertTrue(0 == bucketFile.getKey());
+              final KV<BucketShardId, ResourceId> bucketFile = b.iterator().next();
+              Assert.assertTrue(0 == bucketFile.getKey().getBucketId());
+              Assert.assertTrue(0 == bucketFile.getKey().getShardId());
 
               try {
                 final ReadableByteChannel channel = FileSystems.open(bucketFile.getValue());

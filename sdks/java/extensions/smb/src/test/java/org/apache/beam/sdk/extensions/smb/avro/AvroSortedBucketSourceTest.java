@@ -74,7 +74,7 @@ public class AvroSortedBucketSourceTest {
 
     writer.prepareWrite(
         FileSystems.create(
-            filenamePolicySource1.forDestination().forBucket(0, 1),
+            filenamePolicySource1.forDestination().forBucket(0, 1, 0, 1),
             file.createWriter().getMimeType()));
 
     writer.write(userC);
@@ -85,14 +85,14 @@ public class AvroSortedBucketSourceTest {
 
     writer.prepareWrite(
         FileSystems.create(
-            filenamePolicySource2.forDestination().forBucket(0, 1),
+            filenamePolicySource2.forDestination().forBucket(0, 1, 0, 1),
             file.createWriter().getMimeType()));
     writer.write(userD);
     writer.write(userB);
     writer.finishWrite();
 
     final AvroBucketMetadata<Integer, GenericRecord> metadata =
-        new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "age");
+        new AvroBucketMetadata<>(1, 1, Integer.class, HashType.MURMUR3_32, "age");
 
     final ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.writeValue(
@@ -147,7 +147,7 @@ public class AvroSortedBucketSourceTest {
 
     writer.prepareWrite(
         FileSystems.create(
-            filenamePolicySource1.forDestination().forBucket(0, 1),
+            filenamePolicySource1.forDestination().forBucket(0, 1, 0, 1),
             file.createWriter().getMimeType()));
 
     writer.write(userC);
@@ -158,14 +158,14 @@ public class AvroSortedBucketSourceTest {
 
     writer.prepareWrite(
         FileSystems.create(
-            filenamePolicySource2.forDestination().forBucket(0, 1),
+            filenamePolicySource2.forDestination().forBucket(0, 1, 0, 1),
             file.createWriter().getMimeType()));
     writer.write(userD);
     writer.write(userB);
     writer.finishWrite();
 
     final AvroBucketMetadata<Integer, GenericRecord> metadata =
-        new AvroBucketMetadata<>(1, Integer.class, HashType.MURMUR3_32, "favorite_number");
+        new AvroBucketMetadata<>(1, 1, Integer.class, HashType.MURMUR3_32, "favorite_number");
 
     final ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.writeValue(

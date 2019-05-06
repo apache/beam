@@ -61,7 +61,7 @@ public class AvroBucketMetadataTest {
   public void testMetadataCoding() throws Exception {
     final BucketMetadata<String, GenericRecord> metadata =
         new AvroBucketMetadata<>(
-            16, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry");
+            16, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry");
 
     final BucketMetadata<String, GenericRecord> roundtripMetadata =
         BucketMetadata.from(metadata.toString());
@@ -74,16 +74,16 @@ public class AvroBucketMetadataTest {
   @Test
   public void testBucketCompatibility() throws Exception {
     final BucketMetadata<String, GenericRecord> m1 =
-        new AvroBucketMetadata<>(2, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
+        new AvroBucketMetadata<>(2, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
 
     final BucketMetadata<String, GenericRecord> m2 =
-        new AvroBucketMetadata<>(2, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
+        new AvroBucketMetadata<>(2, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
 
     final BucketMetadata<String, GenericRecord> m3 =
-        new AvroBucketMetadata<>(16, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
+        new AvroBucketMetadata<>(16, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
 
     final BucketMetadata<String, GenericRecord> m4 =
-        new AvroBucketMetadata<>(2, String.class, HashType.MURMUR3_128, "name");
+        new AvroBucketMetadata<>(2, 1, String.class, HashType.MURMUR3_128, "name");
 
     Assert.assertTrue(m1.compatibleWith(m2));
     Assert.assertFalse(m1.compatibleWith(m3));
@@ -104,18 +104,22 @@ public class AvroBucketMetadataTest {
     Assert.assertEquals(
         "US",
         new AvroBucketMetadata<>(
-                16, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry")
+                16, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry")
             .extractKey(user));
 
     Assert.assertEquals(
         (Long) 10L,
-        new AvroBucketMetadata<>(16, Long.class, BucketMetadata.HashType.MURMUR3_32, "id")
+        new AvroBucketMetadata<>(16, 1, Long.class, BucketMetadata.HashType.MURMUR3_32, "id")
             .extractKey(user));
 
     Assert.assertEquals(
         Arrays.asList("CN", "MX"),
         new AvroBucketMetadata<>(
-                16, ArrayList.class, BucketMetadata.HashType.MURMUR3_32, "location.prevCountries")
+                16,
+                1,
+                ArrayList.class,
+                BucketMetadata.HashType.MURMUR3_32,
+                "location.prevCountries")
             .extractKey(user));
   }
 
@@ -126,13 +130,13 @@ public class AvroBucketMetadataTest {
     Assert.assertEquals(
         "green",
         new AvroBucketMetadata<>(
-                16, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color")
+                16, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color")
             .extractKey(user));
 
     Assert.assertEquals(
         (Integer) 50,
         new AvroBucketMetadata<>(
-                16, Integer.class, BucketMetadata.HashType.MURMUR3_32, "favorite_number")
+                16, 1, Integer.class, BucketMetadata.HashType.MURMUR3_32, "favorite_number")
             .extractKey(user));
   }
 }

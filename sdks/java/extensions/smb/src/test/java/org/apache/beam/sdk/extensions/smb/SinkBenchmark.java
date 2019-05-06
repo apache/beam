@@ -57,6 +57,11 @@ public class SinkBenchmark {
 
     void setNumKeys(int value);
 
+    @Default.Integer(10)
+    int getNumShards();
+
+    void setNumShards(int value);
+
     @Default.Integer(500)
     int getMaxRecordsPerKey();
 
@@ -75,6 +80,7 @@ public class SinkBenchmark {
     int numKeys = sinkOptions.getNumKeys();
     int maxRecordsPerKey = sinkOptions.getMaxRecordsPerKey();
     int numBuckets = sinkOptions.getNumBuckets();
+    int numShards = sinkOptions.getNumShards();
 
     PCollection<AvroGeneratedUser> avroData =
         pipeline
@@ -119,7 +125,7 @@ public class SinkBenchmark {
 
     AvroBucketMetadata<CharSequence, AvroGeneratedUser> avroMetadata =
         new AvroBucketMetadata<>(
-            numBuckets, CharSequence.class, BucketMetadata.HashType.MURMUR3_32, "name");
+            numBuckets, numShards, CharSequence.class, BucketMetadata.HashType.MURMUR3_32, "name");
     SMBFilenamePolicy avroPolicy =
         new SMBFilenamePolicy(
             FileSystems.matchNewResource(sinkOptions.getAvroDestination(), true), ".avro");
@@ -132,7 +138,7 @@ public class SinkBenchmark {
 
     JsonBucketMetadata<String> jsonMetadata =
         new JsonBucketMetadata<>(
-            numBuckets, String.class, BucketMetadata.HashType.MURMUR3_32, "user");
+            numBuckets, numShards, String.class, BucketMetadata.HashType.MURMUR3_32, "user");
     SMBFilenamePolicy jsonPolicy =
         new SMBFilenamePolicy(
             FileSystems.matchNewResource(sinkOptions.getJsonDestination(), true), ".json");

@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -61,7 +62,7 @@ public final class SMBFilenamePolicy implements Serializable {
   /** A file name assigner based on a specific output directory and file suffix. */
   public static class FileAssignment implements Serializable {
 
-    private static final String BUCKET_TEMPLATE = "bucket-%05d-of-%05d%s";
+    private static final String BUCKET_TEMPLATE = "bucket-%05d-of-%05d-shard-%05d-of-%05d%s";
     private static final String METADATA_FILENAME = "metadata.json";
     private static final DateTimeFormatter TEMPFILE_TIMESTAMP =
         DateTimeFormat.forPattern("yyyy-MM-dd_HH-mm-ss-");
@@ -80,9 +81,20 @@ public final class SMBFilenamePolicy implements Serializable {
       this(filenamePrefix, filenameSuffix, false);
     }
 
-    public ResourceId forBucket(int bucketNumber, int numBuckets) {
+    @VisibleForTesting
+    public ResourceId forBucket(int bucketId, int numBuckets, int shardId, int numShards) {
       String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
-      String filename = String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets, filenameSuffix);
+      String filename =
+          String.format(
+              BUCKET_TEMPLATE, bucketId, numBuckets, shardId, numShards, filenameSuffix);
+      return filenamePrefix.resolve(timestamp + filename, StandardResolveOptions.RESOLVE_FILE);
+    }
+
+    public ResourceId forBucket(BucketShardId id, BucketMetadata<?, ?> metadata) {
+      String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
+      String filename =
+          String.format(
+              BUCKET_TEMPLATE, id.getBucketId(), metadata.getNumBuckets(), id.getShardId(), metadata.getNumShards(), filenameSuffix);
       return filenamePrefix.resolve(timestamp + filename, StandardResolveOptions.RESOLVE_FILE);
     }
 

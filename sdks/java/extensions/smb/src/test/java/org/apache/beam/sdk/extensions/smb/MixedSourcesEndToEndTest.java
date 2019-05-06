@@ -83,7 +83,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
   @Test
   public void testE2E() throws Exception {
     final AvroBucketMetadata<ByteBuffer, GenericRecord> avroMetadata =
-        new AvroBucketMetadata<>(2, ByteBuffer.class, HashType.MURMUR3_32, "name");
+        new AvroBucketMetadata<>(2, 1, ByteBuffer.class, HashType.MURMUR3_32, "name");
 
     pipeline
         .apply(
@@ -104,7 +104,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
     pipeline.run().waitUntilFinish();
 
     final JsonBucketMetadata<String> jsonMetadata =
-        new JsonBucketMetadata<>(2, String.class, HashType.MURMUR3_32, "name");
+        new JsonBucketMetadata<>(2, 1, String.class, HashType.MURMUR3_32, "name");
 
     pipeline2
         .apply(
