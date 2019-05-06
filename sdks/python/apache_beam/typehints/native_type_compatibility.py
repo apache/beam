@@ -84,38 +84,31 @@ def _safe_issubclass(derived, parent):
     issubclass(derived, parent), or False if a TypeError was raised.
   """
   try:
-    if type(derived) == typing._GenericAlias:
+    if hasattr(typing, '_GenericAlias') and (type(derived) == typing._GenericAlias):
+      # Python 3.7+
       out = issubclass(derived.__origin__, parent.__origin__)
     else:
       out = issubclass(derived, parent)
     return out
   except TypeError:
     return False
-  except AttributeError:
-    try:
-      out = issubclass(derived, parent)
-      return out
-    except TypeError:
-      return False
 
 
 def _match_issubclass(match_against):
   return lambda user_type: _safe_issubclass(user_type, match_against)
 
 
-def _matcher_(derived, parent):
-  """ Follow structure of _safe_issubclass
-  but uses __orign__ due to updates in typing package of python3"""
-  try:
-    return derived.__origin__ is parent
-  except AttributeError:
-    return type(derived) == type(parent)
-
-
 def _match_same_type(match_against):
   # For Union types. They can't be compared with isinstance either, so we
   # Have to compare their types directly.
-  return lambda user_type: _matcher_(user_type, match_against)
+
+  def matcher(derived, parent):
+    try:
+      return derived.__origin__ is parent
+    except AttributeError:
+      return type(derived) == type(parent)
+
+  return lambda user_type: matcher(user_type, match_against)
 
 
 def _match_is_named_tuple(user_type):
