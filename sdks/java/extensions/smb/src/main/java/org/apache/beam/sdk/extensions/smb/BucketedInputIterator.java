@@ -19,23 +19,20 @@ package org.apache.beam.sdk.extensions.smb;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.function.Function;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Reader;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.values.KV;
 
 /** Iterates over shards in a bucket one record at a time. */
-class BucketedInputIterator<K, V> {
+class BucketedInputIterator<V> {
   private final Reader<V> reader;
-  private final ResourceId resourceId;
-  private final BucketMetadata<K, V> metadata;
+  private final Function<V, byte[]> keyFn;
 
   private KV<byte[], V> nextKv;
 
-  BucketedInputIterator(Reader<V> reader, ResourceId resourceId, BucketMetadata<K, V> metadata) {
+  BucketedInputIterator(Reader<V> reader, Function<V, byte[]> keyFn) {
     this.reader = reader;
-    this.metadata = metadata;
-    this.resourceId = resourceId;
+    this.keyFn = keyFn;
 
     initializeReader();
   }
@@ -43,7 +40,6 @@ class BucketedInputIterator<K, V> {
   private void initializeReader() {
     V value;
     try {
-      reader.prepareRead(FileSystems.open(resourceId));
       value = reader.read();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -52,7 +48,7 @@ class BucketedInputIterator<K, V> {
     if (value == null) {
       nextKv = null;
     } else {
-      nextKv = KV.of(metadata.extractKeyBytes(value), value);
+      nextKv = KV.of(keyFn.apply(value), value);
     }
   }
 
@@ -84,7 +80,7 @@ class BucketedInputIterator<K, V> {
                 nextKv = null;
                 reader.finishRead();
               } else {
-                final byte[] k = metadata.extractKeyBytes(v);
+                final byte[] k = keyFn.apply(v);
                 if (Arrays.equals(key, k)) {
                   // same key, update next value
                   value = v;

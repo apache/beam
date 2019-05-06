@@ -306,10 +306,15 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         }
       }
 
-      BucketedInputIterator<K, V> createIterator(int bucket) {
+      BucketedInputIterator<V> createIterator(int bucket) {
         int numBuckets = getMetadata().getNumBuckets();
         ResourceId file = fileAssignment.forBucket(bucket, numBuckets);
-        return new BucketedInputIterator<>(reader, file, getMetadata());
+        try {
+          reader.prepareRead(FileSystems.open(file));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+        return new BucketedInputIterator<>(reader, getMetadata()::extractKeyBytes);
       }
 
       static class BucketedInputCoder<K, V> extends AtomicCoder<BucketedInput<K, V>> {
