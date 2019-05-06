@@ -98,14 +98,7 @@ def basicTestOpts = [
 task directRunnerIT(dependsOn: 'installGcpTest') {
   // Run IT tests with TestDirectRunner in batch.
   doLast {
-    def tests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
-        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT",
-        "apache_beam.io.gcp.bigquery_io_read_it_test",
-        "apache_beam.io.gcp.datastore.v1new.datastore_write_it_test",
-    ]
-    def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
+    def batchTestOpts = basicTestOpts + ["--attr=IT"]
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": batchTestOpts]
     def batchCmdArgs = project.mapToArgString(argMap)
