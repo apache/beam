@@ -40,8 +40,7 @@ public class JsonSortedBucketIO {
   public static <KeyT> JoinSource<KeyT, TableRow> jsonSource(
       TupleTag<TableRow> tupleTag, ResourceId filenamePrefix) {
     return new JoinSource<>(
-        new BucketedInput<>(
-            tupleTag, filenamePrefix, ".json", new JsonFileOperations().createReader()),
+        new BucketedInput<>(tupleTag, filenamePrefix, ".json", new JsonFileOperations()),
         TableRowJsonCoder.of());
   }
 }

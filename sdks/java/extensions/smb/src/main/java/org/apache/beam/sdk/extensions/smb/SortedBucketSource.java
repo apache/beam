@@ -263,7 +263,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       final TupleTag<V> tupleTag;
       final ResourceId filenamePrefix;
       final String filenameSuffix;
-      final Reader<V> reader;
+      final FileOperations<V> fileOperations;
 
       transient FileAssignment fileAssignment;
       transient BucketMetadata<K, V> metadata;
@@ -272,11 +272,11 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           TupleTag<V> tupleTag,
           ResourceId filenamePrefix,
           String filenameSuffix,
-          Reader<V> reader) {
+          FileOperations<V> fileOperations) {
         this.tupleTag = tupleTag;
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
-        this.reader = reader;
+        this.fileOperations = fileOperations;
 
         this.fileAssignment = new FileAssignment(filenamePrefix, filenameSuffix);
       }
@@ -285,9 +285,9 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           TupleTag<V> tupleTag,
           ResourceId filenamePrefix,
           String filenameSuffix,
-          Reader<V> reader,
+          FileOperations<V> fileOperations,
           BucketMetadata<K, V> metadata) {
-        this(tupleTag, filenamePrefix, filenameSuffix, reader);
+        this(tupleTag, filenamePrefix, filenameSuffix, fileOperations);
         this.metadata = metadata;
       }
 
@@ -309,12 +309,13 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       BucketedInputIterator<V> createIterator(int bucket) {
         int numBuckets = getMetadata().getNumBuckets();
         ResourceId file = fileAssignment.forBucket(bucket, numBuckets);
+        Reader<V> reader = fileOperations.createReader();
         try {
           reader.prepareRead(FileSystems.open(file));
+          return new BucketedInputIterator<>(reader, getMetadata()::extractKeyBytes);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
-        return new BucketedInputIterator<>(reader, getMetadata()::extractKeyBytes);
       }
 
       static class BucketedInputCoder<K, V> extends AtomicCoder<BucketedInput<K, V>> {
@@ -323,7 +324,8 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
             SerializableCoder.of(TupleTag.class);
         private static ResourceIdCoder resourceIdCoder = ResourceIdCoder.of();
         private static StringUtf8Coder stringCoder = StringUtf8Coder.of();
-        private static SerializableCoder<Reader> readerCoder = SerializableCoder.of(Reader.class);
+        private static SerializableCoder<FileOperations> fileOpCoder =
+            SerializableCoder.of(FileOperations.class);
         private BucketMetadataCoder<K, V> metadataCoder = new BucketMetadataCoder<>();
 
         @Override
@@ -332,7 +334,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           tupleTagCoder.encode(value.tupleTag, outStream);
           resourceIdCoder.encode(value.filenamePrefix, outStream);
           stringCoder.encode(value.filenameSuffix, outStream);
-          readerCoder.encode(value.reader, outStream);
+          fileOpCoder.encode(value.fileOperations, outStream);
           metadataCoder.encode(value.getMetadata(), outStream);
         }
 
@@ -342,9 +344,10 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           TupleTag<V> tupleTag = (TupleTag<V>) tupleTagCoder.decode(inStream);
           ResourceId filenamePrefix = resourceIdCoder.decode(inStream);
           String filenameSuffix = stringCoder.decode(inStream);
-          Reader<V> reader = readerCoder.decode(inStream);
+          FileOperations<V> fileOperations = fileOpCoder.decode(inStream);
           BucketMetadata<K, V> metadata = metadataCoder.decode(inStream);
-          return new BucketedInput<>(tupleTag, filenamePrefix, filenameSuffix, reader, metadata);
+          return new BucketedInput<>(
+              tupleTag, filenamePrefix, filenameSuffix, fileOperations, metadata);
         }
       }
     }

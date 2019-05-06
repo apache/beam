@@ -62,10 +62,7 @@ public class AvroSortedBucketIO {
       TupleTag<GenericRecord> tupleTag, Schema schema, ResourceId filenamePrefix) {
     return new JoinSource<>(
         new BucketedInput<>(
-            tupleTag,
-            filenamePrefix,
-            ".avro",
-            AvroFileOperations.forGenericRecord(schema).createReader()),
+            tupleTag, filenamePrefix, ".avro", AvroFileOperations.forGenericRecord(schema)),
         AvroCoder.of(schema));
   }
 
@@ -73,10 +70,7 @@ public class AvroSortedBucketIO {
       TupleTag<ValueT> tupleTag, Class<ValueT> recordClass, ResourceId filenamePrefix) {
     return new JoinSource<>(
         new BucketedInput<>(
-            tupleTag,
-            filenamePrefix,
-            ".avro",
-            AvroFileOperations.forSpecificRecord(recordClass).createReader()),
+            tupleTag, filenamePrefix, ".avro", AvroFileOperations.forSpecificRecord(recordClass)),
         AvroCoder.of(recordClass));
   }
 }
