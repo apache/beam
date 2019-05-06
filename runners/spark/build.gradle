@@ -129,11 +129,11 @@ task validatesRunnerBatch(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
   }
 }
