@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -137,7 +137,12 @@ public class UnboundedSourceWrapperTest {
                     numTasks /* parallelism */,
                     subtaskIndex /* subtask index */);
 
+        // The testing timer service is synchronous, so we must configure a watermark interval
+        // > 0, otherwise we can get loop infinitely due to a timer always becoming ready after
+        // it has been set.
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(10L);
         testHarness.setProcessingTime(System.currentTimeMillis());
+        testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
         // start a thread that advances processing time, so that we eventually get the final
         // watermark which is only updated via a processing-time trigger
@@ -147,7 +152,13 @@ public class UnboundedSourceWrapperTest {
               public void run() {
                 while (true) {
                   try {
-                    testHarness.setProcessingTime(System.currentTimeMillis());
+                    // Need to advance this so that the watermark timers in the source wrapper fire
+                    // Synchronize is necessary because this can interfere with updating the
+                    // PriorityQueue of the ProcessingTimeService which is accessed when setting
+                    // timers in UnboundedSourceWrapper.
+                    synchronized (testHarness.getCheckpointLock()) {
+                      testHarness.setProcessingTime(System.currentTimeMillis());
+                    }
                     Thread.sleep(100);
                   } catch (InterruptedException e) {
                     // this is ok
@@ -159,9 +170,8 @@ public class UnboundedSourceWrapperTest {
                 }
               }
             };
-        processingTimeUpdateThread.start();
 
-        testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+        processingTimeUpdateThread.start();
 
         try {
           testHarness.open();
