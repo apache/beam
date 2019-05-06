@@ -27,7 +27,7 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.utils import retry
 
-__all__ = ['BigqueryMatcher']
+__all__ = ['BigqueryMatcher', 'BigQueryTableMatcher']
 
 
 # Protect against environments where bigquery library is not available.
@@ -202,7 +202,10 @@ class BigQueryTableMatcher(BaseMatcher):
     try:
       return obj.__getattribute__(attr)
     except AttributeError:
-      return None
+      try:
+        return obj.get(attr, None)
+      except TypeError:
+        return None
 
   @staticmethod
   def _match_property(expected, actual):

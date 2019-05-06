@@ -97,7 +97,7 @@ should be sent to.
 You may also provide a tuple of PCollectionView elements to be passed as side
 inputs to your callable. For example, suppose that one wishes to send
 events of different types to different tables, and the table names are
-computed at pipeline runtime, one may do something like so::
+computed at pipeline runtime, one may do something like the following::
 
     with Pipeline() as p:
       elements = (p | beam.Create([
@@ -115,6 +115,10 @@ computed at pipeline runtime, one may do something like so::
       elements | beam.io.gcp.WriteToBigQuery(
         table=lambda row, table_dict: table_dict[row['type']],
         table_side_inputs=(table_names_dict,))
+
+In the example above, the `table_dict` argument passed to the function in
+`table_dict` is the side input coming from `table_names_dict`, which is passed
+as part of the `table_side_inputs` argument.
 
 Schemas
 ---------
@@ -698,7 +702,9 @@ class BigQueryWriteFn(DoFn):
       retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
       additional_bq_parameters (dict, callable): A set of additional parameters
-        to be passed when creating a BigQuery table.
+        to be passed when creating a BigQuery table. These are passed when
+        triggering a load job for FILE_LOADS, and when creating a new table for
+        STREAMING_INSERTS.
     """
     self.schema = schema
     self.test_client = test_client
