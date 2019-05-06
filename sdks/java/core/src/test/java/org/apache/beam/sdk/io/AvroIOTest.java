@@ -67,6 +67,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -555,7 +556,7 @@ public class AvroIOTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
     public void testContinuouslyWriteAndReadMultipleFilepatterns() {
       SimpleFunction<Long, GenericClass> mapFn = new CreateGenericClass();
       List<GenericClass> firstValues = new ArrayList<>();
