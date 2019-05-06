@@ -42,6 +42,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -127,10 +128,12 @@ public class MixedSourcesEndToEndTest implements Serializable {
             SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
                 .of(
                     AvroSortedBucketIO.avroSource(
-                        GR_USER_SCHEMA, LocalResources.fromFile(source1Folder.getRoot(), true)))
+                        new TupleTag<>(),
+                        GR_USER_SCHEMA,
+                        LocalResources.fromFile(source1Folder.getRoot(), true)))
                 .and(
                     JsonSortedBucketIO.jsonSource(
-                        LocalResources.fromFile(source2Folder.getRoot(), true)))
+                        new TupleTag<>(), LocalResources.fromFile(source2Folder.getRoot(), true)))
                 .build();
 
     final PCollection<KV<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>>> joinedSources =

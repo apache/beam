@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinB
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.values.TupleTag;
 
 /** Abstracts SMB sources and sinks for Avro-typed values. */
 public class AvroSortedBucketIO {
@@ -58,17 +59,21 @@ public class AvroSortedBucketIO {
 
   // Joins
   public static <KeyT> JoinSource<KeyT, GenericRecord> avroSource(
-      Schema schema, ResourceId filenamePrefix) {
+      TupleTag<GenericRecord> tupleTag, Schema schema, ResourceId filenamePrefix) {
     return new JoinSource<>(
         new BucketedInput<>(
-            filenamePrefix, ".avro", AvroFileOperations.forGenericRecord(schema).createReader()),
+            tupleTag,
+            filenamePrefix,
+            ".avro",
+            AvroFileOperations.forGenericRecord(schema).createReader()),
         AvroCoder.of(schema));
   }
 
   public static <KeyT, ValueT extends SpecificRecordBase> JoinSource<KeyT, ValueT> avroSource(
-      Class<ValueT> recordClass, ResourceId filenamePrefix) {
+      TupleTag<ValueT> tupleTag, Class<ValueT> recordClass, ResourceId filenamePrefix) {
     return new JoinSource<>(
         new BucketedInput<>(
+            tupleTag,
             filenamePrefix,
             ".avro",
             AvroFileOperations.forSpecificRecord(recordClass).createReader()),

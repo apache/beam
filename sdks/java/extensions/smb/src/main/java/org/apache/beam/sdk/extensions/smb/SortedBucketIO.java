@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
-import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -32,9 +31,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 /** Abstractions for SMB sink/source creation. */
 public class SortedBucketIO {
 
-  private static final String LEFT_TUPLE_TAG_ID = "left";
-  private static final String RIGHT_TUPLE_TAG_ID = "right";
-
   /**
    * Pre-built transform for an SortedBucketSource transform with two bucketed inputs.
    *
@@ -42,26 +38,32 @@ public class SortedBucketIO {
    * @param <V2>
    */
   static class TwoSourceJoinResult<V1, V2> extends ToFinalResult<KV<Iterable<V1>, Iterable<V2>>> {
-    private final Coder<V1> leftCoder; // @Todo: can we get these from Coder registry?
-    private final Coder<V2> rightCoder;
+    private final TupleTag<V1> lhsTupleTag;
+    private final TupleTag<V2> rhsTupleTag;
+    private final Coder<V1> lhsCoder; // @Todo: can we get these from Coder registry?
+    private final Coder<V2> rhsCoder;
 
-    TwoSourceJoinResult(Coder<V1> leftCoder, Coder<V2> rightCoder) {
-      this.leftCoder = leftCoder;
-      this.rightCoder = rightCoder;
+    TwoSourceJoinResult(
+        TupleTag<V1> lhsTupleTag,
+        TupleTag<V2> rhsTupleTag,
+        Coder<V1> lhsCoder,
+        Coder<V2> rhsCoder) {
+      this.lhsTupleTag = lhsTupleTag;
+      this.rhsTupleTag = rhsTupleTag;
+      this.lhsCoder = lhsCoder;
+      this.rhsCoder = rhsCoder;
     }
 
     @Override
     public KV<Iterable<V1>, Iterable<V2>> apply(SMBCoGbkResult input) {
-      return KV.of(
-          input.getValuesForTag(new TupleTag<>(LEFT_TUPLE_TAG_ID)),
-          input.getValuesForTag(new TupleTag<>(RIGHT_TUPLE_TAG_ID)));
+      return KV.of(input.getValuesForTag(lhsTupleTag), input.getValuesForTag(rhsTupleTag));
     }
 
     @Override
     public Coder<KV<Iterable<V1>, Iterable<V2>>> resultCoder() {
       return KvCoder.of(
-          NullableCoder.of(IterableCoder.of(leftCoder)),
-          NullableCoder.of(IterableCoder.of(rightCoder)));
+          NullableCoder.of(IterableCoder.of(lhsCoder)),
+          NullableCoder.of(IterableCoder.of(rhsCoder)));
     }
   }
 
@@ -72,10 +74,10 @@ public class SortedBucketIO {
    * @param <V1>
    * @param <V2>
    */
-  public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> implements Serializable {
+  public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> {
     private Class<KeyT> keyClass;
-    private JoinSource<KeyT, V1> leftSource;
-    private JoinSource<KeyT, V2> rightSource;
+    private JoinSource<KeyT, V1> lhs;
+    private JoinSource<KeyT, V2> rhs;
 
     /**
      * Represents a typed input to an SMB join.
@@ -83,7 +85,7 @@ public class SortedBucketIO {
      * @param <K>
      * @param <V>
      */
-    public static class JoinSource<K, V> implements Serializable {
+    public static class JoinSource<K, V> {
       private final BucketedInput<K, V> bucketedInput;
       private final Coder<V> valueCoder;
 
@@ -97,9 +99,9 @@ public class SortedBucketIO {
       this.keyClass = keyClass;
     }
 
-    private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass, JoinSource<KeyT, V1> leftSource) {
+    private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass, JoinSource<KeyT, V1> lhs) {
       this(keyClass);
-      this.leftSource = leftSource;
+      this.lhs = lhs;
     }
 
     public static <KeyT> SortedBucketSourceJoinBuilder<KeyT, ?, ?> withFinalKeyType(
@@ -108,30 +110,30 @@ public class SortedBucketIO {
     }
 
     public <ValueT> SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> of(
-        JoinSource<KeyT, ValueT> leftSource) {
+        JoinSource<KeyT, ValueT> lhs) {
       final SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> builderCopy =
           new SortedBucketSourceJoinBuilder<>(keyClass);
 
-      leftSource.bucketedInput.setTupleTag(new TupleTag<>(LEFT_TUPLE_TAG_ID));
-      builderCopy.leftSource = leftSource;
+      builderCopy.lhs = lhs;
       return builderCopy;
     }
 
     public <ValueT> SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> and(
-        JoinSource<KeyT, ValueT> rightSource) {
+        JoinSource<KeyT, ValueT> rhs) {
       final SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> builderCopy =
-          new SortedBucketSourceJoinBuilder<>(keyClass, leftSource);
+          new SortedBucketSourceJoinBuilder<>(keyClass, lhs);
 
-      rightSource.bucketedInput.setTupleTag(new TupleTag<>(RIGHT_TUPLE_TAG_ID));
-      builderCopy.rightSource = rightSource;
+      builderCopy.rhs = rhs;
       return builderCopy;
     }
 
     public SortedBucketSource<KeyT, KV<Iterable<V1>, Iterable<V2>>> build() {
       return new SortedBucketSource<>(
-          new SortedBucketIO.TwoSourceJoinResult<>(leftSource.valueCoder, rightSource.valueCoder),
-          ImmutableList.of(leftSource.bucketedInput, rightSource.bucketedInput),
-          keyClass);
+          ImmutableList.of(lhs.bucketedInput, rhs.bucketedInput),
+          keyClass,
+          new SortedBucketIO.TwoSourceJoinResult<>(
+              lhs.bucketedInput.tupleTag, rhs.bucketedInput.tupleTag,
+              lhs.valueCoder, rhs.valueCoder));
     }
   }
 

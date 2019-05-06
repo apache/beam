@@ -36,6 +36,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
@@ -61,10 +62,12 @@ public class SmbBenchmark {
         SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
             .of(
                 AvroSortedBucketIO.avroSource(
+                    new TupleTag<>(),
                     AvroGeneratedUser.class,
                     FileSystems.matchNewResource(sourceOptions.getAvroSource(), true)))
             .and(
                 JsonSortedBucketIO.jsonSource(
+                    new TupleTag<>(),
                     FileSystems.matchNewResource(sourceOptions.getJsonSource(), true)))
             .build();
 

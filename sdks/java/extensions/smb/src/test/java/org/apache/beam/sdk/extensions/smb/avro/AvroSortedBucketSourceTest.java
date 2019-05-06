@@ -33,6 +33,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
@@ -107,10 +108,12 @@ public class AvroSortedBucketSourceTest {
             SortedBucketSourceJoinBuilder.withFinalKeyType(Integer.class)
                 .of(
                     AvroSortedBucketIO.avroSource(
+                        new TupleTag<>(),
                         TestUtils.USER_SCHEMA,
                         LocalResources.fromFile(source1Folder.getRoot(), true)))
                 .and(
                     AvroSortedBucketIO.avroSource(
+                        new TupleTag<>(),
                         TestUtils.USER_SCHEMA,
                         LocalResources.fromFile(source2Folder.getRoot(), true)))
                 .build();
@@ -178,10 +181,12 @@ public class AvroSortedBucketSourceTest {
             SortedBucketIO.SortedBucketSourceJoinBuilder.withFinalKeyType(Integer.class)
                 .of(
                     AvroSortedBucketIO.avroSource(
+                        new TupleTag<>(),
                         AvroGeneratedUser.class,
                         LocalResources.fromFile(source1Folder.getRoot(), true)))
                 .and(
                     AvroSortedBucketIO.avroSource(
+                        new TupleTag<>(),
                         AvroGeneratedUser.class,
                         LocalResources.fromFile(source2Folder.getRoot(), true)))
                 .build();

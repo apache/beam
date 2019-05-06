@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.sdk.extensions.smb.json.JsonBucketMetadata;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
@@ -192,15 +193,17 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
   }
 
   static class BucketMetadataCoder<K, V> extends AtomicCoder<BucketMetadata<K, V>> {
+    private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
+
     @Override
     public void encode(BucketMetadata<K, V> value, OutputStream outStream)
         throws CoderException, IOException {
-      BucketMetadata.to(value, outStream);
+      stringCoder.encode(value.toString(), outStream);
     }
 
     @Override
     public BucketMetadata<K, V> decode(InputStream inStream) throws CoderException, IOException {
-      return BucketMetadata.from(inStream);
+      return BucketMetadata.from(stringCoder.decode(inStream));
     }
   }
 }
