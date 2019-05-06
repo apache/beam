@@ -82,6 +82,7 @@ class BucketedInputIterator<K, V> {
                 // end of file, reset outer
                 value = null;
                 nextKv = null;
+                reader.finishRead();
               } else {
                 final byte[] k = metadata.extractKeyBytes(v);
                 if (Arrays.equals(key, k)) {
