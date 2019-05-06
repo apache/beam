@@ -49,6 +49,7 @@ import org.junit.runners.JUnit4;
 
 /** Test {@link Schema} support. */
 @RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class ParDoSchemaTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -64,7 +65,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testSimpleSchemaPipeline() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -94,7 +95,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testReadAndWrite() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -146,7 +147,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testReadAndWriteMultiOutput() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -240,7 +241,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testReadAndWriteWithSchemaRegistry() {
     Schema schema =
         Schema.builder().addStringField("string_field").addInt32Field("integer_field").build();
@@ -285,7 +286,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testFieldAccessSchemaPipeline() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -319,7 +320,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesSchema.class})
+  @Category(NeedsRunner.class)
   public void testNoSchema() {
     thrown.expect(IllegalArgumentException.class);
     pipeline
@@ -334,7 +335,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesSchema.class})
+  @Category(NeedsRunner.class)
   public void testUnmatchedSchema() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -372,7 +373,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testInferredSchemaPipeline() {
     List<Inferred> pojoList =
         Lists.newArrayList(
@@ -396,7 +397,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testSchemasPassedThrough() {
     List<Inferred> pojoList =
         Lists.newArrayList(
@@ -420,7 +421,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testSchemaConversionPipeline() {
     List<Inferred> pojoList =
         Lists.newArrayList(
@@ -452,7 +453,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testNestedSchema() {
     List<Nested> pojoList =
         Lists.newArrayList(
@@ -493,7 +494,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testSchemaFieldSelectionUnboxing() {
     List<ForExtraction> pojoList =
         Lists.newArrayList(
@@ -533,7 +534,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testSchemaFieldDescriptorSelectionUnboxing() {
     List<ForExtraction> pojoList =
         Lists.newArrayList(
@@ -580,7 +581,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testSchemaFieldSelectionNested() {
     List<ForExtraction> pojoList =
         Lists.newArrayList(
