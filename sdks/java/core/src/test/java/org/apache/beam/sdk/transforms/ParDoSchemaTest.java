@@ -388,7 +388,7 @@ public class ParDoSchemaTest implements Serializable {
                     new DoFn<Inferred, String>() {
                       @ProcessElement
                       public void process(@Element Row row, OutputReceiver<String> r) {
-                        r.output(row.getString(0) + ":" + row.getInt32(1));
+                        r.output(row.getString("stringField") + ":" + row.getInt32("integerField"));
                       }
                     }));
     PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
