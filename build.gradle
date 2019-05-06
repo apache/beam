@@ -188,8 +188,7 @@ task pythonPreCommit() {
   dependsOn ":beam-sdks-python:preCommitPy2"
   dependsOn ":beam-sdks-python-test-suites-tox-py35:preCommitPy35"
   dependsOn ":beam-sdks-python-test-suites-tox-py36:preCommitPy36"
-  // TODO(BEAM-7066): Enable once Python3.7-dev package is installed on all Jenkins nodes.
-  // dependsOn ":beam-sdks-python-test-suites-tox-py37:preCommitPy37"
+  dependsOn ":beam-sdks-python-test-suites-tox-py37:preCommitPy37"
   dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
 
