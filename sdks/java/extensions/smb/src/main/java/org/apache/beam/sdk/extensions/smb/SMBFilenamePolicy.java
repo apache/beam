@@ -37,15 +37,15 @@ public final class SMBFilenamePolicy implements Serializable {
   private final Long tempId = TEMP_COUNT.getAndIncrement();
 
   private final ResourceId filenamePrefix;
-  private final String fileNameSuffix;
+  private final String filenameSuffix;
 
-  public SMBFilenamePolicy(ResourceId destinationPrefix, String fileNameSuffix) {
-    this.filenamePrefix = destinationPrefix;
-    this.fileNameSuffix = fileNameSuffix;
+  public SMBFilenamePolicy(ResourceId filenamePrefix, String filenameSuffix) {
+    this.filenamePrefix = filenamePrefix;
+    this.filenameSuffix = filenameSuffix;
   }
 
   public FileAssignment forDestination() {
-    return new FileAssignment(filenamePrefix, fileNameSuffix);
+    return new FileAssignment(filenamePrefix, filenameSuffix);
   }
 
   public FileAssignment forTempFiles(ResourceId tempDirectory) {
@@ -54,7 +54,7 @@ public final class SMBFilenamePolicy implements Serializable {
         tempDirectory
             .getCurrentDirectory()
             .resolve(tempDirName, StandardResolveOptions.RESOLVE_DIRECTORY),
-        fileNameSuffix,
+        filenameSuffix,
         true);
   }
 
@@ -63,41 +63,33 @@ public final class SMBFilenamePolicy implements Serializable {
 
     private static final String BUCKET_TEMPLATE = "bucket-%05d-of-%05d%s";
     private static final String METADATA_FILENAME = "metadata.json";
-    private static final String TIMESTAMP_TEMPLATE = "yyyy-MM-dd_HH-mm-ss-";
+    private static final DateTimeFormatter TEMPFILE_TIMESTAMP =
+        DateTimeFormat.forPattern("yyyy-MM-dd_HH-mm-ss-");
 
     private final ResourceId filenamePrefix;
-    private final String fileNameSuffix;
+    private final String filenameSuffix;
     private final boolean doTimestampFiles;
 
-    FileAssignment(ResourceId filenamePrefix, String fileNameSuffix, boolean doTimestampFiles) {
+    FileAssignment(ResourceId filenamePrefix, String filenameSuffix, boolean doTimestampFiles) {
       this.filenamePrefix = filenamePrefix;
-      this.fileNameSuffix = fileNameSuffix;
+      this.filenameSuffix = filenameSuffix;
       this.doTimestampFiles = doTimestampFiles;
     }
 
-    FileAssignment(ResourceId filenamePrefix, String fileNameSuffix) {
-      this(filenamePrefix, fileNameSuffix, false);
+    FileAssignment(ResourceId filenamePrefix, String filenameSuffix) {
+      this(filenamePrefix, filenameSuffix, false);
     }
 
     public ResourceId forBucket(int bucketNumber, int numBuckets) {
-      String prefix = "";
-      if (doTimestampFiles) {
-        prefix += Instant.now().toString(DateTimeFormat.forPattern(TIMESTAMP_TEMPLATE));
-      }
-
-      return filenamePrefix.resolve(
-          prefix + String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets, fileNameSuffix),
-          StandardResolveOptions.RESOLVE_FILE);
+      String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
+      String filename = String.format(BUCKET_TEMPLATE, bucketNumber, numBuckets, filenameSuffix);
+      return filenamePrefix.resolve(timestamp + filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     public ResourceId forMetadata() {
-      String prefix = "";
-      if (doTimestampFiles) {
-        prefix += Instant.now().toString(DateTimeFormat.forPattern(TIMESTAMP_TEMPLATE));
-      }
-
+      String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
       return filenamePrefix.resolve(
-          prefix + METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
+          timestamp + METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
     }
   }
 }
