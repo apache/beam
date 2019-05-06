@@ -37,6 +37,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
+@unittest.skipIf(sys.platform.startswith('win'), "skipping for windows")
 class MatchTest(_TestCaseWithTempDirCleanUp):
 
   def test_basic_two_files(self):
@@ -110,6 +111,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
       assert_that(files_pc, equal_to(files))
 
 
+@unittest.skipIf(sys.platform.startswith('win'), "skipping for windows")
 class ReadTest(_TestCaseWithTempDirCleanUp):
 
   def test_basic_file_name_provided(self):
