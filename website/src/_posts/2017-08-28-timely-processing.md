@@ -373,7 +373,7 @@ class StatefulBufferingFn(beam.DoFn):
   def expiry(self,
              buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
              count_state=beam.DoFn.StateParam(COUNT_STATE)):
-    events = buffer_state.read() or []
+    events = buffer_state.read()
 
     for event in events:
       yield event
@@ -504,7 +504,7 @@ class StatefulBufferingFn(beam.DoFn):
   def stale(self,
             buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
             count_state=beam.DoFn.StateParam(COUNT_STATE)):
-    events = buffer_state.read() or []
+    events = buffer_state.read()
 
     for event in events:
       yield event
