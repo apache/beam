@@ -44,7 +44,6 @@ dependencies {
   shadow "org.apache.hbase:hbase-shaded-client:$hbase_version"
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.commons_lang3
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
@@ -65,5 +64,6 @@ dependencies {
   }
   testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
   testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }
 

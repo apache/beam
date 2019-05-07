@@ -41,13 +41,19 @@ dependencies {
   dockerDependency library.java.slf4j_api
   dockerDependency library.java.slf4j_jdk14
   dockerDependency project(path: ":beam-sdks-java-harness", configuration: "shadow")
+  // For executing KafkaIO, e.g. as an external transform
+  dockerDependency project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
 }
+
+def dockerfileName = project.findProperty('dockerfile') ?: 'Dockerfile'
 
 task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
   rename "slf4j-api.*", "slf4j-api.jar"
   rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
   rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
+  rename 'beam-sdks-java-io-kafka.*.jar', 'beam-sdks-java-io-kafka.jar'
+  rename 'kafka-clients.*.jar', 'kafka-clients.jar'
   into "build/target"
 }
 
@@ -62,6 +68,7 @@ golang {
 
 docker {
   name containerImageName(name: "java")
+  dockerfile project.file("./${dockerfileName}")
   files "./build/"
 }
 // Ensure that we build the required resources and copy and file dependencies from related projects

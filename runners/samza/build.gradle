@@ -34,7 +34,7 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "0.14.1"
+def samza_version = "1.1.0"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
@@ -54,6 +54,7 @@ dependencies {
   shadow "org.apache.samza:samza-kv_2.11:$samza_version"
   shadow "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
   shadow "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
+  shadow "org.apache.samza:samza-yarn_2.11:$samza_version"
   shadow "org.apache.kafka:kafka-clients:0.11.0.2"
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
@@ -84,7 +85,6 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
   }

@@ -17,6 +17,9 @@
 """
 This is GroupByKey load test with Synthetic Source. Besides of the standard
 input options there are additional options:
+* fanout (optional) - number of GBK operations to run in parallel
+* iterations (optional) - number of reiteraations over per-key-grouped
+values to perform
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
@@ -35,6 +38,8 @@ python setup.py nosetests \
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
+    --fanout=1
+    --iterations=1
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -52,6 +57,8 @@ or:
     --project=...
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
+    --fanout=1
+    --iterations=1
     --input_options=\'
       {"num_records": 1,
       "key_size": 1,
@@ -76,6 +83,8 @@ python setup.py nosetests \
         --publish_to_big_query=true
         --metrics_dataset=python_load_tests
         --metrics_table=gbk
+        --fanout=1
+        --iterations=1
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -94,6 +103,8 @@ or:
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
     --temp_location=gs://...
+    --fanout=1
+    --iterations=1
     --input_options=\'
       {"num_records": 1,
       "key_size": 1,
@@ -109,16 +120,14 @@ apache_beam.testing.load_tests.group_by_key_test \
 
 from __future__ import absolute_import
 
-import json
 import logging
 import os
 import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
+from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
-from apache_beam.testing.test_pipeline import TestPipeline
 
 load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
@@ -126,63 +135,46 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 
 
 @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
-class GroupByKeyTest(unittest.TestCase):
-  def parseTestPipelineOptions(self):
-    return {
-        'numRecords': self.input_options.get('num_records'),
-        'keySizeBytes': self.input_options.get('key_size'),
-        'valueSizeBytes': self.input_options.get('value_size'),
-        'bundleSizeDistribution': {
-            'type': self.input_options.get(
-                'bundle_size_distribution_type', 'const'
-            ),
-            'param': self.input_options.get('bundle_size_distribution_param', 0)
-        },
-        'forceNumInitialBundles': self.input_options.get(
-            'force_initial_num_bundles', 0
-        )
-    }
-
+class GroupByKeyTest(LoadTest):
   def setUp(self):
-    self.pipeline = TestPipeline()
-    self.input_options = json.loads(self.pipeline.get_option('input_options'))
-
-    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
-    metrics_project_id = self.pipeline.get_option('project')
-    self.metrics_namespace = self.pipeline.get_option('metrics_table')
-    metrics_dataset = self.pipeline.get_option('metrics_dataset')
-
-    check = metrics_project_id and self.metrics_namespace and metrics_dataset \
-            is not None
-    if not self.metrics_monitor:
-      logging.info('Metrics will not be collected')
-    elif check:
-      self.metrics_monitor = MetricsMonitor(
-          project_name=metrics_project_id,
-          table=self.metrics_namespace,
-          dataset=metrics_dataset,
-      )
+    super(GroupByKeyTest, self).setUp()
+    self.fanout = self.pipeline.get_option('fanout')
+    if self.fanout is None:
+      self.fanout = 1
     else:
-      raise ValueError('One or more of parameters for collecting metrics '
-                       'are empty.')
+      self.fanout = int(self.fanout)
+
+    self.iterations = self.pipeline.get_option('iterations')
+    if self.iterations is None:
+      self.iterations = 1
+    else:
+      self.iterations = int(self.iterations)
+
+  class _UngroupAndReiterate(beam.DoFn):
+    def process(self, element, iterations):
+      key, value = element
+      for i in range(iterations):
+        for v in value:
+          if i == iterations - 1:
+            return (key, v)
 
   def testGroupByKey(self):
-    # pylint: disable=expression-not-assigned
-    (self.pipeline
-     | beam.io.Read(synthetic_pipeline.SyntheticSource(
-         self.parseTestPipelineOptions()))
-     | 'Measure time: Start' >> beam.ParDo(
-         MeasureTime(self.metrics_namespace))
-     | 'GroupByKey' >> beam.GroupByKey()
-     | 'Ungroup' >> beam.FlatMap(
-         lambda elm: [(elm[0], v) for v in elm[1]])
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-    )
+    input = (self.pipeline
+             | beam.io.Read(synthetic_pipeline.SyntheticSource(
+                 self.parseTestPipelineOptions()))
+             | 'Measure time: Start' >> beam.ParDo(
+                 MeasureTime(self.metrics_namespace))
+            )
 
-    result = self.pipeline.run()
-    result.wait_until_finish()
-    if self.metrics_monitor is not None:
-      self.metrics_monitor.send_metrics(result)
+    for branch in range(self.fanout):
+      # pylint: disable=expression-not-assigned
+      (input
+       | 'GroupByKey %i' % branch >> beam.GroupByKey()
+       | 'Ungroup %i' % branch >> beam.ParDo(
+           self._UngroupAndReiterate(), self.iterations)
+       | 'Measure time: End %i' % branch >> beam.ParDo(
+           MeasureTime(self.metrics_namespace))
+      )
 
 
 if __name__ == '__main__':

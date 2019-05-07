@@ -45,6 +45,7 @@ from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
@@ -72,6 +73,25 @@ def default_encoder(obj):
     return str(obj)
   raise TypeError(
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
+
+
+def get_hashable_destination(destination):
+  """Parses a table reference into a (project, dataset, table) tuple.
+
+  Args:
+    destination: Either a TableReference object from the bigquery API.
+      The object has the following attributes: projectId, datasetId, and
+      tableId. Or a string representing the destination containing
+      'PROJECT:DATASET.TABLE'.
+  Returns:
+    A string representing the destination containing
+    'PROJECT:DATASET.TABLE'.
+  """
+  if isinstance(destination, bigquery.TableReference):
+    return '%s:%s.%s' % (
+        destination.projectId, destination.datasetId, destination.tableId)
+  else:
+    return destination
 
 
 def parse_table_schema_from_json(schema_string):
@@ -141,6 +161,8 @@ def parse_table_reference(table, dataset=None, project=None):
   if isinstance(table, bigquery.TableReference):
     return table
   elif callable(table):
+    return table
+  elif isinstance(table, value_provider.ValueProvider):
     return table
 
   table_reference = bigquery.TableReference()
@@ -344,16 +366,16 @@ class BigQueryWrapper(object):
             jobReference=reference))
 
     response = self.client.jobs.Insert(request)
-    return response.jobReference.jobId
+    return response.jobReference.jobId, response.jobReference.location
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_query_results(self, project_id, job_id,
-                         page_token=None, max_results=10000):
+                         page_token=None, max_results=10000, location=None):
     request = bigquery.BigqueryJobsGetQueryResultsRequest(
         jobId=job_id, pageToken=page_token, projectId=project_id,
-        maxResults=max_results)
+        maxResults=max_results, location=location)
     response = self.client.jobs.GetQueryResults(request)
     return response
 
@@ -387,7 +409,9 @@ class BigQueryWrapper(object):
 
     Args:
       client: bigquery.BigqueryV2 instance
-      project_id, dataset_id, table_id: table lookup parameters
+      project_id: table lookup parameter
+      dataset_id: table lookup parameter
+      table_id: table lookup parameter
 
     Returns:
       bigquery.Table instance
@@ -579,7 +603,7 @@ class BigQueryWrapper(object):
       A bigquery.Table instance if table was found or created.
 
     Raises:
-      RuntimeError: For various mismatches between the state of the table and
+      `RuntimeError`: For various mismatches between the state of the table and
         the create/write dispositions passed in. For example if the table is not
         empty and WRITE_EMPTY was specified then an error will be raised since
         the table was expected to be empty.
@@ -646,16 +670,18 @@ class BigQueryWrapper(object):
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
-    job_id = self._start_query_job(project_id, query, use_legacy_sql,
-                                   flatten_results, job_id=uuid.uuid4().hex,
-                                   dry_run=dry_run)
+    job_id, location = self._start_query_job(project_id, query,
+                                             use_legacy_sql, flatten_results,
+                                             job_id=uuid.uuid4().hex,
+                                             dry_run=dry_run)
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
       return
     page_token = None
     while True:
-      response = self._get_query_results(project_id, job_id, page_token)
+      response = self._get_query_results(project_id, job_id,
+                                         page_token, location=location)
       if not response.jobComplete:
         # The jobComplete field can be False if the query request times out
         # (default is 10 seconds). Note that this is a timeout for the query
@@ -995,10 +1021,24 @@ class AppendDestinationsFn(DoFn):
   """
 
   def __init__(self, destination):
-    if callable(destination):
-      self.destination = destination
+    self.destination = AppendDestinationsFn._get_table_fn(destination)
+
+  @staticmethod
+  def _value_provider_or_static_val(elm):
+    if isinstance(elm, value_provider.ValueProvider):
+      return elm
     else:
-      self.destination = lambda x: destination
+      # The type argument is a NoOp, because we assume the argument already has
+      # the proper formatting.
+      return value_provider.StaticValueProvider(lambda x: x, value=elm)
+
+  @staticmethod
+  def _get_table_fn(destination):
+    if callable(destination):
+      return destination
+    else:
+      return lambda x: AppendDestinationsFn._value_provider_or_static_val(
+          destination).get()
 
   def process(self, element):
     yield (self.destination(element), element)

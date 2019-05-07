@@ -267,6 +267,7 @@ class FnApiRunner(runner.PipelineRunner):
     # to enforce that the inputs (and outputs) of GroupByKey operations
     # are known to be KVs.
     from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
+    # TODO: Move group_by_key_input_visitor() to a non-dataflow specific file.
     pipeline.visit(DataflowRunner.group_by_key_input_visitor())
     self._bundle_repeat = self._bundle_repeat or options.view_as(
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
@@ -362,13 +363,22 @@ class FnApiRunner(runner.PipelineRunner):
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
-  def run_stage(
-      self,
-      worker_handler_factory,
-      pipeline_components,
-      stage,
-      pcoll_buffers,
-      safe_coders):
+  def run_stage(self,
+                worker_handler_factory,
+                pipeline_components,
+                stage,
+                pcoll_buffers,
+                safe_coders):
+    """Run an individual stage.
+
+    Args:
+      worker_handler_factory: A ``callable`` that takes in an environment, and
+        returns a ``WorkerHandler`` class.
+      pipeline_components: TODO
+      stage: TODO
+      pcoll_buffers: TODO
+      safe_coders: TODO
+    """
 
     def iterable_state_write(values, element_coder_impl):
       token = unique_name(None, 'iter').encode('ascii')
@@ -1298,6 +1308,15 @@ class BundleManager(object):
     if result.error:
       raise RuntimeError(result.error)
 
+    if result.process_bundle.requires_finalization:
+      finalize_request = beam_fn_api_pb2.InstructionRequest(
+          finalize_bundle=
+          beam_fn_api_pb2.FinalizeBundleRequest(
+              instruction_reference=process_bundle_id
+          ))
+      self._controller.control_handler.push(
+          finalize_request)
+
     return result, split_results
 
 
@@ -1435,7 +1454,7 @@ class RunnerResult(runner.PipelineResult):
     return self._state
 
   def metrics(self):
-    """Returns a queryable oject including user metrics only."""
+    """Returns a queryable object including user metrics only."""
     if self._metrics is None:
       self._metrics = FnApiMetrics(
           self._monitoring_infos_by_stage, user_metrics_only=True)

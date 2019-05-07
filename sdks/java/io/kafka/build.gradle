@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableFindbugs: false)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
@@ -31,10 +31,13 @@ dependencies {
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
   shadow "org.springframework:spring-expression:4.3.18.RELEASE"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  // For testing Cross-language transforms
+  testCompile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
+  testCompile library.java.powermock
   testCompile library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

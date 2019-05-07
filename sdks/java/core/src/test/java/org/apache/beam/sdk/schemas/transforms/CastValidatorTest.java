@@ -31,11 +31,17 @@ import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link Cast.Widening}, {@link Cast.Narrowing}. */
+@Category(UsesSchema.class)
+@RunWith(JUnit4.class)
 public class CastValidatorTest {
 
   public static final Map<TypeName, Number> NUMERICS =
@@ -73,7 +79,7 @@ public class CastValidatorTest {
         .forEach(input -> NUMERICS.keySet().forEach(output -> testCasting(input, output)));
   }
 
-  public void testCasting(TypeName inputType, TypeName outputType) {
+  private void testCasting(TypeName inputType, TypeName outputType) {
     Object output =
         Cast.castValue(NUMERICS.get(inputType), FieldType.of(inputType), FieldType.of(outputType));
 
@@ -88,7 +94,7 @@ public class CastValidatorTest {
     assertTrue(all);
   }
 
-  public void testWideningOrder(TypeName input, TypeName output) {
+  private void testWideningOrder(TypeName input, TypeName output) {
     Schema inputSchema = Schema.of(Schema.Field.of("f0", FieldType.of(input)));
     Schema outputSchema = Schema.of(Schema.Field.of("f0", FieldType.of(output)));
 

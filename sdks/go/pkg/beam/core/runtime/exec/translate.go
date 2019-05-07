@@ -25,7 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
@@ -375,12 +375,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				n := &ParDo{UID: b.idgen.New(), PID: id.to, Inbound: in, Out: out}
+				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
 				n.Fn, err = graph.AsDoFn(fn)
 				if err != nil {
 					return nil, err
 				}
-				// TODO(lostluck): 2018/03/22 Look into why transform.UniqueName isn't populated at this point, and switch n.PID to that instead.
+				// transform.UniqueName may be per-bundle, which isn't useful for metrics.
+				// Use the short name for the DoFn instead.
 				n.PID = path.Base(n.Fn.Name())
 
 				input := unmarshalKeyedValues(transform.GetInputs())
@@ -412,6 +413,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					return nil, err
 				}
 				cn.UsesKey = typex.IsKV(in[0].Type)
+
+				// transform.UniqueName may be per-bundle, which isn't useful for metrics.
+				// Use the short name for the DoFn instead.
+				cn.PID = path.Base(cn.Fn.Name())
 
 				switch urn {
 				case urnPerKeyCombinePre:

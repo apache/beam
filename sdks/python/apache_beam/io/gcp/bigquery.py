@@ -138,6 +138,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options import value_provider as vp
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -552,6 +553,7 @@ class BigQueryWriteFn(DoFn):
   def __init__(
       self,
       batch_size,
+      schema=None,
       create_disposition=None,
       write_disposition=None,
       kms_key=None,
@@ -590,11 +592,13 @@ class BigQueryWriteFn(DoFn):
       retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
     """
+    self.schema = schema
     self.test_client = test_client
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self._rows_buffer = []
     self._reset_rows_buffer()
+    self._observed_tables = set()
 
     self._total_buffered_rows = 0
     self.kms_key = kms_key
@@ -626,6 +630,8 @@ class BigQueryWriteFn(DoFn):
     """
     if schema is None:
       return schema
+    elif isinstance(schema, (str, unicode)):
+      return bigquery_tools.parse_table_schema_from_json(schema)
     elif isinstance(schema, dict):
       return bigquery_tools.parse_table_schema_from_json(json.dumps(schema))
     else:
@@ -644,12 +650,17 @@ class BigQueryWriteFn(DoFn):
         num_retries=10000,
         max_delay_secs=1500))
 
-  def _create_table_if_needed(self, schema, table_reference):
+  def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
         table_reference.projectId,
         table_reference.datasetId,
         table_reference.tableId)
     if str_table_reference in self._observed_tables:
+      return
+
+    if self.create_disposition == BigQueryDisposition.CREATE_NEVER:
+      # If we never want to create the table, we assume it already exists,
+      # and avoid the get-or-create step.
       return
 
     logging.debug('Creating or getting table %s with schema %s.',
@@ -669,12 +680,19 @@ class BigQueryWriteFn(DoFn):
 
   def process(self, element, unused_create_fn_output=None):
     destination = element[0]
-    if isinstance(destination, tuple):
-      schema = destination[1]
-      destination = destination[0]
-      self._create_table_if_needed(
-          schema,
-          bigquery_tools.parse_table_reference(destination))
+
+    if callable(self.schema):
+      schema = self.schema(destination)
+    elif isinstance(self.schema, vp.ValueProvider):
+      schema = self.schema.get()
+    else:
+      schema = self.schema
+
+    self._create_table_if_needed(
+        bigquery_tools.parse_table_reference(destination),
+        schema)
+
+    destination = bigquery_tools.get_hashable_destination(destination)
 
     row = element[1]
     self._rows_buffer[destination].append(row)
@@ -760,13 +778,14 @@ class WriteToBigQuery(PTransform):
                max_file_size=None,
                max_files_per_bundle=None,
                test_client=None,
-               gs_location=None,
+               custom_gcs_temp_location=None,
                method=None,
-               insert_retry_strategy=None):
+               insert_retry_strategy=None,
+               validate=True):
     """Initialize a WriteToBigQuery transform.
 
     Args:
-      table (str, callable): The ID of the table, or a callable
+      table (str, callable, ValueProvider): The ID of the table, or a callable
          that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
          numbers ``0-9``, or underscores ``_``. If dataset argument is
          :data:`None` then the table argument must contain the entire table
@@ -782,16 +801,19 @@ class WriteToBigQuery(PTransform):
       project (str): The ID of the project containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
-      schema (str): The schema to be used if the BigQuery table to write has to
-        be created. This can be either specified as a
-        :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema`
+      schema (str,dict,ValueProvider,callable): The schema to be used if the
+        BigQuery table to write has to be created. This can be either specified
+        as a :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
+        or a python dictionary, or the string or dictionary itself,
         object or a single string  of the form
         ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
         separated list of fields. Here ``'type'`` should specify the BigQuery
         type of the field. Single string based schemas do not support nested
         fields, repeated fields, or specifying a BigQuery mode for fields
         (mode will always be set to ``'NULLABLE'``).
+        If a callable, then it should receive a destination (in the form of
+        a TableReference or a string, and return a str, dict or TableSchema.
       create_disposition (BigQueryDisposition): A string describing what
         happens if the table does not exist. Possible values are:
 
@@ -822,8 +844,8 @@ bigquery_v2_messages.TableSchema`
         written by a worker. The default here is 20. Larger values will allow
         writing to multiple destinations without having to reshard - but they
         increase the memory burden on the workers.
-      gs_location (str): A GCS location to store files to be used for file
-        loads into BigQuery. By default, this will use the pipeline's
+      custom_gcs_temp_location (str): A GCS location to store files to be used
+        for file loads into BigQuery. By default, this will use the pipeline's
         temp_location, but for pipelines whose temp_location is not appropriate
         for BQ File Loads, users should pass a specific one.
       method: The method to use to write to BigQuery. It may be
@@ -833,6 +855,8 @@ bigquery_v2_messages.TableSchema`
         FILE_LOADS on Batch pipelines.
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
+      validate: Indicates whether to perform validation checks on
+        inputs. This parameter is primarily used for testing.
     """
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
@@ -844,11 +868,14 @@ bigquery_v2_messages.TableSchema`
     self.batch_size = batch_size
     self.kms_key = kms_key
     self.test_client = test_client
-    self.gs_location = gs_location
+
+    # TODO(pabloem): Consider handling ValueProvider for this location.
+    self.custom_gcs_temp_location = custom_gcs_temp_location
     self.max_file_size = max_file_size
     self.max_files_per_bundle = max_files_per_bundle
     self.method = method or WriteToBigQuery.Method.DEFAULT
     self.insert_retry_strategy = insert_retry_strategy
+    self._validate = validate
 
   @staticmethod
   def get_table_schema_from_string(schema):
@@ -916,9 +943,9 @@ bigquery_v2_messages.TableSchema):
       Dict[str, Any]: The schema to be used if the BigQuery table to write has
       to be created but in the dictionary format.
     """
-    if isinstance(schema, dict):
-      return schema
-    elif schema is None:
+    if (isinstance(schema, (dict, vp.ValueProvider)) or
+        callable(schema) or
+        schema is None):
       return schema
     elif isinstance(schema, (str, unicode)):
       table_schema = WriteToBigQuery.get_table_schema_from_string(schema)
@@ -928,21 +955,37 @@ bigquery_v2_messages.TableSchema):
     else:
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
+  def _compute_method(self, pipeline, options):
+    experiments = options.view_as(DebugOptions).experiments or []
+
+    # TODO(pabloem): Use a different method to determine if streaming or batch.
+    streaming_pipeline = pipeline.options.view_as(StandardOptions).streaming
+
+    # If the new BQ sink is not activated for experiment flags, then we use
+    # streaming inserts by default (it gets overridden in dataflow_runner.py).
+    if 'use_beam_bq_sink' not in experiments:
+      return self.Method.STREAMING_INSERTS
+    elif self.method == self.Method.DEFAULT and streaming_pipeline:
+      return self.Method.STREAMING_INSERTS
+    elif self.method == self.Method.DEFAULT and not streaming_pipeline:
+      return self.Method.FILE_LOADS
+    else:
+      return self.method
+
   def expand(self, pcoll):
     p = pcoll.pipeline
 
-    # TODO(pabloem): Use a different method to determine if streaming or batch.
-    standard_options = p.options.view_as(StandardOptions)
-
-    if (not callable(self.table_reference)
+    if (isinstance(self.table_reference, bigquery.TableReference)
         and self.table_reference.projectId is None):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
 
-    if (standard_options.streaming or
-        self.method == WriteToBigQuery.Method.STREAMING_INSERTS):
+    method_to_use = self._compute_method(p, p.options)
+
+    if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
       # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
+          schema=self.schema,
           batch_size=self.batch_size,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
@@ -950,38 +993,30 @@ bigquery_v2_messages.TableSchema):
           retry_strategy=self.insert_retry_strategy,
           test_client=self.test_client)
 
-      # TODO: Use utility functions from BQTools
-      table_fn = self._get_table_fn()
-
       outputs = (pcoll
-                 | 'AppendDestination' >> beam.Map(lambda x: (table_fn(x), x))
+                 | 'AppendDestination' >> beam.ParDo(
+                     bigquery_tools.AppendDestinationsFn(self.table_reference))
                  | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
                      BigQueryWriteFn.FAILED_ROWS, main='main'))
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
-      if standard_options.streaming:
+      if p.options.view_as(StandardOptions).streaming:
         raise NotImplementedError(
             'File Loads to BigQuery are only supported on Batch pipelines.')
 
       from apache_beam.io.gcp import bigquery_file_loads
-      return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
-          destination=self.table_reference,
-          schema=self.get_dict_table_schema(self.schema),
-          create_disposition=self.create_disposition,
-          write_disposition=self.write_disposition,
-          max_file_size=self.max_file_size,
-          max_files_per_bundle=self.max_files_per_bundle,
-          gs_location=self.gs_location,
-          test_client=self.test_client)
-
-  def _get_table_fn(self):
-    if callable(self.table_reference):
-      return self.table_reference
-    elif not callable(self.table_reference) and self.schema is not None:
-      return lambda x: (self.table_reference, self.schema)
-    else:
-      return lambda x: self.table_reference
+      return (pcoll
+              | bigquery_file_loads.BigQueryBatchFileLoads(
+                  destination=self.table_reference,
+                  schema=self.schema,
+                  create_disposition=self.create_disposition,
+                  write_disposition=self.write_disposition,
+                  max_file_size=self.max_file_size,
+                  max_files_per_bundle=self.max_files_per_bundle,
+                  custom_gcs_temp_location=self.custom_gcs_temp_location,
+                  test_client=self.test_client,
+                  validate=self._validate))
 
   def display_data(self):
     res = {}

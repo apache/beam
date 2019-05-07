@@ -86,6 +86,8 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
@@ -119,8 +121,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
@@ -1337,10 +1337,19 @@ public class DataflowRunnerTest implements Serializable {
     options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
     options.setExperiments(null);
     options.setStreaming(false);
+    System.setProperty("java.specification.version", "1.8");
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-batch/foo"));
+    // batch, legacy, jdk11
+    options.setStreaming(false);
+    System.setProperty("java.specification.version", "11");
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java11-batch/foo"));
     // streaming, legacy
+    System.setProperty("java.specification.version", "1.8");
     options.setStreaming(true);
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-streaming/foo"));
+    // streaming, legacy, jdk11
+    System.setProperty("java.specification.version", "11");
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java11-streaming/foo"));
     // streaming, fnapi
     options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));

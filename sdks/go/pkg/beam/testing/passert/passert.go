@@ -24,11 +24,13 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
 )
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=passert --identifiers=diffFn,failFn,failKVFn,failGBKFn,hashFn,sumFn
+//go:generate go fmt
 
 // Equals verifies the given collection has the same values as the given
 // values, under coder equality. The values can be provided as single
@@ -134,7 +136,7 @@ func index(enc beam.ElementEncoder, iter func(*beam.T) bool) (map[string]indexEn
 	for iter(&val) {
 		var buf bytes.Buffer
 		if err := enc.Encode(val, &buf); err != nil {
-			return nil, fmt.Errorf("value %v not encodable with %v", val, enc)
+			return nil, errors.Errorf("value %v not encodable with %v", val, enc)
 		}
 		encoded := buf.String()
 
@@ -182,7 +184,7 @@ type failFn struct {
 }
 
 func (f *failFn) ProcessElement(x beam.X) error {
-	return fmt.Errorf(f.Format, x)
+	return errors.Errorf(f.Format, x)
 }
 
 type failKVFn struct {
@@ -190,7 +192,7 @@ type failKVFn struct {
 }
 
 func (f *failKVFn) ProcessElement(x beam.X, y beam.Y) error {
-	return fmt.Errorf(f.Format, fmt.Sprintf("(%v,%v)", x, y))
+	return errors.Errorf(f.Format, fmt.Sprintf("(%v,%v)", x, y))
 }
 
 type failGBKFn struct {
@@ -198,5 +200,5 @@ type failGBKFn struct {
 }
 
 func (f *failGBKFn) ProcessElement(x beam.X, _ func(*beam.Y) bool) error {
-	return fmt.Errorf(f.Format, fmt.Sprintf("(%v,*)", x))
+	return errors.Errorf(f.Format, fmt.Sprintf("(%v,*)", x))
 }

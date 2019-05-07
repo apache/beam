@@ -81,7 +81,7 @@ def excluded_dependencies = [
 applyJavaNature(
         publish: false,
         exportJavadoc: false,
-        enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */,
+        enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
         shadowJarValidationExcludes: [
             "org/apache/beam/runners/dataflow/worker/**",
             "org/apache/beam/repackaged/beam_runners_google_cloud_dataflow_java_legacy_worker/**",
@@ -163,7 +163,7 @@ configurations {
 
     // Ban these dependencies from all configurations
     all {
-        // Ban the usage of AppleJavaExtensions in findbugs.
+        // Ban the usage of AppleJavaExtensions in spotbugs.
         exclude group: "com.apple", module: "AppleJavaExtensions"
     }
 }

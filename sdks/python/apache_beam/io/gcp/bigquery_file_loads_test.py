@@ -23,7 +23,6 @@ import json
 import logging
 import os
 import random
-import sys
 import time
 import unittest
 
@@ -118,7 +117,10 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
           lambda x: hamcrest_assert(os.path.exists(x), is_(True)))
       assert_that(file_count, equal_to([3]), label='check file count')
 
-      destinations = dest_file_pc | "GetDests" >> beam.Map(lambda x: x[0])
+      destinations = (
+          dest_file_pc
+          | "GetDests" >> beam.Map(
+              lambda x: bigquery_tools.get_hashable_destination(x[0])))
       assert_that(destinations, equal_to(list(_DISTINCT_DESTINATIONS)),
                   label='check destinations ')
 
@@ -141,6 +143,12 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
                         | beam.Map(lambda x: x).with_output_types(
                             beam.typehints.KV[str, str])
                         | beam.combiners.Count.PerKey())
+      files_per_dest = (
+          files_per_dest
+          | "GetDests" >> beam.Map(
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
+                         x[1]))
+      )
       assert_that(files_per_dest,
                   equal_to([('project1:dataset1.table1', 4),
                             ('project1:dataset1.table2', 2),
@@ -176,6 +184,11 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
                         | beam.Map(lambda x: x).with_output_types(
                             beam.typehints.KV[str, str])
                         | beam.combiners.Count.PerKey())
+      files_per_dest = (
+          files_per_dest
+          | "GetDests" >> beam.Map(
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
+                         x[1])))
 
       # Only table1 and table3 get files. table2 records get spilled.
       assert_that(files_per_dest,
@@ -220,7 +233,10 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
           lambda x: hamcrest_assert(os.path.exists(x), is_(True)))
       assert_that(file_count, equal_to([3]), label='check file count')
 
-      destinations = output_pc | "GetDests" >> beam.Map(lambda x: x[0])
+      destinations = (
+          output_pc
+          | "GetDests" >> beam.Map(
+              lambda x: bigquery_tools.get_hashable_destination(x[0])))
       assert_that(destinations, equal_to(list(_DISTINCT_DESTINATIONS)),
                   label='check destinations ')
 
@@ -238,6 +254,11 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
 
     def check_multiple_files(output_pc):
       files_per_dest = output_pc | beam.combiners.Count.PerKey()
+      files_per_dest = (
+          files_per_dest
+          | "GetDests" >> beam.Map(
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
+                         x[1])))
       assert_that(files_per_dest,
                   equal_to([('project1:dataset1.table1', 4),
                             ('project1:dataset1.table2', 2),
@@ -252,10 +273,6 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-6711')
   def test_records_traverse_transform_with_mocks(self):
     destination = 'project1:dataset1.table1'
 
@@ -275,10 +292,11 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     bq_client.jobs.Insert.return_value = result_job
 
-    transform = bigquery.WriteToBigQuery(
+    transform = bqfl.BigQueryBatchFileLoads(
         destination,
-        gs_location=self._new_tempdir(),
-        test_client=bq_client)
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:
@@ -290,9 +308,13 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       jobs = dest_job | "GetJobs" >> beam.Map(lambda x: x[1])
 
       files = dest_files | "GetFiles" >> beam.Map(lambda x: x[1])
-      destinations = (dest_files
-                      | "GetUniques" >> beam.combiners.Count.PerKey()
-                      | "GetDests" >> beam.Map(lambda x: x[0]))
+      destinations = (
+          dest_files
+          | "GetDests" >> beam.Map(
+              lambda x: (
+                  bigquery_tools.get_hashable_destination(x[0]), x[1]))
+          | "GetUniques" >> beam.combiners.Count.PerKey()
+          | "GetFinalDests" >>beam.Keys())
 
       # All files exist
       _ = (files | beam.Map(
@@ -304,7 +326,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                   label='CountFiles')
 
       assert_that(destinations,
-                  equal_to([bigquery_tools.parse_table_reference(destination)]),
+                  equal_to([destination]),
                   label='CheckDestinations')
 
       assert_that(jobs,
@@ -372,7 +394,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                   if 'foundation' in d])]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(*pipeline_verifiers))
+        on_success_matcher=all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink')
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS)
@@ -429,7 +452,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
             query="SELECT * FROM %s" % output_table_2,
             data=[])]
 
-    args = self.test_pipeline.get_full_options_as_args()
+    args = self.test_pipeline.get_full_options_as_args(
+        experiments='use_beam_bq_sink')
 
     with self.assertRaises(Exception):
       with beam.Pipeline(argv=args) as p:

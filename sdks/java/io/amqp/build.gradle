@@ -27,7 +27,6 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow "org.apache.qpid:proton-j:0.13.1"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
@@ -36,4 +35,5 @@ dependencies {
   testCompile library.java.activemq_broker
   testCompile library.java.activemq_amqp
   testCompile library.java.activemq_junit
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

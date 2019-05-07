@@ -40,7 +40,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   private final DoFn<FnInputT, FnOutputT> doFn;
   private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
   private final SparkOutputManager<OutputT> outputManager;
-  private Iterator<TimerInternals.TimerData> timerDataIterator;
+  private final Iterator<TimerInternals.TimerData> timerDataIterator;
 
   SparkProcessContext(
       DoFn<FnInputT, FnOutputT> doFn,

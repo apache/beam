@@ -31,6 +31,7 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagin
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.kohsuke.args4j.CmdLineException;
@@ -102,7 +103,13 @@ public class SamzaJobServerDriver {
                 String.format(
                     "%s_%s", samzaPipelineOptions.getJobName(), UUID.randomUUID().toString());
             SamzaPipelineRunner pipelineRunner = new SamzaPipelineRunner(samzaPipelineOptions);
-            return new JobInvocation(invocationId, executorService, pipeline, pipelineRunner);
+            JobInfo jobInfo =
+                JobInfo.create(
+                    invocationId,
+                    samzaPipelineOptions.getJobName(),
+                    retrievalToken,
+                    PipelineOptionsTranslation.toProto(samzaPipelineOptions));
+            return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
           }
         };
     return InMemoryJobService.create(

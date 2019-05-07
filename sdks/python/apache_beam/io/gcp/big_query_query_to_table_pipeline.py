@@ -50,10 +50,8 @@ def run_bq_pipeline(argv=None):
                       help='Output BQ table to write results to.')
   parser.add_argument('--kms_key', default=None,
                       help='Use this Cloud KMS key with BigQuery.')
-  parser.add_argument('--bq_temp_location',
-                      default=None,
-                      help=('GCS bucket to use to store files for '
-                            'loading data into BigQuery.'))
+  parser.add_argument('--native', default=False, action='store_true',
+                      help='Use NativeSources and Sinks.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   table_schema = parse_table_schema_from_json(known_args.output_schema)
@@ -61,21 +59,25 @@ def run_bq_pipeline(argv=None):
 
   p = TestPipeline(options=PipelineOptions(pipeline_args))
 
-  if 'temp_location' in p.options.get_all_options():
-    location = p.options.get_all_options()['temp_location']
-  else:
-    location = known_args.bq_temp_location
-  # pylint: disable=expression-not-assigned
-  # pylint: disable=bad-continuation
-  (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
+  # Note to future modifiers: Keep using BigQuerySource if known_args.native is
+  # True.
+  data = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
       query=known_args.query, use_standard_sql=known_args.use_standard_sql,
       kms_key=kms_key))
-   | 'write' >> beam.io.WriteToBigQuery(
-           known_args.output,
-           schema=table_schema,
-           create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-           gs_location=location))
+  if known_args.native:
+    _ = data | 'write' >> beam.io.Write(beam.io.BigQuerySink(
+        known_args.output,
+        schema=table_schema,
+        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+        kms_key=kms_key))
+  else:
+    _ = data | 'write' >> beam.io.WriteToBigQuery(
+        known_args.output,
+        schema=table_schema,
+        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+        kms_key=kms_key)
 
   result = p.run()
   result.wait_until_finish()

@@ -88,6 +88,7 @@ dependencies {
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-build-tools", configuration: "shadow")
   shadow library.java.vendored_grpc_1_13_1
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
@@ -135,8 +136,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptions = JsonOutput.toJson(
         ["--runner=TestFlinkRunner",
          "--streaming=${config.streaming}",
-         // TODO This should be changed to > 1
-         "--parallelism=1",
+         "--parallelism=2",
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
@@ -150,10 +150,11 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     }
   }
 }

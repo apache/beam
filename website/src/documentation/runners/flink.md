@@ -18,19 +18,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Using the Apache Flink Runner
 
-The old Flink Runner will eventually be replaced by the Portable Runner which enables to run pipelines in other languages than Java. Please see the [Portability page]({{ site.baseurl }}/contribute/portability/) for the latest state.
+# Overview
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
-
-The Apache Flink Runner can be used to execute Beam pipelines using [Apache Flink](https://flink.apache.org). When using the Flink Runner you will create a jar file containing your job that can be executed on a regular Flink cluster. It's also possible to execute a Beam pipeline using Flink's local execution mode without setting up a cluster. This is helpful for development and debugging of your pipeline.
+The Apache Flink Runner can be used to execute Beam pipelines using [Apache
+Flink](https://flink.apache.org). For execution you can choose between a cluster
+execution mode (e.g. Yarn/Kubernetes/Mesos) or a local embedded execution mode
+which is useful for testing pipelines.
 
 The Flink Runner and Flink are suitable for large scale, continuous jobs, and provide:
 
@@ -41,17 +35,53 @@ The Flink Runner and Flink are suitable for large scale, continuous jobs, and pr
 * Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
 * Integration with YARN and other components of the Apache Hadoop ecosystem
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the supported capabilities of the Flink Runner.
+# Using the Apache Flink Runner
 
-## Flink Runner prerequisites and setup
+It is important to understand that the Flink Runner comes in two flavors:
 
-If you want to use the local execution mode with the Flink Runner you don't have to complete any setup.
-You can simply run your Beam pipeline. Be sure to set the Runner to `FlinkRunner`.
+1. A *legacy Runner* which supports only Java (and other JVM-based languages)
+2. A *portable Runner* which supports Java/Python/Go
+
+You may ask why there are two Runners?
+
+Beam and its Runners originally only supported JVM-based languages
+(e.g. Java/Scala/Kotlin). Python and Go SDKs were added later on. The
+architecture of the Runners had to be changed significantly to support executing
+pipelines written in other languages.
+
+If your applications only use Java, then you should currently go with the legacy
+Runner. Eventually, the portable Runner will replace the legacy Runner because
+it contains the generalized framework for executing Java, Python, Go, and more
+languages in the future.
+
+If you want to run Python pipelines with Beam on Flink you want to use the
+portable Runner. For more information on
+portability, please visit the [Portability page]({{site.baseurl
+}}/roadmap/portability/).
+
+Consequently, this guide is split into two parts to document the legacy and
+the portable functionality of the Flink Runner. Please use the switcher below to
+select the appropriate Runner:
+
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java">Legacy (Java)</li>
+    <li data-type="language-py">Portable (Java/Python/Go)</li>
+  </ul>
+</nav>
+
+
+## Prerequisites and Setup
+
+If you want to use the local execution mode with the Flink Runner you don't have
+to complete any cluster setup. You can simply run your Beam pipeline. Be sure to
+set the Runner to <span class="language-java">`FlinkRunner`</span><span class="language-py">`PortableRunner`</span>.
 
 To use the Flink Runner for executing on a cluster, you have to setup a Flink cluster by following the
 Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/quickstart/setup_quickstart.html#setup-download-and-start-flink).
 
-### Version Compatibility
+## Version Compatibility
 
 The Flink cluster version has to match the minor version used by the FlinkRunner.
 The minor version is the first two numbers in the version string, e.g. in `1.7.0` the
@@ -73,17 +103,17 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td rowspan="3">2.10.0</td>
-  <td>1.5.x</td>
-  <td>beam-runners-flink_2.11</td>
+  <td rowspan="3">>=2.10.0</td>
+  <td>1.7.x</td>
+  <td>beam-runners-flink-1.7</td>
 </tr>
 <tr>
   <td>1.6.x</td>
   <td>beam-runners-flink-1.6</td>
 </tr>
 <tr>
-  <td>1.7.x</td>
-  <td>beam-runners-flink-1.7</td>
+  <td>1.5.x</td>
+  <td>beam-runners-flink_2.11</td>
 </tr>
 <tr>
   <td>2.9.0</td>
@@ -129,11 +159,12 @@ For retrieving the right Flink version, see the [Flink downloads page](https://f
 
 For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-stable/) can be helpful.
 
-### Specify your dependency
+### Dependencies
 
-<span class="language-java">When using Java, you must specify your dependency on the Flink Runner in your `pom.xml`.</span>
-
-Use the Beam version and the artifact id from the above table. For example:
+<span class="language-java">You must specify your dependency on the Flink Runner
+in your `pom.xml` or `build.gradle`. Use the Beam version and the artifact id
+from the above table. For example:
+</span>
 
 ```java
 <dependency>
@@ -143,20 +174,56 @@ Use the Beam version and the artifact id from the above table. For example:
 </dependency>
 ```
 
-<span class="language-py">This section is not applicable to the Beam SDK for Python.</span>
+<span class="language-py">
+You will need Docker to be installed in your execution environment. To develop
+Apache Beam with Python you have to install the Apache Beam Python SDK: `pip
+install apache_beam`. Please refer to the [Python documentation]({{ site.baseurl }}/documentation/sdks/python/)
+on how to create a Python pipeline.
+</span>
 
-## Executing a pipeline on a Flink cluster
-
-For executing a pipeline on a Flink cluster you need to package your program along will all dependencies in a so-called fat jar. How you do this depends on your build system but if you follow along the [Beam Quickstart]({{ site.baseurl }}/get-started/quickstart/) this is the command that you have to run:
-
+```python
+pip install apache_beam
 ```
+
+### Executing a Beam pipeline on a Flink Cluster
+
+<span class="language-java">
+For executing a pipeline on a Flink cluster you need to package your program
+along with all dependencies in a so-called fat jar. How you do this depends on
+your build system but if you follow along the [Beam Quickstart]({{ site.baseurl
+}}/get-started/quickstart/) this is the command that you have to run:
+</span>
+
+```java
 $ mvn package -Pflink-runner
 ```
-The Beam Quickstart Maven project is setup to use the Maven Shade plugin to create a fat jar and the `-Pflink-runner` argument makes sure to include the dependency on the Flink Runner.
+<span class="language-java">Look for the output JAR of this command in the
+install apache_beam``target` folder.
+<span>
 
-For actually running the pipeline you would use this command
+<span class="language-java">
+The Beam Quickstart Maven project is setup to use the Maven Shade plugin to
+create a fat jar and the `-Pflink-runner` argument makes sure to include the
+dependency on the Flink Runner.
+</span>
+
+<span class="language-java">
+For running the pipeline the easiest option is to use the `flink` command which
+is part of Flink:
+</span>
+
+```java
+$ bin/flink -c org.apache.beam.examples.WordCount /path/to/your.jar
+--runner=FlinkRunner --other-parameters
 ```
-$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+
+<span class="language-java">
+Alternatively you can also use Maven's exec command. For example, to execute the
+WordCount example:
+</span>
+
+```java
+mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Pflink-runner \
     -Dexec.args="--runner=FlinkRunner \
       --inputFile=/path/to/pom.xml \
@@ -164,8 +231,58 @@ $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --flinkMaster=<flink master url> \
       --filesToStage=target/word-count-beam-bundled-0.1.jar"
 ```
+<!-- Span implictly ended -->
+
+<span class="language-java">
 If you have a Flink `JobManager` running on your local machine you can provide `localhost:8081` for
-`flinkMaster`. Otherwise an embedded Flink cluster will be started for the WordCount job.
+`flinkMaster`. Otherwise an embedded Flink cluster will be started for the job.
+</span>
+
+<span class="language-py">
+As of now you will need a copy of Apache Beam's source code. You can
+download it on the [Downloads page]({{ site.baseurl
+}}/get-started/downloads/). In the future there will be pre-built Docker images
+available.
+</span>
+
+<span class="language-py">1. *Only required once:* Build the SDK harness container: `./gradlew :beam-sdks-python-container:docker`
+</span>
+
+<span class="language-py">2. Start the JobService endpoint: `./gradlew :beam-runners-flink_2.11-job-server:runShadow`
+</span>
+
+<span class="language-py">
+The JobService is the central instance where you submit your Beam pipeline to.
+The JobService will create a Flink job for the pipeline and execute the job
+job. To execute the job on a Flink cluster, the Beam JobService needs to be
+provided with the Flink JobManager address.
+</span>
+
+<span class="language-py">3. Submit the Python pipeline to the above endpoint by using the `PortableRunner` and `job_endpoint` set to `localhost:8099` (this is the default address of the JobService). For example:
+</span>
+
+```py
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+
+options = PipelineOptions(["--runner=PortableRunner", "--job_endpoint=localhost:8099"])
+p = beam.Pipeline(options)
+..
+p.run()
+```
+
+<span class="language-py">
+To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.5/quickstart/setup_quickstart.html):
+</span>
+
+<span class="language-py">1. Start a Flink cluster which exposes the Rest interface on `localhost:8081` by default.
+</span>
+
+<span class="language-py">2. Start JobService with Flink Rest endpoint: `./gradlew :beam-runners-flink_2.11-job-server:runShadow -PflinkMasterUrl=localhost:8081`.
+</span>
+
+<span class="language-py">3. Submit the pipeline as above.
+</span>
 
 ## Additional information and caveats
 
@@ -461,3 +578,14 @@ See the reference documentation for the<span class="language-java">
 
 </table>
 </div>
+
+## Capability
+
+The [Beam Capability Matrix]({{ site.baseurl
+}}/documentation/runners/capability-matrix/) documents the
+capabilities of the legacy Flink Runner.
+
+The [Portable Capability
+Matrix](https://s.apache.org/apache-beam-portability-support-table) documents
+the capabilities of the portable Flink Runner.
+

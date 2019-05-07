@@ -26,8 +26,11 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import java.util.Arrays;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** A set of unit tests for {@link MutationSizeEstimator}. */
+@RunWith(JUnit4.class)
 public class MutationSizeEstimatorTest {
 
   @Test

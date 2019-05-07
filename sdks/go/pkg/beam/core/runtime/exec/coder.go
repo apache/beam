@@ -27,7 +27,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
@@ -124,7 +123,7 @@ func (*bytesEncoder) Encode(val *FullValue, w io.Writer) error {
 	}
 	size := len(data)
 
-	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+	if err := coder.EncodeVarInt((int64)(size), w); err != nil {
 		return err
 	}
 	_, err := w.Write(data)
@@ -151,16 +150,13 @@ type varIntEncoder struct{}
 
 func (*varIntEncoder) Encode(val *FullValue, w io.Writer) error {
 	// Encoding: beam varint
-
-	n := Convert(val.Elm, reflectx.Int32).(int32) // Convert needed?
-	return coder.EncodeVarInt(n, w)
+	return coder.EncodeVarInt(val.Elm.(int64), w)
 }
 
 type varIntDecoder struct{}
 
 func (*varIntDecoder) Decode(r io.Reader) (*FullValue, error) {
 	// Encoding: beam varint
-
 	n, err := coder.DecodeVarInt(r)
 	if err != nil {
 		return nil, err
@@ -184,7 +180,7 @@ func (c *customEncoder) Encode(val *FullValue, w io.Writer) error {
 	// (2) Add length prefix
 
 	size := len(data)
-	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+	if err := coder.EncodeVarInt((int64)(size), w); err != nil {
 		return err
 	}
 	_, err = w.Write(data)

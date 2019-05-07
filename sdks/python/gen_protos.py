@@ -43,6 +43,11 @@ BEAM_PROTO_PATHS = [
 
 PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
 
+MODEL_RESOURCES = [
+    os.path.normpath('../../model/fn-execution/src/main/resources'\
+            + '/org/apache/beam/model/fnexecution/v1/standard_coders.yaml'),
+]
+
 
 def generate_proto_files(force=False):
 
@@ -113,6 +118,10 @@ def generate_proto_files(force=False):
         raise RuntimeError(
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
+
+    # copy resource files
+    for path in MODEL_RESOURCES:
+      shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
     ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
     if ret_code:

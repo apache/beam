@@ -117,6 +117,7 @@ task needsRunnerTests(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
+    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
   }
 }
 
@@ -140,6 +141,7 @@ task validatesRunner(type: Test) {
     includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
   }
 }
 
@@ -167,6 +169,7 @@ createPortableValidatesRunnerTask(
           includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
           excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
           excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
           excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
           excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
           excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'

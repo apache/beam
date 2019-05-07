@@ -31,11 +31,11 @@ will be stored,
 To run test on DirectRunner
 
 python setup.py nosetests \
+    --test-pipeline-options="
     --project=big-query-project
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=side_input
-    --test-pipeline-options="
     --number_of_counter_operations=1000
     --input_options='{
     \"num_records\": 300,
@@ -108,13 +108,12 @@ or:
       "force_initial_num_bundles": 1}\'
     --runner=TestDataflowRunner' \
 -PloadTest.mainClass=
-apache_beam.testing.load_tests.sideinput_test:SideInputTest.test \
+apache_beam.testing.load_tests.sideinput_test:SideInputTest.testSideInput \
 -Prunner=TestDataflowRunner :beam-sdks-python-load-tests:run
 """
 
 from __future__ import absolute_import
 
-import json
 import logging
 import os
 import unittest
@@ -122,9 +121,8 @@ import unittest
 import apache_beam as beam
 from apache_beam.pvalue import AsIter
 from apache_beam.testing import synthetic_pipeline
+from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
-from apache_beam.testing.test_pipeline import TestPipeline
 
 load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
@@ -132,65 +130,21 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 
 
 @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
-class SideInputTest(unittest.TestCase):
-  def _parseTestPipelineOptions(self):
-    return {
-        'numRecords': self.inputOptions.get('num_records'),
-        'keySizeBytes': self.inputOptions.get('key_size'),
-        'valueSizeBytes': self.inputOptions.get('value_size'),
-        'bundleSizeDistribution': {
-            'type': self.inputOptions.get(
-                'bundle_size_distribution_type', 'const'
-            ),
-            'param': self.inputOptions.get('bundle_size_distribution_param', 0)
-        },
-        'forceNumInitialBundles': self.inputOptions.get(
-            'force_initial_num_bundles', 0
-        )
-    }
-
+class SideInputTest(LoadTest):
   def _getSideInput(self):
-    side_input = self._parseTestPipelineOptions()
+    side_input = self.parseTestPipelineOptions()
     side_input['numRecords'] = side_input['numRecords']
     side_input['keySizeBytes'] = side_input['keySizeBytes']
     side_input['valueSizeBytes'] = side_input['valueSizeBytes']
     return side_input
 
-  def _getPerElementDelaySec(self):
-    return self.syntheticStepOptions.get('per_element_delay_sec', 0)
-
-  def _getPerBundleDelaySec(self):
-    return self.syntheticStepOptions.get('per_bundle_delay_sec', 0)
-
-  def _getOutputRecordsPerInputRecords(self):
-    return self.syntheticStepOptions.get('output_records_per_input_records', 0)
-
   def setUp(self):
-    self.pipeline = TestPipeline()
-    self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
+    super(SideInputTest, self).setUp()
+
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
-    if self.iterations is None:
+    if not self.iterations:
       self.iterations = 1
     self.iterations = int(self.iterations)
-
-    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
-    metrics_project_id = self.pipeline.get_option('project')
-    self.metrics_namespace = self.pipeline.get_option('metrics_table')
-    metrics_dataset = self.pipeline.get_option('metrics_dataset')
-
-    check = metrics_project_id and self.metrics_namespace and metrics_dataset \
-            is not None
-    if not self.metrics_monitor:
-      logging.info('Metrics will not be collected')
-    elif check:
-      self.metrics_monitor = MetricsMonitor(
-          project_name=metrics_project_id,
-          table=self.metrics_namespace,
-          dataset=metrics_dataset,
-      )
-    else:
-      raise ValueError('One or more of parameters for collecting metrics '
-                       'are empty.')
 
   def testSideInput(self):
     def join_fn(element, side_input, iterations):
@@ -204,7 +158,7 @@ class SideInputTest(unittest.TestCase):
     main_input = (self.pipeline
                   | "Read pcoll 1" >> beam.io.Read(
                       synthetic_pipeline.SyntheticSource(
-                          self._parseTestPipelineOptions()))
+                          self.parseTestPipelineOptions()))
                   | 'Measure time: Start pcoll 1' >> beam.ParDo(
                       MeasureTime(self.metrics_namespace))
                  )
@@ -225,12 +179,7 @@ class SideInputTest(unittest.TestCase):
      | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
     )
 
-    result = self.pipeline.run()
-    result.wait_until_finish()
 
-    if self.metrics_monitor is not None:
-      self.metrics_monitor.send_metrics(result)
-
-  if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.DEBUG)
-    unittest.main()
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.DEBUG)
+  unittest.main()

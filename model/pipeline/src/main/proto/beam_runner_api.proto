@@ -303,6 +303,21 @@ message StandardPTransforms {
     // and restrictions.
     // Input: KV(element, restriction); output: DoFn's output.
     PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
+
+    // Splits the restriction of each element/restriction pair and returns the
+    // resulting splits, with a corresponding floating point size estimations
+    // for each.
+    // A reasonable value for size is the number of bytes expected to be
+    // produced by this (element, restriction) pair.
+    // Input: KV(element, restriction)
+    // Output: KV(KV(element, restriction), size))
+    SPLIT_AND_SIZE_RESTRICTIONS = 4 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
+
+    // Like PROCESS_ELEMENTS, but accepts the sized output produced by
+    // SPLIT_RESTRICTION_WITH_SIZING.
+    // Input: KV(KV(element, restriction), size); output: DoFn's output.
+    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 5 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
+
   }
 }
 
@@ -550,8 +565,14 @@ message StandardCoders {
     // Components: The key and value coder, in that order.
     KV = 1 [(beam_urn) = "beam:coder:kv:v1"];
 
+    // Variable length Encodes a 64-bit integer.
     // Components: None
     VARINT = 2 [(beam_urn) = "beam:coder:varint:v1"];
+
+    // Encodes the floating point value as a big-endian 64-bit integer
+    // according to the IEEE 754 double format bit layout.
+    // Components: None
+    DOUBLE = 11 [(beam_urn) = "beam:coder:double:v1"];
 
     // Encodes an iterable of elements.
     //
@@ -627,6 +648,61 @@ message StandardCoders {
     // Experimental.
     STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
   }
+}
+
+// Experimental: A representation of a Beam Schema.
+message Schema {
+  enum TypeName {
+    BYTE = 0;
+    INT16 = 1;
+    INT32 = 2;
+    INT64 = 3;
+    DECIMAL = 4;
+    FLOAT = 5;
+    DOUBLE = 6;
+    STRING = 7;
+    DATETIME = 8;
+    BOOLEAN = 9;
+    BYTES = 10;
+    ARRAY = 11;
+    MAP = 13;
+    ROW = 14;
+    LOGICAL_TYPE = 15;
+  }
+
+  message LogicalType {
+    string id = 1;
+    string args = 2;
+    FieldType base_type = 3;
+    bytes serialized_class = 4;
+  }
+
+  message MapType {
+    FieldType key_type = 1;
+    FieldType value_type = 2;
+  }
+
+  message FieldType {
+    TypeName type_name = 1;
+    bool nullable = 2;
+    oneof type_info {
+      FieldType collection_element_type = 3;
+      MapType map_type = 4;
+      Schema row_schema = 5;
+      LogicalType logical_type = 6;
+    }
+  }
+
+  message Field {
+    string name = 1;
+    string description = 2;
+    FieldType type = 3;
+    int32 id = 4;
+    int32 encoding_position = 5;
+  }
+
+  repeated Field fields = 1;
+  string id = 2;
 }
 
 // A windowing strategy describes the window function, triggering, allowed
@@ -953,15 +1029,14 @@ message SideInput {
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 message Environment {
-  // Deprecated. Tracked in BEAM-5433
-  string url = 1;
-
   // (Required) The URN of the payload
   string urn = 2;
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
+
+  reserved 1;
 }
 
 message StandardEnvironments {

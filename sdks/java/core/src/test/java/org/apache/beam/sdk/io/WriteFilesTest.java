@@ -61,6 +61,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOption
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -332,12 +333,26 @@ public class WriteFilesTest {
     }
     runWrite(
         inputs,
-        Window.into(FixedWindows.of(Duration.millis(2))),
+        Window.into(FixedWindows.of(Duration.millis(1))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink()).withMaxNumWritersPerBundle(2).withWindowedWrites());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteNoSpilling() throws IOException {
+    List<String> inputs = Lists.newArrayList();
+    for (int i = 0; i < 100; ++i) {
+      inputs.add("mambo_number_" + i);
+    }
+    runWrite(
+        inputs,
+        Window.into(FixedWindows.of(Duration.millis(1))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink())
             .withMaxNumWritersPerBundle(2)
             .withWindowedWrites()
-            .withNumShards(1));
+            .withNoSpilling());
   }
 
   @Test
@@ -455,7 +470,7 @@ public class WriteFilesTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
   public void testDynamicDestinationsUnbounded() throws Exception {
     testDynamicDestinationsHelper(false, false);
   }

@@ -26,6 +26,10 @@ import java.util.concurrent.Executors;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -35,7 +39,11 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrie
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.ExternalEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
@@ -77,6 +85,22 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final ExecutorService executor;
   private final MapControlClientPool clientPool;
   private final IdGenerator stageIdGenerator;
+
+  public static DefaultJobBundleFactory create(JobInfo jobInfo) {
+    Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
+        ImmutableMap.of(
+            BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
+            new DockerEnvironmentFactory.Provider(
+                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
+            BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
+            new ProcessEnvironmentFactory.Provider(),
+            BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL),
+            new ExternalEnvironmentFactory.Provider(),
+            Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
+            new EmbeddedEnvironmentFactory.Provider(
+                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())));
+    return new DefaultJobBundleFactory(jobInfo, environmentFactoryProviderMap);
+  }
 
   public static DefaultJobBundleFactory create(
       JobInfo jobInfo, Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap) {

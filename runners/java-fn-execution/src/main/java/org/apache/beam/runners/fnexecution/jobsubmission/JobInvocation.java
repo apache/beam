@@ -31,6 +31,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Futures;
@@ -46,7 +47,7 @@ public class JobInvocation {
 
   private final RunnerApi.Pipeline pipeline;
   private final PortablePipelineRunner pipelineRunner;
-  private final String id;
+  private final JobInfo jobInfo;
   private final ListeningExecutorService executorService;
   private List<Consumer<Enum>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
@@ -54,11 +55,11 @@ public class JobInvocation {
   @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
   public JobInvocation(
-      String id,
+      JobInfo jobInfo,
       ListeningExecutorService executorService,
       Pipeline pipeline,
       PortablePipelineRunner pipelineRunner) {
-    this.id = id;
+    this.jobInfo = jobInfo;
     this.executorService = executorService;
     this.pipeline = pipeline;
     this.pipelineRunner = pipelineRunner;
@@ -69,7 +70,7 @@ public class JobInvocation {
   }
 
   private PipelineResult runPipeline() throws Exception {
-    return pipelineRunner.run(pipeline);
+    return pipelineRunner.run(pipeline, jobInfo);
   }
 
   /** Start the job. */
@@ -119,7 +120,7 @@ public class JobInvocation {
 
   /** @return Unique identifier for the job invocation. */
   public String getId() {
-    return id;
+    return jobInfo.jobId();
   }
 
   /** Cancel the job. */

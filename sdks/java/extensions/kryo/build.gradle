@@ -42,7 +42,7 @@ dependencies {
     compile "com.esotericsoftware:kryo:${kryoVersion}"
     shadow project(path: ':beam-sdks-java-core', configuration: 'shadow')
     testCompile project(path: ':beam-sdks-java-core', configuration: 'shadowTest')
-    testCompile project(':beam-runners-direct-java')
+    testRuntimeOnly project(path: ":beam-runners-direct-java")
 }
 
 test {

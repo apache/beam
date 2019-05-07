@@ -167,9 +167,11 @@ public class BeamDDLTest {
     TestTableProvider rootProvider = new TestTableProvider();
     TestTableProvider testProvider = new TestTableProvider();
 
-    BeamSqlEnv env = BeamSqlEnv.withTableProvider(rootProvider);
-    env.addSchema("test", testProvider);
-
+    BeamSqlEnv env =
+        BeamSqlEnv.builder()
+            .setInitializeTableProvider(rootProvider)
+            .addSchema("test", testProvider)
+            .build();
     assertNull(testProvider.getTables().get("person"));
     env.executeDdl("CREATE EXTERNAL TABLE test.person (id INT) TYPE text");
 

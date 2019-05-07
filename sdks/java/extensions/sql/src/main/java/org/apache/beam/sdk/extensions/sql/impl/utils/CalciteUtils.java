@@ -156,8 +156,26 @@ public class CalciteUtils {
           .put(TIMESTAMP_WITH_LOCAL_TZ, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
           .build();
 
-  private static final BiMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
-      BEAM_TO_CALCITE_TYPE_MAPPING.inverse();
+  private static final ImmutableMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
+      ImmutableMap.<SqlTypeName, FieldType>builder()
+          .put(SqlTypeName.TINYINT, TINY_INT)
+          .put(SqlTypeName.SMALLINT, SMALL_INT)
+          .put(SqlTypeName.INTEGER, INTEGER)
+          .put(SqlTypeName.BIGINT, BIG_INT)
+          .put(SqlTypeName.FLOAT, FLOAT)
+          .put(SqlTypeName.DOUBLE, DOUBLE)
+          .put(SqlTypeName.DECIMAL, DECIMAL)
+          .put(SqlTypeName.BOOLEAN, BOOLEAN)
+          .put(SqlTypeName.VARBINARY, VARBINARY)
+          .put(SqlTypeName.BINARY, VARBINARY)
+          .put(SqlTypeName.VARCHAR, VARCHAR)
+          .put(SqlTypeName.CHAR, CHAR)
+          .put(SqlTypeName.DATE, DATE)
+          .put(SqlTypeName.TIME, TIME)
+          .put(SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE, TIME_WITH_LOCAL_TZ)
+          .put(SqlTypeName.TIMESTAMP, TIMESTAMP)
+          .put(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TZ)
+          .build();
 
   // Since there are multiple Calcite type that correspond to a single Beam type, this is the
   // default mapping.

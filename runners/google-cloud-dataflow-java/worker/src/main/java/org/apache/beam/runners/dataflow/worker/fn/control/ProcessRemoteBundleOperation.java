@@ -18,16 +18,23 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.*;
+import java.util.EnumMap;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReceivingOperation;
 import org.apache.beam.runners.fnexecution.control.*;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,15 +68,44 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       DataflowOperationContext operationContext,
       StageBundleFactory stageBundleFactory,
       Map<String, OutputReceiver> outputReceiverMap,
-      TimerReceiver timerReceiver) {
+      TimerReceiver timerReceiver,
+      Map<String, SideInputReader> ptransformIdToSideInputReader,
+      Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
+          sideInputIdToPCollectionViewMap) {
     super(EMPTY_RECEIVER_ARRAY, operationContext);
 
     this.timerReceiver = timerReceiver;
     this.stageBundleFactory = stageBundleFactory;
-    this.stateRequestHandler = StateRequestHandler.unsupported();
     this.progressHandler = BundleProgressHandler.ignored();
     this.executableStage = executableStage;
     this.outputReceiverMap = outputReceiverMap;
+
+    StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
+        DataflowSideInputHandlerFactory.of(
+            ptransformIdToSideInputReader, sideInputIdToPCollectionViewMap);
+
+    stateRequestHandler = getStateRequestHandler(executableStage, sideInputHandlerFactory);
+  }
+
+  private StateRequestHandler getStateRequestHandler(
+      ExecutableStage executableStage,
+      StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory) {
+    final StateRequestHandler sideInputHandler;
+
+    try {
+      sideInputHandler =
+          StateRequestHandlers.forSideInputHandlerFactory(
+              ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to setup state handler", e);
+    }
+
+    EnumMap<BeamFnApi.StateKey.TypeCase, StateRequestHandler> handlerMap =
+        new EnumMap<BeamFnApi.StateKey.TypeCase, StateRequestHandler>(
+            BeamFnApi.StateKey.TypeCase.class);
+    handlerMap.put(BeamFnApi.StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+
+    return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
 
   @Override

@@ -84,6 +84,8 @@ dependencies {
   compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   compile library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
+  // For resolving external transform requests
+  compile project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
@@ -96,7 +98,7 @@ runShadow {
   if (project.hasProperty('artifactsDir'))
     args += ["--artifacts-dir=${project.property('artifactsDir')}"]
   if (project.hasProperty('cleanArtifactsPerJob'))
-    args += ["--clean-artifacts-per-job"]
+    args += ["--clean-artifacts-per-job=${project.property('cleanArtifactsPerJob')}"]
   if (project.hasProperty('flinkMasterUrl'))
     args += ["--flink-master-url=${project.property('flinkMasterUrl')}"]
   if (project.hasProperty('flinkConfDir'))
@@ -120,7 +122,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
     jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-    jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0",
     testClasspathConfiguration: configurations.validatesPortableRunner,
     numParallelTests: 1,
     pipelineOpts: pipelineOptions,
@@ -132,6 +134,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
       excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
@@ -155,3 +158,24 @@ task validatesPortableRunner() {
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
 }
+
+project.ext.validatesCrossLanguageTransforms =
+  createPortableValidatesRunnerTask(
+    name: "validatesCrossLanguageTransforms",
+    jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
+    jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
+    testClasspathConfiguration: configurations.validatesPortableRunner,
+    numParallelTests: 1,
+    pipelineOpts: [
+      // Limit resource consumption via parallelism
+      "--parallelism=2",
+      "--shutdownSourcesOnFinalWatermark",
+    ],
+    testCategories: {
+      // Only include cross-language transform tests. Avoid to retest everything on Docker environment.
+      includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    },
+  )
+project.evaluationDependsOn ':beam-sdks-python'
+validatesCrossLanguageTransforms.dependsOn ':beam-sdks-python:setupVirtualenv'
+validatesCrossLanguageTransforms.systemProperty "pythonTestExpansionCommand", ". ${project(':beam-sdks-python').envdir}/bin/activate && pip install -e ${project(':beam-sdks-python').projectDir}[test] && python -m apache_beam.runners.portability.expansion_service_test"

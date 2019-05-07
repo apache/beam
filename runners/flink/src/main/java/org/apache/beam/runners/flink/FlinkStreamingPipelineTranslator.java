@@ -196,7 +196,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
       Preconditions.checkArgument(
           jobParallelism > 0,
-          "Parallelism of a job should be greater than 0. Currently set: {}",
+          "Parallelism of a job should be greater than 0. Currently set: %s",
           jobParallelism);
       int numShards = jobParallelism * 2;
 

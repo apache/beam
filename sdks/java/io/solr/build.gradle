@@ -29,8 +29,7 @@ dependencies {
   shadow "org.apache.solr:solr-solrj:5.5.4"
   compileOnly "org.apache.httpcomponents:httpclient:4.5.6"
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
@@ -39,4 +38,5 @@ dependencies {
   testCompile "org.apache.solr:solr-core:5.5.4"
   testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.3.2"
   shadowTest library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

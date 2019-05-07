@@ -64,12 +64,13 @@ limitations under the License.
           </div>
           <div class="hero__ctas hero__ctas--first">
             <a class="button button--primary" href="{{'/get-started/beam-overview/'|prepend:site.baseurl}}">Learn more</a>
+            <a class="button button--primary" href="{{'/get-started/try-apache-beam/'|prepend:site.baseurl}}">Try Beam</a>
             <a class="button button--primary" href="{{'/get-started/downloads/'|prepend:site.baseurl}}">Download Beam SDK {{ site.release_latest }}</a>
           </div>
           <div class="hero__ctas">
             <a class="button" href="{{'/get-started/quickstart-java/'|prepend:site.baseurl}}">Java Quickstart</a>
             <a class="button" href="{{'/get-started/quickstart-py/'|prepend:site.baseurl}}">Python Quickstart</a>
-	    <a class="button" href="{{'/get-started/quickstart-go/'|prepend:site.baseurl}}">Go Quickstart</a>
+            <a class="button" href="{{'/get-started/quickstart-go/'|prepend:site.baseurl}}">Go Quickstart</a>
           </div>
         </div>
       </div>

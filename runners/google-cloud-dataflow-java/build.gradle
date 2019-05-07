@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20190308'
+    'dataflow.container_version' : 'beam-master-20190415'
   ]
 }
 
@@ -107,7 +107,7 @@ test {
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests/'
+def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
 def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
@@ -123,14 +123,15 @@ def fnapiExperiments = project.findProperty('useExecutableStage') ? 'beam_fn_api
 ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
 
 def fnApiPipelineOptions = [
-      "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-      "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-      "--experiments=${fnapiExperiments}",
+  "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
+  "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+  "--experiments=${fnapiExperiments}",
 ]
 
 def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
   'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
+  'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesSetState',
@@ -143,11 +144,12 @@ def commonExcludeCategories = [
 ]
 
 def fnApiWorkerExcludeCategories = [
+  'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
   'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
   'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported',
   'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders',
   'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
-  'org.apache.beam.sdk.testing.UsesSchema'
+  'org.apache.beam.sdk.testing.UsesSchema',
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
@@ -162,7 +164,6 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
           "--tempRoot=${dataflowValidatesTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
-
   ])
 
   // Increase test parallelism up to the number of Gradle workers. By default this is equal
@@ -176,6 +177,31 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
       excludeCategories it
     }
   }
+}
+
+task validatesRunnerLegacyWorkerJava11Test(type: Test) {
+    group = "Verification"
+    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=TestDataflowRunner",
+            "--project=${dataflowProject}",
+            "--tempRoot=${dataflowValidatesTempRoot}",
+            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    ])
+    
+    systemProperty "java.specification.version", "11"
+
+    // Increase test parallelism up to the number of Gradle workers. By default this is equal
+    // to the number of CPU cores, but can be increased by setting --max-workers=N.
+    maxParallelForks Integer.MAX_VALUE
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+    useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        commonExcludeCategories.each {
+            excludeCategories it
+        }
+    }
 }
 
 // Push docker images to a container registry for use within tests.
@@ -206,85 +232,87 @@ afterEvaluate {
 }
 
 task printFnApiPipelineOptions {
-    group = "Help"
-    description = "Prints to the console extra pipeline options needed to run a Dataflow pipeline using portability"
+  group = "Help"
+  description = "Prints to the console extra pipeline options needed to run a Dataflow pipeline using portability"
 
-    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
-    dependsOn buildAndPushDockerContainer
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
 
-    doLast {
-      println "To run a Dataflow job with portability, add the following pipeline options to your command-line:"
-      println fnApiPipelineOptions.join(' ')
-    }
+  doLast {
+    println "To run a Dataflow job with portability, add the following pipeline options to your command-line:"
+    println fnApiPipelineOptions.join(' ')
+  }
 }
 
 task validatesRunnerFnApiWorkerTest(type: Test) {
-    group = "Verification"
-    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
-    dependsOn buildAndPushDockerContainer
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
-    )
+  group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+  )
 
-    // Increase test parallelism up to the number of Gradle workers. By default this is equal
-    // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
-    classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
-    useJUnit {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      commonExcludeCategories.each {
-        excludeCategories it
-      }
-      fnApiWorkerExcludeCategories.each {
-        excludeCategories it
-      }
+  // Increase test parallelism up to the number of Gradle workers. By default this is equal
+  // to the number of CPU cores, but can be increased by setting --max-workers=N.
+  maxParallelForks Integer.MAX_VALUE
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    commonExcludeCategories.each {
+      excludeCategories it
     }
+    fnApiWorkerExcludeCategories.each {
+      excludeCategories it
+    }
+  }
 }
 
 task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
-    group = "Verification"
-    description "Validates Dataflow PortabilityApi runner"
-    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
-    dependsOn buildAndPushDockerContainer
+  group = "Verification"
+  description "Validates Dataflow PortabilityApi runner"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
 
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api,use_executable_stage_bundle_execution"]
-    )
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowPostCommitTempRoot}",
+          "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
+          "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+          "--experiments=beam_fn_api,use_executable_stage_bundle_execution"]
+  )
 
-    // Increase test parallelism up to the number of Gradle workers. By default this is equal
-    // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
-    classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
-    // TODO(BEAM-6232): ViewTest tests sideinputs, which is not supported bu current bundle execution.
-    exclude '**/ViewTest.class'
-    useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        commonExcludeCategories.each {
-            excludeCategories it
-        }
-        fnApiWorkerExcludeCategories.each {
-            excludeCategories it
-        }
-        // TODO(BEAM-6232): Support sideinput.
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
-        // TODO(BEAM-6233): Support timer and state.
-        excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+  // Increase test parallelism up to the number of Gradle workers. By default this is equal
+  // to the number of CPU cores, but can be increased by setting --max-workers=N.
+  maxParallelForks Integer.MAX_VALUE
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    commonExcludeCategories.each {
+      excludeCategories it
     }
+    fnApiWorkerExcludeCategories.each {
+      excludeCategories it
+    }
+    // TODO(BEAM-6233): Support timer and state.
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+  }
 }
 
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerLegacyWorkerTest
+}
+
+task validatesJava11Runner {
+    group = 'Verification'
+    description 'Verifies Dataflow runner with Java 11 container harness'
+    dependsOn validatesRunnerLegacyWorkerJava11Test
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
@@ -310,55 +338,56 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
 }
 
 task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
-    group = "Verification"
-    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-            "--workerHarnessContainerImage=",
-            "--dataflowKmsKey=${dataflowKmsKey}",
-    ])
+  group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowPostCommitTempRoot}",
+          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+          "--workerHarnessContainerImage=",
+          "--dataflowKmsKey=${dataflowKmsKey}",
+  ])
 
-    include '**/*KmsKeyIT.class'
-    exclude '**/BigQueryKmsKeyIT.class'  // Only needs to run on direct runner.
-    maxParallelForks 4
-    classpath = configurations.googleCloudPlatformIntegrationTest
-    testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
-    useJUnit { }
+  include '**/*KmsKeyIT.class'
+  exclude '**/BigQueryKmsKeyIT.class'  // Only needs to run on direct runner.
+  maxParallelForks 4
+  classpath = configurations.googleCloudPlatformIntegrationTest
+  testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+  useJUnit { }
 }
 
 task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
-    group = "Verification"
-    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
-    dependsOn buildAndPushDockerContainer
+  group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
 
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
-    )
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+  )
 
-    include '**/*IT.class'
-    exclude '**/BigQueryIOReadIT.class'
-    exclude '**/BigQueryIOStorageReadIT.class'
-    exclude '**/BigQueryIOStorageReadTableRowIT.class'
-    exclude '**/PubsubReadIT.class'
-    exclude '**/SpannerReadIT.class'
-    exclude '**/BigtableReadIT.class'
-    exclude '**/V1ReadIT.class'
-    exclude '**/SpannerWriteIT.class'
-    exclude '**/BigQueryNestedRecordsIT.class'
-    exclude '**/SplitQueryFnIT.class'
-    exclude '**/*KmsKeyIT.class'
+  include '**/*IT.class'
+  exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
+  exclude '**/BigQueryIOStorageReadIT.class'
+  exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/PubsubReadIT.class'
+  exclude '**/SpannerReadIT.class'
+  exclude '**/BigtableReadIT.class'
+  exclude '**/V1ReadIT.class'
+  exclude '**/SpannerWriteIT.class'
+  exclude '**/BigQueryNestedRecordsIT.class'
+  exclude '**/SplitQueryFnIT.class'
+  exclude '**/*KmsKeyIT.class'
 
-    maxParallelForks 4
-    classpath = configurations.googleCloudPlatformIntegrationTest
-    testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
-    useJUnit {
-      excludeCategories 'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported'
-    }
+  maxParallelForks 4
+  classpath = configurations.googleCloudPlatformIntegrationTest
+  testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+  useJUnit {
+    excludeCategories 'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported'
+  }
 }
 
 task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
@@ -387,31 +416,31 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
 // For fn-api runner, only run the IT can be passed for now.
 // Should support more ITs in the future.
 task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
-    group = "Verification"
-    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
-    dependsOn buildAndPushDockerContainer
+  group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
 
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
-    )
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+  )
 
-    // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
-    // this postCommit integration test excludes them.
-    include '**/*IT.class'
-    exclude '**/WordCountIT.class'
-    exclude '**/WindowedWordCountIT.class'
-    exclude '**/TopWikipediaSessionsIT.class'
-    exclude '**/TfIdfIT.class'
-    exclude '**/AutoCompleteIT.class'
-    exclude '**/TrafficMaxLaneFlowIT.class'
-    exclude '**/TrafficRoutesIT.class'
+  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
+  // this postCommit integration test excludes them.
+  include '**/*IT.class'
+  exclude '**/WordCountIT.class'
+  exclude '**/WindowedWordCountIT.class'
+  exclude '**/TopWikipediaSessionsIT.class'
+  exclude '**/TfIdfIT.class'
+  exclude '**/AutoCompleteIT.class'
+  exclude '**/TrafficMaxLaneFlowIT.class'
+  exclude '**/TrafficRoutesIT.class'
 
-    maxParallelForks 4
-    classpath = configurations.examplesJavaIntegrationTest
-    testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
-    useJUnit { }
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
+  useJUnit { }
 }
 
 task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
@@ -427,6 +456,8 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   ])
 
   include '**/*IT.class'
+  // TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
+  exclude '**/RequiresStableInputIT.class'
   maxParallelForks 4
   classpath = configurations.coreSDKJavaIntegrationTest
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
@@ -434,21 +465,23 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
 }
 
 task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
-    group = "Verification"
-    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
-    dependsOn buildAndPushDockerContainer
+  group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
 
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
-    )
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+  )
 
-    include '**/*IT.class'
-    maxParallelForks 4
-    classpath = configurations.coreSDKJavaIntegrationTest
-    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
-    useJUnit { }
+  include '**/*IT.class'
+  // TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
+  exclude '**/RequiresStableInputIT.class'
+  maxParallelForks 4
+  classpath = configurations.coreSDKJavaIntegrationTest
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit { }
 }
 
 task postCommit {
@@ -502,8 +535,8 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
 task GCSUpload(type: JavaExec) {
-   main = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
-   classpath = sourceSets.test.runtimeClasspath
-   args "--stagingLocation=${dataflowUploadTemp}/staging",
-        "--filesToStage=${testFilesToStage}"
+  main = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
+  classpath = sourceSets.test.runtimeClasspath
+  args "--stagingLocation=${dataflowUploadTemp}/staging",
+       "--filesToStage=${testFilesToStage}"
 }

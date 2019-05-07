@@ -29,7 +29,6 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.activemq_broker
   testCompile library.java.activemq_jaas
   testCompile library.java.activemq_kahadb_store
@@ -38,4 +37,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

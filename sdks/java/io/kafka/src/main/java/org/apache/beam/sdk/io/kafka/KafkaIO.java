@@ -21,12 +21,15 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,17 +38,22 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -57,6 +65,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -351,7 +360,8 @@ public class KafkaIO {
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<K, V> {
+    abstract static class Builder<K, V>
+        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
 
       abstract Builder<K, V> setTopics(List<String> topics);
@@ -386,6 +396,109 @@ public class KafkaIO {
       abstract Builder<K, V> setOffsetConsumerConfig(Map<String, Object> offsetConsumerConfig);
 
       abstract Read<K, V> build();
+
+      @Override
+      public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
+          External.Configuration config) {
+        ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
+        for (byte[] topic : config.topics) {
+          listBuilder.add(utf8String(topic));
+        }
+        setTopics(listBuilder.build());
+
+        String keyDeserializerClassName = utf8String(config.keyDeserializer);
+        Class keyDeserializer = resolveClass(keyDeserializerClassName);
+        setKeyDeserializer(keyDeserializer);
+        setKeyCoder(resolveCoder(keyDeserializer));
+
+        String valueDeserializerClassName = utf8String(config.valueDeserializer);
+        Class valueDeserializer = resolveClass(valueDeserializerClassName);
+        setValueDeserializer(valueDeserializer);
+        setValueCoder(resolveCoder(valueDeserializer));
+
+        Map<String, Object> consumerConfig = new HashMap<>();
+        for (KV<byte[], byte[]> kv : config.consumerConfig) {
+          String key = utf8String(kv.getKey());
+          String value = utf8String(kv.getValue());
+          consumerConfig.put(key, value);
+        }
+        // Key and Value Deserializers always have to be in the config.
+        consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
+        consumerConfig.put(
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer.getName());
+        setConsumerConfig(consumerConfig);
+
+        // Set required defaults
+        setTopicPartitions(Collections.emptyList());
+        setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN);
+        setMaxNumRecords(Long.MAX_VALUE);
+        setCommitOffsetsInFinalizeEnabled(false);
+        setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+        // We do not include Metadata until we can encode KafkaRecords cross-language
+        return build().withoutMetadata();
+      }
+
+      private static Coder resolveCoder(Class deserializer) {
+        for (Method method : deserializer.getDeclaredMethods()) {
+          if (method.getName().equals("deserialize")) {
+            Class<?> returnType = method.getReturnType();
+            if (returnType.equals(Object.class)) {
+              continue;
+            }
+            if (returnType.equals(byte[].class)) {
+              return ByteArrayCoder.of();
+            } else if (returnType.equals(Integer.class)) {
+              return VarIntCoder.of();
+            } else if (returnType.equals(Long.class)) {
+              return VarLongCoder.of();
+            } else {
+              throw new RuntimeException("Couldn't infer Coder from " + deserializer);
+            }
+          }
+        }
+        throw new RuntimeException("Couldn't resolve coder for Deserializer: " + deserializer);
+      }
+    }
+
+    /**
+     * Exposes {@link KafkaIO.TypedWithoutMetadata} as an external transform for cross-language
+     * usage.
+     */
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:kafka:read:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_KafkaIO_Read.Builder.class);
+      }
+
+      /** Parameters class to expose the Read transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        private Iterable<KV<byte[], byte[]>> consumerConfig;
+        private Iterable<byte[]> topics;
+        private byte[] keyDeserializer;
+        private byte[] valueDeserializer;
+
+        public void setConsumerConfig(Iterable<KV<byte[], byte[]>> consumerConfig) {
+          this.consumerConfig = consumerConfig;
+        }
+
+        public void setTopics(Iterable<byte[]> topics) {
+          this.topics = topics;
+        }
+
+        public void setKeyDeserializer(byte[] keyDeserializer) {
+          this.keyDeserializer = keyDeserializer;
+        }
+
+        public void setValueDeserializer(byte[] valueDeserializer) {
+          this.valueDeserializer = valueDeserializer;
+        }
+      }
     }
 
     /** Sets the bootstrap servers for the Kafka consumer. */
@@ -1141,7 +1254,8 @@ public class KafkaIO {
         String runner = options.getRunner().getName();
         if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
             || runner.startsWith("org.apache.beam.runners.dataflow.")
-            || runner.startsWith("org.apache.beam.runners.spark.")) {
+            || runner.startsWith("org.apache.beam.runners.spark.")
+            || runner.startsWith("org.apache.beam.runners.flink.")) {
           return;
         }
         throw new UnsupportedOperationException(
@@ -1199,12 +1313,77 @@ public class KafkaIO {
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<K, V> {
+    abstract static class Builder<K, V>
+        implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
       abstract Builder<K, V> setTopic(String topic);
 
       abstract Builder<K, V> setWriteRecordsTransform(WriteRecords<K, V> transform);
 
       abstract Write<K, V> build();
+
+      @Override
+      public PTransform<PCollection<KV<K, V>>, PDone> buildExternal(
+          External.Configuration configuration) {
+        String topic = utf8String(configuration.topic);
+        setTopic(topic);
+
+        Map<String, Object> producerConfig = new HashMap<>();
+        for (KV<byte[], byte[]> kv : configuration.producerConfig) {
+          String key = utf8String(kv.getKey());
+          String value = utf8String(kv.getValue());
+          producerConfig.put(key, value);
+        }
+        Class keySerializer = resolveClass(utf8String(configuration.keySerializer));
+        Class valSerializer = resolveClass(utf8String(configuration.valueSerializer));
+
+        WriteRecords<K, V> writeRecords =
+            KafkaIO.<K, V>writeRecords()
+                .updateProducerProperties(producerConfig)
+                .withKeySerializer(keySerializer)
+                .withValueSerializer(valSerializer)
+                .withTopic(topic);
+        setWriteRecordsTransform(writeRecords);
+
+        return build();
+      }
+    }
+
+    /** Exposes {@link KafkaIO.Write} as an external transform for cross-language usage. */
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:kafka:write:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_KafkaIO_Write.Builder.class);
+      }
+
+      /** Parameters class to expose the Write transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        private Iterable<KV<byte[], byte[]>> producerConfig;
+        private byte[] topic;
+        private byte[] keySerializer;
+        private byte[] valueSerializer;
+
+        public void setProducerConfig(Iterable<KV<byte[], byte[]>> producerConfig) {
+          this.producerConfig = producerConfig;
+        }
+
+        public void setTopic(byte[] topic) {
+          this.topic = topic;
+        }
+
+        public void setKeySerializer(byte[] keySerializer) {
+          this.keySerializer = keySerializer;
+        }
+
+        public void setValueSerializer(byte[] valueSerializer) {
+          this.valueSerializer = valueSerializer;
+        }
+      }
     }
 
     /** Used mostly to reduce using of boilerplate of wrapping {@link WriteRecords} methods. */
@@ -1453,5 +1632,17 @@ public class KafkaIO {
 
     throw new RuntimeException(
         String.format("Could not extract the Kafka Deserializer type from %s", deserializer));
+  }
+
+  private static String utf8String(byte[] bytes) {
+    return new String(bytes, Charsets.UTF_8);
+  }
+
+  private static Class resolveClass(String className) {
+    try {
+      return Class.forName(className);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Could not find class: " + className);
+    }
   }
 }

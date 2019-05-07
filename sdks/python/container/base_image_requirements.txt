@@ -71,3 +71,4 @@ tensorflow==1.11.0
 
 # Packages needed for testing.
 tenacity>=5.0.2
+pyhamcrest<2.0,>=1.9

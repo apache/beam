@@ -29,7 +29,7 @@ def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.
 applyJavaNature(
   publish: false,
   exportJavadoc: false,
-  enableFindbugs: true,
+  enableSpotbugs: true,
   validateShadowJar: false,
   shadowClosure: {
     // In the case of the Fn API worker jar we are creating an application so we rely on
@@ -52,7 +52,7 @@ configurations {
 
   // Ban these dependencies from all configurations
   all {
-    // Ban the usage of AppleJavaExtensions in findbugs.
+    // Ban the usage of AppleJavaExtensions in spotbugs.
     exclude group: "com.apple", module: "AppleJavaExtensions"
   }
 }

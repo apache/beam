@@ -1210,9 +1210,9 @@ categories:
             l2: non-merging windows
             l3: ''
           - class: samza
-            l1: 'No'
-            l2: ''
-            l3: ''
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: The Samza Runner supports timers in non-merging windows.
           - class: nemo
             l1: 'No'
             l2: not implemented

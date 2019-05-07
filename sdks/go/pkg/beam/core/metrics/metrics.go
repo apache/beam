@@ -82,15 +82,19 @@ func (ctx *beamCtx) Value(key interface{}) interface{} {
 	switch key {
 	case bundleKey:
 		if ctx.bundleID == "" {
-			if id := ctx.Value(key); id != nil {
+			if id := ctx.Context.Value(key); id != nil {
 				ctx.bundleID = id.(string)
+			} else {
+				return nil
 			}
 		}
 		return ctx.bundleID
 	case ptransformKey:
 		if ctx.ptransformID == "" {
-			if id := ctx.Value(key); id != nil {
+			if id := ctx.Context.Value(key); id != nil {
 				ctx.ptransformID = id.(string)
+			} else {
+				return nil
 			}
 		}
 		return ctx.ptransformID
@@ -118,8 +122,13 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	return &beamCtx{Context: ctx, ptransformID: id}
 }
 
+const (
+	bundleIDUnset     = "(bundle id unset)"
+	ptransformIDUnset = "(ptransform id unset)"
+)
+
 func getContextKey(ctx context.Context, n name) key {
-	key := key{name: n, bundle: "(bundle id unset)", ptransform: "(ptransform id unset)"}
+	key := key{name: n, bundle: bundleIDUnset, ptransform: ptransformIDUnset}
 	if id := ctx.Value(bundleKey); id != nil {
 		key.bundle = id.(string)
 	}

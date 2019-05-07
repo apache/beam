@@ -155,8 +155,7 @@ public class SplittableParDoViaKeyedWorkItems {
   }
 
   /** A primitive transform wrapping around {@link ProcessFn}. */
-  public static class ProcessElements<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
+  public static class ProcessElements<InputT, OutputT, RestrictionT, PositionT>
       extends PTransform<
           PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
@@ -165,7 +164,7 @@ public class SplittableParDoViaKeyedWorkItems {
       this.original = original;
     }
 
-    public ProcessFn<InputT, OutputT, RestrictionT, TrackerT> newProcessFn(
+    public ProcessFn<InputT, OutputT, RestrictionT, PositionT> newProcessFn(
         DoFn<InputT, OutputT> fn) {
       return new ProcessFn<>(
           fn,
@@ -216,8 +215,7 @@ public class SplittableParDoViaKeyedWorkItems {
    * <p>See also: https://issues.apache.org/jira/browse/BEAM-1983
    */
   @VisibleForTesting
-  public static class ProcessFn<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
+  public static class ProcessFn<InputT, OutputT, RestrictionT, PositionT>
       extends DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
@@ -254,7 +252,7 @@ public class SplittableParDoViaKeyedWorkItems {
     private transient @Nullable StateInternalsFactory<byte[]> stateInternalsFactory;
     private transient @Nullable TimerInternalsFactory<byte[]> timerInternalsFactory;
     private transient @Nullable SplittableProcessElementInvoker<
-            InputT, OutputT, RestrictionT, TrackerT>
+            InputT, OutputT, RestrictionT, PositionT>
         processElementInvoker;
 
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
@@ -285,7 +283,7 @@ public class SplittableParDoViaKeyedWorkItems {
     }
 
     public void setProcessElementInvoker(
-        SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT> invoker) {
+        SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT> invoker) {
       this.processElementInvoker = invoker;
     }
 
@@ -326,6 +324,13 @@ public class SplittableParDoViaKeyedWorkItems {
       invoker.invokeFinishBundle(wrapContextAsFinishBundle(c));
     }
 
+    /**
+     * Processes an element and restriction pair storing the restriction inside of state.
+     *
+     * <p>Uses a processing timer to resume execution if processing returns a continuation.
+     *
+     * <p>Uses a watermark hold to control watermark advancement.
+     */
     @ProcessElement
     public void processElement(final ProcessContext c) {
       byte[] key = c.element().key();
@@ -370,8 +375,9 @@ public class SplittableParDoViaKeyedWorkItems {
         elementAndRestriction = KV.of(elementState.read(), restrictionState.read());
       }
 
-      final TrackerT tracker = invoker.invokeNewTracker(elementAndRestriction.getValue());
-      SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>.Result result =
+      final RestrictionTracker<RestrictionT, PositionT> tracker =
+          invoker.invokeNewTracker(elementAndRestriction.getValue());
+      SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>.Result result =
           processElementInvoker.invokeProcessElement(
               invoker, elementAndRestriction.getKey(), tracker);
 

@@ -115,16 +115,14 @@ or:
 
 from __future__ import absolute_import
 
-import json
 import logging
 import os
 import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
+from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
-from apache_beam.testing.test_pipeline import TestPipeline
 
 load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
@@ -132,52 +130,12 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 
 
 @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
-class ParDoTest(unittest.TestCase):
-  def parseTestPipelineOptions(self):
-    return {'numRecords': self.input_options.get('num_records'),
-            'keySizeBytes': self.input_options.get('key_size'),
-            'valueSizeBytes': self.input_options.get('value_size'),
-            'bundleSizeDistribution': {
-                'type': self.input_options.get(
-                    'bundle_size_distribution_type', 'const'
-                ),
-                'param': self.input_options.get(
-                    'bundle_size_distribution_param', 0
-                )
-            },
-            'forceNumInitialBundles': self.input_options.get(
-                'force_initial_num_bundles', 0
-            )
-           }
-
+class ParDoTest(LoadTest):
   def setUp(self):
-    self.pipeline = TestPipeline()
-
     self.output = self.pipeline.get_option('output')
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
-    self.input_options = json.loads(self.pipeline.get_option('input_options'))
-
-    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
-    metrics_project_id = self.pipeline.get_option('project')
-    self.metrics_namespace = self.pipeline.get_option('metrics_table')
-    metrics_dataset = self.pipeline.get_option('metrics_dataset')
-
-    check = metrics_project_id and self.metrics_namespace and metrics_dataset \
-            is not None
-    if not self.metrics_monitor:
-      logging.info('Metrics will not be collected')
-    elif check:
-      self.metrics_monitor = MetricsMonitor(
-          project_name=metrics_project_id,
-          table=self.metrics_namespace,
-          dataset=metrics_dataset,
-      )
-    else:
-      raise ValueError('One or more of parameters for collecting metrics '
-                       'are empty.')
 
   def testParDo(self):
-
     class _GetElement(beam.DoFn):
       from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
 
@@ -186,7 +144,7 @@ class ParDoTest(unittest.TestCase):
         if is_returning:
           yield element
 
-    if self.iterations is None:
+    if not self.iterations:
       num_runs = 1
     else:
       num_runs = int(self.iterations)
@@ -207,7 +165,7 @@ class ParDoTest(unittest.TestCase):
                 _GetElement(), self.metrics_namespace, is_returning)
            )
 
-    if self.output is not None:
+    if self.output:
       pc = (pc
             | "Write" >> beam.io.WriteToText(self.output)
            )
@@ -216,12 +174,6 @@ class ParDoTest(unittest.TestCase):
     (pc
      | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
     )
-
-    result = self.pipeline.run()
-    result.wait_until_finish()
-
-    if self.metrics_monitor is not None:
-      self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':

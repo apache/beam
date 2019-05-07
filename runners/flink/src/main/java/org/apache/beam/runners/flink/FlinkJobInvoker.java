@@ -27,6 +27,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
@@ -69,7 +70,7 @@ public class FlinkJobInvoker extends JobInvoker {
     }
 
     PortablePipelineOptions portableOptions = flinkOptions.as(PortablePipelineOptions.class);
-    if (portableOptions.getSdkWorkerParallelism() == null) {
+    if (portableOptions.getSdkWorkerParallelism() == 0L) {
       portableOptions.setSdkWorkerParallelism(serverConfig.getSdkWorkerParallelism());
     }
 
@@ -93,8 +94,14 @@ public class FlinkJobInvoker extends JobInvoker {
       FlinkPipelineOptions flinkOptions,
       @Nullable String confDir,
       List<String> filesToStage) {
+    JobInfo jobInfo =
+        JobInfo.create(
+            invocationId,
+            flinkOptions.getJobName(),
+            retrievalToken,
+            PipelineOptionsTranslation.toProto(flinkOptions));
     FlinkPipelineRunner pipelineRunner =
-        new FlinkPipelineRunner(invocationId, retrievalToken, flinkOptions, confDir, filesToStage);
-    return new JobInvocation(invocationId, executorService, pipeline, pipelineRunner);
+        new FlinkPipelineRunner(flinkOptions, confDir, filesToStage);
+    return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
   }
 }

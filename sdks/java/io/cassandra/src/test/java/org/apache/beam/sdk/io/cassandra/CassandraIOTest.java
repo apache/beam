@@ -23,7 +23,10 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getEs
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getRingFraction;
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMurmur3Partitioner;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
@@ -31,15 +34,21 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.annotations.Column;
+import com.datastax.driver.mapping.annotations.Computed;
 import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
+import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
+import info.archinnov.achilles.embedded.CassandraShutDownHook;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -49,6 +58,7 @@ import javax.management.remote.JMXServiceURL;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.TokenRange;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -57,18 +67,21 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.cassandra.service.StorageServiceMBean;
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -80,69 +93,67 @@ public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 20L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
   private static final String CASSANDRA_HOST = "127.0.0.1";
-  private static final int CASSANDRA_PORT = 9142;
-  private static final String CASSANDRA_USERNAME = "cassandra";
-  private static final String CASSANDRA_ENCRYPTED_PASSWORD =
-      "Y2Fzc2FuZHJh"; // Base64 encoded version of "cassandra"
   private static final String CASSANDRA_TABLE = "scientist";
   private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
-  private static final String JMX_PORT = "7199";
-  private static final long SIZE_ESTIMATES_UPDATE_INTERVAL = 5000L;
-  private static final long STARTUP_TIMEOUT = 45000L;
+  private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
+  private static final int FLUSH_TIMEOUT = 30000;
+  private static int jmxPort;
+  private static int cassandraPort;
 
   private static Cluster cluster;
   private static Session session;
-  private static long startupTime;
 
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  private static CassandraShutDownHook shutdownHook;
 
   @BeforeClass
-  public static void startCassandra() throws Exception {
-    System.setProperty("cassandra.jmx.local.port", JMX_PORT);
-    startupTime = System.currentTimeMillis();
-    EmbeddedCassandraServerHelper.startEmbeddedCassandra(STARTUP_TIMEOUT);
-    cluster = EmbeddedCassandraServerHelper.getCluster();
-    session = EmbeddedCassandraServerHelper.getSession();
+  public static void beforeClass() throws Exception {
+    jmxPort = NetworkTestHelper.getAvailableLocalPort();
+    shutdownHook = new CassandraShutDownHook();
+    // randomized port at startup
+    String data = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "data").getPath();
+    String commitLog = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "commit-log").getPath();
+    String cdcRaw = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "cdc-raw").getPath();
+    String hints = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "hints").getPath();
+    String savedCache = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "saved-cache").getPath();
+    cluster =
+        CassandraEmbeddedServerBuilder.builder()
+            .withKeyspaceName(CASSANDRA_KEYSPACE)
+            .withDataFolder(data)
+            .withCommitLogFolder(commitLog)
+            .withCdcRawFolder(cdcRaw)
+            .withHintsFolder(hints)
+            .withSavedCachesFolder(savedCache)
+            .withShutdownHook(shutdownHook)
+            .withJMXPort(jmxPort)
+            .buildNativeCluster();
 
-    LOGGER.info("Creating the Cassandra keyspace");
-    session.execute(
-        "CREATE KEYSPACE IF NOT EXISTS "
-            + CASSANDRA_KEYSPACE
-            + " WITH REPLICATION = "
-            + "{'class':'SimpleStrategy', 'replication_factor':3};");
-    LOGGER.info(CASSANDRA_KEYSPACE + " keyspace created");
+    cassandraPort = cluster.getConfiguration().getProtocolOptions().getPort();
+    session = CassandraIOTest.cluster.newSession();
 
-    LOGGER.info("Use the Cassandra keyspace");
-    session.execute("USE " + CASSANDRA_KEYSPACE);
-
-    LOGGER.info("Create Cassandra table");
-    session.execute(
-        String.format(
-            "CREATE TABLE IF NOT EXISTS %s(person_id int, person_name text, PRIMARY KEY"
-                + "(person_id));",
-            CASSANDRA_TABLE));
+    insertData();
   }
 
   @AfterClass
-  public static void stopCassandra() {
-    if (cluster != null && session != null) {
-      EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
-      session.close();
-      cluster.close();
-    } else {
-      if (cluster != null) {
-        cluster.close();
-      }
-    }
+  public static void afterClass() throws InterruptedException {
+    shutdownHook.shutDownNow();
   }
 
-  @Before
-  public void purgeCassandra() {
-    session.execute(String.format("TRUNCATE TABLE %s.%s", CASSANDRA_KEYSPACE, CASSANDRA_TABLE));
-  }
+  private static void insertData() throws Exception {
+    LOGGER.info("Create Cassandra tables");
+    session.execute(
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s.%s(person_id int, person_name text, PRIMARY KEY"
+                + "(person_id));",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE));
+    session.execute(
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s.%s(person_id int, person_name text, PRIMARY KEY"
+                + "(person_id));",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE_WRITE));
 
-  private static void insertRecords() throws Exception {
     LOGGER.info("Insert records");
     String[] scientists = {
       "Einstein",
@@ -181,10 +192,13 @@ public class CassandraIOTest implements Serializable {
    * https://github.com/apache/cassandra/blob/cassandra-3.X
    * /src/java/org/apache/cassandra/tools/nodetool/Flush.java
    */
+  @SuppressWarnings("unused")
   private static void flushMemTables() throws Exception {
     JMXServiceURL url =
         new JMXServiceURL(
-            String.format("service:jmx:rmi:///jndi/rmi://%s:%s/jmxrmi", CASSANDRA_HOST, JMX_PORT));
+            String.format(
+                "service:jmx:rmi://%s/jndi/rmi://%s:%s/jmxrmi",
+                CASSANDRA_HOST, CASSANDRA_HOST, jmxPort));
     JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
     MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
     ObjectName objectName = new ObjectName(STORAGE_SERVICE_MBEAN);
@@ -192,36 +206,31 @@ public class CassandraIOTest implements Serializable {
         JMX.newMBeanProxy(mBeanServerConnection, objectName, StorageServiceMBean.class);
     mBeanProxy.forceKeyspaceFlush(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
     jmxConnector.close();
-    // same method of waiting than cassandra spark connector
-    long initialDelay = Math.max(startupTime + STARTUP_TIMEOUT - System.currentTimeMillis(), 0L);
-    Thread.sleep(initialDelay + 2 * SIZE_ESTIMATES_UPDATE_INTERVAL);
+    Thread.sleep(FLUSH_TIMEOUT);
   }
 
   @Test
   public void testEstimatedSizeBytes() throws Exception {
-    insertRecords();
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     CassandraIO.Read<Scientist> read =
         CassandraIO.<Scientist>read()
-            .withHosts(Arrays.asList(CASSANDRA_HOST))
-            .withPort(CASSANDRA_PORT)
+            .withHosts(Collections.singletonList(CASSANDRA_HOST))
+            .withPort(cassandraPort)
             .withKeyspace(CASSANDRA_KEYSPACE)
             .withTable(CASSANDRA_TABLE);
     CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(read, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
     // the size is non determanistic in Cassandra backend
-    assertTrue((estimatedSizeBytes >= 4608L * 0.9f) && (estimatedSizeBytes <= 4608L * 1.1f));
+    assertTrue((estimatedSizeBytes >= 12960L * 0.9f) && (estimatedSizeBytes <= 12960L * 1.1f));
   }
 
   @Test
   public void testRead() throws Exception {
-    insertRecords();
-
     PCollection<Scientist> output =
         pipeline.apply(
             CassandraIO.<Scientist>read()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withTable(CASSANDRA_TABLE)
                 .withCoder(SerializableCoder.of(Scientist.class))
@@ -251,130 +260,166 @@ public class CassandraIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithWhere() throws Exception {
-    insertRecords();
-
+  public void testReadWithQuery() throws Exception {
     PCollection<Scientist> output =
         pipeline.apply(
             CassandraIO.<Scientist>read()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withTable(CASSANDRA_TABLE)
+                .withQuery(
+                    "select person_id, writetime(person_name) from beam_ks.scientist where person_id=10")
                 .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class)
-                .withWhere("person_id=10"));
+                .withEntity(Scientist.class));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
+    PAssert.that(output)
+        .satisfies(
+            input -> {
+              for (Scientist sci : input) {
+                assertNull(sci.name);
+                assertTrue(sci.nameTs != null && sci.nameTs > 0);
+              }
+              return null;
+            });
 
     pipeline.run();
   }
 
   @Test
   public void testWrite() {
-    ArrayList<Scientist> scientists = buildScientists(NUM_ROWS);
+    ArrayList<ScientistWrite> data = new ArrayList<>();
+    for (int i = 0; i < NUM_ROWS; i++) {
+      ScientistWrite scientist = new ScientistWrite();
+      scientist.id = i;
+      scientist.name = "Name " + i;
+      data.add(scientist);
+    }
 
     pipeline
-        .apply(Create.of(scientists))
+        .apply(Create.of(data))
         .apply(
-            CassandraIO.<Scientist>write()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+            CassandraIO.<ScientistWrite>write()
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
-                .withEntity(Scientist.class));
-    // table to write to is specified in the entity in @Table annotation (in that cas person)
+                .withEntity(ScientistWrite.class));
+    // table to write to is specified in the entity in @Table annotation (in that case scientist)
     pipeline.run();
 
-    List<Row> results = getRows();
+    List<Row> results = getRows(CASSANDRA_TABLE_WRITE);
     assertEquals(NUM_ROWS, results.size());
     for (Row row : results) {
       assertTrue(row.getString("person_name").matches("Name (\\d*)"));
     }
   }
 
-  @Test
-  public void testReadWithPasswordDecryption() throws Exception {
-    insertRecords();
+  private static final AtomicInteger counter = new AtomicInteger();
 
-    String sessionReadUID = "session-read-" + UUID.randomUUID();
-    PasswordDecrypter readPwdDecrypter = new TestPasswordDecrypter(sessionReadUID);
+  private static class NOOPMapperFactory implements SerializableFunction<Session, Mapper> {
 
-    PCollection<Scientist> output =
-        pipeline.apply(
-            CassandraIO.<Scientist>read()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
-                .withUsername(CASSANDRA_USERNAME)
-                .withEncryptedPassword(CASSANDRA_ENCRYPTED_PASSWORD)
-                .withPasswordDecrypter(readPwdDecrypter)
-                .withKeyspace(CASSANDRA_KEYSPACE)
-                .withTable(CASSANDRA_TABLE)
-                .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class));
+    @Override
+    public Mapper apply(Session input) {
+      return new NOOPMapper();
+    }
+  }
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_ROWS);
+  private static class NOOPMapper implements Mapper<String>, Serializable {
 
-    PCollection<KV<String, Integer>> mapped =
-        output.apply(
-            MapElements.via(
-                new SimpleFunction<Scientist, KV<String, Integer>>() {
-                  @Override
-                  public KV<String, Integer> apply(Scientist scientist) {
-                    return KV.of(scientist.name, scientist.id);
-                  }
-                }));
-    PAssert.that(mapped.apply("Count occurrences per scientist", Count.perKey()))
-        .satisfies(
-            input -> {
-              for (KV<String, Long> element : input) {
-                assertEquals(element.getKey(), NUM_ROWS / 10, element.getValue().longValue());
-              }
-              return null;
-            });
+    private final ListeningExecutorService executor =
+        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
 
-    pipeline.run();
+    final Callable<Void> asyncTask = () -> (null);
 
-    assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionReadUID));
+    @Override
+    public Iterator map(ResultSet resultSet) {
+      if (!resultSet.isExhausted()) {
+        resultSet.iterator().forEachRemaining(r -> counter.getAndIncrement());
+      }
+      return Collections.emptyIterator();
+    }
+
+    @Override
+    public Future<Void> deleteAsync(String entity) {
+      counter.incrementAndGet();
+      return executor.submit(asyncTask);
+    }
+
+    @Override
+    public Future<Void> saveAsync(String entity) {
+      counter.incrementAndGet();
+      return executor.submit(asyncTask);
+    }
   }
 
   @Test
-  public void testWriteWithPasswordDecryption() {
-    ArrayList<Scientist> scientists = buildScientists(NUM_ROWS);
+  public void testReadWithMapper() throws Exception {
+    counter.set(0);
 
-    String sessionWriteUID = "session-write-" + UUID.randomUUID();
-    PasswordDecrypter writePwdDecrypter = new TestPasswordDecrypter(sessionWriteUID);
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
 
-    pipeline
-        .apply(Create.of(scientists))
-        .apply(
-            CassandraIO.<Scientist>write()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
-                .withUsername(CASSANDRA_USERNAME)
-                .withEncryptedPassword(CASSANDRA_ENCRYPTED_PASSWORD)
-                .withPasswordDecrypter(writePwdDecrypter)
-                .withKeyspace(CASSANDRA_KEYSPACE)
-                .withEntity(Scientist.class));
-
+    pipeline.apply(
+        CassandraIO.<String>read()
+            .withHosts(Collections.singletonList(CASSANDRA_HOST))
+            .withPort(cassandraPort)
+            .withKeyspace(CASSANDRA_KEYSPACE)
+            .withTable(CASSANDRA_TABLE)
+            .withCoder(SerializableCoder.of(String.class))
+            .withEntity(String.class)
+            .withMapperFactoryFn(factory));
     pipeline.run();
 
-    List<Row> results = getRows();
-    assertEquals(NUM_ROWS, results.size());
-    for (Row row : results) {
-      assertTrue(row.getString("person_name").matches("Name (\\d*)"));
-    }
+    assertEquals(NUM_ROWS, counter.intValue());
+  }
 
-    assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionWriteUID));
+  @Test
+  public void testCustomMapperImplWrite() throws Exception {
+    counter.set(0);
+
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
+
+    pipeline
+        .apply(Create.of(""))
+        .apply(
+            CassandraIO.<String>write()
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withMapperFactoryFn(factory)
+                .withEntity(String.class));
+    pipeline.run();
+
+    assertEquals(1, counter.intValue());
+  }
+
+  @Test
+  public void testCustomMapperImplDelete() {
+    counter.set(0);
+
+    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
+
+    pipeline
+        .apply(Create.of(""))
+        .apply(
+            CassandraIO.<String>delete()
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withMapperFactoryFn(factory)
+                .withEntity(String.class));
+    pipeline.run();
+
+    assertEquals(1, counter.intValue());
   }
 
   @Test
   public void testSplit() throws Exception {
-    insertRecords();
     PipelineOptions options = PipelineOptionsFactory.create();
     CassandraIO.Read<Scientist> read =
         CassandraIO.<Scientist>read()
-            .withHosts(Arrays.asList(CASSANDRA_HOST))
-            .withPort(CASSANDRA_PORT)
+            .withHosts(Collections.singletonList(CASSANDRA_HOST))
+            .withPort(cassandraPort)
             .withKeyspace(CASSANDRA_KEYSPACE)
             .withTable(CASSANDRA_TABLE)
             .withEntity(Scientist.class)
@@ -385,45 +430,35 @@ public class CassandraIOTest implements Serializable {
     String splitQuery = QueryBuilder.select().from(CASSANDRA_KEYSPACE, CASSANDRA_TABLE).toString();
     CassandraIO.CassandraSource<Scientist> initialSource =
         new CassandraIO.CassandraSource<>(read, Collections.singletonList(splitQuery));
-
-    int desiredBundleSizeBytes = 2000;
+    int desiredBundleSizeBytes = 2048;
     List<BoundedSource<Scientist>> splits = initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
-    int expectedNumSplits =
-        (int) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
-    assertEquals(expectedNumSplits, splits.size());
-    int nonEmptySplits = 0;
+    float expectedNumSplitsloat =
+        (float) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
+    int expectedNumSplits = (int) Math.ceil(expectedNumSplitsloat);
+    assertEquals("Wrong number of splits", expectedNumSplits, splits.size());
+    int emptySplits = 0;
     for (BoundedSource<Scientist> subSource : splits) {
-      if (readFromSource(subSource, options).size() > 0) {
-        nonEmptySplits += 1;
+      if (readFromSource(subSource, options).isEmpty()) {
+        emptySplits += 1;
       }
     }
-    assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
+    assertThat(
+        "There are too many empty splits, parallelism is sub-optimal",
+        emptySplits,
+        lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
   }
 
-  private ArrayList<Scientist> buildScientists(long nbRows) {
-    ArrayList<Scientist> scientists = new ArrayList<>();
-    for (int i = 0; i < nbRows; i++) {
-      Scientist scientist = new Scientist();
-      scientist.id = i;
-      scientist.name = "Name " + i;
-      scientists.add(scientist);
-    }
-    return scientists;
-  }
-
-  private List<Row> getRows() {
+  private List<Row> getRows(String table) {
     ResultSet result =
         session.execute(
-            String.format(
-                "select person_id,person_name from %s.%s", CASSANDRA_KEYSPACE, CASSANDRA_TABLE));
+            String.format("select person_id,person_name from %s.%s", CASSANDRA_KEYSPACE, table));
     return result.all();
   }
 
   @Test
   public void testDelete() throws Exception {
-    insertRecords();
-    List<Row> results = getRows();
+    List<Row> results = getRows(CASSANDRA_TABLE);
     assertEquals(NUM_ROWS, results.size());
 
     Scientist einstein = new Scientist();
@@ -433,14 +468,24 @@ public class CassandraIOTest implements Serializable {
         .apply(Create.of(einstein))
         .apply(
             CassandraIO.<Scientist>delete()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(Scientist.class));
 
     pipeline.run();
-    results = getRows();
+    results = getRows(CASSANDRA_TABLE);
     assertEquals(NUM_ROWS - 1, results.size());
+    // re-insert suppressed doc to make the test autonomous
+    session.execute(
+        String.format(
+            "INSERT INTO %s.%s(person_id, person_name) values("
+                + einstein.id
+                + ", '"
+                + einstein.name
+                + "');",
+            CASSANDRA_KEYSPACE,
+            CASSANDRA_TABLE));
   }
 
   @Test
@@ -495,12 +540,15 @@ public class CassandraIOTest implements Serializable {
     assertEquals(8000, getEstimatedSizeBytesFromTokenRanges(tokenRanges));
   }
 
-  /** Simple Cassandra entity used in test. */
+  /** Simple Cassandra entity used in read tests. */
   @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
   static class Scientist implements Serializable {
 
     @Column(name = "person_name")
     String name;
+
+    @Computed("writetime(person_name)")
+    Long nameTs;
 
     @PartitionKey()
     @Column(name = "person_id")
@@ -528,4 +576,9 @@ public class CassandraIOTest implements Serializable {
       return Objects.hashCode(name, id);
     }
   }
+
+  private static final String CASSANDRA_TABLE_WRITE = "scientist_write";
+  /** Simple Cassandra entity used in write tests. */
+  @Table(name = CASSANDRA_TABLE_WRITE, keyspace = CASSANDRA_KEYSPACE)
+  static class ScientistWrite extends Scientist {}
 }
