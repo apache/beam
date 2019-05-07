@@ -22,7 +22,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
-import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder.JoinSource;
+import org.apache.beam.sdk.extensions.smb.SortedBucketIO.ReadBuilder.JoinSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -36,12 +36,8 @@ public class AvroSortedBucketIO {
       ResourceId outputDirectory,
       ResourceId tempDirectory,
       Schema schema) {
-    return SortedBucketIO.sink(
-        bucketingMetadata,
-        outputDirectory,
-        ".avro",
-        tempDirectory,
-        AvroFileOperations.forGenericRecord(schema));
+    return SortedBucketIO.write(
+        bucketingMetadata, outputDirectory, ".avro", tempDirectory, AvroFileOperations.of(schema));
   }
 
   public static <KeyT, ValueT extends SpecificRecordBase> SortedBucketSink<KeyT, ValueT> sink(
@@ -49,28 +45,26 @@ public class AvroSortedBucketIO {
       ResourceId outputDirectory,
       ResourceId tempDirectory,
       Class<ValueT> recordClass) {
-    return SortedBucketIO.sink(
+    return SortedBucketIO.write(
         bucketingMetadata,
         outputDirectory,
         ".avro",
         tempDirectory,
-        AvroFileOperations.forSpecificRecord(recordClass));
+        AvroFileOperations.of(recordClass));
   }
 
   // Joins
   public static <KeyT> JoinSource<KeyT, GenericRecord> avroSource(
       TupleTag<GenericRecord> tupleTag, Schema schema, ResourceId filenamePrefix) {
     return new JoinSource<>(
-        new BucketedInput<>(
-            tupleTag, filenamePrefix, ".avro", AvroFileOperations.forGenericRecord(schema)),
+        new BucketedInput<>(tupleTag, filenamePrefix, ".avro", AvroFileOperations.of(schema)),
         AvroCoder.of(schema));
   }
 
   public static <KeyT, ValueT extends SpecificRecordBase> JoinSource<KeyT, ValueT> avroSource(
       TupleTag<ValueT> tupleTag, Class<ValueT> recordClass, ResourceId filenamePrefix) {
     return new JoinSource<>(
-        new BucketedInput<>(
-            tupleTag, filenamePrefix, ".avro", AvroFileOperations.forSpecificRecord(recordClass)),
+        new BucketedInput<>(tupleTag, filenamePrefix, ".avro", AvroFileOperations.of(recordClass)),
         AvroCoder.of(recordClass));
   }
 }

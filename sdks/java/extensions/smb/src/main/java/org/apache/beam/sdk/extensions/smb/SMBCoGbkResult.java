@@ -17,12 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
+import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TupleTag;
 
-/** Represents the result of an SMB co-group operation. */
+/**
+ * A row result of a {@link SortedBucketSource}. This is a group of {@link Iterable}s produced for a
+ * given key, one for each source, similar to {@link
+ * org.apache.beam.sdk.transforms.join.CoGbkResult}.
+ */
 public class SMBCoGbkResult {
   private final Map<TupleTag, Iterable<?>> valueMap;
 
@@ -30,17 +35,22 @@ public class SMBCoGbkResult {
     this.valueMap = valueMap;
   }
 
-  public <V> Iterable<V> getValuesForTag(TupleTag<V> tag) {
-    return (Iterable<V>) valueMap.get(tag);
+  /**
+   * Returns the values from the table represented by the given {@code TupleTag<V>} as an {@code
+   * Iterable<V>}.
+   */
+  public <V> Iterable<V> getAll(TupleTag<V> tag) {
+    @SuppressWarnings("unchecked")
+    final Iterable<V> result = (Iterable<V>) valueMap.get(tag);
+    return result != null ? result : Collections.emptyList();
   }
 
   /**
-   * Serializable converter from SMBCoGbkResult to desired result type.
-   *
-   * @param <ResultT>
+   * Function to expand a {@link SMBCoGbkResult} into desired a result type, e.g. cartesian product
+   * for joins.
    */
-  public abstract static class ToFinalResult<ResultT>
-      implements SerializableFunction<SMBCoGbkResult, ResultT> {
-    public abstract Coder<ResultT> resultCoder();
+  public abstract static class ToFinalResult<FinalResultT>
+      implements SerializableFunction<SMBCoGbkResult, FinalResultT> {
+    public abstract Coder<FinalResultT> resultCoder();
   }
 }

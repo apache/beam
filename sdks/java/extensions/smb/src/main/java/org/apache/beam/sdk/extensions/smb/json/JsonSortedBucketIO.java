@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.smb.json;
 
 import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
-import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder.JoinSource;
+import org.apache.beam.sdk.extensions.smb.SortedBucketIO.ReadBuilder.JoinSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -33,7 +33,7 @@ public class JsonSortedBucketIO {
       JsonBucketMetadata<KeyT> bucketingMetadata,
       ResourceId outputDirectory,
       ResourceId tempDirectory) {
-    return SortedBucketIO.sink(
+    return SortedBucketIO.write(
         bucketingMetadata, outputDirectory, ".json", tempDirectory, new JsonFileOperations());
   }
 

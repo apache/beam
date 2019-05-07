@@ -30,7 +30,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
-import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.sdk.extensions.smb.avro.AvroSortedBucketIO;
 import org.apache.beam.sdk.extensions.smb.json.JsonBucketMetadata;
@@ -125,7 +124,7 @@ public class MixedSourcesEndToEndTest implements Serializable {
 
     final SortedBucketSource<String, KV<Iterable<GenericRecord>, Iterable<TableRow>>>
         sourceTransform =
-            SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
+            SortedBucketIO.read(String.class)
                 .of(
                     AvroSortedBucketIO.avroSource(
                         new TupleTag<>(),
@@ -147,7 +146,10 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     KV.of(
                         Collections.singletonList(createUserGR("a", 1)),
                         Collections.singletonList(createUserJson("a", "US")))),
-                KV.of("b", KV.of(Collections.singletonList(createUserGR("b", 2)), null)),
+                KV.of(
+                    "b",
+                    KV.of(
+                        Collections.singletonList(createUserGR("b", 2)), Collections.emptyList())),
                 KV.of(
                     "c",
                     KV.of(
@@ -163,7 +165,11 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     KV.of(
                         Collections.singletonList(createUserGR("e", 5)),
                         Collections.singletonList(createUserJson("e", "AU")))),
-                KV.of("g", KV.of(null, Collections.singletonList(createUserJson("g", "SE"))))));
+                KV.of(
+                    "g",
+                    KV.of(
+                        Collections.emptyList(),
+                        Collections.singletonList(createUserJson("g", "SE"))))));
 
     pipeline3.run();
   }

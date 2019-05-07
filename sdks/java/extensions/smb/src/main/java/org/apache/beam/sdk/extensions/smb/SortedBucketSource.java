@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
@@ -62,77 +64,88 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Unmodifiable
 import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 
 /**
- * Reads in an arbitrary number of heterogeneous typed Sources stored with the same bucketing
- * scheme, and co-groups on a common key.
+ * {@code SortedBucketSource<FinalKeyT, FinalResultT>} takes multiple sorted-bucket sources written
+ * with {@link SortedBucketSink}, reads key-values in matching buckets in a merge-sort style, and
+ * expands resulting value groups, similar to that of a {@link
+ * org.apache.beam.sdk.transforms.join.CoGbkResult}.
  *
- * @param <FinalKeyT>
- * @param <FinalResultT>
+ * @param <FinalKeyT> the type of the result keys, sources can have different key types as long as
+ *     they can all be decoded as this type
+ * @param <FinalResultT> the type of the expanded result, after expanding resulting value groups.
  */
 public class SortedBucketSource<FinalKeyT, FinalResultT>
     extends PTransform<PBegin, PCollection<KV<FinalKeyT, FinalResultT>>> {
 
+  private static final Comparator<byte[]> bytesComparator =
+      UnsignedBytes.lexicographicalComparator();
+
   private final transient List<BucketedInput<?, ?>> sources;
-  private final Class<FinalKeyT> resultKeyClass;
+  private final Class<FinalKeyT> finalKeyClass;
   private final ToFinalResult<FinalResultT> toFinalResult;
 
   public SortedBucketSource(
       List<BucketedInput<?, ?>> sources,
-      Class<FinalKeyT> resultKeyClass,
+      Class<FinalKeyT> finalKeyClass,
       ToFinalResult<FinalResultT> toFinalResult) {
     this.sources = sources;
-    this.resultKeyClass = resultKeyClass;
+    this.finalKeyClass = finalKeyClass;
     this.toFinalResult = toFinalResult;
   }
 
-  @SuppressWarnings({"deprecation", "unchecked"})
   @Override
   public final PCollection<KV<FinalKeyT, FinalResultT>> expand(PBegin begin) {
-    Preconditions.checkState(sources.size() > 1, "Must have more than one Source");
+    Preconditions.checkState(sources.size() > 1, "Must have more than one source");
 
     BucketMetadata<?, ?> first = null;
-    Coder<FinalKeyT> resultKeyCoder = null;
+    Coder<FinalKeyT> finalKeyCoder = null;
 
+    // Check metadata of each source
     for (BucketedInput<?, ?> source : sources) {
       final BucketMetadata<?, ?> current = source.getMetadata();
       if (first == null) {
         first = current;
       } else {
-        Preconditions.checkState(first.compatibleWith(current));
+        Preconditions.checkState(first.isCompatibleWith(current));
       }
-      if (current.getKeyClass() == resultKeyClass && resultKeyCoder == null) {
+      if (current.getKeyClass() == finalKeyClass && finalKeyCoder == null) {
         try {
-          resultKeyCoder = (Coder<FinalKeyT>) current.getKeyCoder();
+          @SuppressWarnings("unchecked")
+          final Coder<FinalKeyT> coder = (Coder<FinalKeyT>) current.getKeyCoder();
+          finalKeyCoder = coder;
         } catch (CannotProvideCoderException e) {
-          throw new RuntimeException("Could not provide a coder for key type", e);
+          throw new RuntimeException("Could not provide coder for key class " + finalKeyClass, e);
         }
       }
     }
+    Preconditions.checkNotNull(
+        finalKeyCoder, "Could not infer coder for key class " + finalKeyClass);
 
-    Preconditions.checkNotNull(resultKeyCoder, "Couldn't infer a matching Coder for FinalKeyT");
-
-    // @TODO: Support asymmetric, but still compatible, bucket sizes in reader.
+    // TODO: Support asymmetric, but still compatible, bucket sizes in reader.
     final int numBuckets = first.getNumBuckets();
 
+    // Expand sources into one key-value pair per bucket
+    @SuppressWarnings("unchecked")
     final PCollection<KV<Integer, List<BucketedInput<?, ?>>>> bucketedInputs =
         (PCollection<KV<Integer, List<BucketedInput<?, ?>>>>)
             new BucketedInputs(begin.getPipeline(), numBuckets, sources)
                 .expand()
                 .get(new TupleTag<>("BucketedSources"));
 
+    @SuppressWarnings("deprecation")
+    Reshuffle.ViaRandomKey<KV<Integer, List<BucketedInput<?, ?>>>> reshuffle =
+        Reshuffle.viaRandomKey();
     return bucketedInputs
-        .apply("ReshuffleKeys", Reshuffle.viaRandomKey())
-        .apply("MergeBuckets", ParDo.of(new MergeBuckets<>(resultKeyCoder, toFinalResult)))
-        .setCoder(KvCoder.of(resultKeyCoder, toFinalResult.resultCoder()));
+        .apply("ReshuffleKeys", reshuffle)
+        .apply("MergeBuckets", ParDo.of(new MergeBuckets<>(finalKeyCoder, toFinalResult)))
+        .setCoder(KvCoder.of(finalKeyCoder, toFinalResult.resultCoder()));
   }
 
-  /** @param <FinalKeyT> */
+  /** Merge key-value groups in matching buckets. */
   static class MergeBuckets<FinalKeyT, FinalResultT>
       extends DoFn<KV<Integer, List<BucketedInput<?, ?>>>, KV<FinalKeyT, FinalResultT>> {
 
     private static final Comparator<Map.Entry<TupleTag, KV<byte[], Iterator<?>>>> keyComparator =
-        (o1, o2) ->
-            UnsignedBytes.lexicographicalComparator()
-                .compare(o1.getValue().getKey(), o2.getValue().getKey());
+        (o1, o2) -> bytesComparator.compare(o1.getValue().getKey(), o2.getValue().getKey());
 
     private final Coder<FinalKeyT> keyCoder;
     private final ToFinalResult<FinalResultT> toResult;
@@ -144,25 +157,29 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      int bucket = c.element().getKey();
+      final int bucketId = c.element().getKey();
       final List<BucketedInput<?, ?>> sources = c.element().getValue();
       final int numSources = sources.size();
 
-      KeyGroupIterator[] iterators =
-          sources.stream().map(i -> i.createIterator(bucket)).toArray(KeyGroupIterator[]::new);
-      TupleTag[] tupleTags = sources.stream().map(i -> i.tupleTag).toArray(TupleTag[]::new);
+      // Initialize iterators and tuple tags for sources
+      final KeyGroupIterator[] iterators =
+          sources.stream().map(i -> i.createIterator(bucketId)).toArray(KeyGroupIterator[]::new);
+      final TupleTag[] tupleTags = sources.stream().map(i -> i.tupleTag).toArray(TupleTag[]::new);
 
       final Map<TupleTag, KV<byte[], Iterator<?>>> nextKeyGroups = new HashMap<>();
 
       while (true) {
         int completedSources = 0;
+        // Advance key-value groups from each source
         for (int i = 0; i < numSources; i++) {
           KeyGroupIterator it = iterators[i];
           if (nextKeyGroups.containsKey(tupleTags[i])) {
             continue;
           }
           if (it.hasNext()) {
-            nextKeyGroups.put(tupleTags[i], it.next());
+            @SuppressWarnings("unchecked")
+            KV<byte[], Iterator<?>> next = it.next();
+            nextKeyGroups.put(tupleTags[i], next);
           } else {
             completedSources++;
           }
@@ -172,19 +189,19 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           break;
         }
 
+        // Find next key-value groups
         final Map.Entry<TupleTag, KV<byte[], Iterator<?>>> minKeyEntry =
             nextKeyGroups.entrySet().stream().min(keyComparator).orElse(null);
 
         final Iterator<Map.Entry<TupleTag, KV<byte[], Iterator<?>>>> nextKeyGroupsIt =
             nextKeyGroups.entrySet().iterator();
-
         final Map<TupleTag, Iterable<?>> valueMap = new HashMap<>();
 
         while (nextKeyGroupsIt.hasNext()) {
           final List<Object> values = new ArrayList<>();
-          Map.Entry<TupleTag, KV<byte[], Iterator<?>>> entry = nextKeyGroupsIt.next();
+          final Map.Entry<TupleTag, KV<byte[], Iterator<?>>> entry = nextKeyGroupsIt.next();
           if (keyComparator.compare(entry, minKeyEntry) == 0) {
-            // @Todo: this exhausts everything from the "lazy" iterator and can be expensive.
+            // TODO: this exhausts everything from the "lazy" iterator and can be expensive.
             // To fix we have to make the underlying Reader range aware so that it's safe to
             // re-iterate or stop without exhausting remaining elements in the value group.
             entry.getValue().getValue().forEachRemaining(values::add);
@@ -194,15 +211,15 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           }
         }
 
+        // Output next key-value group
         final ByteArrayInputStream groupKeyBytes =
             new ByteArrayInputStream(minKeyEntry.getValue().getKey());
         final FinalKeyT groupKey;
         try {
           groupKey = keyCoder.decode(groupKeyBytes);
         } catch (Exception e) {
-          throw new RuntimeException("Couldn't decode key bytes for group: {}", e);
+          throw new RuntimeException("Could not decode key bytes for group", e);
         }
-
         c.output(KV.of(groupKey, toResult.apply(new SMBCoGbkResult(valueMap))));
 
         if (completedSources == numSources) {
@@ -213,10 +230,10 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
   }
 
   /**
-   * Maintains type information about a possibly heterogeneous list of sources by wrapping each one
-   * in a BucketedInput object with TupleTag. Heavily copied from CoGroupByKey implementation.
+   * Abstracts a potentially heterogeneous list of sorted-bucket sources of {@link BucketedInput}s,
+   * similar to {@link org.apache.beam.sdk.transforms.join.CoGroupByKey}.
    */
-  public static class BucketedInputs implements org.apache.beam.sdk.values.PInput {
+  public static class BucketedInputs implements PInput {
     private transient Pipeline pipeline;
     private List<BucketedInput<?, ?>> sources;
     private Integer numBuckets;
@@ -233,35 +250,32 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       return pipeline;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Map<TupleTag<?>, PValue> expand() {
-      final Map<TupleTag<?>, PValue> map = new HashMap<>();
-
-      final List<KV<Integer, List<BucketedInput<?, ?>>>> bucketedSources = new ArrayList<>();
+      final List<KV<Integer, List<BucketedInput<?, ?>>>> sources = new ArrayList<>();
       for (int i = 0; i < numBuckets; i++) {
         try {
-          bucketedSources.add(KV.of(i, sources));
+          sources.add(KV.of(i, this.sources));
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
       }
 
+      @SuppressWarnings("unchecked")
       final KvCoder<Integer, List<BucketedInput<?, ?>>> coder =
           KvCoder.of(VarIntCoder.of(), ListCoder.of(new BucketedInputCoder()));
 
-      map.put(
+      return Collections.singletonMap(
           new TupleTag<>("BucketedSources"),
-          pipeline.apply("CreateBucketedSources", Create.of(bucketedSources).withCoder(coder)));
-
-      return map;
+          pipeline.apply("CreateBucketedSources", Create.of(sources).withCoder(coder)));
     }
 
     /**
-     * Represents a single source with values V.
+     * Abstracts a sorted-bucket input to {@link SortedBucketSource} written by {@link
+     * SortedBucketSink}.
      *
-     * @param <K>
-     * @param <V>
+     * @param <K> the type of the keys that values in a bucket are sorted with
+     * @param <V> the type of the values in a bucket
      */
     public static class BucketedInput<K, V> {
       final TupleTag<V> tupleTag;
@@ -310,13 +324,12 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         }
       }
 
-      KeyGroupIterator<byte[], V> createIterator(int bucket) {
-        int numBuckets = getMetadata().getNumBuckets();
-        int numShards = getMetadata().getNumShards();
-        List<Iterator<V>> iterators = new ArrayList<>();
+      KeyGroupIterator<byte[], V> createIterator(int bucketId) {
+        // Create one iterator per shard
+        final int numShards = getMetadata().getNumShards();
+        final List<Iterator<V>> iterators = new ArrayList<>();
         for (int i = 0; i < numShards; i++) {
-
-          ResourceId file = fileAssignment.forBucket(BucketShardId.of(bucket, i), metadata);
+          ResourceId file = fileAssignment.forBucket(BucketShardId.of(bucketId, i), metadata);
           try {
             iterators.add(fileOperations.iterator(file));
           } catch (Exception e) {
@@ -324,19 +337,17 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           }
         }
 
-        Comparator<byte[]> keyComparator = UnsignedBytes.lexicographicalComparator();
-        UnmodifiableIterator<V> iterator =
+        // Merge-sort key-values from shards
+        final UnmodifiableIterator<V> iterator =
             Iterators.mergeSorted(
                 iterators,
                 (o1, o2) ->
-                    keyComparator.compare(
+                    bytesComparator.compare(
                         getMetadata().getKeyBytes(o1), getMetadata().getKeyBytes(o2)));
-        // @Fixme: implement sharded iterator
-        return new KeyGroupIterator<>(iterator, getMetadata()::getKeyBytes, keyComparator);
+        return new KeyGroupIterator<>(iterator, getMetadata()::getKeyBytes, bytesComparator);
       }
 
       static class BucketedInputCoder<K, V> extends AtomicCoder<BucketedInput<K, V>> {
-
         private static SerializableCoder<TupleTag> tupleTagCoder =
             SerializableCoder.of(TupleTag.class);
         private static ResourceIdCoder resourceIdCoder = ResourceIdCoder.of();
@@ -355,12 +366,13 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           metadataCoder.encode(value.getMetadata(), outStream);
         }
 
-        @SuppressWarnings("unchecked")
         @Override
         public BucketedInput<K, V> decode(InputStream inStream) throws CoderException, IOException {
+          @SuppressWarnings("unchecked")
           TupleTag<V> tupleTag = (TupleTag<V>) tupleTagCoder.decode(inStream);
           ResourceId filenamePrefix = resourceIdCoder.decode(inStream);
           String filenameSuffix = stringCoder.decode(inStream);
+          @SuppressWarnings("unchecked")
           FileOperations<V> fileOperations = fileOpCoder.decode(inStream);
           BucketMetadata<K, V> metadata = metadataCoder.decode(inStream);
           return new BucketedInput<>(

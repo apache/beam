@@ -129,8 +129,7 @@ public class SinkBenchmark {
     SMBFilenamePolicy avroPolicy =
         new SMBFilenamePolicy(
             FileSystems.matchNewResource(sinkOptions.getAvroDestination(), true), ".avro");
-    AvroFileOperations<AvroGeneratedUser> avroOps =
-        AvroFileOperations.forSpecificRecord(AvroGeneratedUser.class);
+    AvroFileOperations<AvroGeneratedUser> avroOps = AvroFileOperations.of(AvroGeneratedUser.class);
     SortedBucketSink<CharSequence, AvroGeneratedUser> avroSink =
         new SortedBucketSink<>(avroMetadata, avroPolicy, avroOps::createWriter, tempDirectory);
 

@@ -85,8 +85,7 @@ public final class SMBFilenamePolicy implements Serializable {
     public ResourceId forBucket(int bucketId, int numBuckets, int shardId, int numShards) {
       String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
       String filename =
-          String.format(
-              BUCKET_TEMPLATE, bucketId, numBuckets, shardId, numShards, filenameSuffix);
+          String.format(BUCKET_TEMPLATE, bucketId, numBuckets, shardId, numShards, filenameSuffix);
       return filenamePrefix.resolve(timestamp + filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
@@ -94,7 +93,12 @@ public final class SMBFilenamePolicy implements Serializable {
       String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
       String filename =
           String.format(
-              BUCKET_TEMPLATE, id.getBucketId(), metadata.getNumBuckets(), id.getShardId(), metadata.getNumShards(), filenameSuffix);
+              BUCKET_TEMPLATE,
+              id.getBucketId(),
+              metadata.getNumBuckets(),
+              id.getShardId(),
+              metadata.getNumShards(),
+              filenameSuffix);
       return filenamePrefix.resolve(timestamp + filename, StandardResolveOptions.RESOLVE_FILE);
     }
 

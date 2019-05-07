@@ -26,7 +26,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.extensions.smb.SortedBucketIO.SortedBucketSourceJoinBuilder;
 import org.apache.beam.sdk.extensions.smb.avro.AvroSortedBucketIO;
 import org.apache.beam.sdk.extensions.smb.json.JsonSortedBucketIO;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
@@ -61,7 +60,7 @@ public class SmbBenchmark {
     Pipeline pipeline = Pipeline.create(sourceOptions);
 
     SortedBucketSource<String, KV<Iterable<AvroGeneratedUser>, Iterable<TableRow>>> source =
-        SortedBucketSourceJoinBuilder.withFinalKeyType(String.class)
+        SortedBucketIO.read(String.class)
             .of(
                 AvroSortedBucketIO.avroSource(
                     new TupleTag<>(),

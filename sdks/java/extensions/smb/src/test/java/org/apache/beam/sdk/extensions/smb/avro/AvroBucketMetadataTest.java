@@ -19,124 +19,82 @@ package org.apache.beam.sdk.extensions.smb.avro;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import org.apache.avro.Schema;
-import org.apache.avro.Schema.Field;
-import org.apache.avro.Schema.Type;
-import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.extensions.smb.BucketMetadata;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 
-/** Tests bucket metadata coding. */
+/** Unit tests for {@link AvroBucketMetadata}. */
 public class AvroBucketMetadataTest {
 
-  // GenericRecord tests
-
-  private static final Schema SCHEMA_NESTED_FIELD =
+  private static final Schema LOCATION_SCHEMA =
       Schema.createRecord(
-          "location",
+          "Location",
           "",
-          "org.apache.beam.sdk.extensions.smb",
+          "org.apache.beam.sdk.extensions.smb.avro",
           false,
           Lists.newArrayList(
-              new Field("currentCountry", Schema.create(Type.STRING), "", null),
-              new Field(
-                  "prevCountries", Schema.createArray(Schema.create(Type.STRING)), "", null)));
+              new Schema.Field("currentCountry", Schema.create(Schema.Type.STRING), "", ""),
+              new Schema.Field(
+                  "prevCountries",
+                  Schema.createArray(Schema.create(Schema.Type.STRING)),
+                  "",
+                  Collections.<String>emptyList())));
 
-  private static final Schema SCHEMA =
+  private static final Schema RECORD_SCHEMA =
       Schema.createRecord(
-          "user",
+          "Record",
           "",
-          "org.apache.beam.sdk.extensions.smb",
+          "org.apache.beam.sdk.extensions.smb.avro",
           false,
           Lists.newArrayList(
-              new Field("id", Schema.create(Type.LONG), "", null),
-              new Field("location", SCHEMA_NESTED_FIELD, "", null)));
+              new Schema.Field("id", Schema.create(Schema.Type.LONG), "", 0L),
+              new Schema.Field("location", LOCATION_SCHEMA, "", Collections.emptyList())));
 
   @Test
-  public void testMetadataCoding() throws Exception {
-    final BucketMetadata<String, GenericRecord> metadata =
-        new AvroBucketMetadata<>(
-            16, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry");
+  public void testGenericRecord() throws Exception {
+    final GenericRecord location =
+        new GenericRecordBuilder(LOCATION_SCHEMA)
+            .set("currentCountry", "US")
+            .set("prevCountries", Arrays.asList("CN", "MX"))
+            .build();
 
-    final BucketMetadata<String, GenericRecord> roundtripMetadata =
-        BucketMetadata.from(metadata.toString());
-
-    Assert.assertEquals(roundtripMetadata.getNumBuckets(), metadata.getNumBuckets());
-    Assert.assertEquals(roundtripMetadata.getKeyClass(), metadata.getKeyClass());
-    Assert.assertEquals(roundtripMetadata.getHashType(), metadata.getHashType());
-  }
-
-  @Test
-  public void testBucketCompatibility() throws Exception {
-    final BucketMetadata<String, GenericRecord> m1 =
-        new AvroBucketMetadata<>(2, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
-
-    final BucketMetadata<String, GenericRecord> m2 =
-        new AvroBucketMetadata<>(2, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
-
-    final BucketMetadata<String, GenericRecord> m3 =
-        new AvroBucketMetadata<>(16, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "name");
-
-    final BucketMetadata<String, GenericRecord> m4 =
-        new AvroBucketMetadata<>(2, 1, String.class, HashType.MURMUR3_128, "name");
-
-    Assert.assertTrue(m1.compatibleWith(m2));
-    Assert.assertFalse(m1.compatibleWith(m3));
-    Assert.assertFalse(m2.compatibleWith(m3));
-    Assert.assertFalse(m2.compatibleWith(m4));
-  }
-
-  @Test
-  public void testGRExtractKey() throws Exception {
-    final GenericRecord location = new Record(SCHEMA_NESTED_FIELD);
-    location.put("currentCountry", "US");
-    location.put("prevCountries", Arrays.asList("CN", "MX"));
-
-    final GenericRecord user = new Record(SCHEMA);
-    user.put("id", 10L);
-    user.put("location", location);
-
-    Assert.assertEquals(
-        "US",
-        new AvroBucketMetadata<>(
-                16, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "location.currentCountry")
-            .extractKey(user));
+    final GenericRecord user =
+        new GenericRecordBuilder(RECORD_SCHEMA).set("id", 10L).set("location", location).build();
 
     Assert.assertEquals(
         (Long) 10L,
-        new AvroBucketMetadata<>(16, 1, Long.class, BucketMetadata.HashType.MURMUR3_32, "id")
+        new AvroBucketMetadata<>(1, 1, Long.class, HashType.MURMUR3_32, "id").extractKey(user));
+
+    Assert.assertEquals(
+        "US",
+        new AvroBucketMetadata<>(1, 1, String.class, HashType.MURMUR3_32, "location.currentCountry")
             .extractKey(user));
 
     Assert.assertEquals(
         Arrays.asList("CN", "MX"),
         new AvroBucketMetadata<>(
-                16,
-                1,
-                ArrayList.class,
-                BucketMetadata.HashType.MURMUR3_32,
-                "location.prevCountries")
+                1, 1, ArrayList.class, HashType.MURMUR3_32, "location.prevCountries")
             .extractKey(user));
   }
 
   @Test
-  public void testSRExtractKey() throws Exception {
+  public void testSpecificRecord() throws Exception {
     final AvroGeneratedUser user = new AvroGeneratedUser("foo", 50, "green");
 
     Assert.assertEquals(
         "green",
-        new AvroBucketMetadata<>(
-                16, 1, String.class, BucketMetadata.HashType.MURMUR3_32, "favorite_color")
+        new AvroBucketMetadata<>(1, 1, String.class, HashType.MURMUR3_32, "favorite_color")
             .extractKey(user));
 
     Assert.assertEquals(
         (Integer) 50,
-        new AvroBucketMetadata<>(
-                16, 1, Integer.class, BucketMetadata.HashType.MURMUR3_32, "favorite_number")
+        new AvroBucketMetadata<>(1, 1, Integer.class, HashType.MURMUR3_32, "favorite_number")
             .extractKey(user));
   }
 }

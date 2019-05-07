@@ -17,8 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
-import java.io.Serializable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.sdk.io.LocalResources;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.junit.rules.TemporaryFolder;
 
-/** A {@link Serializable} version of {@link Supplier}. */
-public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
+/** Test utilities. */
+public class TestUtils {
+  public static ResourceId fromFolder(TemporaryFolder temporaryFolder) {
+    return LocalResources.fromFile(temporaryFolder.getRoot(), true);
+  }
+}

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.smb;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,39 +35,33 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
-import org.apache.beam.sdk.extensions.smb.json.JsonBucketMetadata;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
 /**
- * Represents SMB metadata in a JSON-serializable format to be stored along with bucketed data.
+ * Represents metadata in a JSON-serializable format to be stored alongside sorted-bucket files.
  *
- * @param <KeyT>
- * @param <ValueT>
+ * @param <K> the type of the keys that values in a bucket are sorted with
+ * @param <V> the type of the values in a bucket
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes({
-  @JsonSubTypes.Type(value = AvroBucketMetadata.class),
-  @JsonSubTypes.Type(value = JsonBucketMetadata.class)
-})
-public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "type")
+public abstract class BucketMetadata<K, V> implements Serializable {
 
   @JsonProperty private final int numBuckets;
 
   @JsonProperty private final int numShards;
 
-  @JsonProperty private final Class<KeyT> keyClass;
+  @JsonProperty private final Class<K> keyClass;
 
   @JsonProperty private final HashType hashType;
 
   @JsonIgnore private final HashFunction hashFunction;
 
-  @JsonIgnore private final Coder<KeyT> keyCoder;
+  @JsonIgnore private final Coder<K> keyCoder;
 
-  public BucketMetadata(int numBuckets, int numShards, Class<KeyT> keyClass, HashType hashType)
+  public BucketMetadata(int numBuckets, int numShards, Class<K> keyClass, HashType hashType)
       throws CannotProvideCoderException {
     Preconditions.checkArgument(
         numBuckets > 0 && ((numBuckets & (numBuckets - 1)) == 0),
@@ -83,13 +76,13 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     this.keyCoder = getKeyCoder();
   }
 
-  @SuppressWarnings("unchecked")
   @JsonIgnore
-  Coder<KeyT> getKeyCoder() throws CannotProvideCoderException {
-    final Coder overriddenCoder = coderOverrides().get(getKeyClass());
+  Coder<K> getKeyCoder() throws CannotProvideCoderException {
+    @SuppressWarnings("unchecked")
+    final Coder<K> overriddenCoder = (Coder<K>) coderOverrides().get(getKeyClass());
 
     if (overriddenCoder != null) {
-      return (Coder<KeyT>) overriddenCoder;
+      return overriddenCoder;
     } else {
       return CoderRegistry.createDefault().getCoder(keyClass);
     }
@@ -100,7 +93,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     return Collections.emptyMap();
   }
 
-  /** Enumerated hashing schemes available for an SMB sink. */
+  /** Enumerated hashing schemes available for an SMB write. */
   public enum HashType {
     MURMUR3_32 {
       @Override
@@ -120,7 +113,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
 
   // Todo: support sources with different # buckets.
   @VisibleForTesting
-  public boolean compatibleWith(BucketMetadata other) {
+  public boolean isCompatibleWith(BucketMetadata other) {
     return other != null && this.hashType == other.hashType && this.numBuckets == other.numBuckets;
   }
 
@@ -136,7 +129,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     return numShards;
   }
 
-  public Class<KeyT> getKeyClass() {
+  public Class<K> getKeyClass() {
     return keyClass;
   }
 
@@ -148,9 +141,9 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
   // Business logic
   ////////////////////////////////////////
 
-  byte[] getKeyBytes(ValueT value) {
+  byte[] getKeyBytes(V value) {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    final KeyT key = extractKey(value);
+    final K key = extractKey(value);
     try {
       keyCoder.encode(key, baos);
     } catch (Exception e) {
@@ -160,7 +153,7 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
     return baos.toByteArray();
   }
 
-  public abstract KeyT extractKey(ValueT value);
+  public abstract K extractKey(V value);
 
   int getBucketId(byte[] keyBytes) {
     return Math.abs(hashFunction.hashBytes(keyBytes).asInt()) % numBuckets;
@@ -173,19 +166,18 @@ public abstract class BucketMetadata<KeyT, ValueT> implements Serializable {
   @JsonIgnore private static ObjectMapper objectMapper = new ObjectMapper();
 
   @VisibleForTesting
-  public static <KeyT, ValueT> BucketMetadata<KeyT, ValueT> from(String src) throws IOException {
+  public static <K, V> BucketMetadata<K, V> from(String src) throws IOException {
     return objectMapper.readerFor(BucketMetadata.class).readValue(src);
   }
 
   @VisibleForTesting
-  public static <KeyT, ValueT> BucketMetadata<KeyT, ValueT> from(InputStream src)
+  public static <K, V> BucketMetadata<K, V> from(InputStream src) throws IOException {
+    return objectMapper.readerFor(BucketMetadata.class).readValue(src);
+  }
+
+  @VisibleForTesting
+  public static <K, V> void to(BucketMetadata<K, V> bucketMetadata, OutputStream outputStream)
       throws IOException {
-    return objectMapper.readerFor(BucketMetadata.class).readValue(src);
-  }
-
-  @VisibleForTesting
-  public static <KeyT, ValueT> void to(
-      BucketMetadata<KeyT, ValueT> bucketMetadata, OutputStream outputStream) throws IOException {
 
     objectMapper.writeValue(outputStream, bucketMetadata);
   }

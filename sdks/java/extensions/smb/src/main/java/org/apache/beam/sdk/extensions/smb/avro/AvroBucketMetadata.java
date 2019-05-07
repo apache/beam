@@ -35,9 +35,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
-/** Avro-specific metadata encoding. */
-public class AvroBucketMetadata<KeyT, ValueT extends GenericRecord>
-    extends BucketMetadata<KeyT, ValueT> {
+/** {@link BucketMetadata} for Avro {@link GenericRecord} records. */
+public class AvroBucketMetadata<K, V extends GenericRecord> extends BucketMetadata<K, V> {
 
   @JsonProperty private final String keyField;
 
@@ -47,7 +46,7 @@ public class AvroBucketMetadata<KeyT, ValueT extends GenericRecord>
   public AvroBucketMetadata(
       @JsonProperty("numBuckets") int numBuckets,
       @JsonProperty("numShards") int numShards,
-      @JsonProperty("keyClass") Class<KeyT> keyClass,
+      @JsonProperty("keyClass") Class<K> keyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
       @JsonProperty("keyField") String keyField)
       throws CannotProvideCoderException {
@@ -63,17 +62,19 @@ public class AvroBucketMetadata<KeyT, ValueT extends GenericRecord>
         CharSequence.class, CharSequenceCoder.of());
   }
 
-  @SuppressWarnings("unchecked")
   @Override
-  public KeyT extractKey(ValueT value) {
+  public K extractKey(V value) {
     GenericRecord node = value;
     for (int i = 0; i < keyPath.length - 1; i++) {
       node = (GenericRecord) node.get(keyPath[i]);
     }
-    return (KeyT) node.get(keyPath[keyPath.length - 1]);
+    @SuppressWarnings("unchecked")
+    K key = (K) node.get(keyPath[keyPath.length - 1]);
+    return key;
   }
 
-  // Coders for common Avro types
+  // Coders for types commonly used as keys in Avro
+
   private static class ByteBufferCoder extends AtomicCoder<ByteBuffer> {
     private static final ByteBufferCoder INSTANCE = new ByteBufferCoder();
 

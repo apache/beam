@@ -15,43 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.smb.json;
+package org.apache.beam.sdk.extensions.smb;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
-/** {@link BucketMetadata} for BigQuery {@link TableRow} records. */
-public class JsonBucketMetadata<K> extends BucketMetadata<K, TableRow> {
+class TestBucketMetadata extends BucketMetadata<String, String> {
 
-  @JsonProperty private final String keyField;
-
-  @JsonIgnore private String[] keyPath;
+  static TestBucketMetadata of(int numBuckets, int numShards) throws CannotProvideCoderException {
+    return new TestBucketMetadata(numBuckets, numShards, HashType.MURMUR3_32);
+  }
 
   @JsonCreator
-  public JsonBucketMetadata(
+  TestBucketMetadata(
       @JsonProperty("numBuckets") int numBuckets,
       @JsonProperty("numShards") int numShards,
-      @JsonProperty("keyClass") Class<K> keyClass,
-      @JsonProperty("hashType") BucketMetadata.HashType hashType,
-      @JsonProperty("keyField") String keyField)
+      @JsonProperty("hashType") HashType hashType)
       throws CannotProvideCoderException {
-    super(numBuckets, numShards, keyClass, hashType);
-    this.keyField = keyField;
-    this.keyPath = keyField.split("\\.");
+    super(numBuckets, numShards, String.class, hashType);
   }
 
   @Override
-  public K extractKey(TableRow value) {
-    TableRow node = value;
-    for (int i = 0; i < keyPath.length - 1; i++) {
-      node = (TableRow) node.get(keyPath[i]);
-    }
-    @SuppressWarnings("unchecked")
-    K key = (K) node.get(keyPath[keyPath.length - 1]);
-    return key;
+  public String extractKey(String value) {
+    return value.substring(0, 1);
   }
 }

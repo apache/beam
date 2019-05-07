@@ -26,17 +26,17 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 
 /** Abstracts IO operations for different data types with the granularity of a single record. */
-public abstract class FileOperations<ValueT> implements Serializable {
+public abstract class FileOperations<V> implements Serializable {
 
-  public Iterator<ValueT> iterator(ResourceId file) throws Exception {
-    Reader<ValueT> reader = createReader();
+  public Iterator<V> iterator(ResourceId file) throws Exception {
+    Reader<V> reader = createReader();
     reader.prepareRead(FileSystems.open(file));
     return reader.iterator();
   }
 
-  public abstract Reader<ValueT> createReader();
+  public abstract Reader<V> createReader();
 
-  public abstract Writer<ValueT> createWriter();
+  public abstract Writer<V> createWriter();
 
   /**
    * Reader for Collection type.
@@ -71,6 +71,9 @@ public abstract class FileOperations<ValueT> implements Serializable {
           ValueT result = next;
           try {
             next = read();
+            if (next == null) {
+              finishRead();
+            }
           } catch (Exception e) {
             throw new RuntimeException(e);
           }

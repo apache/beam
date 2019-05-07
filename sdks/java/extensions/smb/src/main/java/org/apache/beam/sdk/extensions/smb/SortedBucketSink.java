@@ -61,8 +61,8 @@ import org.slf4j.LoggerFactory;
  * sort values by key within a bucket, and writes them to files. Each bucket can be further sharded
  * to reduce the impact of hot keys.
  *
- * @param <K> the type of the keys to sort values in a bucket with
- * @param <V> the type of the values to write to buckets
+ * @param <K> the type of the keys that values in a bucket are sorted with
+ * @param <V> the type of the values in a bucket
  */
 public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResult> {
 
@@ -87,9 +87,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
     return input
         .apply("ExtractKeys", ParDo.of(new ExtractKeys<>(this.bucketMetadata)))
         .setCoder(
-            KvCoder.of(
-                BucketShardIdCoder.of(),
-                KvCoder.of(ByteArrayCoder.of(), input.getCoder())))
+            KvCoder.of(BucketShardIdCoder.of(), KvCoder.of(ByteArrayCoder.of(), input.getCoder())))
         .apply("GroupByKey", GroupByKey.create())
         .apply("SortValues", SortValues.create(BufferedExternalSorter.options()))
         .apply(
@@ -161,13 +159,12 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
   }
 
   /**
-   * Handles writing bucket data and SMB metadata to a uniquely named temp directory.
-   * Abstract operation that manages the process of writing to {@link SortedBucketSink}.
+   * Handles writing bucket data and SMB metadata to a uniquely named temp directory. Abstract
+   * operation that manages the process of writing to {@link SortedBucketSink}.
    */
   // TODO: Retry policy, etc...
   static final class WriteOperation<V>
-      extends PTransform<
-          PCollection<KV<BucketShardId, Iterable<KV<byte[], V>>>>, WriteResult> {
+      extends PTransform<PCollection<KV<BucketShardId, Iterable<KV<byte[], V>>>>, WriteResult> {
     private final SMBFilenamePolicy filenamePolicy;
     private final BucketMetadata<?, V> bucketMetadata;
     private final Supplier<Writer<V>> writerSupplier;
@@ -185,8 +182,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
     }
 
     @Override
-    public WriteResult expand(
-        PCollection<KV<BucketShardId, Iterable<KV<byte[], V>>>> input) {
+    public WriteResult expand(PCollection<KV<BucketShardId, Iterable<KV<byte[], V>>>> input) {
       return input
           .apply(
               "WriteTempFiles",
@@ -220,11 +216,9 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
     }
 
     @Override
-    public PCollectionTuple expand(
-        PCollection<KV<BucketShardId, Iterable<KV<byte[], V>>>> input) {
+    public PCollectionTuple expand(PCollection<KV<BucketShardId, Iterable<KV<byte[], V>>>> input) {
 
-      return PCollectionTuple
-          .of(
+      return PCollectionTuple.of(
               new TupleTag<>("TempMetadata"),
               input.getPipeline().apply(Create.of(Collections.singletonList(writeMetadataFile()))))
           .and(
@@ -317,11 +311,9 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
                                 new DoFn<ResourceId, ResourceId>() {
                                   @ProcessElement
                                   public void processElement(ProcessContext c) throws Exception {
-                                    final ResourceId dstFile =
-                                        fileAssignment.forMetadata();
+                                    final ResourceId dstFile = fileAssignment.forMetadata();
                                     FileSystems.rename(
-                                        ImmutableList.of(c.element()),
-                                        ImmutableList.of(dstFile));
+                                        ImmutableList.of(c.element()), ImmutableList.of(dstFile));
                                     c.output(dstFile);
                                   }
                                 }));
@@ -333,7 +325,8 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
                         .apply(
                             "RenameBuckets",
                             ParDo.of(
-                                new RenameBuckets<>(fileAssignment, bucketMetadata, writerSupplier)));
+                                new RenameBuckets<>(
+                                    fileAssignment, bucketMetadata, writerSupplier)));
 
                 // @Todo - reduce this to a single FileSystems.rename operation for atomicity?
 
@@ -342,15 +335,17 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
     }
 
     /** Renames bucket files to final destinations. */
-    static class RenameBuckets<V> extends DoFn<
-        Iterable<KV<BucketShardId, ResourceId>>,
-        KV<BucketShardId, ResourceId>> {
+    static class RenameBuckets<V>
+        extends DoFn<Iterable<KV<BucketShardId, ResourceId>>, KV<BucketShardId, ResourceId>> {
 
       private final FileAssignment fileAssignment;
       private final BucketMetadata bucketMetadata;
       private final Supplier<Writer<V>> writerSupplier;
 
-      RenameBuckets(FileAssignment fileAssignment, BucketMetadata bucketMetadata, Supplier<Writer<V>> writerSupplier) {
+      RenameBuckets(
+          FileAssignment fileAssignment,
+          BucketMetadata bucketMetadata,
+          Supplier<Writer<V>> writerSupplier) {
         this.fileAssignment = fileAssignment;
         this.bucketMetadata = bucketMetadata;
         this.writerSupplier = writerSupplier;

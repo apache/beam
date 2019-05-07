@@ -52,15 +52,13 @@ public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
   }
 
-  public static AvroFileOperations<GenericRecord> forGenericRecord(Schema schema) {
+  public static AvroFileOperations<GenericRecord> of(Schema schema) {
     return new AvroFileOperations<>(null, schema);
   }
 
-  public static <V extends SpecificRecordBase> AvroFileOperations<V> forSpecificRecord(
-      Class<V> recordClass) {
+  public static <V extends SpecificRecordBase> AvroFileOperations<V> of(Class<V> recordClass) {
     // Use reflection to get SR schema
     final Schema schema = new ReflectData(recordClass.getClassLoader()).getSchema(recordClass);
-
     return new AvroFileOperations<>(recordClass, schema);
   }
 

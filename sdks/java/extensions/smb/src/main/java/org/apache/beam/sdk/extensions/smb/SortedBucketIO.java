@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.smb;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.smb.SMBCoGbkResult.ToFinalResult;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -28,22 +27,27 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
-/** Abstractions for SMB sink/source creation. */
+/**
+ * Sorted-bucket files are {@code PCollection<V>}s written with {@link SortedBucketSink} that can be
+ * efficiently merged without shuffling with {@link SortedBucketSource}. When writing, values are
+ * grouped by key into buckets, sorted by key within a bucket, and written to files. When reading,
+ * key-values in matching buckets are read in a merge-sort style, reducing shuffle.
+ */
 public class SortedBucketIO {
 
-  /**
-   * Pre-built transform for an SortedBucketSource transform with two bucketed inputs.
-   *
-   * @param <V1>
-   * @param <V2>
-   */
-  static class TwoSourceJoinResult<V1, V2> extends ToFinalResult<KV<Iterable<V1>, Iterable<V2>>> {
+  /** Builder for a {@link SortedBucketSource} for a given key class. */
+  public static <K> ReadBuilder<K, ?, ?> read(Class<K> keyClass) {
+    return new ReadBuilder<>(keyClass);
+  }
+
+  /** Transforms a two-way {@link SMBCoGbkResult} into a typed {@link KV}. */
+  static class SmbCoGbkResult2<V1, V2> extends ToFinalResult<KV<Iterable<V1>, Iterable<V2>>> {
     private final TupleTag<V1> lhsTupleTag;
     private final TupleTag<V2> rhsTupleTag;
-    private final Coder<V1> lhsCoder; // @Todo: can we get these from Coder registry?
+    private final Coder<V1> lhsCoder; // TODO: can we get these from Coder registry?
     private final Coder<V2> rhsCoder;
 
-    TwoSourceJoinResult(
+    SmbCoGbkResult2(
         TupleTag<V1> lhsTupleTag,
         TupleTag<V2> rhsTupleTag,
         Coder<V1> lhsCoder,
@@ -56,34 +60,32 @@ public class SortedBucketIO {
 
     @Override
     public KV<Iterable<V1>, Iterable<V2>> apply(SMBCoGbkResult input) {
-      return KV.of(input.getValuesForTag(lhsTupleTag), input.getValuesForTag(rhsTupleTag));
+      return KV.of(input.getAll(lhsTupleTag), input.getAll(rhsTupleTag));
     }
 
     @Override
     public Coder<KV<Iterable<V1>, Iterable<V2>>> resultCoder() {
-      return KvCoder.of(
-          NullableCoder.of(IterableCoder.of(lhsCoder)),
-          NullableCoder.of(IterableCoder.of(rhsCoder)));
+      return KvCoder.of(IterableCoder.of(lhsCoder), IterableCoder.of(rhsCoder));
     }
   }
 
   /**
-   * Implements a typed SortedBucketSource for 2 sources.
+   * Builder for a typed two-way sorted-bucket source.
    *
-   * @param <KeyT>
-   * @param <V1>
-   * @param <V2>
+   * @param <K> the type of the keys
+   * @param <V1> the type of the left-hand side values
+   * @param <V2> the type of the right-hand side values
    */
-  public static class SortedBucketSourceJoinBuilder<KeyT, V1, V2> {
-    private Class<KeyT> keyClass;
-    private JoinSource<KeyT, V1> lhs;
-    private JoinSource<KeyT, V2> rhs;
+  public static class ReadBuilder<K, V1, V2> {
+    private Class<K> keyClass;
+    private JoinSource<K, V1> lhs;
+    private JoinSource<K, V2> rhs;
 
     /**
-     * Represents a typed input to an SMB join.
+     * Abstracts a typed source in a sorted-bucket read.
      *
-     * @param <K>
-     * @param <V>
+     * @param <K> the type of the keys
+     * @param <V> the type of the values
      */
     public static class JoinSource<K, V> {
       private final BucketedInput<K, V> bucketedInput;
@@ -95,56 +97,45 @@ public class SortedBucketIO {
       }
     }
 
-    private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass) {
+    private ReadBuilder(Class<K> keyClass) {
       this.keyClass = keyClass;
     }
 
-    private SortedBucketSourceJoinBuilder(Class<KeyT> keyClass, JoinSource<KeyT, V1> lhs) {
+    private ReadBuilder(Class<K> keyClass, JoinSource<K, V1> lhs) {
       this(keyClass);
       this.lhs = lhs;
     }
 
-    public static <KeyT> SortedBucketSourceJoinBuilder<KeyT, ?, ?> withFinalKeyType(
-        Class<KeyT> keyClass) {
-      return new SortedBucketSourceJoinBuilder<>(keyClass);
-    }
-
-    public <ValueT> SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> of(
-        JoinSource<KeyT, ValueT> lhs) {
-      final SortedBucketSourceJoinBuilder<KeyT, ValueT, ?> builderCopy =
-          new SortedBucketSourceJoinBuilder<>(keyClass);
+    public <V> ReadBuilder<K, V, ?> of(JoinSource<K, V> lhs) {
+      final ReadBuilder<K, V, ?> builderCopy = new ReadBuilder<>(keyClass);
 
       builderCopy.lhs = lhs;
       return builderCopy;
     }
 
-    public <ValueT> SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> and(
-        JoinSource<KeyT, ValueT> rhs) {
-      final SortedBucketSourceJoinBuilder<KeyT, V1, ValueT> builderCopy =
-          new SortedBucketSourceJoinBuilder<>(keyClass, lhs);
+    public <W> ReadBuilder<K, V1, W> and(JoinSource<K, W> rhs) {
+      final ReadBuilder<K, V1, W> builderCopy = new ReadBuilder<>(keyClass, lhs);
 
       builderCopy.rhs = rhs;
       return builderCopy;
     }
 
-    public SortedBucketSource<KeyT, KV<Iterable<V1>, Iterable<V2>>> build() {
+    public SortedBucketSource<K, KV<Iterable<V1>, Iterable<V2>>> build() {
       return new SortedBucketSource<>(
           ImmutableList.of(lhs.bucketedInput, rhs.bucketedInput),
           keyClass,
-          new SortedBucketIO.TwoSourceJoinResult<>(
+          new SmbCoGbkResult2<>(
               lhs.bucketedInput.tupleTag, rhs.bucketedInput.tupleTag,
               lhs.valueCoder, rhs.valueCoder));
     }
   }
 
-  // Sinks
-
-  public static <KeyT, ValueT> SortedBucketSink<KeyT, ValueT> sink(
-      BucketMetadata<KeyT, ValueT> bucketingMetadata,
+  public static <K, V> SortedBucketSink<K, V> write(
+      BucketMetadata<K, V> bucketingMetadata,
       ResourceId outputDirectory,
       String filenameSuffix,
       ResourceId tempDirectory,
-      FileOperations<ValueT> fileOperations) {
+      FileOperations<V> fileOperations) {
     return new SortedBucketSink<>(
         bucketingMetadata,
         new SMBFilenamePolicy(outputDirectory, filenameSuffix),

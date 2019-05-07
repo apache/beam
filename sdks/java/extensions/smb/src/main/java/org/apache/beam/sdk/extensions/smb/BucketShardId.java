@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.VarIntCoder;
 
+/** Abstracts bucket and shard id in {@link SortedBucketIO}. */
 @AutoValue
 public abstract class BucketShardId {
 
@@ -36,6 +37,7 @@ public abstract class BucketShardId {
     return new AutoValue_BucketShardId(bucketId, shardId);
   }
 
+  /** {@link org.apache.beam.sdk.coders.Coder} for {@link BucketShardId}. */
   public static class BucketShardIdCoder extends AtomicCoder<BucketShardId> {
 
     public static BucketShardIdCoder of() {
