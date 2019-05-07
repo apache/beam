@@ -37,7 +37,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
-@unittest.skipIf(sys.platform.startswith('win'), "skipping for windows")
 class MatchTest(_TestCaseWithTempDirCleanUp):
 
   def test_basic_two_files(self):
@@ -111,7 +110,6 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
       assert_that(files_pc, equal_to(files))
 
 
-@unittest.skipIf(sys.platform.startswith('win'), "skipping for windows")
 class ReadTest(_TestCaseWithTempDirCleanUp):
 
   def test_basic_file_name_provided(self):
@@ -124,9 +122,10 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
                     | beam.Create([dir])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
-                    | beam.Map(lambda f: f.read().decode('utf-8')))
+                    | beam.FlatMap(
+                        lambda f: f.read().decode('utf-8').splitlines()))
 
-      assert_that(content_pc, equal_to([content]))
+      assert_that(content_pc, equal_to(content.splitlines()))
 
   def test_csv_file_source(self):
     content = 'name,year,place\ngoogle,1999,CA\nspotify,2006,sweden'
@@ -163,9 +162,10 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
       contents_pc = (p
                      | beam.Create(files + [tempdir])
                      | fileio.ReadMatches()
-                     | beam.Map(lambda x: x.read().decode('utf-8')))
+                     | beam.FlatMap(
+                         lambda x: x.read().decode('utf-8').splitlines()))
 
-      assert_that(contents_pc, equal_to([content]*2))
+      assert_that(contents_pc, equal_to(content.splitlines()*2))
 
   def test_fail_on_directories(self):
     content = 'thecontent\n'
