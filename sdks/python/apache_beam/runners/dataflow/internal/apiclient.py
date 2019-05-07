@@ -150,6 +150,8 @@ class Environment(object):
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
           self.google_cloud_options.service_account_email)
+    if self.google_cloud_options.dataflow_kms_key:
+      self.proto.serviceKmsKeyName = self.google_cloud_options.dataflow_kms_key
 
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
