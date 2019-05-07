@@ -40,10 +40,12 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -338,7 +340,7 @@ public class JdbcIO {
       return builder().setConnectionProperties(connectionProperties).build();
     }
 
-    private void populateDisplayData(DisplayData.Builder builder) {
+    void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
       } else {
@@ -348,7 +350,7 @@ public class JdbcIO {
       }
     }
 
-    DataSource buildDatasource() throws Exception {
+    DataSource buildDatasource() {
       DataSource current = null;
       if (getDataSource() != null) {
         current = getDataSource();
@@ -410,6 +412,9 @@ public class JdbcIO {
     abstract DataSourceConfiguration getDataSourceConfiguration();
 
     @Nullable
+    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    @Nullable
     abstract ValueProvider<String> getQuery();
 
     @Nullable
@@ -431,6 +436,9 @@ public class JdbcIO {
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
 
+      abstract Builder<T> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
       abstract Builder<T> setQuery(ValueProvider<String> query);
 
       abstract Builder<T> setStatementPreparator(StatementPreparator statementPreparator);
@@ -446,8 +454,14 @@ public class JdbcIO {
       abstract Read<T> build();
     }
 
-    public Read<T> withDataSourceConfiguration(DataSourceConfiguration configuration) {
-      return toBuilder().setDataSourceConfiguration(configuration).build();
+    public Read<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
+      toBuilder().setDataSourceConfiguration(config);
+      return withDataSourceProviderFn(new DataSourceProviderFnFromDataSourceConfiguration(config));
+    }
+
+    public Read<T> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
     public Read<T> withQuery(String query) {
@@ -499,13 +513,15 @@ public class JdbcIO {
       checkArgument(getRowMapper() != null, "withRowMapper() is required");
       checkArgument(getCoder() != null, "withCoder() is required");
       checkArgument(
-          (getDataSourceConfiguration() != null), "withDataSourceConfiguration() is required");
+          (getDataSourceProviderFn() != null),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
       return input
           .apply(Create.of((Void) null))
           .apply(
               JdbcIO.<Void, T>readAll()
                   .withDataSourceConfiguration(getDataSourceConfiguration())
+                  .withDataSourceProviderFn(getDataSourceProviderFn())
                   .withQuery(getQuery())
                   .withCoder(getCoder())
                   .withRowMapper(getRowMapper())
@@ -525,7 +541,9 @@ public class JdbcIO {
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
       builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
-      getDataSourceConfiguration().populateDisplayData(builder);
+      if (getDataSourceProviderFn() instanceof HasDisplayData) {
+        ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
+      }
     }
   }
 
@@ -537,6 +555,9 @@ public class JdbcIO {
       extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
     @Nullable
     abstract DataSourceConfiguration getDataSourceConfiguration();
+
+    @Nullable
+    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
     @Nullable
     abstract ValueProvider<String> getQuery();
@@ -561,6 +582,9 @@ public class JdbcIO {
       abstract Builder<ParameterT, OutputT> setDataSourceConfiguration(
           DataSourceConfiguration config);
 
+      abstract Builder<ParameterT, OutputT> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
       abstract Builder<ParameterT, OutputT> setQuery(ValueProvider<String> query);
 
       abstract Builder<ParameterT, OutputT> setParameterSetter(
@@ -578,8 +602,14 @@ public class JdbcIO {
     }
 
     public ReadAll<ParameterT, OutputT> withDataSourceConfiguration(
-        DataSourceConfiguration configuration) {
-      return toBuilder().setDataSourceConfiguration(configuration).build();
+        DataSourceConfiguration config) {
+      toBuilder().setDataSourceConfiguration(config);
+      return withDataSourceProviderFn(new DataSourceProviderFnFromDataSourceConfiguration(config));
+    }
+
+    public ReadAll<ParameterT, OutputT> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
     public ReadAll<ParameterT, OutputT> withQuery(String query) {
@@ -638,7 +668,7 @@ public class JdbcIO {
               .apply(
                   ParDo.of(
                       new ReadFn<>(
-                          getDataSourceConfiguration(),
+                          getDataSourceProviderFn(),
                           getQuery(),
                           getParameterSetter(),
                           getRowMapper(),
@@ -658,13 +688,15 @@ public class JdbcIO {
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
       builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
-      getDataSourceConfiguration().populateDisplayData(builder);
+      if (getDataSourceProviderFn() instanceof HasDisplayData) {
+        ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
+      }
     }
   }
 
   /** A {@link DoFn} executing the SQL query to read from the database. */
   private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
-    private final DataSourceConfiguration dataSourceConfiguration;
+    private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
     private final ValueProvider<String> query;
     private final PreparedStatementSetter<ParameterT> parameterSetter;
     private final RowMapper<OutputT> rowMapper;
@@ -674,12 +706,12 @@ public class JdbcIO {
     private Connection connection;
 
     private ReadFn(
-        DataSourceConfiguration dataSourceConfiguration,
+        SerializableFunction<Void, DataSource> dataSourceProviderFn,
         ValueProvider<String> query,
         PreparedStatementSetter<ParameterT> parameterSetter,
         RowMapper<OutputT> rowMapper,
         int fetchSize) {
-      this.dataSourceConfiguration = dataSourceConfiguration;
+      this.dataSourceProviderFn = dataSourceProviderFn;
       this.query = query;
       this.parameterSetter = parameterSetter;
       this.rowMapper = rowMapper;
@@ -688,7 +720,7 @@ public class JdbcIO {
 
     @Setup
     public void setup() throws Exception {
-      dataSource = dataSourceConfiguration.buildDatasource();
+      dataSource = dataSourceProviderFn.apply(null);
       connection = dataSource.getConnection();
     }
 
@@ -753,7 +785,17 @@ public class JdbcIO {
 
     /** See {@link WriteVoid#withDataSourceConfiguration(DataSourceConfiguration)}. */
     public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
-      return new Write(inner.withDataSourceConfiguration(config));
+      return new Write(
+          inner
+              .withDataSourceConfiguration(config)
+              .withDataSourceProviderFn(
+                  new DataSourceProviderFnFromDataSourceConfiguration(config)));
+    }
+
+    /** See {@link WriteVoid#withDataSourceProviderFn(SerializableFunction)}. */
+    public Write<T> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return new Write(inner.withDataSourceProviderFn(dataSourceProviderFn));
     }
 
     /** See {@link WriteVoid#withStatement(String)}. */
@@ -814,6 +856,9 @@ public class JdbcIO {
     abstract DataSourceConfiguration getDataSourceConfiguration();
 
     @Nullable
+    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    @Nullable
     abstract ValueProvider<String> getStatement();
 
     abstract long getBatchSize();
@@ -830,6 +875,9 @@ public class JdbcIO {
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
 
+      abstract Builder<T> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
       abstract Builder<T> setStatement(ValueProvider<String> statement);
 
       abstract Builder<T> setBatchSize(long batchSize);
@@ -842,7 +890,13 @@ public class JdbcIO {
     }
 
     public WriteVoid<T> withDataSourceConfiguration(DataSourceConfiguration config) {
-      return toBuilder().setDataSourceConfiguration(config).build();
+      toBuilder().setDataSourceConfiguration(config);
+      return withDataSourceProviderFn(new DataSourceProviderFnFromDataSourceConfiguration(config));
+    }
+
+    public WriteVoid<T> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
     public WriteVoid<T> withStatement(String statement) {
@@ -879,11 +933,12 @@ public class JdbcIO {
 
     @Override
     public PCollection<Void> expand(PCollection<T> input) {
-      checkArgument(
-          getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
       checkArgument(getStatement() != null, "withStatement() is required");
       checkArgument(
           getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
+      checkArgument(
+          (getDataSourceProviderFn() != null),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
       return input.apply(ParDo.of(new WriteFn<T>(this)));
     }
@@ -909,7 +964,7 @@ public class JdbcIO {
 
       @Setup
       public void setup() throws Exception {
-        dataSource = spec.getDataSourceConfiguration().buildDatasource();
+        dataSource = spec.getDataSourceProviderFn().apply(null);
       }
 
       @StartBundle
@@ -1029,6 +1084,25 @@ public class JdbcIO {
                       })
                   .withSideInputs(empty));
       return materialized.apply(Reshuffle.viaRandomKey());
+    }
+  }
+
+  private static class DataSourceProviderFnFromDataSourceConfiguration
+      implements SerializableFunction<Void, DataSource>, HasDisplayData {
+    private final DataSourceConfiguration config;
+
+    DataSourceProviderFnFromDataSourceConfiguration(DataSourceConfiguration config) {
+      this.config = config;
+    }
+
+    @Override
+    public DataSource apply(Void input) {
+      return config.buildDatasource();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      config.populateDisplayData(builder);
     }
   }
 }
