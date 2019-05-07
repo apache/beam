@@ -394,7 +394,8 @@ public class BigQueryUtils {
       case MAP:
         throw new RuntimeException("Does not support converting MAP type value");
       default:
-        throw new RuntimeException("Does not support converting unknown type value");
+        throw new RuntimeException(
+            "Does not support converting unknown type value: " + beamFieldTypeName);
     }
   }
 
