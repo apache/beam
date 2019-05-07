@@ -119,6 +119,20 @@ import org.slf4j.LoggerFactory;
  * );
  * }</pre>
  *
+ * <p>To customize the building of the {@link DataSource} we can provide a {@link
+ * SerializableFunction}. For example if you need to provide a {@link PoolingDataSource} from an
+ * existing {@link DataSourceConfiguration}: you can use a {@link PoolableDataSourceProvider}:
+ *
+ * <pre>{@code
+ * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
+ *   .withDataSourceProviderFn(JdbcIO.PoolableDataSourceProvider.of(
+ *       JdbcIO.DataSourceConfiguration.create(
+ *           "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
+ *           "username", "password")))
+ *    // ...
+ * );
+ * }</pre>
+ *
  * <h3>Writing to JDBC datasource</h3>
  *
  * <p>JDBC sink supports writing records into a database. It writes a {@link PCollection} to the
@@ -249,8 +263,6 @@ public class JdbcIO {
     @Nullable
     abstract DataSource getDataSource();
 
-    abstract boolean isPoolingDataSource();
-
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -267,22 +279,14 @@ public class JdbcIO {
 
       abstract Builder setDataSource(DataSource dataSource);
 
-      abstract Builder setPoolingDataSource(boolean poolingDataSource);
-
       abstract DataSourceConfiguration build();
     }
 
     public static DataSourceConfiguration create(DataSource dataSource) {
-      return create(dataSource, true);
-    }
-
-    public static DataSourceConfiguration create(
-        DataSource dataSource, boolean isPoolingDataSource) {
       checkArgument(dataSource != null, "dataSource can not be null");
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDataSource(dataSource)
-          .setPoolingDataSource(isPoolingDataSource)
           .build();
     }
 
@@ -301,7 +305,6 @@ public class JdbcIO {
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDriverClassName(driverClassName)
           .setUrl(url)
-          .setPoolingDataSource(true)
           .build();
     }
 
@@ -351,10 +354,7 @@ public class JdbcIO {
     }
 
     DataSource buildDatasource() {
-      DataSource current = null;
-      if (getDataSource() != null) {
-        current = getDataSource();
-      } else {
+      if (getDataSource() == null) {
         BasicDataSource basicDataSource = new BasicDataSource();
         if (getDriverClassName() != null) {
           basicDataSource.setDriverClassName(getDriverClassName().get());
@@ -371,28 +371,49 @@ public class JdbcIO {
         if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
           basicDataSource.setConnectionProperties(getConnectionProperties().get());
         }
-        current = basicDataSource;
+        return basicDataSource;
       }
+      return getDataSource();
+    }
+  }
 
-      if (isPoolingDataSource()) {
-        // wrapping the datasource as a pooling datasource
-        DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
-        PoolableConnectionFactory poolableConnectionFactory =
-            new PoolableConnectionFactory(connectionFactory, null);
-        GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-        poolConfig.setMaxTotal(1);
-        poolConfig.setMinIdle(0);
-        poolConfig.setMinEvictableIdleTimeMillis(10000);
-        poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
-        GenericObjectPool connectionPool =
-            new GenericObjectPool(poolableConnectionFactory, poolConfig);
-        poolableConnectionFactory.setPool(connectionPool);
-        poolableConnectionFactory.setDefaultAutoCommit(false);
-        poolableConnectionFactory.setDefaultReadOnly(false);
-        return new PoolingDataSource(connectionPool);
-      } else {
-        return current;
+  /** Wraps a {@link DataSourceConfiguration} to provide a {@link PoolingDataSource}. */
+  public static class PoolableDataSourceProvider extends BaseDataSourceProvider {
+    private static SerializableFunction<Void, DataSource> instance = null;
+
+    private PoolableDataSourceProvider(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      super(dataSourceProviderFn);
+    }
+
+    public static SerializableFunction<Void, DataSource> of(DataSourceConfiguration config) {
+      if (instance == null) {
+        instance =
+            MemoizedDataSourceProvider.of(
+                new PoolableDataSourceProvider(
+                    DataSourceProviderFromDataSourceConfiguration.of(config)));
       }
+      return instance;
+    }
+
+    @Override
+    public DataSource apply(Void input) {
+      DataSource current = super.dataSourceProviderFn.apply(input);
+      // wrapping the datasource as a pooling datasource
+      DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
+      PoolableConnectionFactory poolableConnectionFactory =
+          new PoolableConnectionFactory(connectionFactory, null);
+      GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+      poolConfig.setMaxTotal(1);
+      poolConfig.setMinIdle(0);
+      poolConfig.setMinEvictableIdleTimeMillis(10000);
+      poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
+      GenericObjectPool connectionPool =
+          new GenericObjectPool(poolableConnectionFactory, poolConfig);
+      poolableConnectionFactory.setPool(connectionPool);
+      poolableConnectionFactory.setDefaultAutoCommit(false);
+      poolableConnectionFactory.setDefaultReadOnly(false);
+      return new PoolingDataSource(connectionPool);
     }
   }
 
@@ -456,7 +477,7 @@ public class JdbcIO {
 
     public Read<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
       toBuilder().setDataSourceConfiguration(config);
-      return withDataSourceProviderFn(new DataSourceProviderFnFromDataSourceConfiguration(config));
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
     public Read<T> withDataSourceProviderFn(
@@ -548,8 +569,6 @@ public class JdbcIO {
   }
 
   /** Implementation of {@link #readAll}. */
-
-  /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class ReadAll<ParameterT, OutputT>
       extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
@@ -604,7 +623,7 @@ public class JdbcIO {
     public ReadAll<ParameterT, OutputT> withDataSourceConfiguration(
         DataSourceConfiguration config) {
       toBuilder().setDataSourceConfiguration(config);
-      return withDataSourceProviderFn(new DataSourceProviderFnFromDataSourceConfiguration(config));
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
     public ReadAll<ParameterT, OutputT> withDataSourceProviderFn(
@@ -773,10 +792,10 @@ public class JdbcIO {
    * <p>All methods in this class delegate to the appropriate method of {@link JdbcIO.WriteVoid}.
    */
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    WriteVoid<T> inner;
+    final WriteVoid<T> inner;
 
     Write() {
-      this(JdbcIO.<T>writeVoid());
+      this(JdbcIO.writeVoid());
     }
 
     Write(WriteVoid<T> inner) {
@@ -788,8 +807,7 @@ public class JdbcIO {
       return new Write(
           inner
               .withDataSourceConfiguration(config)
-              .withDataSourceProviderFn(
-                  new DataSourceProviderFnFromDataSourceConfiguration(config)));
+              .withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config)));
     }
 
     /** See {@link WriteVoid#withDataSourceProviderFn(SerializableFunction)}. */
@@ -891,7 +909,7 @@ public class JdbcIO {
 
     public WriteVoid<T> withDataSourceConfiguration(DataSourceConfiguration config) {
       toBuilder().setDataSourceConfiguration(config);
-      return withDataSourceProviderFn(new DataSourceProviderFnFromDataSourceConfiguration(config));
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
     public WriteVoid<T> withDataSourceProviderFn(
@@ -912,7 +930,7 @@ public class JdbcIO {
     }
 
     /**
-     * Provide a maximum size in number of SQL statenebt for the batch. Default is 1000.
+     * Provide a maximum size in number of SQL statement for the batch. Default is 1000.
      *
      * @param batchSize maximum batch size in number of statements
      */
@@ -940,7 +958,7 @@ public class JdbcIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      return input.apply(ParDo.of(new WriteFn<T>(this)));
+      return input.apply(ParDo.of(new WriteFn<>(this)));
     }
 
     private static class WriteFn<T> extends DoFn<T, Void> {
@@ -956,14 +974,14 @@ public class JdbcIO {
       private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
-      private List<T> records = new ArrayList<>();
+      private final List<T> records = new ArrayList<>();
 
       public WriteFn(WriteVoid<T> spec) {
         this.spec = spec;
       }
 
       @Setup
-      public void setup() throws Exception {
+      public void setup() {
         dataSource = spec.getDataSourceProviderFn().apply(null);
       }
 
@@ -1087,12 +1105,20 @@ public class JdbcIO {
     }
   }
 
-  private static class DataSourceProviderFnFromDataSourceConfiguration
+  private static class DataSourceProviderFromDataSourceConfiguration
       implements SerializableFunction<Void, DataSource>, HasDisplayData {
     private final DataSourceConfiguration config;
+    private static DataSourceProviderFromDataSourceConfiguration instance;
 
-    DataSourceProviderFnFromDataSourceConfiguration(DataSourceConfiguration config) {
+    private DataSourceProviderFromDataSourceConfiguration(DataSourceConfiguration config) {
       this.config = config;
+    }
+
+    public static SerializableFunction<Void, DataSource> of(DataSourceConfiguration config) {
+      if (instance == null) {
+        instance = new DataSourceProviderFromDataSourceConfiguration(config);
+      }
+      return instance;
     }
 
     @Override
@@ -1103,6 +1129,48 @@ public class JdbcIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       config.populateDisplayData(builder);
+    }
+  }
+
+  private abstract static class BaseDataSourceProvider
+      implements SerializableFunction<Void, DataSource>, HasDisplayData {
+    private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
+
+    BaseDataSourceProvider(SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      this.dataSourceProviderFn = dataSourceProviderFn;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      if (dataSourceProviderFn instanceof HasDisplayData) {
+        ((HasDisplayData) dataSourceProviderFn).populateDisplayData(builder);
+      }
+    }
+  }
+
+  private static class MemoizedDataSourceProvider extends BaseDataSourceProvider {
+    private static MemoizedDataSourceProvider instance = null;
+    @Nullable private static DataSource datasource = null;
+
+    private MemoizedDataSourceProvider(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      super(dataSourceProviderFn);
+    }
+
+    public static MemoizedDataSourceProvider of(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      if (instance == null) {
+        instance = new MemoizedDataSourceProvider(dataSourceProviderFn);
+      }
+      return instance;
+    }
+
+    @Override
+    public DataSource apply(Void input) {
+      if (datasource == null) {
+        datasource = super.dataSourceProviderFn.apply(null);
+      }
+      return datasource;
     }
   }
 }
