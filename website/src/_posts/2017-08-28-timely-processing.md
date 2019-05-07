@@ -343,7 +343,7 @@ new DoFn<Event, EnrichedEvent>() {
   public void onExpiry(
       OnTimerContext context,
       @StateId("buffer") BagState<Event> bufferState) {
-    if (!bufferState.read().isEmpty()) {
+    if (!bufferState.isEmpty().read()) {
       for (EnrichedEvent enrichedEvent : enrichEvents(bufferState.read())) {
         context.output(enrichedEvent);
       }
