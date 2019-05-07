@@ -44,7 +44,7 @@ class SchemaUtils {
           .put("STRING", FieldType.STRING)
           .put("TIME", FieldType.logicalType(new CalciteUtils.TimeType()))
           .put("TIMESTAMP", FieldType.DATETIME)
-          .put("MAP<STRING, STRING>", FieldType.map(FieldType.STRING, FieldType.STRING))
+          .put("MAP<STRING,STRING>", FieldType.map(FieldType.STRING, FieldType.STRING))
           .build();
 
   /** Convert DataCatalog schema to Beam schema. */
