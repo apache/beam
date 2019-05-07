@@ -25,9 +25,7 @@ import tempfile
 import time
 import unittest
 
-from apache_beam import coders
 from apache_beam.io import filesystems
-from apache_beam.io import tfrecordio
 from apache_beam.runners.interactive import cache_manager as cache
 
 
@@ -63,12 +61,10 @@ class FileBasedCacheManagerTest(unittest.TestCase):
     time.sleep(0.1)
 
     cache_file = cache_label + '-1-of-2'
-
-    pcoder = coders.coders.FastPrimitivesCoder()
-    self.cache_manager.save_pcoder(pcoder, prefix, cache_label)
     with open(self.cache_manager._path(prefix, cache_file), 'wb') as f:
       for line in pcoll_list:
-        tfrecordio._TFRecordUtil.write_record(f, pcoder.encode(line))
+        f.write(cache.SafeFastPrimitivesCoder().encode(line))
+        f.write(b'\n')
 
   def test_exists(self):
     """Test that CacheManager can correctly tell if the cache exists or not."""
