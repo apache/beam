@@ -79,6 +79,7 @@ This is a collection of documents that may or may not be up to date.
 - Composite PInputs, POutputs, and the Runner API [[doc](https://s.apache.org/beam-runner-composites)]
 - Side Input Architecture for Apache Beam [[doc](https://s.apache.org/beam-side-inputs-1-pager)]
 - Runner supported features plugin [[doc](https://s.apache.org/k79W)]
+- Structured streaming Spark Runner [[doc](https://s.apache.org/spark-structured-streaming-runner)]
 
 ### SQL / Schema
 - Streams and Tables [[doc](https://s.apache.org/beam-streams-tables)]
