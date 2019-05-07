@@ -25,8 +25,11 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -95,19 +98,26 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   @Override
   public PCollection<Row> expand(PInput input) {
-    BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
-    tableProviderMap().forEach(sqlEnv::addSchema);
+    BeamSqlEnvBuilder sqlEnvBuilder =
+        BeamSqlEnv.builder()
+            .setInitializeTableProvider(
+                new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input)));
+    tableProviderMap().forEach(sqlEnvBuilder::addSchema);
     if (defaultTableProvider() != null) {
-      sqlEnv.setCurrentSchema(defaultTableProvider());
+      sqlEnvBuilder.setCurrentSchema(defaultTableProvider());
     }
 
     // TODO: validate duplicate functions.
-    sqlEnv.loadBeamBuiltinFunctions();
-    registerFunctions(sqlEnv);
+    sqlEnvBuilder.loadBeamBuiltinFunctions();
+    registerFunctions(sqlEnvBuilder);
     if (autoUdfUdafLoad()) {
-      sqlEnv.loadUdfUdafFromProvider();
+      sqlEnvBuilder.loadUdfUdafFromProvider();
     }
 
+    sqlEnvBuilder.setQueryPlannerClassName(
+        input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName());
+
+    BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
     return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
   }
 
@@ -130,11 +140,12 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return tables.build();
   }
 
-  private void registerFunctions(BeamSqlEnv sqlEnv) {
+  private void registerFunctions(BeamSqlEnvBuilder sqlEnvBuilder) {
     udfDefinitions()
-        .forEach(udf -> sqlEnv.registerUdf(udf.udfName(), udf.clazz(), udf.methodName()));
+        .forEach(udf -> sqlEnvBuilder.registerUdf(udf.udfName(), udf.clazz(), udf.methodName()));
 
-    udafDefinitions().forEach(udaf -> sqlEnv.registerUdaf(udaf.udafName(), udaf.combineFn()));
+    udafDefinitions()
+        .forEach(udaf -> sqlEnvBuilder.registerUdaf(udaf.udafName(), udaf.combineFn()));
   }
 
   /**
