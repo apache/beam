@@ -74,6 +74,7 @@ class BigqueryMatcherTest(unittest.TestCase):
       hc_assert_that(self._mock_result, matcher)
     self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
 
+
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery_tools, 'BigQueryWrapper')
 class BigqueryTableMatcherTest(unittest.TestCase):
