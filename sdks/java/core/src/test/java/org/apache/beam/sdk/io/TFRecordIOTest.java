@@ -24,7 +24,8 @@ import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.Matchers.isIn;
+import static org.hamcrest.Matchers.in;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
@@ -172,7 +173,6 @@ public class TFRecordIOTest {
   public void testReadInvalidRecord() throws Exception {
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Not a valid TFRecord. Fewer than 12 bytes.");
-    System.out.println("abr".getBytes(Charsets.UTF_8).length);
     runTestRead("bar".getBytes(Charsets.UTF_8), new String[0]);
   }
 
@@ -234,7 +234,7 @@ public class TFRecordIOTest {
     FileInputStream fis = new FileInputStream(tmpFile);
     String written = BaseEncoding.base64().encode(ByteStreams.toByteArray(fis));
     // bytes written may vary depending the order of elems
-    assertThat(written, isIn(base64));
+    assertThat(written, is(in(base64)));
   }
 
   @Test

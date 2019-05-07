@@ -152,6 +152,7 @@ public class WorkerCustomSourcesTest {
           "Failed on bundle " + i,
           xs,
           contains(valueInGlobalWindow(0L + 2 * i), valueInGlobalWindow(1L + 2 * i)));
+      assertTrue(bundle.getSource().getMetadata().getEstimatedSizeBytes() > 0);
     }
   }
 

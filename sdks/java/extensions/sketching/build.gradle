@@ -33,8 +33,8 @@ dependencies {
   shadowTest library.java.avro
   shadowTest library.java.commons_lang3
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

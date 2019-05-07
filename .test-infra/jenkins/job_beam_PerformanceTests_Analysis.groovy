@@ -35,7 +35,7 @@ def testConfiguration = [
                         "beam_performance.many_files_textioit_hdfs_pkb_results",
                         "beam_performance.avroioit_hdfs_pkb_results",
                         "beam_performance.xmlioit_hdfs_pkb_results",
-                        "beam_performance.hadoopinputformatioit_pkb_results",
+                        "beam_performance.hadoopformatioit_pkb_results",
                         "beam_performance.mongodbioit_pkb_results",
                         "beam_performance.jdbcioit_pkb_results"
                 ]
@@ -66,8 +66,9 @@ job(testConfiguration.jobName) {
         shell('rm -rf PerfKitBenchmarker')
         shell('rm -rf .env')
 
-        // create new VirtualEnv, inherit already existing packages
-        shell('virtualenv .env --system-site-packages')
+        // create new VirtualEnv, inherit already existing packages. Explicitly
+        // pin to python2.7 here otherwise python3 is used by default.
+        shell('virtualenv .env --python=python2.7 --system-site-packages')
 
         // update setuptools and pip
         shell('.env/bin/pip install --upgrade setuptools pip')

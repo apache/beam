@@ -26,8 +26,9 @@ dependencies {
   shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
-  shadow "com.rabbitmq:amqp-client:4.6.0"
+  shadow "com.rabbitmq:amqp-client:4.9.3"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile "org.apache.qpid:qpid-broker:0.28"
   testCompile "org.apache.qpid:qpid-broker-core:0.28"
   testCompile library.java.junit
@@ -35,4 +36,5 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

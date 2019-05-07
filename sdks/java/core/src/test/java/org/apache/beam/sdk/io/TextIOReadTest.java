@@ -66,6 +66,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ToString;
@@ -162,6 +163,7 @@ public class TextIOReadTest {
    * <ul>
    *   <li>TextIO.read().from(filename).withCompression(compressionType)
    *   <li>TextIO.read().from(filename).withCompression(compressionType) .withHintMatchesManyFiles()
+   *   <li>TextIO.readFiles().withCompression(compressionType)
    *   <li>TextIO.readAll().withCompression(compressionType)
    * </ul>
    */
@@ -172,17 +174,24 @@ public class TextIOReadTest {
 
     PAssert.that(p.apply("Read_" + file + "_" + compression.toString(), read))
         .containsInAnyOrder(expected);
-
     PAssert.that(
             p.apply(
                 "Read_" + file + "_" + compression.toString() + "_many",
                 read.withHintMatchesManyFiles()))
         .containsInAnyOrder(expected);
 
-    TextIO.ReadAll readAll = TextIO.readAll().withCompression(compression);
     PAssert.that(
-            p.apply("Create_" + file, Create.of(file.getPath()))
-                .apply("Read_" + compression.toString(), readAll))
+            p.apply("Create_Paths_ReadFiles_" + file, Create.of(file.getPath()))
+                .apply("Match_" + file, FileIO.matchAll())
+                .apply("ReadMatches_" + file, FileIO.readMatches().withCompression(compression))
+                .apply("ReadFiles_" + compression.toString(), TextIO.readFiles()))
+        .containsInAnyOrder(expected);
+
+    PAssert.that(
+            p.apply("Create_Paths_ReadAll_" + file, Create.of(file.getPath()))
+                .apply(
+                    "ReadAll_" + compression.toString(),
+                    TextIO.readAll().withCompression(compression)))
         .containsInAnyOrder(expected);
   }
 
@@ -824,7 +833,7 @@ public class TextIOReadTest {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
     public void testReadWatchForNewFiles() throws IOException, InterruptedException {
       final Path basePath = tempFolder.getRoot().toPath().resolve("readWatch");
       basePath.toFile().mkdir();

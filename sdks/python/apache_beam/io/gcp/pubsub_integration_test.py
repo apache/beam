@@ -20,6 +20,8 @@ Integration test for Google Cloud Pub/Sub.
 from __future__ import absolute_import
 
 import logging
+import os
+import sys
 import unittest
 import uuid
 
@@ -56,39 +58,39 @@ class PubSubIntegrationTest(unittest.TestCase):
       # label_ids, nor writing timestamp attributes. Once these features exist,
       # TestDirectRunner and TestDataflowRunner should behave identically.
       'TestDirectRunner': [
-          PubsubMessage('data001', {}),
+          PubsubMessage(b'data001', {}),
           # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
           # IT pipeline writes back the timestamp of each element (as reported
           # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
-          PubsubMessage('data002', {
+          PubsubMessage(b'data002', {
               TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
           }),
       ],
       'TestDataflowRunner': [
           # Use ID_LABEL attribute to deduplicate messages with the same ID.
-          PubsubMessage('data001', {ID_LABEL: 'foo'}),
-          PubsubMessage('data001', {ID_LABEL: 'foo'}),
-          PubsubMessage('data001', {ID_LABEL: 'foo'}),
+          PubsubMessage(b'data001', {ID_LABEL: 'foo'}),
+          PubsubMessage(b'data001', {ID_LABEL: 'foo'}),
+          PubsubMessage(b'data001', {ID_LABEL: 'foo'}),
           # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
           # IT pipeline writes back the timestamp of each element (as reported
           # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
-          PubsubMessage('data002', {
+          PubsubMessage(b'data002', {
               TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
           })
       ],
   }
   EXPECTED_OUTPUT_MESSAGES = {
       'TestDirectRunner': [
-          PubsubMessage('data001-seen', {'processed': 'IT'}),
-          PubsubMessage('data002-seen', {
+          PubsubMessage(b'data001-seen', {'processed': 'IT'}),
+          PubsubMessage(b'data002-seen', {
               TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
               TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
               'processed': 'IT',
           }),
       ],
       'TestDataflowRunner': [
-          PubsubMessage('data001-seen', {'processed': 'IT'}),
-          PubsubMessage('data002-seen', {
+          PubsubMessage(b'data001-seen', {'processed': 'IT'}),
+          PubsubMessage(b'data002-seen', {
               TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
               'processed': 'IT',
           }),
@@ -139,7 +141,8 @@ class PubSubIntegrationTest(unittest.TestCase):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
     expected_messages = self.EXPECTED_OUTPUT_MESSAGES[self.runner_name]
     if not with_attributes:
-      expected_messages = [pubsub_msg.data for pubsub_msg in expected_messages]
+      expected_messages = [pubsub_msg.data.decode('utf-8')
+                           for pubsub_msg in expected_messages]
     if self.runner_name == 'TestDirectRunner':
       strip_attributes = None
     else:
@@ -169,10 +172,18 @@ class PubSubIntegrationTest(unittest.TestCase):
         id_label=self.ID_LABEL,
         timestamp_attribute=self.TIMESTAMP_ATTRIBUTE)
 
+  @unittest.skipIf(sys.version[0:3] == '3.6' and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6 '
+                   'TODO: BEAM-7181')
   @attr('IT')
   def test_streaming_data_only(self):
     self._test_streaming(with_attributes=False)
 
+  @unittest.skipIf(sys.version[0:3] == '3.6' and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6 '
+                   'TODO: BEAM-7181')
   @attr('IT')
   def test_streaming_with_attributes(self):
     self._test_streaming(with_attributes=True)

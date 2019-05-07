@@ -35,5 +35,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

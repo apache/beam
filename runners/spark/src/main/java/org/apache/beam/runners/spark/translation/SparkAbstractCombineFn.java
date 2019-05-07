@@ -45,12 +45,12 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
  * An abstract for the SparkRunner implementation of {@link
  * org.apache.beam.sdk.transforms.Combine.CombineFn}.
  */
-public class SparkAbstractCombineFn implements Serializable {
-  protected final SerializablePipelineOptions options;
-  protected final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
-  protected final WindowingStrategy<?, BoundedWindow> windowingStrategy;
+class SparkAbstractCombineFn implements Serializable {
+  private final SerializablePipelineOptions options;
+  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
+  final WindowingStrategy<?, BoundedWindow> windowingStrategy;
 
-  public SparkAbstractCombineFn(
+  SparkAbstractCombineFn(
       SerializablePipelineOptions options,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
@@ -67,24 +67,24 @@ public class SparkAbstractCombineFn implements Serializable {
   // ** DO NOT use combineContext directly inside this class, use ctxtForInput instead. **
   private transient SparkCombineContext combineContext;
 
-  protected SparkCombineContext ctxtForInput(WindowedValue<?> input) {
+  SparkCombineContext ctxtForInput(WindowedValue<?> input) {
     if (combineContext == null) {
       combineContext = new SparkCombineContext(options.get(), new SparkSideInputReader(sideInputs));
     }
     return combineContext.forInput(input);
   }
 
-  protected static <T> Iterable<WindowedValue<T>> sortByWindows(Iterable<WindowedValue<T>> iter) {
+  static <T> Iterable<WindowedValue<T>> sortByWindows(Iterable<WindowedValue<T>> iter) {
     List<WindowedValue<T>> sorted = Lists.newArrayList(iter);
     sorted.sort(Comparator.comparing(o -> Iterables.getOnlyElement(o.getWindows()).maxTimestamp()));
     return sorted;
   }
 
-  protected static boolean isIntersecting(IntervalWindow union, IntervalWindow window) {
+  static boolean isIntersecting(IntervalWindow union, IntervalWindow window) {
     return union == null || union.intersects(window);
   }
 
-  protected static IntervalWindow merge(IntervalWindow union, IntervalWindow window) {
+  static IntervalWindow merge(IntervalWindow union, IntervalWindow window) {
     return union == null ? window : union.span(window);
   }
 

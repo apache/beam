@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -54,6 +55,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(LengthPrefixCoder.class, ModelCoders.LENGTH_PREFIX_CODER_URN)
           .put(GlobalWindow.Coder.class, ModelCoders.GLOBAL_WINDOW_CODER_URN)
           .put(FullWindowedValueCoder.class, ModelCoders.WINDOWED_VALUE_CODER_URN)
+          .put(DoubleCoder.class, ModelCoders.DOUBLE_CODER_URN)
           .build();
 
   public static final Set<String> WELL_KNOWN_CODER_URNS = BEAM_MODEL_CODER_URNS.values();
@@ -70,6 +72,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(Timer.Coder.class, CoderTranslators.timer())
           .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
           .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
+          .put(DoubleCoder.class, CoderTranslators.atomic(DoubleCoder.class))
           .build();
 
   static {

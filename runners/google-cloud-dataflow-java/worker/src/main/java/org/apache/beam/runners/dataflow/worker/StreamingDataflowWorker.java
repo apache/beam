@@ -115,6 +115,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.Commi
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.io.FileSystems;
@@ -122,7 +123,6 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
@@ -695,6 +695,7 @@ public class StreamingDataflowWorker {
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
     LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
+    LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes);
   }
 
   private Node createPortNode(String predecessorId, String successorId) {
@@ -726,6 +727,9 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   public void setMaxWorkItemCommitBytes(int maxWorkItemCommitBytes) {
+    if (maxWorkItemCommitBytes != this.maxWorkItemCommitBytes) {
+      LOG.info("Setting maxWorkItemCommitBytes to {}", maxWorkItemCommitBytes);
+    }
     this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
   }
 
@@ -1585,11 +1589,19 @@ public class StreamingDataflowWorker {
     if (workItem == null || !workItem.isPresent() || workItem.get() == null) {
       return;
     }
-    setMaxWorkItemCommitBytes(180 << 20);
     StreamingConfigTask config = workItem.get().getStreamingConfigTask();
     Preconditions.checkState(config != null);
     if (config.getUserStepToStateFamilyNameMap() != null) {
       stateNameMap.putAll(config.getUserStepToStateFamilyNameMap());
+    }
+    if (computation == null) {
+      if (config.getMaxWorkItemCommitBytes() != null
+          && config.getMaxWorkItemCommitBytes() > 0
+          && config.getMaxWorkItemCommitBytes() <= Integer.MAX_VALUE) {
+        setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
+      } else {
+        setMaxWorkItemCommitBytes(180 << 20);
+      }
     }
     List<StreamingComputationConfig> configs = config.getStreamingComputationConfigs();
     if (configs != null) {

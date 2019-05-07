@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
@@ -164,9 +165,10 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       if (fieldIndices.isEmpty()) {
         // TODO(https://issues.apache.org/jira/projects/BEAM/issues/BEAM-4702)
         // Figure out which operations are per-window and which are not.
+
         return upstream
             .apply(Window.into(new GlobalWindows()))
-            .apply(new LimitTransform<>())
+            .apply(new LimitTransform<>(startIndex))
             .setRowSchema(CalciteUtils.toSchema(getRowType()));
       } else {
 
@@ -210,33 +212,52 @@ public class BeamSortRel extends Sort implements BeamRelNode {
   }
 
   private class LimitTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private final int startIndex;
+
+    public LimitTransform(int startIndex) {
+      this.startIndex = startIndex;
+    }
+
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       Coder<T> coder = input.getCoder();
       PCollection<KV<String, T>> keyedRow =
           input.apply(WithKeys.of("DummyKey")).setCoder(KvCoder.of(StringUtf8Coder.of(), coder));
 
-      return keyedRow.apply(ParDo.of(new LimitFn<T>(getCount())));
+      return keyedRow.apply(ParDo.of(new LimitFn<T>(getCount(), startIndex)));
     }
   }
 
   private static class LimitFn<T> extends DoFn<KV<String, T>, T> {
     private final Integer limitCount;
+    private final Integer startIndex;
 
-    public LimitFn(int c) {
+    public LimitFn(int c, int s) {
       limitCount = c;
+      startIndex = s;
     }
 
     @StateId("counter")
     private final StateSpec<ValueState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
 
+    @StateId("skipped_rows")
+    private final StateSpec<ValueState<Integer>> skippedRowsState =
+        StateSpecs.value(VarIntCoder.of());
+
     @ProcessElement
     public void processElement(
-        ProcessContext context, @StateId("counter") ValueState<Integer> counterState) {
-      int current = (counterState.read() != null ? counterState.read() : 0);
-      if (current < limitCount) {
-        context.output(context.element().getValue());
-        counterState.write(current + 1);
+        ProcessContext context,
+        @StateId("counter") ValueState<Integer> counterState,
+        @StateId("skipped_rows") ValueState<Integer> skippedRowsState) {
+      Integer toSkipRows = firstNonNull(skippedRowsState.read(), startIndex);
+      if (toSkipRows == 0) {
+        int current = firstNonNull(counterState.read(), 0);
+        if (current < limitCount) {
+          counterState.write(current + 1);
+          context.output(context.element().getValue());
+        }
+      } else {
+        skippedRowsState.write(toSkipRows - 1);
       }
     }
   }

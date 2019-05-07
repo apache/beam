@@ -40,7 +40,7 @@ class JiraManager:
     basic_auth = (jira_username, jira_password)
     self.jira = JiraClient(options, basic_auth, _JIRA_PROJECT_NAME)
     with open(owners_file) as f:
-      owners = yaml.load(f)
+      owners = yaml.load(f, Loader=yaml.BaseLoader)
     self.owners_map = owners['deps']
     logging.getLogger().setLevel(logging.INFO)
 
@@ -238,6 +238,7 @@ class JiraManager:
 
     logging.info("Found owners of {0}: {1}".format(dep_name, owners))
     owners = owners.split(',')
+    owners = map(str, owners)
     owners = map(str.strip, owners)
     owners = list(filter(None, owners))
     return owners

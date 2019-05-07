@@ -64,27 +64,23 @@ public class SparkSideInputReader implements SideInputReader {
     Iterable<WindowedValue<KV<?, ?>>> availableSideInputs =
         (Iterable<WindowedValue<KV<?, ?>>>) windowedBroadcastHelper.getValue().getValue();
     Iterable<KV<?, ?>> sideInputForWindow =
-        StreamSupport.stream(
-                StreamSupport.stream(availableSideInputs.spliterator(), false)
-                    .filter(
-                        sideInputCandidate -> {
-                          if (sideInputCandidate == null) {
-                            return false;
-                          }
-                          return Iterables.contains(
-                              sideInputCandidate.getWindows(), sideInputWindow);
-                        })
-                    .collect(Collectors.toList())
-                    .spliterator(),
-                false)
+        StreamSupport.stream(availableSideInputs.spliterator(), false)
+            .filter(
+                sideInputCandidate -> {
+                  if (sideInputCandidate == null) {
+                    return false;
+                  }
+                  return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
+                })
+            .collect(Collectors.toList())
+            .stream()
             .map(WindowedValue::getValue)
             .collect(Collectors.toList());
 
     ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
     Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-    return (T)
-        viewFn.apply(
-            InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) sideInputForWindow));
+    return viewFn.apply(
+        InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) sideInputForWindow));
   }
 
   @Override

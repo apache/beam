@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -89,5 +90,22 @@ public class CounterCell implements Counter, MetricCell<Long> {
   @Override
   public MetricName getName() {
     return name;
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof CounterCell) {
+      CounterCell counterCell = (CounterCell) object;
+      return Objects.equals(dirty, counterCell.dirty)
+          && Objects.equals(value.get(), counterCell.value.get())
+          && Objects.equals(name, counterCell.name);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(dirty, value.get(), name);
   }
 }

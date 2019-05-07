@@ -51,10 +51,9 @@ dependencies {
   provided library.java.hadoop_common
   provided library.java.hadoop_hdfs
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
   testCompile project(path: ":beam-examples-java", configuration: "shadowTest")
 
@@ -83,6 +82,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
   shadow library.java.commons_io_2x
 
   delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadow"))

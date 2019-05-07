@@ -77,8 +77,8 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
 
   private boolean shouldDebug(final TransformHierarchy.Node node) {
     return node == null
-        || (!transforms.stream()
-                .anyMatch(
+        || (transforms.stream()
+                .noneMatch(
                     debugTransform ->
                         debugTransform.getNode().equals(node) && debugTransform.isComposite())
             && shouldDebug(node.getEnclosingNode()));
@@ -89,7 +89,6 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
       TransformHierarchy.Node node) {
     @SuppressWarnings("unchecked")
     TransformT transform = (TransformT) node.getTransform();
-    @SuppressWarnings("unchecked")
     TransformEvaluator<TransformT> evaluator = translate(node, transform);
     if (shouldDebug(node)) {
       transforms.add(new NativeTransform(node, evaluator, transform, false));

@@ -42,57 +42,59 @@ def dockerImageName = project(':beam-runners-google-cloud-dataflow-java').ext.do
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
 def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,use_executable_stage_bundle_execution' : "beam_fn_api"
 
+def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additionalOptions = [] ->
+   // return the preevaluated configuration closure
+   return {
+       testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
+       include "**/WordCountIT.class"
+       include "**/WindowedWordCountIT.class"
+       forkEvery 1
+       maxParallelForks 4
+   
+       def preCommitBeamTestPipelineOptions = [
+               "--project=${gcpProject}",
+               "--tempRoot=${gcsTempRoot}",
+               "--runner=TestDataflowRunner",
+               "--dataflowWorkerJar=${dataflowWorkerJar}",
+               workerHarnessContainerImage.isEmpty() ?'':"--workerHarnessContainerImage=${workerHarnessContainerImage}"
+               ] + additionalOptions
+       systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+     }
+ }
+
 task preCommitLegacyWorker(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
-
-  //Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
-  //image, which handles a staged worker jar.
-  def preCommitBeamTestPipelineOptions = [
-     "--project=${gcpProject}",
-     "--tempRoot=${gcsTempRoot}",
-     "--runner=TestDataflowRunner",
-     "--dataflowWorkerJar=${dataflowWorkerJar}",
-     "--workerHarnessContainerImage=",
-  ]
-  testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
-  include "**/WordCountIT.class"
-  include "**/WindowedWordCountIT.class"
-  forkEvery 1
-  maxParallelForks 4
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+  with commonConfig(dataflowWorkerJar)
 }
 
-task preCommitFnApiWorker(type: Test) {
+task verifyFnApiWorker(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
   dependsOn ":beam-runners-google-cloud-dataflow-java:buildAndPushDockerContainer"
-
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
-  def preCommitBeamTestPipelineOptions = [
-          "--project=${gcpProject}",
-          "--tempRoot=${gcsTempRoot}",
-          "--runner=TestDataflowRunner",
-          "--dataflowWorkerJar=${dataflowWorkerJar}",
-          "--workerHarnessContainerImage=${dockerImageName}",
-          "--experiments=${fnapiExperiments}",
-  ]
-  testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
-  include "**/WordCountIT.class"
-  include "**/WindowedWordCountIT.class"
-  forkEvery 1
-  maxParallelForks 4
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+  with commonConfig(dataflowWorkerJar, dockerImageName, ["--experiments=${fnapiExperiments}"])
   useJUnit {
     excludeCategories 'org.apache.beam.sdk.testing.StreamingIT'
   }
+}
+
+task postCommitLegacyWorkerJava11(type: Test) {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+  systemProperty "java.specification.version", "11"
+  with commonConfig(dataflowWorkerJar)
+}
+
+task java11PostCommit() {
+  dependsOn postCommitLegacyWorkerJava11
 }
 
 task preCommit() {
   dependsOn preCommitLegacyWorker
 }
 
-task preCommitPortabilityApi() {
-  dependsOn preCommitFnApiWorker
+task verifyPortabilityApi() {
+  dependsOn verifyFnApiWorker
 }
 
 afterEvaluate {

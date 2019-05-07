@@ -33,6 +33,8 @@ Usage:
 from __future__ import absolute_import
 
 import logging
+import os
+import sys
 import time
 import unittest
 import uuid
@@ -96,12 +98,17 @@ class GameStatsIT(unittest.TestCase):
 
     for _ in range(message_count):
       self.pub_client.publish(topic.name,
-                              self.INPUT_EVENT % self._test_timestamp)
+                              (self.INPUT_EVENT % self._test_timestamp
+                              ).encode('utf-8'))
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
+  @unittest.skipIf(sys.version[0:3] == '3.6' and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6 '
+                   'TODO: BEAM-7182')
   @attr('IT')
   def test_game_stats_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)

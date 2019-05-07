@@ -140,7 +140,7 @@ func urnToWindowCoder(urn string) *coder.WindowCoder {
 	case urnIntervalWindow:
 		return coder.NewIntervalWindow()
 	default:
-		panic(fmt.Sprintf("Unexpected window coder: %v", urn))
+		panic(fmt.Sprintf("Failed to translate URN to window coder, unexpected URN: %v", urn))
 	}
 }
 
@@ -157,7 +157,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 
 	case urnKVCoder:
 		if len(components) != 2 {
-			return nil, fmt.Errorf("bad pair: %v", c)
+			return nil, fmt.Errorf("could not unmarshal KV coder from %v, want exactly 2 components but have %d", c, len(components))
 		}
 
 		key, err := b.Coder(components[0])
@@ -206,7 +206,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 
 	case urnLengthPrefixCoder:
 		if len(components) != 1 {
-			return nil, fmt.Errorf("bad length prefix: %v", c)
+			return nil, fmt.Errorf("could not unmarshal length prefix coder from %v, want a single sub component but have %d", c, len(components))
 		}
 
 		elm, err := b.peek(components[0])
@@ -217,7 +217,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		// the portable pipeline model directly (BEAM-2885)
 		if elm.GetSpec().GetSpec().GetUrn() != "" && elm.GetSpec().GetSpec().GetUrn() != urnCustomCoder {
 			// TODO(herohde) 11/17/2017: revisit this restriction
-			return nil, fmt.Errorf("expected length prefix of custom coder only: %v", elm)
+			return nil, fmt.Errorf("could not unmarshal length prefix coder from %v, want a custom coder as a sub component but got %v", c, elm)
 		}
 
 		var ref v1.CustomCoder
@@ -233,7 +233,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 
 	case urnWindowedValueCoder:
 		if len(components) != 2 {
-			return nil, fmt.Errorf("bad windowed value: %v", c)
+			return nil, fmt.Errorf("could not unmarshal windowed value coder from %v, expected two components but got %d", c, len(components))
 		}
 
 		elm, err := b.Coder(components[0])
@@ -248,7 +248,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}, nil
 
 	case streamType:
-		return nil, fmt.Errorf("stream must be pair value: %v", c)
+		return nil, fmt.Errorf("could not unmarshal stream type coder from %v, stream must be pair value", c)
 
 	case "":
 		// TODO(herohde) 11/27/2017: we still see CoderRefs from Dataflow. Handle that
@@ -258,16 +258,16 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 
 		var ref CoderRef
 		if err := json.Unmarshal(payload, &ref); err != nil {
-			return nil, fmt.Errorf("failed to decode urn-less coder payload \"%v\": %v", string(payload), err)
+			return nil, fmt.Errorf("could not unmarshal CoderRef from %v, failed to decode urn-less coder's payload \"%v\": %v", c, string(payload), err)
 		}
 		c, err := DecodeCoderRef(&ref)
 		if err != nil {
-			return nil, fmt.Errorf("failed to translate coder \"%v\": %v", string(payload), err)
+			return nil, fmt.Errorf("could not unmarshal CoderRef from %v, failed to decode CoderRef \"%v\": %v", c, string(payload), err)
 		}
 		return c, nil
 
 	default:
-		return nil, fmt.Errorf("custom coders must be length prefixed: %v", c)
+		return nil, fmt.Errorf("could not unmarshal coder from %v, unknown URN %v", c, urn)
 	}
 }
 
@@ -318,11 +318,15 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 	case coder.Custom:
 		ref, err := encodeCustomCoder(c.Custom)
 		if err != nil {
-			panic(fmt.Sprintf("failed to encode custom coder: %v", err))
+			typeName := c.Custom.Name
+			panic(fmt.Sprintf("Failed to encode custom coder for type %s. "+
+				"Make sure the type was registered before calling beam.Init. For example: "+
+				"beam.RegisterType(reflect.TypeOf((*TypeName)(nil)).Elem())\n\n"+
+				"Full error: %v", typeName, err))
 		}
 		data, err := protox.EncodeBase64(ref)
 		if err != nil {
-			panic(fmt.Sprintf("failed to marshal custom coder: %v", err))
+			panic(fmt.Sprintf("Failed to marshal custom coder %v: %v", c, err))
 		}
 		inner := b.internCoder(&pb.Coder{
 			Spec: &pb.SdkFunctionSpec{
@@ -366,7 +370,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 		return b.internBuiltInCoder(urnVarIntCoder)
 
 	default:
-		panic(fmt.Sprintf("Unexpected coder kind: %v", c.Kind))
+		panic(fmt.Sprintf("Failed to marshal custom coder %v, unexpected coder kind: %v", c, c.Kind))
 	}
 }
 
@@ -387,7 +391,7 @@ func (b *CoderMarshaller) AddWindowCoder(w *coder.WindowCoder) string {
 	case coder.IntervalWindow:
 		return b.internBuiltInCoder(urnIntervalWindow)
 	default:
-		panic(fmt.Sprintf("Unexpected window kind: %v", w.Kind))
+		panic(fmt.Sprintf("Failed to add window coder %v, unexpected window kind: %v", w, w.Kind))
 	}
 }
 

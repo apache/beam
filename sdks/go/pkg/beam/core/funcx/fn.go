@@ -220,7 +220,7 @@ func (u *Fn) Returns(mask ReturnKind) []int {
 }
 
 func (u *Fn) String() string {
-	return fmt.Sprintf("%+v", *u)
+	return fmt.Sprintf("{Fn:{Name:%v Kind:%v} Param:%+v Ret:%+v}", u.Fn.Name(), u.Fn.Type(), u.Param, u.Ret)
 }
 
 // New returns a Fn from a user function, if valid. Closures and dynamically

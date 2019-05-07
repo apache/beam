@@ -19,11 +19,13 @@ package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_INDEX;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.ServerSocket;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.common.settings.Settings;
@@ -49,7 +51,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   private static final String ES_IP = "127.0.0.1";
   private static final int MAX_STARTUP_WAITING_TIME_MSEC = 5000;
-
+  private static int esHttpPort;
   private static Node node;
   private static RestClient restClient;
   private static ConnectionConfiguration connectionConfiguration;
@@ -62,9 +64,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() throws IOException {
-    ServerSocket serverSocket = new ServerSocket(0);
-    int esHttpPort = serverSocket.getLocalPort();
-    serverSocket.close();
+    esHttpPort = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
         Settings.settingsBuilder()
@@ -193,6 +193,18 @@ public class ElasticsearchIOTest implements Serializable {
   public void testWritePartialUpdate() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWritePartialUpdate();
+  }
+
+  @Test
+  public void testWritePartialUpdateWithErrors() throws Exception {
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ConnectionConfiguration connectionConfiguration =
+        ConnectionConfiguration.create(
+            new String[] {"http://" + ES_IP + ":" + esHttpPort}, UPDATE_INDEX, UPDATE_TYPE);
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
+        new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
+    elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
+    elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
   }
 
   @Test

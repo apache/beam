@@ -57,7 +57,8 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("java"),
             classesInPackage("javax"),
             classesInPackage("org.apache.beam.sdk"),
-            classesInPackage("org.joda.time"));
+            classesInPackage("org.joda.time"),
+            classesInPackage("org.junit"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }

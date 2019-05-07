@@ -33,7 +33,6 @@ import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -64,10 +63,12 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests {@link HadoopFormatIO} output with batch and stream pipeline. */
+@RunWith(JUnit4.class)
 public class HadoopFormatIOSequenceFileTest {
 
   private static final Instant START_TIME = new Instant(0);
@@ -104,7 +105,6 @@ public class HadoopFormatIOSequenceFileTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
   public void batchTest() {
 
     String outputDir = getOutputDirPath("batchTest");
@@ -130,7 +130,6 @@ public class HadoopFormatIOSequenceFileTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void batchTestWithoutPartitioner() {
     String outputDir = getOutputDirPath("batchTestWithoutPartitioner");
 

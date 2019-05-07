@@ -31,8 +31,7 @@ import org.joda.time.Instant;
  * A runner-specific hook for invoking a {@link DoFn.ProcessElement} method for a splittable {@link
  * DoFn}, in particular, allowing the runner to access the {@link RestrictionTracker}.
  */
-public abstract class SplittableProcessElementInvoker<
-    InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> {
+public abstract class SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT> {
   /** Specifies how to resume a splittable {@link DoFn.ProcessElement} call. */
   public class Result {
     @Nullable private final RestrictionT residualRestriction;
@@ -84,5 +83,7 @@ public abstract class SplittableProcessElementInvoker<
    *     DoFn.ProcessContinuation}, and a future output watermark.
    */
   public abstract Result invokeProcessElement(
-      DoFnInvoker<InputT, OutputT> invoker, WindowedValue<InputT> element, TrackerT tracker);
+      DoFnInvoker<InputT, OutputT> invoker,
+      WindowedValue<InputT> element,
+      RestrictionTracker<RestrictionT, PositionT> tracker);
 }

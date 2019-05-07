@@ -74,8 +74,9 @@ WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 # Default test (nose) options.
-# Default test sets are full integration tests.
-TEST_OPTS="--attr=IT --nocapture"
+# Run WordCountIT.test_wordcount_it by default if no test options are
+# provided.
+TEST_OPTS="--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it --nocapture"
 
 while [[ $# -gt 0 ]]
 do
@@ -149,7 +150,20 @@ esac
 done
 
 set -o errexit
-set -o verbose
+
+
+###########################################################################
+
+# Check that the script is running in a known directory.
+if [[ $PWD != *sdks/python* ]]; then
+  echo 'Unable to locate Apache Beam Python SDK root directory'
+  exit 1
+fi
+
+# Go to the Apache Beam Python SDK root
+if [[ $PWD != *sdks/python ]]; then
+  cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
+fi
 
 
 ###########################################################################
@@ -157,23 +171,12 @@ set -o verbose
 
 if [[ -z $PIPELINE_OPTS ]]; then
 
-  # Check that the script is running in a known directory.
-  if [[ $PWD != *sdks/python* ]]; then
-    echo 'Unable to locate Apache Beam Python SDK root directory'
-    exit 1
-  fi
-
-  # Go to the Apache Beam Python SDK root
-  if [[ "*sdks/python" != $PWD ]]; then
-    cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
-  fi
-
   # Create a tarball if not exists
-  if [[ $(find ${SDK_LOCATION}) ]]; then
+  if [[ $(find ${SDK_LOCATION} 2> /dev/null) ]]; then
     SDK_LOCATION=$(find ${SDK_LOCATION})
   else
     python setup.py -q sdist
-    SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
+    SDK_LOCATION=$(ls dist/apache-beam-*.tar.gz | tail -n1)
   fi
 
   # Install test dependencies for ValidatesRunner tests.

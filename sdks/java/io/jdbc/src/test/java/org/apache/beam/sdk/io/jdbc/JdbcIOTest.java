@@ -23,7 +23,6 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -37,14 +36,17 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.dbcp2.PoolingDataSource;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
 import org.junit.After;
@@ -53,10 +55,13 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
+@RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
@@ -74,11 +79,8 @@ public class JdbcIOTest implements Serializable {
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(JdbcIO.class);
 
   @BeforeClass
-  public static void startDatabase() throws Exception {
-    ServerSocket socket = new ServerSocket(0);
-    port = socket.getLocalPort();
-    socket.close();
-
+  public static void beforeClass() throws Exception {
+    port = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting Derby database on {}", port);
 
     // by default, derby uses a lock timeout of 60 seconds. In order to speed up the test
@@ -124,7 +126,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @AfterClass
-  public static void shutDownDatabase() throws Exception {
+  public static void afterClass() throws Exception {
     try {
       DatabaseTestHelper.deleteTable(dataSource, readTableName);
     } finally {
@@ -140,6 +142,19 @@ public class JdbcIOTest implements Serializable {
     try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
+  }
+
+  @Test
+  public void testDataSourceConfigurationDataSourceWithoutPool() throws Exception {
+    JdbcIO.DataSourceConfiguration config =
+        JdbcIO.DataSourceConfiguration.create(dataSource, false);
+    assertTrue(config.buildDatasource() instanceof ClientDataSource);
+  }
+
+  @Test
+  public void testDataSourceConfigurationDataSourceWithPool() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource, true);
+    assertTrue(config.buildDatasource() instanceof PoolingDataSource);
   }
 
   @Test
@@ -262,41 +277,75 @@ public class JdbcIOTest implements Serializable {
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
     DatabaseTestHelper.createTable(dataSource, tableName);
     try {
-      ArrayList<KV<Integer, String>> data = new ArrayList<>();
-      for (int i = 0; i < rowsToAdd; i++) {
-        KV<Integer, String> kv = KV.of(i, "Test");
-        data.add(kv);
-      }
-      pipeline
-          .apply(Create.of(data))
-          .apply(
-              JdbcIO.<KV<Integer, String>>write()
-                  .withDataSourceConfiguration(
-                      JdbcIO.DataSourceConfiguration.create(
-                          "org.apache.derby.jdbc.ClientDriver",
-                          "jdbc:derby://localhost:" + port + "/target/beam"))
-                  .withStatement(String.format("insert into %s values(?, ?)", tableName))
-                  .withBatchSize(10L)
-                  .withPreparedStatementSetter(
-                      (element, statement) -> {
-                        statement.setInt(1, element.getKey());
-                        statement.setString(2, element.getValue());
-                      }));
+      ArrayList<KV<Integer, String>> data = getDataToWrite(rowsToAdd);
+      pipeline.apply(Create.of(data)).apply(getJdbcWrite(tableName));
 
       pipeline.run();
 
-      try (Connection connection = dataSource.getConnection()) {
-        try (Statement statement = connection.createStatement()) {
-          try (ResultSet resultSet = statement.executeQuery("select count(*) from " + tableName)) {
-            resultSet.next();
-            int count = resultSet.getInt(1);
-
-            Assert.assertEquals(EXPECTED_ROW_COUNT, count);
-          }
-        }
-      }
+      assertRowCount(tableName, EXPECTED_ROW_COUNT);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, tableName);
+    }
+  }
+
+  @Test
+  public void testWriteWithResultsAndWaitOn() throws Exception {
+    final long rowsToAdd = 1000L;
+
+    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    String secondTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_AFTER_WAIT");
+    DatabaseTestHelper.createTable(dataSource, firstTableName);
+    DatabaseTestHelper.createTable(dataSource, secondTableName);
+    try {
+      ArrayList<KV<Integer, String>> data = getDataToWrite(rowsToAdd);
+
+      PCollection<KV<Integer, String>> dataCollection = pipeline.apply(Create.of(data));
+      PCollection<Void> rowsWritten =
+          dataCollection.apply(getJdbcWrite(firstTableName).withResults());
+      dataCollection.apply(Wait.on(rowsWritten)).apply(getJdbcWrite(secondTableName));
+
+      pipeline.run();
+
+      assertRowCount(firstTableName, EXPECTED_ROW_COUNT);
+      assertRowCount(secondTableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, firstTableName);
+    }
+  }
+
+  private static JdbcIO.Write<KV<Integer, String>> getJdbcWrite(String tableName) {
+    return JdbcIO.<KV<Integer, String>>write()
+        .withDataSourceConfiguration(
+            JdbcIO.DataSourceConfiguration.create(
+                "org.apache.derby.jdbc.ClientDriver",
+                "jdbc:derby://localhost:" + port + "/target/beam"))
+        .withStatement(String.format("insert into %s values(?, ?)", tableName))
+        .withBatchSize(10L)
+        .withPreparedStatementSetter(
+            (element, statement) -> {
+              statement.setInt(1, element.getKey());
+              statement.setString(2, element.getValue());
+            });
+  }
+
+  private static ArrayList<KV<Integer, String>> getDataToWrite(long rowsToAdd) {
+    ArrayList<KV<Integer, String>> data = new ArrayList<>();
+    for (int i = 0; i < rowsToAdd; i++) {
+      KV<Integer, String> kv = KV.of(i, "Test");
+      data.add(kv);
+    }
+    return data;
+  }
+
+  private static void assertRowCount(String tableName, int expectedRowCount) throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        try (ResultSet resultSet = statement.executeQuery("select count(*) from " + tableName)) {
+          resultSet.next();
+          int count = resultSet.getInt(1);
+          Assert.assertEquals(expectedRowCount, count);
+        }
+      }
     }
   }
 
@@ -359,17 +408,7 @@ public class JdbcIOTest implements Serializable {
     // we verify the the backoff has been called thanks to the log message
     expectedLogs.verifyWarn("Deadlock detected, retrying");
 
-    try (Connection readConnection = dataSource.getConnection()) {
-      try (Statement statement = readConnection.createStatement()) {
-        try (ResultSet resultSet = statement.executeQuery("select count(*) from " + tableName)) {
-          resultSet.next();
-          int count = resultSet.getInt(1);
-          // here we have the record inserted by the first transaction (by hand), and a second one
-          // inserted by the pipeline
-          Assert.assertEquals(2, count);
-        }
-      }
-    }
+    assertRowCount(tableName, 2);
   }
 
   @After

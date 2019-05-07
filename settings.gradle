@@ -20,6 +20,8 @@ rootProject.name = "beam"
 
 include ":release"
 
+include "beam-examples-kotlin"
+project(":beam-examples-kotlin").dir = file("examples/kotlin")
 include "beam-examples-java"
 project(":beam-examples-java").dir = file("examples/java")
 include "beam-model-fn-execution"
@@ -79,8 +81,12 @@ include "beam-runners-reference-job-server"
 project(":beam-runners-reference-job-server").dir = file("runners/reference/job-server")
 include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
+include "beam-runners-spark-job-server"
+project(":beam-runners-spark-job-server").dir = file("runners/spark/job-server")
 include "beam-runners-samza"
 project(":beam-runners-samza").dir = file("runners/samza")
+include "beam-runners-samza-job-server"
+project(":beam-runners-samza-job-server").dir = file("runners/samza/job-server")
 include "beam-sdks-go"
 project(":beam-sdks-go").dir = file("sdks/go")
 include "beam-sdks-go-container"
@@ -117,6 +123,10 @@ include "beam-sdks-java-extensions-sql-jdbc"
 project(":beam-sdks-java-extensions-sql-jdbc").dir = file("sdks/java/extensions/sql/jdbc")
 include "beam-sdks-java-extensions-sql-shell"
 project(":beam-sdks-java-extensions-sql-shell").dir = file("sdks/java/extensions/sql/shell")
+include "beam-sdks-java-extensions-sql-hcatalog"
+project(":beam-sdks-java-extensions-sql-hcatalog").dir = file("sdks/java/extensions/sql/hcatalog")
+include "beam-sdks-java-extensions-sql-datacatalog"
+project(":beam-sdks-java-extensions-sql-datacatalog").dir = file("sdks/java/extensions/sql/datacatalog")
 include "beam-sdks-java-fn-execution"
 project(":beam-sdks-java-fn-execution").dir = file("sdks/java/fn-execution")
 include "beam-sdks-java-harness"
@@ -149,8 +159,6 @@ include "beam-sdks-java-io-hadoop-common"
 project(":beam-sdks-java-io-hadoop-common").dir = file("sdks/java/io/hadoop-common")
 include "beam-sdks-java-io-hadoop-file-system"
 project(":beam-sdks-java-io-hadoop-file-system").dir = file("sdks/java/io/hadoop-file-system")
-include "beam-sdks-java-io-hadoop-input-format"
-project(":beam-sdks-java-io-hadoop-input-format").dir = file("sdks/java/io/hadoop-input-format")
 include "beam-sdks-java-io-hadoop-format"
 project(":beam-sdks-java-io-hadoop-format").dir = file("sdks/java/io/hadoop-format")
 include "beam-sdks-java-io-hbase"
@@ -203,10 +211,20 @@ include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
 include "beam-sdks-python-test-suites-dataflow"
 project(":beam-sdks-python-test-suites-dataflow").dir = file("sdks/python/test-suites/dataflow")
-include "beam-sdks-python-test-suites-dataflow-py3"
-project(":beam-sdks-python-test-suites-dataflow-py3").dir = file("sdks/python/test-suites/dataflow/py3")
-include "beam-sdks-python-test-suites-direct-py3"
-project(":beam-sdks-python-test-suites-direct-py3").dir = file("sdks/python/test-suites/direct/py3")
+include "beam-sdks-python-test-suites-dataflow-py35"
+project(":beam-sdks-python-test-suites-dataflow-py35").dir = file("sdks/python/test-suites/dataflow/py35")
+include "beam-sdks-python-test-suites-dataflow-py36"
+project(":beam-sdks-python-test-suites-dataflow-py36").dir = file("sdks/python/test-suites/dataflow/py36")
+include "beam-sdks-python-test-suites-direct-py35"
+project(":beam-sdks-python-test-suites-direct-py35").dir = file("sdks/python/test-suites/direct/py35")
+include "beam-sdks-python-test-suites-direct-py36"
+project(":beam-sdks-python-test-suites-direct-py36").dir = file("sdks/python/test-suites/direct/py36")
+include "beam-sdks-python-test-suites-tox-py35"
+project(":beam-sdks-python-test-suites-tox-py35").dir = file("sdks/python/test-suites/tox/py35")
+include "beam-sdks-python-test-suites-tox-py36"
+project(":beam-sdks-python-test-suites-tox-py36").dir = file("sdks/python/test-suites/tox/py36")
+include "beam-sdks-python-test-suites-tox-py37"
+project(":beam-sdks-python-test-suites-tox-py37").dir = file("sdks/python/test-suites/tox/py37")
 include "beam-sdks-python-load-tests"
 project(":beam-sdks-python-load-tests").dir = file("sdks/python/apache_beam/testing/load_tests")
 include "beam-vendor-grpc-1_13_1"

@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableFindbugs: false,
+  enableSpotbugs: false,
   // Override the default shading configuration to exclude everything since
   // Bigtable needs to expose Guava types.
   shadowClosure: {
@@ -100,6 +100,7 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/BigQueryToTableIT.class'

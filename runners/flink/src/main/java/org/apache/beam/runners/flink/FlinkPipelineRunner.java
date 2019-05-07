@@ -17,24 +17,19 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 
-import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,27 +38,19 @@ import org.slf4j.LoggerFactory;
 public class FlinkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);
 
-  private final String id;
-  private final String retrievalToken;
   private final FlinkPipelineOptions pipelineOptions;
   private final String confDir;
   private final List<String> filesToStage;
 
   public FlinkPipelineRunner(
-      String id,
-      String retrievalToken,
-      FlinkPipelineOptions pipelineOptions,
-      @Nullable String confDir,
-      List<String> filesToStage) {
-    this.id = id;
-    this.retrievalToken = retrievalToken;
+      FlinkPipelineOptions pipelineOptions, @Nullable String confDir, List<String> filesToStage) {
     this.pipelineOptions = pipelineOptions;
     this.confDir = confDir;
     this.filesToStage = filesToStage;
   }
 
   @Override
-  public PipelineResult run(final Pipeline pipeline) throws Exception {
+  public PipelineResult run(final Pipeline pipeline, JobInfo jobInfo) throws Exception {
     MetricsEnvironment.setMetricsSupported(false);
 
     FlinkPortablePipelineTranslator<?> translator;
@@ -73,22 +60,17 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     } else {
       translator = new FlinkStreamingPortablePipelineTranslator();
     }
-    return runPipelineWithTranslator(pipeline, translator);
+    return runPipelineWithTranslator(pipeline, jobInfo, translator);
   }
 
   private <T extends FlinkPortablePipelineTranslator.TranslationContext>
       PipelineResult runPipelineWithTranslator(
-          final Pipeline pipeline, FlinkPortablePipelineTranslator<T> translator) throws Exception {
+          final Pipeline pipeline, JobInfo jobInfo, FlinkPortablePipelineTranslator<T> translator)
+          throws Exception {
     LOG.info("Translating pipeline to Flink program.");
 
     // Don't let the fuser fuse any subcomponents of native transforms.
-    // TODO(BEAM-6327): Remove the need for this.
-    RunnerApi.Pipeline trimmedPipeline =
-        makeKnownUrnsPrimitives(
-            pipeline,
-            Sets.difference(
-                translator.knownUrns(),
-                ImmutableSet.of(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)));
+    Pipeline trimmedPipeline = PipelineTrimmer.trim(pipeline, translator.knownUrns());
 
     // Fused pipeline proto.
     // TODO: Consider supporting partially-fused graphs.
@@ -97,12 +79,6 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
                 .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
             ? trimmedPipeline
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
-    JobInfo jobInfo =
-        JobInfo.create(
-            id,
-            pipelineOptions.getJobName(),
-            retrievalToken,
-            PipelineOptionsTranslation.toProto(pipelineOptions));
 
     FlinkPortablePipelineTranslator.Executor executor =
         translator.translate(
@@ -111,42 +87,5 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     final JobExecutionResult result = executor.execute(pipelineOptions.getJobName());
 
     return FlinkRunner.createPipelineResult(result, pipelineOptions);
-  }
-
-  private RunnerApi.Pipeline makeKnownUrnsPrimitives(
-      RunnerApi.Pipeline pipeline, Set<String> knownUrns) {
-    RunnerApi.Pipeline.Builder trimmedPipeline = pipeline.toBuilder();
-    for (String ptransformId : pipeline.getComponents().getTransformsMap().keySet()) {
-      if (knownUrns.contains(
-          pipeline.getComponents().getTransformsOrThrow(ptransformId).getSpec().getUrn())) {
-        LOG.debug("Removing descendants of known PTransform {}" + ptransformId);
-        removeDescendants(trimmedPipeline, ptransformId);
-      }
-    }
-    return trimmedPipeline.build();
-  }
-
-  private void removeDescendants(RunnerApi.Pipeline.Builder pipeline, String parentId) {
-    RunnerApi.PTransform parentProto =
-        pipeline.getComponents().getTransformsOrDefault(parentId, null);
-    if (parentProto != null) {
-      for (String childId : parentProto.getSubtransformsList()) {
-        removeDescendants(pipeline, childId);
-        pipeline.getComponentsBuilder().removeTransforms(childId);
-      }
-      pipeline
-          .getComponentsBuilder()
-          .putTransforms(parentId, parentProto.toBuilder().clearSubtransforms().build());
-    }
-  }
-
-  /** Indicates whether the given pipeline has any unbounded PCollections. */
-  private static boolean hasUnboundedPCollections(RunnerApi.Pipeline pipeline) {
-    checkNotNull(pipeline);
-    Collection<RunnerApi.PCollection> pCollecctions =
-        pipeline.getComponents().getPcollectionsMap().values();
-    // Assume that all PCollections are consumed at some point in the pipeline.
-    return pCollecctions.stream()
-        .anyMatch(pc -> pc.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED);
   }
 }

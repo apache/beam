@@ -661,6 +661,13 @@ public class TextIOWriteTest {
             .getPerDestinationOutputFilenames()
             .apply(Values.create());
 
+    PAssert.that(
+            filenames
+                .apply(FileIO.matchAll())
+                .apply(FileIO.readMatches())
+                .apply(TextIO.readFiles()))
+        .containsInAnyOrder("0", "1", "2");
+
     PAssert.that(filenames.apply(TextIO.readAll())).containsInAnyOrder("0", "1", "2");
 
     p.run();
@@ -670,17 +677,35 @@ public class TextIOWriteTest {
   @Category(NeedsRunner.class)
   public void testWriteViaSink() throws Exception {
     List<String> data = ImmutableList.of("a", "b", "c", "d", "e", "f");
+
     PAssert.that(
-            p.apply(Create.of(data))
+            p.apply("Create Data ReadFiles", Create.of(data))
                 .apply(
+                    "Write ReadFiles",
                     FileIO.<String>write()
                         .to(tempFolder.getRoot().toString())
                         .withSuffix(".txt")
                         .via(TextIO.sink())
                         .withIgnoreWindowing())
                 .getPerDestinationOutputFilenames()
-                .apply(Values.create())
-                .apply(TextIO.readAll()))
+                .apply("Extract Values ReadFiles", Values.create())
+                .apply("Match All", FileIO.matchAll())
+                .apply("Read Matches", FileIO.readMatches())
+                .apply("Read Files", TextIO.readFiles()))
+        .containsInAnyOrder(data);
+
+    PAssert.that(
+            p.apply("Create Data ReadAll", Create.of(data))
+                .apply(
+                    "Write ReadAll",
+                    FileIO.<String>write()
+                        .to(tempFolder.getRoot().toString())
+                        .withSuffix(".txt")
+                        .via(TextIO.sink())
+                        .withIgnoreWindowing())
+                .getPerDestinationOutputFilenames()
+                .apply("Extract Values ReadAll", Values.create())
+                .apply("Read All", TextIO.readAll()))
         .containsInAnyOrder(data);
 
     p.run();

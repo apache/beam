@@ -22,22 +22,18 @@ applyJavaNature(exportJavadoc: false)
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
-    shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-    shadow library.java.guava
-    testCompile library.java.mockito_core
-    testCompile project(path: ":beam-sdks-java-extensions-kryo")
-    testCompile library.java.slf4j_api
-    testCompile library.java.hamcrest_core
-    testCompile library.java.hamcrest_library
-    testCompile library.java.mockito_core
-    testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-    testCompile project(':beam-runners-direct-java')
-}
-
-tasks.withType(JavaCompile) {
-    options.compilerArgs += ['-Xlint:deprecation']
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.guava
+  testCompile library.java.mockito_core
+  testCompile project(path: ":beam-sdks-java-extensions-kryo")
+  testCompile library.java.slf4j_api
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }
 
 test {
-    jvmArgs '-Dsun.io.serialization.extendedDebugInfo=true'
+  jvmArgs '-Dsun.io.serialization.extendedDebugInfo=true'
 }

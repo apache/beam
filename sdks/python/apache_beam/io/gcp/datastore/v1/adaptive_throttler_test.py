@@ -18,8 +18,6 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import os
-import sys
 import unittest
 from builtins import range
 
@@ -28,10 +26,6 @@ from mock import patch
 from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-4543')
 class AdaptiveThrottlerTest(unittest.TestCase):
 
   START_TIME = 1500000000000

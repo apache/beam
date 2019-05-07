@@ -701,7 +701,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "LOWER", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "POSITION", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "POSITION", kind = "POSITION")
   @SqlOperatorTest(name = "OVERLAY", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "TRIM", kind = "TRIM")

@@ -32,6 +32,7 @@ import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.DynamicSourceSplit;
 import com.google.api.services.dataflow.model.ReportedParallelism;
+import com.google.api.services.dataflow.model.SourceMetadata;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.api.services.dataflow.model.SourceSplitOptions;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -133,9 +135,7 @@ public class WorkerCustomSources {
 
   /**
    * Version of {@link CustomSources#serializeToCloudSource(Source, PipelineOptions)} intended for
-   * use on splits of {@link BoundedSource}: the backend only needs the metadata for top-level
-   * sources, so here we bypass computing it (esp. the costly {@link
-   * BoundedSource#getEstimatedSizeBytes(PipelineOptions)}).
+   * use on splits of {@link BoundedSource}.
    */
   private static com.google.api.services.dataflow.model.Source serializeSplitToCloudSource(
       BoundedSource<?> source) throws Exception {
@@ -144,6 +144,14 @@ public class WorkerCustomSources {
     cloudSource.setSpec(CloudObject.forClass(CustomSources.class));
     addString(
         cloudSource.getSpec(), SERIALIZED_SOURCE, encodeBase64String(serializeToByteArray(source)));
+    SourceMetadata metadata = new SourceMetadata();
+    // Size estimation is best effort so we continue even if it fails here.
+    try {
+      metadata.setEstimatedSizeBytes(source.getEstimatedSizeBytes(PipelineOptionsFactory.create()));
+    } catch (Exception e) {
+      LOG.warn("Size estimation of the source failed: " + source, e);
+    }
+    cloudSource.setMetadata(metadata);
     return cloudSource;
   }
 

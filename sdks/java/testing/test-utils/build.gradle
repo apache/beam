@@ -31,5 +31,5 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadowTest")
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

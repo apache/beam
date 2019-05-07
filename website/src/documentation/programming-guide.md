@@ -339,7 +339,7 @@ The following example code shows how to create a `PCollection` from an in-memory
 ```java
 public static void main(String[] args) {
     // Create a Java Collection, in this case a List of Strings.
-    static final List<String> LINES = Arrays.asList(
+    final List<String> LINES = Arrays.asList(
       "To be, or not to be: that is the question: ",
       "Whether 'tis nobler in the mind to suffer ",
       "The slings and arrows of outrageous fortune, ",
@@ -351,7 +351,7 @@ public static void main(String[] args) {
     Pipeline p = Pipeline.create(options);
 
     // Apply Create, passing the list and the coder, to create the PCollection.
-    p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of())
+    p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of());
 }
 ```
 ```py
@@ -2340,12 +2340,12 @@ for more information.
 #### 7.3.1. Fixed-time windows {#using-fixed-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
-into fixed windows, each one minute in length:
+into fixed windows, each 60 seconds in length:
 
 ```java
     PCollection<String> items = ...;
     PCollection<String> fixedWindowedItems = items.apply(
-        Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+        Window.<String>into(FixedWindows.of(Duration.standardSeconds(60))));
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:setting_fixed_windows
@@ -2372,12 +2372,12 @@ begins every five seconds:
 
 The following example code shows how to apply `Window` to divide a `PCollection`
 into session windows, where each session must be separated by a time gap of at
-least 10 minutes:
+least 10 minutes (600 seconds):
 
 ```java
     PCollection<String> items = ...;
     PCollection<String> sessionWindowedItems = items.apply(
-        Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(10))));
+        Window.<String>into(Sessions.withGapDuration(Duration.standardSeconds(600))));
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:setting_session_windows

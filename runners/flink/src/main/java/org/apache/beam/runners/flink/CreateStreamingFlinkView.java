@@ -138,7 +138,10 @@ class CreateStreamingFlinkView<ElemT, ViewT>
           PCollection<ElemT>,
           PCollection<ElemT>,
           PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
-    public Factory() {}
+
+    static final Factory INSTANCE = new Factory();
+
+    private Factory() {}
 
     @Override
     public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(

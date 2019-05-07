@@ -10,6 +10,7 @@
 **/.gogradle/**/*
 **/gogradle.lock
 **/build/**/*
+.test-infra/**/vendor/**/*
 sdks/**/vendor/**/*
 runners/**/vendor/**/*
 **/.gradletasknamecache
@@ -41,6 +42,7 @@ sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
 sdks/python/apache_beam/portability/api/*pb2*.*
+sdks/python/apache_beam/portability/api/*.yaml
 sdks/python/nosetests.xml
 sdks/python/postcommit_requirements.txt
 

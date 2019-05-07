@@ -73,26 +73,40 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     if platform.system() != 'Windows':
       signal.alarm(0)
 
+  @classmethod
+  def _pick_unused_port(cls):
+    return cls._pick_unused_ports(num_ports=1)[0]
+
   @staticmethod
-  def _pick_unused_port():
+  def _pick_unused_ports(num_ports):
     """Not perfect, but we have to provide a port to the subprocess."""
     # TODO(robertwb): Consider letting the subprocess communicate a choice of
     # port back.
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 0))
-    _, port = s.getsockname()
-    s.close()
-    return port
+    sockets = []
+    ports = []
+    for _ in range(0, num_ports):
+      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      sockets.append(s)
+      s.bind(('localhost', 0))
+      _, port = s.getsockname()
+      ports.append(port)
+    try:
+      return ports
+    finally:
+      for s in sockets:
+        s.close()
 
   @classmethod
   def _start_local_runner_subprocess_job_service(cls):
     cls._maybe_kill_subprocess()
     # TODO(robertwb): Consider letting the subprocess pick one and
     # communicate it back...
-    port = cls._pick_unused_port()
-    logging.info('Starting server on port %d.', port)
-    cls._subprocess = subprocess.Popen(cls._subprocess_command(port))
-    address = 'localhost:%d' % port
+    # pylint: disable=unbalanced-tuple-unpacking
+    job_port, expansion_port = cls._pick_unused_ports(num_ports=2)
+    logging.info('Starting server on port %d.', job_port)
+    cls._subprocess = subprocess.Popen(
+        cls._subprocess_command(job_port, expansion_port))
+    address = 'localhost:%d' % job_port
     job_service = beam_job_api_pb2_grpc.JobServiceStub(
         GRPCChannelFactory.insecure_channel(address))
     logging.info('Waiting for server to be ready...')
@@ -202,11 +216,11 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
     return options
 
   @classmethod
-  def _subprocess_command(cls, port):
+  def _subprocess_command(cls, job_port, _):
     return [
         sys.executable,
         '-m', 'apache_beam.runners.portability.local_job_service_main',
-        '-p', str(port),
+        '-p', str(job_port),
     ]
 
 
@@ -216,7 +230,6 @@ class PortableRunnerInternalTest(unittest.TestCase):
     self.assertEqual(
         PortableRunner._create_environment(PipelineOptions.from_dictionary({})),
         beam_runner_api_pb2.Environment(
-            url=docker_image,
             urn=common_urns.environments.DOCKER.urn,
             payload=beam_runner_api_pb2.DockerPayload(
                 container_image=docker_image
@@ -229,7 +242,6 @@ class PortableRunnerInternalTest(unittest.TestCase):
             'environment_type': 'DOCKER',
             'environment_config': docker_image,
         })), beam_runner_api_pb2.Environment(
-            url=docker_image,
             urn=common_urns.environments.DOCKER.urn,
             payload=beam_runner_api_pb2.DockerPayload(
                 container_image=docker_image

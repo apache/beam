@@ -51,6 +51,7 @@ job('beam_PerformanceTests_Python'){
       benchmarks               : 'beam_integration_benchmark',
       bigquery_table           : 'beam_performance.wordcount_py_pkb_results',
       beam_it_class            : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
+      beam_it_module           : 'sdks/python',
       beam_prebuilt            : 'true',  // skip beam prebuild
       beam_python_sdk_location : 'build/apache-beam.tar.gz',
       beam_runner              : 'TestDataflowRunner',

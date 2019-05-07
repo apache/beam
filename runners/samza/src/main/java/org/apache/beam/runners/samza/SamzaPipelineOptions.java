@@ -17,12 +17,15 @@
  */
 package org.apache.beam.runners.samza;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.samza.config.ConfigFactory;
 import org.apache.samza.config.factories.PropertiesConfigFactory;
+import org.apache.samza.metrics.MetricsReporter;
 
 /** Options which can be used to configure a Samza PortablePipelineRunner. */
 public interface SamzaPipelineOptions extends PipelineOptions {
@@ -52,6 +55,14 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   String getJobInstance();
 
   void setJobInstance(String instance);
+
+  @Description(
+      "Samza application execution environment."
+          + "See {@link org.apache.beam.runners.samza.SamzaExecutionEnvironment} for detailed environment descriptions.")
+  @Default.Enum("LOCAL")
+  SamzaExecutionEnvironment getSamzaExecutionEnvironment();
+
+  void setSamzaExecutionEnvironment(SamzaExecutionEnvironment environment);
 
   @Description("The interval to check for watermarks in milliseconds.")
   @Default.Long(1000)
@@ -88,4 +99,16 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   Boolean getStateDurable();
 
   void setStateDurable(Boolean stateDurable);
+
+  @Description("The maximum number of event-time timers buffered in memory for a transform.")
+  @Default.Integer(50000)
+  int getTimerBufferSize();
+
+  void setTimerBufferSize(int timerBufferSize);
+
+  @JsonIgnore
+  @Description("The metrics reporters that will be used to emit metrics.")
+  List<MetricsReporter> getMetricsReporters();
+
+  void setMetricsReporters(List<MetricsReporter> reporters);
 }

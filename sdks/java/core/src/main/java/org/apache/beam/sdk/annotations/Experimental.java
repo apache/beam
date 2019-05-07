@@ -106,5 +106,8 @@ public @interface Experimental {
 
     /** PCollection Schema support in Beam. */
     SCHEMAS,
+
+    /** Experimental APIs related to exception handling in PTransforms. */
+    WITH_EXCEPTIONS,
   }
 }

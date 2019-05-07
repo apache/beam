@@ -15,7 +15,13 @@
 # limitations under the License.
 #
 
-"""A connector for reading from and writing to Google Cloud Datastore"""
+"""
+A connector for reading from and writing to Google Cloud Datastore.
+
+Please avoid using this module for new pipelines since
+``apache_beam.io.gcp.datastore.v1new.datastoreio`` will replace it in the
+next Beam major release.
+"""
 from __future__ import absolute_import
 from __future__ import division
 
@@ -23,7 +29,6 @@ import logging
 import sys
 import time
 import warnings
-from builtins import object
 from builtins import round
 
 from apache_beam.io.gcp.datastore.v1 import helper
@@ -45,6 +50,10 @@ from apache_beam.transforms.util import Values
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from googledatastore import helper as datastore_helper
+  logging.warning(
+      'Using deprecated Datastore client.\n'
+      'This client will be removed in Beam 3.0 (next Beam major release).\n'
+      'Please migrate to apache_beam.io.gcp.datastore.v1new.datastoreio.')
 except ImportError:
   if sys.version_info[0] == 3:
     warnings.warn('Datastore IO will support Python 3 after replacing '
@@ -327,16 +336,6 @@ class _Mutate(PTransform):
   supported, as the commits are retried when failures occur.
   """
 
-  _WRITE_BATCH_INITIAL_SIZE = 200
-  # Max allowed Datastore writes per batch, and max bytes per batch.
-  # Note that the max bytes per batch set here is lower than the 10MB limit
-  # actually enforced by the API, to leave space for the CommitRequest wrapper
-  # around the mutations.
-  _WRITE_BATCH_MAX_SIZE = 500
-  _WRITE_BATCH_MAX_BYTES_SIZE = 9000000
-  _WRITE_BATCH_MIN_SIZE = 10
-  _WRITE_BATCH_TARGET_LATENCY_MS = 5000
-
   def __init__(self, project, mutation_fn):
     """Initializes a Mutate transform.
 
@@ -359,40 +358,11 @@ class _Mutate(PTransform):
     return {'project': self._project,
             'mutation_fn': self._mutation_fn.__class__.__name__}
 
-  class _DynamicBatchSizer(object):
-    """Determines request sizes for future Datastore RPCS."""
-    def __init__(self):
-      self._commit_time_per_entity_ms = util.MovingSum(window_ms=120000,
-                                                       bucket_ms=10000)
-
-    def get_batch_size(self, now):
-      """Returns the recommended size for datastore RPCs at this time."""
-      if not self._commit_time_per_entity_ms.has_data(now):
-        return _Mutate._WRITE_BATCH_INITIAL_SIZE
-
-      recent_mean_latency_ms = (self._commit_time_per_entity_ms.sum(now)
-                                // self._commit_time_per_entity_ms.count(now))
-      return max(_Mutate._WRITE_BATCH_MIN_SIZE,
-                 min(_Mutate._WRITE_BATCH_MAX_SIZE,
-                     _Mutate._WRITE_BATCH_TARGET_LATENCY_MS
-                     // max(recent_mean_latency_ms, 1)
-                    ))
-
-    def report_latency(self, now, latency_ms, num_mutations):
-      """Reports the latency of an RPC to Datastore.
-
-      Args:
-        now: double, completion time of the RPC as seconds since the epoch.
-        latency_ms: double, the observed latency in milliseconds for this RPC.
-        num_mutations: int, number of mutations contained in the RPC.
-      """
-      self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)
-
   class DatastoreWriteFn(DoFn):
     """A ``DoFn`` that write mutations to Datastore.
 
     Mutations are written in batches, where the maximum batch size is
-    `_Mutate._WRITE_BATCH_SIZE`.
+    `util.WRITE_BATCH_SIZE`.
 
     Commits are non-transactional. If a commit fails because of a conflict over
     an entity group, the commit will be retried. This means that the mutation
@@ -430,14 +400,14 @@ class _Mutate(PTransform):
       if self._fixed_batch_size:
         self._target_batch_size = self._fixed_batch_size
       else:
-        self._batch_sizer = _Mutate._DynamicBatchSizer()
+        self._batch_sizer = util.DynamicBatchSizer()
         self._target_batch_size = self._batch_sizer.get_batch_size(
             time.time()*1000)
 
     def process(self, element):
       size = element.ByteSize()
       if (self._mutations and
-          size + self._mutations_size > _Mutate._WRITE_BATCH_MAX_BYTES_SIZE):
+          size + self._mutations_size > util.WRITE_BATCH_MAX_BYTES_SIZE):
         self._flush_batch()
       self._mutations.append(element)
       self._mutations_size += size
@@ -453,7 +423,7 @@ class _Mutate(PTransform):
       _, latency_ms = helper.write_mutations(
           self._datastore, self._project, self._mutations,
           self._throttler, self._update_rpc_stats,
-          throttle_delay=_Mutate._WRITE_BATCH_TARGET_LATENCY_MS//1000)
+          throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS//1000)
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._mutations), latency_ms)
 
@@ -514,7 +484,7 @@ class DeleteFromDatastore(_Mutate):
   def to_delete_mutation(key):
     if not helper.is_key_valid(key):
       raise ValueError('Keys to be deleted from the Cloud Datastore must be '
-                       'complete:\n%s", key')
+                       'complete:\n%s', key)
     mutation = datastore_pb2.Mutation()
     mutation.delete.CopyFrom(key)
     return mutation
