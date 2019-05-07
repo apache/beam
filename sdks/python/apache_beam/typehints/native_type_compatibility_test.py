@@ -37,10 +37,10 @@ class _TestClass(object):
   pass
 
 
-@unittest.skipIf(sys.version_info >= (3, 7, 0) and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3.7. '
-                 'See BEAM-6985')
+#@unittest.skipIf(sys.version_info >= (3, 7, 0) and
+#                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+#                 'This test still needs to be fixed on Python 3.7. '
+#                 'See BEAM-6985')
 class NativeTypeCompatibilityTest(unittest.TestCase):
 
   def test_convert_to_beam_type(self):
@@ -103,6 +103,31 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         native_type_compatibility.convert_to_beam_types(typing_types),
         beam_types)
 
+  def test_is_sub_class(self):
+    self.assertTrue(native_type_compatibility._safe_issubclass(\
+      parent=typing.Dict[bytes, int],\
+      derived=typing.Dict))
+    self.assertFalse(native_type_compatibility._safe_issubclass(\
+      parent=typing.Dict[bytes, int],\
+      derived=typing.List))
+    self.assertTrue(native_type_compatibility._safe_issubclass(\
+      parent=typing.List[bytes],\
+      derived=typing.List))
+    self.assertFalse(native_type_compatibility._safe_issubclass(\
+      parent=typing.Dict[bytes, int],\
+      derived=typing.List))
+    self.assertTrue(native_type_compatibility._safe_issubclass(\
+      parent=typing.Set[int],\
+      derived=typing.Set))
+    self.assertFalse(native_type_compatibility._safe_issubclass(\
+      parent=typing.Set[float],\
+      derived=typing.List))    
+    self.assertFalse(native_type_compatibility._safe_issubclass(\
+      parent=typing.Tuple[int],\
+      derived=typing.Tuple))
+    self.assertFalse(native_type_compatibility._safe_issubclass(\
+      parent=typing.Tuple[bytes],\
+      derived=typing.List))
 
 if __name__ == '__main__':
   unittest.main()
