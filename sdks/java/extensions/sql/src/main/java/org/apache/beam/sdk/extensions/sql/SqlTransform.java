@@ -64,7 +64,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * PCollection<Row> outputTableA = inputTableA.apply(
  *    SqlTransform
  *        .query(sql1)
- *        .registerUdf("MY_FUNC", MY_FUNC.class, "FUNC");
+ *        .addUdf("MY_FUNC", MY_FUNC.class, "FUNC");
  *
  * //run a JOIN with one table from TextIO, and one table from another query
  * PCollection<Row> outputTableB =
@@ -99,19 +99,20 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   @Override
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnvBuilder sqlEnvBuilder =
-        BeamSqlEnv.builder()
-            .setInitializeTableProvider(
-                new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input)));
+        BeamSqlEnv.builder(new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input)));
+
     tableProviderMap().forEach(sqlEnvBuilder::addSchema);
+
     if (defaultTableProvider() != null) {
       sqlEnvBuilder.setCurrentSchema(defaultTableProvider());
     }
 
     // TODO: validate duplicate functions.
-    sqlEnvBuilder.loadBeamBuiltinFunctions();
+    sqlEnvBuilder.autoLoadBuiltinFunctions();
     registerFunctions(sqlEnvBuilder);
+
     if (autoUdfUdafLoad()) {
-      sqlEnvBuilder.loadUdfUdafFromProvider();
+      sqlEnvBuilder.autoLoadUserDefinedFunctions();
     }
 
     sqlEnvBuilder.setQueryPlannerClassName(
@@ -142,10 +143,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   private void registerFunctions(BeamSqlEnvBuilder sqlEnvBuilder) {
     udfDefinitions()
-        .forEach(udf -> sqlEnvBuilder.registerUdf(udf.udfName(), udf.clazz(), udf.methodName()));
+        .forEach(udf -> sqlEnvBuilder.addUdf(udf.udfName(), udf.clazz(), udf.methodName()));
 
-    udafDefinitions()
-        .forEach(udaf -> sqlEnvBuilder.registerUdaf(udaf.udafName(), udaf.combineFn()));
+    udafDefinitions().forEach(udaf -> sqlEnvBuilder.addUdaf(udaf.udafName(), udaf.combineFn()));
   }
 
   /**
