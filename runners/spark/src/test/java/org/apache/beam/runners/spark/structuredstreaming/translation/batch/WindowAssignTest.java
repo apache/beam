@@ -27,13 +27,11 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,20 +48,19 @@ public class WindowAssignTest implements Serializable {
     p = Pipeline.create(options);
   }
 
-  @Ignore
   @Test
   public void testWindowAssign() {
-    PCollection<KV<Integer, Integer>> input =
+    PCollection<Integer> input =
         p.apply(
                 Create.timestamped(
-                    TimestampedValue.of(KV.of(1, 1), new Instant(1)),
-                    TimestampedValue.of(KV.of(1, 2), new Instant(2)),
-                    TimestampedValue.of(KV.of(1, 3), new Instant(3)),
-                    TimestampedValue.of(KV.of(1, 4), new Instant(10)),
-                    TimestampedValue.of(KV.of(1, 5), new Instant(11))))
+                    TimestampedValue.of(1, new Instant(1)),
+                    TimestampedValue.of(2, new Instant(2)),
+                    TimestampedValue.of(3, new Instant(3)),
+                    TimestampedValue.of(4, new Instant(10)),
+                    TimestampedValue.of(5, new Instant(11))))
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-            .apply(Sum.integersPerKey());
-    PAssert.that(input).containsInAnyOrder(KV.of(1, 6), KV.of(1, 9));
+            .apply(Sum.integersGlobally().withoutDefaults());
+    PAssert.that(input).containsInAnyOrder(6, 9);
     p.run();
   }
 }
