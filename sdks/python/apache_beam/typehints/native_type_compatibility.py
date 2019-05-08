@@ -84,8 +84,8 @@ def _safe_issubclass(derived, parent):
     issubclass(derived, parent), or False if a TypeError was raised.
   """
   try:
-    if hasattr(typing, '_GenericAlias') and \
-      (type(derived) == typing._GenericAlias):
+    if (hasattr(typing, '_GenericAlias') and
+        (type(derived) == typing._GenericAlias)):
       # Python 3.7+
       out = issubclass(derived.__origin__, parent.__origin__)
     else:
