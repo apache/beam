@@ -40,6 +40,7 @@ import sys
 from past.builtins import unicode
 
 from apache_beam.coders import coders
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.tools import utils
 from apache_beam.transforms import window
 from apache_beam.utils import windowed_value
@@ -131,6 +132,23 @@ def large_iterable():
     yield k
 
 
+def random_message_with_map(size):
+  message = test_message.MessageWithMap()
+  keys = list_int(size)
+  random.shuffle(keys)
+  for key in keys:
+    message.field1[str(key)].field1 = small_string()
+  return message
+
+
+def small_message_with_map():
+  return random_message_with_map(5)
+
+
+def large_message_with_map():
+  return random_message_with_map(20)
+
+
 def globally_windowed_value():
   return windowed_value.WindowedValue(
       value=small_int(),
@@ -198,6 +216,18 @@ def run_coder_benchmarks(
       coder_benchmark_factory(
           coders.FastPrimitivesCoder(),
           large_dict),
+      coder_benchmark_factory(
+          coders.ProtoCoder(test_message.MessageWithMap),
+          small_message_with_map),
+      coder_benchmark_factory(
+          coders.ProtoCoder(test_message.MessageWithMap),
+          large_message_with_map),
+      coder_benchmark_factory(
+          coders.DeterministicProtoCoder(test_message.MessageWithMap),
+          small_message_with_map),
+      coder_benchmark_factory(
+          coders.DeterministicProtoCoder(test_message.MessageWithMap),
+          large_message_with_map),
       coder_benchmark_factory(
           coders.WindowedValueCoder(coders.FastPrimitivesCoder()),
           wv_with_one_window),
