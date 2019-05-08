@@ -25,8 +25,12 @@ import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 
-/** Abstracts IO operations for different data types with the granularity of a single record. */
+/** Abstracts IO operations sorted-bucket files. */
 public abstract class FileOperations<V> implements Serializable {
+
+  public abstract Reader<V> createReader();
+
+  public abstract Writer<V> createWriter();
 
   public Iterator<V> iterator(ResourceId file) throws Exception {
     Reader<V> reader = createReader();
@@ -34,29 +38,21 @@ public abstract class FileOperations<V> implements Serializable {
     return reader.iterator();
   }
 
-  public abstract Reader<V> createReader();
-
-  public abstract Writer<V> createWriter();
-
-  /**
-   * Reader for Collection type.
-   *
-   * @param <ValueT>
-   */
-  public abstract static class Reader<ValueT> implements Serializable {
+  /** Sorted-bucket file reader. */
+  public abstract static class Reader<V> implements Serializable {
     public abstract void prepareRead(ReadableByteChannel channel) throws Exception;
 
     /**
      * Reads next record in the collection. Should return null if EOF is reached. (@Todo: should we
      * have more clearly defined behavior for EOF?)
      */
-    public abstract ValueT read() throws Exception;
+    public abstract V read() throws Exception;
 
     public abstract void finishRead() throws Exception;
 
-    public Iterator<ValueT> iterator() throws Exception {
-      return new Iterator<ValueT>() {
-        private ValueT next = read();
+    Iterator<V> iterator() throws Exception {
+      return new Iterator<V>() {
+        private V next = read();
 
         @Override
         public boolean hasNext() {
@@ -64,11 +60,11 @@ public abstract class FileOperations<V> implements Serializable {
         }
 
         @Override
-        public ValueT next() {
+        public V next() {
           if (next == null) {
             throw new NoSuchElementException();
           }
-          ValueT result = next;
+          V result = next;
           try {
             next = read();
             if (next == null) {
@@ -83,17 +79,13 @@ public abstract class FileOperations<V> implements Serializable {
     }
   }
 
-  /**
-   * Writer.
-   *
-   * @param <ValueT>
-   */
-  public abstract static class Writer<ValueT> implements Serializable {
+  /** Sorted-bucket file writer. */
+  public abstract static class Writer<V> implements Serializable {
     public abstract String getMimeType();
 
     public abstract void prepareWrite(WritableByteChannel channel) throws Exception;
 
-    public abstract void write(ValueT value) throws Exception;
+    public abstract void write(V value) throws Exception;
 
     public abstract void finishWrite() throws Exception;
   }

@@ -29,7 +29,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import org.apache.beam.sdk.extensions.smb.FileOperations;
 
-/** Reader and writer for TableRow-encoded JSON records. */
+/** {@link FileOperations} implementation for BigQuery {@link TableRow} JSON records. */
 public class JsonFileOperations extends FileOperations<TableRow> {
   @Override
   public Reader<TableRow> createReader() {

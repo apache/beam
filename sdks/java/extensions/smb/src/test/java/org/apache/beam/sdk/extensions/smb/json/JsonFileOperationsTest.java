@@ -55,10 +55,7 @@ public class JsonFileOperationsTest {
     writer.finishWrite();
 
     final List<TableRow> actual = new ArrayList<>();
-    FileOperations.Reader<TableRow> reader = fileOperations.createReader();
-    reader.prepareRead(FileSystems.open(file));
-    reader.iterator().forEachRemaining(actual::add);
-    reader.finishRead();
+    fileOperations.iterator(file).forEachRemaining(actual::add);
 
     Assert.assertEquals(records, actual);
   }

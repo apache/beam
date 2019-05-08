@@ -74,10 +74,7 @@ public class AvroFileOperationsTest {
     writer.finishWrite();
 
     final List<GenericRecord> actual = new ArrayList<>();
-    final FileOperations.Reader<GenericRecord> reader = fileOperations.createReader();
-    reader.prepareRead(FileSystems.open(file));
-    reader.iterator().forEachRemaining(actual::add);
-    reader.finishRead();
+    fileOperations.iterator(file).forEachRemaining(actual::add);
 
     Assert.assertEquals(records, actual);
   }
@@ -107,10 +104,7 @@ public class AvroFileOperationsTest {
     writer.finishWrite();
 
     final List<AvroGeneratedUser> actual = new ArrayList<>();
-    final FileOperations.Reader<AvroGeneratedUser> reader = fileOperations.createReader();
-    reader.prepareRead(FileSystems.open(file));
-    reader.iterator().forEachRemaining(actual::add);
-    reader.finishRead();
+    fileOperations.iterator(file).forEachRemaining(actual::add);
 
     Assert.assertEquals(records, actual);
   }

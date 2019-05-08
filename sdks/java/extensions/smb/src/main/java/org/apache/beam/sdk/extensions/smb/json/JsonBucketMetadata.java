@@ -24,7 +24,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 
-/** {@link BucketMetadata} for BigQuery {@link TableRow} records. */
+/** {@link BucketMetadata} for BigQuery {@link TableRow} JSON records. */
 public class JsonBucketMetadata<K> extends BucketMetadata<K, TableRow> {
 
   @JsonProperty private final String keyField;
