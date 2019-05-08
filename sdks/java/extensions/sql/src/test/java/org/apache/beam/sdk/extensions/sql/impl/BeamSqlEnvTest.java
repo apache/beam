@@ -39,8 +39,7 @@ public class BeamSqlEnvTest {
     TestTableProvider anotherOne = new TestTableProvider();
 
     BeamSqlEnv env =
-        BeamSqlEnv.builder()
-            .setInitializeTableProvider(root)
+        BeamSqlEnv.builder(root)
             .addSchema("nested", nested)
             .addSchema("anotherOne", anotherOne)
             .build();
@@ -61,9 +60,6 @@ public class BeamSqlEnvTest {
     exceptions.expectCause(hasMessage(containsString("org.test.ClassNotFound")));
 
     TestTableProvider root = new TestTableProvider();
-    BeamSqlEnv.builder()
-        .setInitializeTableProvider(root)
-        .setQueryPlannerClassName("org.test.ClassNotFound")
-        .build();
+    BeamSqlEnv.builder(root).setQueryPlannerClassName("org.test.ClassNotFound").build();
   }
 }
