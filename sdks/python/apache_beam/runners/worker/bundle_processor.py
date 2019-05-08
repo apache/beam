@@ -870,7 +870,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
-    logging.error(
+    logging.info(
         'Missing required coder_id on grpc_port for %s; '
         'using deprecated fallback.',
         transform_id)
@@ -895,7 +895,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
-    logging.error(
+    logging.info(
         'Missing required coder_id on grpc_port for %s; '
         'using deprecated fallback.',
         transform_id)
