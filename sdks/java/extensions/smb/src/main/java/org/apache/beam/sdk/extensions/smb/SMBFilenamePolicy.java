@@ -21,7 +21,6 @@ import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -45,11 +44,11 @@ public final class SMBFilenamePolicy implements Serializable {
     this.filenameSuffix = filenameSuffix;
   }
 
-  public FileAssignment forDestination() {
+  FileAssignment forDestination() {
     return new FileAssignment(filenamePrefix, filenameSuffix);
   }
 
-  public FileAssignment forTempFiles(ResourceId tempDirectory) {
+  FileAssignment forTempFiles(ResourceId tempDirectory) {
     final String tempDirName = String.format(TEMP_DIRECTORY_PREFIX + "-%s-%s", timestamp, tempId);
     return new FileAssignment(
         tempDirectory
@@ -79,14 +78,6 @@ public final class SMBFilenamePolicy implements Serializable {
 
     FileAssignment(ResourceId filenamePrefix, String filenameSuffix) {
       this(filenamePrefix, filenameSuffix, false);
-    }
-
-    @VisibleForTesting
-    public ResourceId forBucket(int bucketId, int numBuckets, int shardId, int numShards) {
-      String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
-      String filename =
-          String.format(BUCKET_TEMPLATE, bucketId, numBuckets, shardId, numShards, filenameSuffix);
-      return filenamePrefix.resolve(timestamp + filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     public ResourceId forBucket(BucketShardId id, BucketMetadata<?, ?> metadata) {
