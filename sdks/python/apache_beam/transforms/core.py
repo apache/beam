@@ -89,6 +89,7 @@ __all__ = [
     'Flatten',
     'Create',
     'Impulse',
+    'RestrictionProvider',
     'ApproximateUniqueGlobally',
     'ApproximateUniquePerKey',
 ]
