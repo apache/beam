@@ -154,19 +154,19 @@ class ApproximateUniqueTest(unittest.TestCase):
 
     assert expected_msg == e.exception.args[0]
 
-  def test_sampleSizeFromEstimationError(self):
+  def test__sample_size_from_estimation_error(self):
     # test if get correct sample size from input error.
-    assert 16 == beam.ApproximateUniqueGlobally.sampleSizeFromEstimationError(
+    assert 16 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
       0.5)
-    assert 25 == beam.ApproximateUniqueGlobally.sampleSizeFromEstimationError(
+    assert 25 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
       0.4)
-    assert 100 == beam.ApproximateUniqueGlobally.sampleSizeFromEstimationError(
+    assert 100 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
       0.2)
-    assert 400 == beam.ApproximateUniqueGlobally.sampleSizeFromEstimationError(
+    assert 400 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
       0.1)
-    assert 1600 == beam.ApproximateUniqueGlobally.sampleSizeFromEstimationError(
+    assert 1600 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
       0.05)
-    assert 40000 == beam.ApproximateUniqueGlobally.sampleSizeFromEstimationError(
+    assert 40000 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
       0.01)
 
   def test_approximate_unique_global_by_sample_size(self):

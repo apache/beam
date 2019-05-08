@@ -2244,7 +2244,7 @@ class ApproximateUniqueGlobally(PTransform):
     number of unique values.
     error: max estimation error, which is a float between 0.01
     and 0.50. If error is given, size will be calculated from error with
-    sampleSizeFromEstimationError function.
+    _sample_size_from_estimation_error function.
   """
 
   _NO_VALUE_ERR_MSG = 'Either size or error should be set. Received {}.'
@@ -2274,7 +2274,7 @@ class ApproximateUniqueGlobally(PTransform):
       if input_err < 0.01 or input_err > 0.5:
         raise ValueError(self._INPUT_ERROR_ERR_MSG % (input_err))
       else:
-        self._sample_size = self.sampleSizeFromEstimationError(input_err)
+        self._sample_size = self._sample_size_from_estimation_error(input_err)
         self._max_est_err = input_err
 
   def expand(self, pcoll):
@@ -2283,7 +2283,7 @@ class ApproximateUniqueGlobally(PTransform):
            >> (CombineGlobally(ApproximateUniqueCombineDoFn(self._sample_size)))
 
   @staticmethod
-  def sample_size_from_estimation_error(est_err):
+  def _sample_size_from_estimation_error(est_err):
     return int(math.ceil(4.0 / math.pow(est_err, 2.0)));
 
 
