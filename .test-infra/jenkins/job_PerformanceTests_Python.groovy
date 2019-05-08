@@ -20,19 +20,33 @@ import CommonJobProperties as commonJobProperties
 
 
 class PerformanceTestConfigurations {
+  // Name of the Jenkins job
   String jobName
+  // Description of the Jenkins job
   String jobDescription
+  // Phrase to trigger this Jenkins job
   String jobTriggerPhrase
-  String buildSchedule = 'H */6 * * *'  // every 6 hours
+  // Frequency of the job build, default to every 6 hours
+  String buildSchedule = 'H */6 * * *'
+  // A benchmark flag, will pass to "--benchmarkName"
   String benchmarkName = 'beam_integration_benchmark'
+  // A benchmark flag, will pass to "--beam_sdk"
   String sdk = 'python'
-  String bigqueryTable
+  // A benchmark flag, will pass to "--bigqueryTable"
+  String resultTable
+  // A benchmark flag, will pass to "--beam_it_class"
   String itClass
+  // A benchmark flag, will pass to "--beam_it_module"
   String itModule
-  Boolean skipPrebuild = false
-  String pythonSdkLocation
+  // A benchmark flag, will pass to "--beam_prebuilt"
+  Boolean prebuilt = false
+  // A benchmark flag, will pass to "--beam_python_sdk_location"
+  String pythonSdkLocation = ''
+  // A benchmark flag, will pass to "--beam_runner"
   String runner = 'TestDataflowRunner'
-  Integer itTimeout = 1200
+  // A benchmark flag, will pass to "--beam_it_timeout"
+  Integer itTimeoutSec = 1200
+  // A benchmark flag, will pass to "--beam_it_args"
   Map extraPipelineArgs
 }
 
@@ -50,9 +64,8 @@ def testConfigurations = [
         jobName           : 'beam_PerformanceTests_Python',
         jobDescription    : 'Python SDK Performance Test',
         jobTriggerPhrase  : 'Run Python Performance Test',
-        bigqueryTable     : 'beam_performance.wordcount_py_pkb_results',
-        skipPrebuild      : true,
-        pythonSdkLocation : 'build/apache-beam.tar.gz',
+        resultTable       : 'beam_performance.wordcount_py_pkb_results',
+        prebuilt          : true,
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : 'sdks/python',
         extraPipelineArgs : dataflowPipelineArgs + [
@@ -63,9 +76,8 @@ def testConfigurations = [
         jobName           : 'beam_PerformanceTests_Python35',
         jobDescription    : 'Python35 SDK Performance Test',
         jobTriggerPhrase  : 'Run Python35 Performance Test',
-        bigqueryTable     : 'beam_performance.wordcount_py35_pkb_results',
-        skipPrebuild      : true,
-        pythonSdkLocation : 'test-suites/dataflow/py35/build/apache-beam.tar.gz',
+        resultTable       : 'beam_performance.wordcount_py35_pkb_results',
+        prebuilt          : true,
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : 'sdks/python/test-suites/dataflow/py35',
         extraPipelineArgs : dataflowPipelineArgs + [
@@ -97,28 +109,39 @@ private void createPythonPerformanceTestJob(PerformanceTestConfigurations testCo
         testConfig.jobDescription,
         testConfig.jobTriggerPhrase)
 
-    // Helper function to join pipeline args from a map.
-    def joinPipelineArgs = { pipelineArgs ->
-      def pipelineArgList = []
-      pipelineArgs.each({
-        key, value -> pipelineArgList.add("--$key=$value")
-      })
-      return pipelineArgList.join(',')
-    }
-
     def argMap = [
         beam_sdk                : testConfig.sdk,
         benchmarks              : testConfig.benchmarkName,
-        bigquery_table          : testConfig.bigqueryTable,
+        bigquery_table          : testConfig.resultTable,
         beam_it_class           : testConfig.itClass,
         beam_it_module          : testConfig.itModule,
-        beam_prebuilt           : testConfig.skipPrebuild.toString(),
-        beam_python_sdk_location: testConfig.pythonSdkLocation,
+        beam_prebuilt           : testConfig.prebuilt.toString(),
+        beam_python_sdk_location: getSDKLocationFromModule(testConfig.pythonSdkLocation,
+                                                           testConfig.itModule),
         beam_runner             : testConfig.runner,
-        beam_it_timeout         : testConfig.itTimeout.toString(),
+        beam_it_timeout         : testConfig.itTimeoutSec.toString(),
         beam_it_args            : joinPipelineArgs(testConfig.extraPipelineArgs),
     ]
 
     commonJobProperties.buildPerformanceTest(delegate, argMap)
   }
+}
+
+
+// Helper function to join pipeline args from a map.
+private static String joinPipelineArgs(Map pipelineArgs) {
+  def pipelineArgList = []
+  pipelineArgs.each({
+    key, value -> pipelineArgList.add("--$key=$value")
+  })
+  return pipelineArgList.join(',')
+}
+
+
+// Get relative path of sdk location based on itModule if the location is not provided.
+private static String getSDKLocationFromModule(String pythonSDKLocation, String itModule) {
+  if (!pythonSDKLocation && itModule.startsWith("sdks/python")) {
+    return (itModule.substring("sdks/python".length()) + "/build/apache-beam.tar.gz").substring(1)
+  }
+  return pythonSDKLocation
 }
