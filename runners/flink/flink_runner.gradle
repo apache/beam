@@ -75,6 +75,10 @@ test {
   } else if (project.name == "beam-runners-flink-1.7") {
     mustRunAfter(":beam-runners-flink_2.11:test")
     mustRunAfter(":beam-runners-flink-1.6:test")
+  } else if (project.name == "beam-runners-flink-1.8") {
+    mustRunAfter(":beam-runners-flink_2.11:test")
+    mustRunAfter(":beam-runners-flink-1.6:test")
+    mustRunAfter(":beam-runners-flink-1.7:test")
   }
 }
 

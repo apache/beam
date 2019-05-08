@@ -19,21 +19,22 @@ package org.apache.beam.runners.flink.translation.types;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.util.Objects;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for Dataflow {@link
+ * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for Beam {@link
  * org.apache.beam.sdk.coders.Coder Coders}.
  */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
@@ -124,80 +125,36 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   }
 
   @Override
-  public boolean canEqual(Object obj) {
-    return obj instanceof CoderTypeSerializer;
-  }
-
-  @Override
   public int hashCode() {
     return coder.hashCode();
   }
 
   @Override
-  public TypeSerializerConfigSnapshot snapshotConfiguration() {
-    return new CoderTypeSerializerConfigSnapshot<>(coder);
+  public TypeSerializerSnapshot<T> snapshotConfiguration() {
+    return new LegacySnapshot<>(this);
   }
 
-  @Override
-  public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-    if (snapshotConfiguration().equals(configSnapshot)) {
-      return CompatibilityResult.compatible();
-    }
-    return CompatibilityResult.requiresMigration();
-  }
+  /** A legacy snapshot which does not care about schema compatibility. */
+  public static class LegacySnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 
-  /**
-   * TypeSerializerConfigSnapshot of CoderTypeSerializer. This uses the class name of the {@link
-   * Coder} to determine compatibility. This is a bit crude but better than using Java Serialization
-   * to (de)serialize the {@link Coder}.
-   */
-  public static class CoderTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot {
+    /** Needs to be public to work with {@link VersionedIOReadableWritable}. */
+    public LegacySnapshot() {}
 
-    private static final int VERSION = 1;
-    private String coderName;
-
-    public CoderTypeSerializerConfigSnapshot() {
-      // empty constructor for satisfying IOReadableWritable which is used for deserialization
-    }
-
-    public CoderTypeSerializerConfigSnapshot(Coder<T> coder) {
-      this.coderName = coder.getClass().getName();
+    public LegacySnapshot(CoderTypeSerializer<T> serializer) {
+      setPriorSerializer(serializer);
     }
 
     @Override
     public int getVersion() {
-      return VERSION;
+      // We always return the same version
+      return 1;
     }
 
     @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      CoderTypeSerializerConfigSnapshot<?> that = (CoderTypeSerializerConfigSnapshot<?>) o;
-
-      return coderName != null ? coderName.equals(that.coderName) : that.coderName == null;
-    }
-
-    @Override
-    public void write(DataOutputView out) throws IOException {
-      super.write(out);
-      out.writeUTF(coderName);
-    }
-
-    @Override
-    public void read(DataInputView in) throws IOException {
-      super.read(in);
-      this.coderName = in.readUTF();
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(coderName);
+    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+        TypeSerializer<T> newSerializer) {
+      // We assume compatibility because we don't have a way of checking schema compatibility
+      return TypeSerializerSchemaCompatibility.compatibleAsIs();
     }
   }
 
