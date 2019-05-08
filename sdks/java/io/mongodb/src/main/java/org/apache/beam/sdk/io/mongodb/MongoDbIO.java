@@ -522,6 +522,11 @@ public class MongoDbIO {
           // the range from the beginning up to this split
           rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:ObjectId(\"%s\")}}", splitKey);
           filters.add(String.format("%s ]}", rangeFilter));
+          // If there is only one split, also generate a range from the split to the end
+          if (splitKeys.size() == 1) {
+            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}", splitKey);
+            filters.add(String.format("%s ]}", rangeFilter));
+          }
         } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filters define
           // the range from the previous split to the current split and also
@@ -582,8 +587,17 @@ public class MongoDbIO {
         String rangeFilter;
         if (i == 0) {
           aggregates.add(Aggregates.match(Filters.lte("_id", splitKey)));
+          if (splitKeys.size() == 1) {
+            aggregates.add(Aggregates.match(Filters.and(Filters.gt("_id", splitKey))));
+          }
         } else if (i == splitKeys.size() - 1) {
-          aggregates.add(Aggregates.match(Filters.and(Filters.gt("_id", lowestBound))));
+          // this is the last split in the list, the filters define
+          // the range from the previous split to the current split and also
+          // the current split to the end
+          aggregates.add(
+              Aggregates.match(
+                  Filters.and(Filters.gt("_id", lowestBound), Filters.lte("_id", splitKey))));
+          aggregates.add(Aggregates.match(Filters.and(Filters.gt("_id", splitKey))));
         } else {
           aggregates.add(
               Aggregates.match(
