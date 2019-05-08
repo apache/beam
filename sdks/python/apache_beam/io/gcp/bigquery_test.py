@@ -550,6 +550,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
            | "WriteWithMultipleDests2" >> beam.io.gcp.bigquery.WriteToBigQuery(
                table=value_provider.StaticValueProvider(
                    str, '%s:%s' % (self.project, output_table_2)),
+               schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
                additional_bq_parameters=lambda _: additional_bq_parameters,
                method='FILE_LOADS'))
 

@@ -327,6 +327,7 @@ class BigQueryWrapper(object):
                        create_disposition=None,
                        additional_load_parameters=None):
     additional_load_parameters = additional_load_parameters or {}
+    job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
@@ -335,11 +336,11 @@ class BigQueryWrapper(object):
                 load=bigquery.JobConfigurationLoad(
                     sourceUris=source_uris,
                     destinationTable=table_reference,
-                    schema=schema,
+                    schema=job_schema,
                     writeDisposition=write_disposition,
                     createDisposition=create_disposition,
                     sourceFormat='NEWLINE_DELIMITED_JSON',
-                    autodetect=schema is None,
+                    autodetect=schema == 'SCHEMA_AUTODETECT',
                     **additional_load_parameters
                 )
             ),
