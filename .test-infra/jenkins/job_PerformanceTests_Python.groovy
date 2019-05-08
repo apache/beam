@@ -36,7 +36,15 @@ class PerformanceTestConfigurations {
   Map extraPipelineArgs
 }
 
+// Common pipeline args for Dataflow job.
+def dataflowPipelineArgs = [
+    project         : 'apache-beam-testing',
+    staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
+    temp_location   : 'gs://temp-storage-for-end-to-end-tests/temp-it',
+]
 
+
+// Configurations of each Jenkins job.
 def testConfigurations = [
     new PerformanceTestConfigurations(
         jobName           : 'beam_PerformanceTests_Python',
@@ -47,11 +55,8 @@ def testConfigurations = [
         pythonSdkLocation : 'build/apache-beam.tar.gz',
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : 'sdks/python',
-        extraPipelineArgs : [
-            project         : 'apache-beam-testing',
-            staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
-            temp_location   : 'gs://temp-storage-for-end-to-end-tests/temp-it',
-            output          : 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
+        extraPipelineArgs : dataflowPipelineArgs + [
+            output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output'
         ],
     ),
     new PerformanceTestConfigurations(
@@ -63,11 +68,8 @@ def testConfigurations = [
         pythonSdkLocation : 'test-suites/dataflow/py35/build/apache-beam.tar.gz',
         itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : 'sdks/python/test-suites/dataflow/py35',
-        extraPipelineArgs : [
-            project         : 'apache-beam-testing',
-            staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
-            temp_location   : 'gs://temp-storage-for-end-to-end-tests/temp-it',
-            output          : 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
+        extraPipelineArgs : dataflowPipelineArgs + [
+            output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output'
         ],
     )
 ]
