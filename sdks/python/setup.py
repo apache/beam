@@ -138,8 +138,7 @@ REQUIRED_TEST_PACKAGES = [
 
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<4',
-    # google-apitools 0.5.23 and above has important Python 3 supports.
-    'google-apitools>=0.5.26,<0.5.27',
+    'google-apitools>=0.5.28,<0.5.29',
     # [BEAM-4543] googledatastore is not supported in Python 3.
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
     # [BEAM-4543] googledatastore is not supported in Python 3.
