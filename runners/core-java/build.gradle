@@ -45,6 +45,6 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.junit
   shadowTest library.java.slf4j_api
-  shadowTest library.java.slf4j_simple
   shadowTest library.java.jackson_dataformat_yaml
+  testRuntimeOnly library.java.slf4j_simple
 }
