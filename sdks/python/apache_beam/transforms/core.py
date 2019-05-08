@@ -90,7 +90,7 @@ __all__ = [
     'Create',
     'Impulse',
     'ApproximateUniqueGlobally',
-    'ApproximateUniquePerKey'
+    'ApproximateUniquePerKey',
 ]
 
 # Type variables

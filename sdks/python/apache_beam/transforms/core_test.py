@@ -26,7 +26,6 @@ import numpy as np
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -175,7 +174,6 @@ class ApproximateUniqueTest(unittest.TestCase):
     # expected max error (sample size = 50% of population).
     sample_size = 50
     input = [random.randint(0, 1000) for _ in range(100)]
-    # input = [8, 19, 30, 38, 41, 45, 58, 59, 64, 74, 82, 82, 101, 113, 117, 123, 143, 148, 149, 169, 177, 256, 259, 266, 288, 296, 296, 300, 300, 337, 343, 347, 348, 365, 373, 373, 373, 377, 382, 423, 423, 430, 432, 442, 477, 479, 484, 486, 512, 523, 524, 542, 568, 570, 597, 600, 614, 618, 626, 629, 630, 651, 661, 684, 685, 690, 692, 693, 693, 705, 710, 715, 724, 743, 757, 767, 782, 789, 795, 802, 804, 807, 818, 843, 844, 859, 863, 875, 879, 881, 894, 911, 912, 920, 928, 931, 946, 964, 979, 980]
     actual_count = len(set(input))
 
     pipeline = TestPipeline()
