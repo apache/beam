@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false)
+applyJavaNature(testShadowJar: true, exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
@@ -66,10 +66,10 @@ dependencies {
   shadow library.java.commons_lang3
   shadow library.java.kafka_clients
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadow library.java.slf4j_jdk14
   provided library.java.junit
   provided library.java.hamcrest_core
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadowTestRuntimeClasspath library.java.slf4j_jdk14
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
   testCompile library.java.hamcrest_core

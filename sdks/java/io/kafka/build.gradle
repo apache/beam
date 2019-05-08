@@ -38,6 +38,6 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.powermock
-  testCompile library.java.slf4j_jdk14
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

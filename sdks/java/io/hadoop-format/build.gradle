@@ -78,10 +78,10 @@ dependencies {
   testCompile "org.apache.cassandra:cassandra-all:3.11.3"
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
   shadow library.java.commons_io_2x
 
