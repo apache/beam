@@ -39,7 +39,7 @@ dependencies {
   provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   provided library.java.vendored_guava_20_0
   provided library.java.slf4j_api
-  provided library.java.slf4j_simple
+  shadowTestRuntimeClasspath library.java.slf4j_simple
 }
 
 task runDataCatalogExample(type: JavaExec) {
