@@ -163,7 +163,7 @@ if __name__ == '__main__':
     def test_external_transforms(self):
       # TODO Move expansion address resides into PipelineOptions
       def get_expansion_service():
-        return "localhost:" + str(FlinkRunnerTest.expansion_port)
+        return "localhost:" + str(self.expansion_port)
 
       with self.create_pipeline() as p:
         res = (
@@ -269,6 +269,18 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-6868")
 
     # Inherits all other tests.
+
+  class FlinkRunnerTestOptimized(FlinkRunnerTest):
+    # TODO: Remove these tests after resolving BEAM-7248 and enabling
+    #  PortableRunnerOptimized
+    def create_options(self):
+      options = super(FlinkRunnerTestOptimized, self).create_options()
+      options.view_as(DebugOptions).experiments = [
+          'pre_optimize=all'] + options.view_as(DebugOptions).experiments
+      return options
+
+    def test_external_transforms(self):
+      raise unittest.SkipTest("BEAM-7252")
 
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
