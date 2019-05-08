@@ -1459,7 +1459,9 @@ public class StreamingDataflowWorker {
     Commit commit = null;
     while (running.get()) {
       // Batch commits as long as there are more and we can fit them in the current request.
-      CommitWorkStream commitStream = streamPool.getStream();
+      // We lazily initialize the commit stream to make sure that we only create one after
+      // we have a commit.
+      CommitWorkStream commitStream = null;
       int commits = 0;
       while (running.get()) {
         // There may be a commit left over from the previous iteration but if not, pull one.
@@ -1487,6 +1489,9 @@ public class StreamingDataflowWorker {
         final Windmill.WorkItemCommitRequest request = commit.getRequest();
         final int size = commit.getSize();
         commit.getWork().setState(State.COMMITTING);
+        if (commitStream == null) {
+          commitStream = streamPool.getStream();
+        }
         if (commitStream.commitWorkItem(
             state.computationId,
             request,
@@ -1508,8 +1513,10 @@ public class StreamingDataflowWorker {
           break;
         }
       }
-      commitStream.flush();
-      streamPool.releaseStream(commitStream);
+      if (commitStream != null) {
+        commitStream.flush();
+        streamPool.releaseStream(commitStream);
+      }
     }
   }
 
