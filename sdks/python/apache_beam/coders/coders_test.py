@@ -99,13 +99,16 @@ class DeterministicProtoCoderTest(unittest.TestCase):
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
 
   def test_deterministic_proto_coder_determinism(self):
-    mm = test_message.MessageWithMap()
-    for i in range(10):
-      mm.field1['key_%s' % i].field1 = 'Hello world %s' % i
-    coder = coders.DeterministicProtoCoder(mm.__class__)
-    expected_encoded = coder.encode(mm)
-    for _ in range(5):
-      self.assertEqual(expected_encoded, coder.encode(mm))
+    for _ in xrange(10):
+      keys = range(20)
+      mm_forward = test_message.MessageWithMap()
+      for key in keys:
+        mm_forward.field1[str(key)].field1 = str(key)
+      mm_reverse = test_message.MessageWithMap()
+      for key in reversed(keys):
+        mm_reverse.field1[str(key)].field1 = str(key)
+      coder = coders.DeterministicProtoCoder(mm_forward.__class__)
+      self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
 
 
 class DummyClass(object):
