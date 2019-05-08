@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.util.HashIdGenerator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -73,9 +74,9 @@ public class TranslationContext {
   private final Map<String, MessageStream> registeredInputStreams = new HashMap<>();
   private final Map<String, Table> registeredTables = new HashMap<>();
   private final SamzaPipelineOptions options;
+  private final HashIdGenerator idGenerator = new HashIdGenerator();
 
   private AppliedPTransform<?, ?, ?> currentTransform;
-  private int topologicalId;
 
   public TranslationContext(
       StreamApplicationDescriptor appDescriptor,
@@ -168,20 +169,6 @@ public class TranslationContext {
     return currentTransform;
   }
 
-  /**
-   * Uniquely identify a node when doing a topological traversal of the BEAM {@link
-   * org.apache.beam.sdk.Pipeline}. It's changed on a per-node basis.
-   *
-   * @param id id for the node.
-   */
-  public void setCurrentTopologicalId(int id) {
-    this.topologicalId = id;
-  }
-
-  public int getCurrentTopologicalId() {
-    return this.topologicalId;
-  }
-
   @SuppressWarnings("unchecked")
   public <InT extends PValue> InT getInput(PTransform<InT, ?> transform) {
     return (InT)
@@ -223,6 +210,14 @@ public class TranslationContext {
       throw new IllegalArgumentException("No id mapping for value: " + pvalue);
     }
     return id;
+  }
+
+  public String getTransformFullName() {
+    return currentTransform.getFullName();
+  }
+
+  public String getTransformId() {
+    return idGenerator.getId(currentTransform.getFullName());
   }
 
   /** The dummy stream created will only be used in Beam tests. */

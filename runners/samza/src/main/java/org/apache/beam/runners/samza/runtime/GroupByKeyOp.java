@@ -62,8 +62,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private final OutputManagerFactory<KV<K, OutputT>> outputManagerFactory;
   private final Coder<K> keyCoder;
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
-  private final String stepName;
-  private final String stepId;
+  private final String transformFullName;
+  private final String transformId;
   private final PCollection.IsBounded isBounded;
 
   private transient StateInternalsFactory<K> stateInternalsFactory;
@@ -77,14 +77,14 @@ public class GroupByKeyOp<K, InputT, OutputT>
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
-      String stepName,
-      String stepId,
+      String transformFullName,
+      String transformId,
       PCollection.IsBounded isBounded) {
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
-    this.stepName = stepName;
-    this.stepId = stepId;
+    this.transformFullName = transformFullName;
+    this.transformId = transformId;
     this.isBounded = isBounded;
 
     if (!(inputCoder instanceof KeyedWorkItemCoder)) {
@@ -111,13 +111,13 @@ public class GroupByKeyOp<K, InputT, OutputT>
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stepId, null, context.getTaskContext(), pipelineOptions, null);
+            transformId, null, context.getTaskContext(), pipelineOptions, null);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
-            stepId,
+            transformId,
             Collections.singletonMap(
                 SamzaStoreStateInternals.BEAM_STORE,
                 SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
@@ -176,7 +176,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
     this.fnRunner =
-        DoFnRunnerWithMetrics.wrap(doFnRunner, executionContext.getMetricsContainer(), stepName);
+        DoFnRunnerWithMetrics.wrap(
+            doFnRunner, executionContext.getMetricsContainer(), transformFullName);
   }
 
   @Override

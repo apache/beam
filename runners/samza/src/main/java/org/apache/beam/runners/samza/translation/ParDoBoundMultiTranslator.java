@@ -144,9 +144,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             input.getWindowingStrategy(),
             idToPValueMap,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
-            node.getFullName(),
-            // TODO: infer a fixed id from the name
-            String.valueOf(ctx.getCurrentTopologicalId()),
+            ctx.getTransformFullName(),
+            ctx.getTransformId(),
             input.isBounded(),
             false,
             null,
@@ -231,7 +230,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
         ctx.instantiateCoder(inputId, pipeline.getComponents());
-    final String nodeFullname = transform.getTransform().getUniqueName();
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
@@ -248,9 +246,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             ctx.getPortableWindowStrategy(transform, pipeline),
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
-            nodeFullname,
-            // TODO: infer a fixed id from the name
-            String.valueOf(ctx.getCurrentTopologicalId()),
+            ctx.getTransformFullName(),
+            ctx.getTransformId(),
             isBounded,
             true,
             stagePayload,

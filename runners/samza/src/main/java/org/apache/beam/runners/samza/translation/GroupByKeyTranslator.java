@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import static org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils.escape;
+
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
@@ -92,8 +94,8 @@ class GroupByKeyTranslator<K, InputT, OutputT>
             windowingStrategy,
             kvInputCoder,
             elementCoder,
-            ctx.getCurrentTopologicalId(),
-            node.getFullName(),
+            ctx.getTransformFullName(),
+            ctx.getTransformId(),
             outputTag,
             input.isBounded());
 
@@ -126,8 +128,6 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     final Coder<WindowedValue<KV<K, InputT>>> elementCoder =
         WindowedValue.FullWindowedValueCoder.of(kvInputCoder, windowCoder);
 
-    final int topologyId = ctx.getCurrentTopologicalId();
-    final String nodeFullname = transform.getTransform().getUniqueName();
     final TupleTag<KV<K, OutputT>> outputTag =
         new TupleTag<>(Iterables.getOnlyElement(transform.getTransform().getOutputsMap().keySet()));
 
@@ -147,8 +147,8 @@ class GroupByKeyTranslator<K, InputT, OutputT>
             windowingStrategy,
             kvInputCoder,
             elementCoder,
-            topologyId,
-            nodeFullname,
+            ctx.getTransformFullName(),
+            ctx.getTransformId(),
             outputTag,
             isBounded);
     ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
@@ -161,8 +161,8 @@ class GroupByKeyTranslator<K, InputT, OutputT>
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       KvCoder<K, InputT> kvInputCoder,
       Coder<WindowedValue<KV<K, InputT>>> elementCoder,
-      int topologyId,
-      String nodeFullname,
+      String transformFullName,
+      String transformId,
       TupleTag<KV<K, OutputT>> outputTag,
       PCollection.IsBounded isBounded) {
     final MessageStream<OpMessage<KV<K, InputT>>> filteredInputStream =
@@ -180,7 +180,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
                   KVSerde.of(
                       SamzaCoders.toSerde(kvInputCoder.getKeyCoder()),
                       SamzaCoders.toSerde(elementCoder)),
-                  "gbk-" + topologyId)
+                  "gbk-" + escape(transformId))
               .map(kv -> OpMessage.ofElement(kv.getValue()));
     }
 
@@ -201,9 +201,8 @@ class GroupByKeyTranslator<K, InputT, OutputT>
                         reduceFn,
                         windowingStrategy,
                         new DoFnOp.SingleOutputManagerFactory<>(),
-                        nodeFullname,
-                        // TODO: infer a fixed id from the name
-                        outputTag.getId(),
+                        transformFullName,
+                        transformId,
                         isBounded)));
     return outputStream;
   }
