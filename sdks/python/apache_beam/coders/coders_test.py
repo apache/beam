@@ -92,7 +92,8 @@ class DeterministicProtoCoderTest(unittest.TestCase):
     mb.field1 = True
     ma.field1 = u'hello world'
     expected_coder = coders.DeterministicProtoCoder(ma.__class__)
-    real_coder = (coders_registry.get_coder(ma.__class__).as_deterministic_coder(step_label='unused'))
+    real_coder = (coders_registry.get_coder(ma.__class__)
+                  .as_deterministic_coder(step_label='unused'))
     self.assertTrue(real_coder.is_deterministic())
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
