@@ -236,7 +236,9 @@ public class SparkBatchPortablePipelineTranslator {
       // here.
       JavaRDD<WindowedValue<OutputT>> outputRdd =
           staged.flatMap((rawUnionValue) -> Collections.emptyIterator());
-      context.pushDataset("EmptyOutputSink", new BoundedDataset<>(outputRdd));
+      context.pushDataset(
+          String.format("EmptyOutputSink_%d", context.nextSinkId()),
+          new BoundedDataset<>(outputRdd));
     }
   }
 
