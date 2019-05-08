@@ -56,19 +56,19 @@ class FakeLogger(object):
 
 
 @retry.with_exponential_backoff(clock=FakeClock())
-def test_function(a, b):
+def _test_function(a, b):
   _ = a, b
   raise NotImplementedError
 
 
 @retry.with_exponential_backoff(initial_delay_secs=0.1, num_retries=1)
-def test_function_with_real_clock(a, b):
+def _test_function_with_real_clock(a, b):
   _ = a, b
   raise NotImplementedError
 
 
 @retry.no_retries
-def test_no_retry_function(a, b):
+def _test_no_retry_function(a, b):
   _ = a, b
   raise NotImplementedError
 
@@ -97,14 +97,14 @@ class RetryTest(unittest.TestCase):
   def test_with_explicit_decorator(self):
     # We pass one argument as positional argument and one as keyword argument
     # so that we cover both code paths for argument handling.
-    self.assertRaises(NotImplementedError, test_function, 10, b=20)
+    self.assertRaises(NotImplementedError, _test_function, 10, b=20)
 
   def test_with_no_retry_decorator(self):
-    self.assertRaises(NotImplementedError, test_no_retry_function, 1, 2)
+    self.assertRaises(NotImplementedError, _test_no_retry_function, 1, 2)
 
   def test_with_real_clock(self):
     self.assertRaises(NotImplementedError,
-                      test_function_with_real_clock, 10, b=20)
+                      _test_function_with_real_clock, 10, b=20)
 
   def test_with_default_number_of_retries(self):
     self.assertRaises(NotImplementedError,

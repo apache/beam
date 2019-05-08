@@ -116,7 +116,7 @@ class Step(object):
       ValueError: if the tag does not exist within outputs.
     """
     outputs = self._get_outputs()
-    if tag is None:
+    if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
       name = '%s_%s' % (PropertyNames.OUT, tag)
@@ -150,6 +150,8 @@ class Environment(object):
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
           self.google_cloud_options.service_account_email)
+    if self.google_cloud_options.dataflow_kms_key:
+      self.proto.serviceKmsKeyName = self.google_cloud_options.dataflow_kms_key
 
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(

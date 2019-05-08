@@ -235,6 +235,24 @@ class BeamModulePlugin implements Plugin<Project> {
     String itModule = System.getProperty('itModule')
   }
 
+  // Reads and contains all necessary performance test parameters
+  class PythonPerformanceTestConfiguration {
+    // Fully qualified name of the test to run.
+    String tests = System.getProperty('tests')
+
+    // Attribute tag that can filter the test set.
+    String attribute = System.getProperty('attr')
+
+    // Extra test options pass to nose.
+    String[] extraTestOptions = ["--nocapture"]
+
+    // Name of Cloud KMS encryption key to use in some tests.
+    String kmsKeyName = System.getProperty('kmsKeyName')
+
+    // Pipeline options to be used for pipeline invocation.
+    String pipelineOptions = System.getProperty('pipelineOptions', '')
+  }
+
   // A class defining the set of configurable properties accepted by containerImageName.
   class ContainerImageNameConfiguration {
     String root = null // Sets the docker repository root (optional).
@@ -350,7 +368,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.6.0"
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.43.0"
-    def generated_grpc_dc_beta_version = "0.1.0-alpha"
+    def generated_grpc_dc_beta_version = "0.4.0-alpha"
     def google_auth_version = "0.12.0"
     def google_clients_version = "1.27.0"
     def google_cloud_bigdataoss_version = "1.9.16"
@@ -369,7 +387,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.12.0"
     def protobuf_version = "3.6.0"
     def quickcheck_version = "0.8"
-    def spark_version = "2.4.1"
+    def spark_version = "2.4.2"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -422,7 +440,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20181104-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20180801-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190131-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190322-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181105-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181013-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
@@ -779,7 +797,9 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which can apply code formatting to source.
       // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
       project.apply plugin: "com.diffplug.gradle.spotless"
-
+      // scan CVE
+      project.apply plugin: "net.ossindex.audit"
+      project.audit { rateLimitAsError = false }
       // Spotless can be removed from the 'check' task by passing -PdisableSpotlessCheck=true on the Gradle
       // command-line. This is useful for pre-commit which runs spotless separately.
       def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
@@ -1731,6 +1751,45 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           inputs.files pythonSdkDeps
           outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+        }
+      }
+
+      // Run single or a set of integration tests with provided test options and pipeline options.
+      project.ext.enablePythonPerformanceTest = {
+
+        // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+        // See: http://groovy-lang.org/closures.html#implicit-it
+        def config = it ? it as PythonPerformanceTestConfiguration : new PythonPerformanceTestConfiguration()
+
+        project.task('integrationTest') {
+          dependsOn 'installGcpTest'
+          dependsOn 'sdist'
+
+          doLast {
+            def argMap = [:]
+
+            // Build test options that configures test environment and framework
+            def testOptions = []
+            if (config.tests)
+              testOptions += "--tests=$config.tests"
+            if (config.attribute)
+              testOptions += "--attr=$config.attribute"
+            testOptions.addAll(config.extraTestOptions)
+            argMap["test_opts"] = testOptions
+
+            // Build pipeline options that configures pipeline job
+            if (config.pipelineOptions)
+              argMap["pipeline_opts"] = config.pipelineOptions
+            if (config.kmsKeyName)
+              argMap["kms_key_name"] = config.kmsKeyName
+
+            def cmdArgs = project.mapToArgString(argMap)
+            def runScriptsDir = "${pythonRootDir}/scripts"
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh ${cmdArgs}"
+            }
+          }
         }
       }
     }

@@ -47,8 +47,8 @@ dependencies {
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.junit
-  shadowTest library.java.slf4j_jdk14
   shadowTest group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.12', version: '0.14.1'
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
 }
 

@@ -27,6 +27,7 @@ import (
 
 	"sync/atomic"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -66,7 +67,7 @@ var (
 // such as Dataflow set a reasonable default. Convenience function.
 func GetEndpoint() (string, error) {
 	if *Endpoint == "" {
-		return "", fmt.Errorf("no job service endpoint specified. Use --endpoint=<endpoint>")
+		return "", errors.New("no job service endpoint specified. Use --endpoint=<endpoint>")
 	}
 	return *Endpoint, nil
 }

@@ -25,6 +25,8 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -66,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -181,7 +184,35 @@ public class DoFnSignaturesTest {
               @ProcessElement
               public void process(@Element Row row) {}
             }.getClass());
-    assertThat(sig.processElement().getSchemaElementParameter(), notNullValue());
+    assertFalse(sig.processElement().getSchemaElementParameters().isEmpty());
+  }
+
+  @Test
+  public void testMultipleSchemaParameters() {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(
+                  @Element Row row1,
+                  @Timestamp Instant ts,
+                  @Element Row row2,
+                  OutputReceiver<String> o,
+                  @Element Integer intParameter) {}
+            }.getClass());
+    assertEquals(3, sig.processElement().getSchemaElementParameters().size());
+    assertEquals(0, sig.processElement().getSchemaElementParameters().get(0).index());
+    assertEquals(
+        TypeDescriptors.rows(),
+        sig.processElement().getSchemaElementParameters().get(0).elementT());
+    assertEquals(1, sig.processElement().getSchemaElementParameters().get(1).index());
+    assertEquals(
+        TypeDescriptors.rows(),
+        sig.processElement().getSchemaElementParameters().get(1).elementT());
+    assertEquals(2, sig.processElement().getSchemaElementParameters().get(2).index());
+    assertEquals(
+        TypeDescriptors.integers(),
+        sig.processElement().getSchemaElementParameters().get(2).elementT());
   }
 
   @Test
@@ -202,7 +233,7 @@ public class DoFnSignaturesTest {
     assertThat(field.getName(), equalTo("fieldAccess"));
     assertThat(field.get(doFn), equalTo(descriptor));
 
-    assertThat(sig.processElement().getSchemaElementParameter(), notNullValue());
+    assertFalse(sig.processElement().getSchemaElementParameters().isEmpty());
   }
 
   @Test

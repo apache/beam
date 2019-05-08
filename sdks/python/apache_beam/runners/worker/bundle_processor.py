@@ -66,6 +66,8 @@ IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
 OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
+URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
+                                 monitoring_infos.SAMPLED_BYTE_SIZE_URN])
 
 
 class RunnerIOOperation(operations.Operation):
@@ -104,8 +106,7 @@ class DataOutputOperation(RunnerIOOperation):
 
 
 class DataInputOperation(RunnerIOOperation):
-  """A source-like operation that gathers input from the runner.
-  """
+  """A source-like operation that gathers input from the runner."""
 
   def __init__(self, operation_name, step_name, consumers, counter_factory,
                state_sampler, windowed_coder, input_target, data_channel):
@@ -390,8 +391,20 @@ class OutputTimer(object):
 
 
 class FnApiUserStateContext(userstate.UserStateContext):
+  """Interface for state and timers from SDK to Fn API servicer of state.."""
+
   def __init__(
       self, state_handler, transform_id, key_coder, window_coder, timer_specs):
+    """Initialize a ``FnApiUserStateContext``.
+
+    Args:
+      state_handler: A StateServicer object.
+      transform_id: The name of the PTransform that this context is associated.
+      key_coder:
+      window_coder:
+      timer_specs: A list of ``userstate.TimerSpec`` objects specifying the
+        timers associated with this operation.
+    """
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._key_coder = key_coder
@@ -401,6 +414,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._all_states = {}
 
   def update_timer_receivers(self, receivers):
+    """TODO"""
     self._timer_receivers = {}
     for tag in self._timer_specs:
       self._timer_receivers[tag] = receivers.pop(tag)
@@ -461,9 +475,20 @@ def only_element(iterable):
 
 
 class BundleProcessor(object):
-  """A class for processing bundles of elements."""
+  """A class for processing bundles of elements.
+
+  """
+
   def __init__(
       self, process_bundle_descriptor, state_handler, data_channel_factory):
+    """Initialize a bundle processor.
+
+    Args:
+      process_bundle_descriptor (``beam_fn_api_pb2.ProcessBundleDescriptor``):
+        a description of the stage that this ``BundleProcessor``is to execute.
+      state_handler (beam_fn_api_pb2_grpc.BeamFnStateServicer).
+      data_channel_factory (``data_plane.DataChannelFactory``).
+    """
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
@@ -675,14 +700,14 @@ class BundleProcessor(object):
 
     infos_list = list(all_monitoring_infos_dict.values())
 
-    def inject_pcollection_into_element_count(monitoring_info):
+    def inject_pcollection(monitoring_info):
       """
       If provided metric is element count metric:
       Finds relevant transform output info in current process_bundle_descriptor
       and adds tag with PCOLLECTION_LABEL and pcollection_id into monitoring
       info.
       """
-      if monitoring_info.urn == monitoring_infos.ELEMENT_COUNT_URN:
+      if monitoring_info.urn in URNS_NEEDING_PCOLLECTIONS:
         if not monitoring_infos.PTRANSFORM_LABEL in monitoring_info.labels:
           return
         ptransform_label = monitoring_info.labels[
@@ -699,6 +724,7 @@ class BundleProcessor(object):
 
         pcollection_name = (self.process_bundle_descriptor
                             .transforms[ptransform_label].outputs[tag_label])
+
         monitoring_info.labels[
             monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
 
@@ -707,7 +733,7 @@ class BundleProcessor(object):
         monitoring_info.labels.pop(monitoring_infos.TAG_LABEL)
 
     for mi in infos_list:
-      inject_pcollection_into_element_count(mi)
+      inject_pcollection(mi)
 
     return infos_list
 

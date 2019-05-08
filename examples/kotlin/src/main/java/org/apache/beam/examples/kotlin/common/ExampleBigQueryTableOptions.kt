@@ -42,8 +42,6 @@ interface ExampleBigQueryTableOptions : GcpOptions {
 
     /** Returns the job name as the default BigQuery table name.  */
     class BigQueryTableFactory : DefaultValueFactory<String> {
-        override fun create(options: PipelineOptions): String {
-            return options.jobName.replace('-', '_')
-        }
+        override fun create(options: PipelineOptions) = options.jobName.replace('-', '_')
     }
 }

@@ -140,6 +140,11 @@ public class AggregationCombineFnAdapter<T> {
   /** Creates either a UDAF or a built-in {@link CombineFn}. */
   public static CombineFn<?, ?, ?> createCombineFn(
       AggregateCall call, Schema.Field field, String functionName) {
+    if (call.isDistinct()) {
+      throw new IllegalArgumentException(
+          "Does not support " + call.getAggregation().getName() + " DISTINCT");
+    }
+
     CombineFn combineFn;
     if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
       combineFn = getUdafCombineFn(call);

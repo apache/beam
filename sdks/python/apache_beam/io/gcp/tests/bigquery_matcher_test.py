@@ -25,6 +25,7 @@ import unittest
 import mock
 from hamcrest import assert_that as hc_assert_that
 
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.tests import bigquery_matcher as bq_verifier
 from apache_beam.testing.test_utils import patch_retry
 
@@ -70,6 +71,44 @@ class BigqueryMatcherTest(unittest.TestCase):
                                           'mock_query',
                                           'mock_checksum')
     with self.assertRaises(NotFound):
+      hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
+
+
+@unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
+@mock.patch.object(bigquery_tools, 'BigQueryWrapper')
+class BigqueryTableMatcherTest(unittest.TestCase):
+
+  def setUp(self):
+    self._mock_result = mock.Mock()
+    patch_retry(self, bq_verifier)
+
+  def test_bigquery_table_matcher_success(self, mock_bigquery):
+    mock_query_result = mock.Mock(partitioning='a lot of partitioning',
+                                  clustering={'column': 'FRIENDS'})
+
+    mock_bigquery.return_value.get_table.return_value = mock_query_result
+
+    matcher = bq_verifier.BigQueryTableMatcher(
+        'mock_project',
+        'mock_dataset',
+        'mock_table',
+        {'partitioning': 'a lot of partitioning',
+         'clustering': {'column': 'FRIENDS'}})
+    hc_assert_that(self._mock_result, matcher)
+
+  def test_bigquery_table_matcher_query_error_retry(self, mock_bigquery):
+    mock_query = mock_bigquery.return_value.get_table
+    mock_query.side_effect = ValueError('table not found')
+
+    matcher = bq_verifier.BigQueryTableMatcher(
+        'mock_project',
+        'mock_dataset',
+        'mock_table',
+        {'partitioning': 'a lot of partitioning',
+         'clustering': {'column': 'FRIENDS'}})
+
+    with self.assertRaises(ValueError):
       hc_assert_that(self._mock_result, matcher)
     self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
 

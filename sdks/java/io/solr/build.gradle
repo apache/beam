@@ -37,6 +37,6 @@ dependencies {
   testCompile "org.apache.solr:solr-test-framework:5.5.4"
   testCompile "org.apache.solr:solr-core:5.5.4"
   testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.3.2"
-  shadowTest library.java.slf4j_jdk14
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

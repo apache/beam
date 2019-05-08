@@ -1,0 +1,72 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyPythonNature()
+enablePythonPerformanceTest()
+
+// Required to setup a Python 3 virtualenv.
+pythonVersion = '3.5'
+
+def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
+
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+    "--nocapture",  // print stdout instantly
+    "--processes=8",  // run tests in parallel
+    "--process-timeout=4500", // timeout of whole command execution
+]
+
+task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+
+  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+
+  doLast {
+    def testOpts = basicTestOpts + ["--attr=IT"]
+
+     def cmdArgs = project.mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+        "worker_jar": dataflowWorkerJar
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+
+  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+
+  doLast {
+    def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
+    def cmdArgs = project.mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
+        "worker_jar": dataflowWorkerJar
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}

@@ -30,8 +30,8 @@ dependencies {
   shadowTest library.java.jaxb_api
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

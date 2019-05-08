@@ -197,7 +197,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
 
   @VisibleForTesting static final String PIPELINE_FILE_NAME = "pipeline.pb";
-  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_NAME = "dataflow_graph.pb";
+  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_NAME = "dataflow_graph.json";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 

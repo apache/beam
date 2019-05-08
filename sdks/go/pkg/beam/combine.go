@@ -16,10 +16,9 @@
 package beam
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Combine inserts a global Combine transform into the pipeline. It
@@ -46,6 +45,10 @@ func TryCombine(s Scope, combinefn interface{}, col PCollection) (PCollection, e
 	return DropKey(s, post), nil
 }
 
+func addCombinePerKeyCtx(err error, s Scope) error {
+	return errors.WithContextf(err, "inserting CombinePerKey in scope %s", s)
+}
+
 // TryCombinePerKey attempts to insert a per-key Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollection.
@@ -54,12 +57,12 @@ func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection) (PCollect
 	ValidateKVType(col)
 	col, err := TryGroupByKey(s, col)
 	if err != nil {
-		return PCollection{}, fmt.Errorf("failed to group by key: %v", err)
+		return PCollection{}, addCombinePerKeyCtx(err, s)
 	}
 
 	fn, err := graph.NewCombineFn(combinefn)
 	if err != nil {
-		return PCollection{}, fmt.Errorf("invalid CombineFn: %v", err)
+		return PCollection{}, addCombinePerKeyCtx(err, s)
 	}
 	// This seems like the best place to infer the accumulator coder type, unless
 	// it's a universal type.
@@ -67,12 +70,13 @@ func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection) (PCollect
 	// TODO(lostluck): 2018/05/28 Correctly infer universal type coder if necessary.
 	accumCoder, err := inferCoder(typex.New(fn.MergeAccumulatorsFn().Ret[0].T))
 	if err != nil {
-		return PCollection{}, fmt.Errorf("unable to infer CombineFn accumulator coder: %v", err)
+		wrapped := errors.Wrap(err, "unable to infer CombineFn accumulator coder")
+		return PCollection{}, addCombinePerKeyCtx(wrapped, s)
 	}
 
 	edge, err := graph.NewCombine(s.real, s.scope, fn, col.n, accumCoder)
 	if err != nil {
-		return PCollection{}, err
+		return PCollection{}, addCombinePerKeyCtx(err, s)
 	}
 	ret := PCollection{edge.Output[0].To}
 	ret.SetCoder(NewCoder(ret.Type()))

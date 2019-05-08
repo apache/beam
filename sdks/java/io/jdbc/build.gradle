@@ -35,10 +35,10 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.postgres
   testCompile group: "org.apache.derby", name: "derby", version:"10.14.2.0"
   testCompile group: "org.apache.derby", name: "derbyclient", version:"10.14.2.0"
   testCompile group: "org.apache.derby", name: "derbynet", version:"10.14.2.0"
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

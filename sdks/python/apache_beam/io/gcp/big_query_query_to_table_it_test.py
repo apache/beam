@@ -20,6 +20,7 @@ Integration test for Google Cloud BigQuery.
 
 from __future__ import absolute_import
 
+import base64
 import datetime
 import logging
 import os
@@ -51,12 +52,13 @@ NEW_TYPES_INPUT_TABLE = 'python_new_types_table'
 NEW_TYPES_OUTPUT_SCHEMA = (
     '{"fields": [{"name": "bytes","type": "BYTES"},'
     '{"name": "date","type": "DATE"},{"name": "time","type": "TIME"}]}')
-NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT date FROM `%s`;')
-# There are problems with query time and bytes with current version of bigquery.
+NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT bytes, date, time FROM `%s`;')
 NEW_TYPES_OUTPUT_EXPECTED = [
-    (datetime.date(2000, 1, 1),),
-    (datetime.date(2011, 1, 1),),
-    (datetime.date(3000, 12, 31),)]
+    (b'xyw', datetime.date(2011, 1, 1), datetime.time(23, 59, 59, 999999),),
+    (b'abc', datetime.date(2000, 1, 1), datetime.time(0, 0),),
+    (b'\xe4\xbd\xa0\xe5\xa5\xbd', datetime.date(3000, 12, 31),
+     datetime.time(23, 59, 59, 990000),),
+    (b'\xab\xac\xad', datetime.date(2000, 1, 1), datetime.time(0, 0),)]
 LEGACY_QUERY = (
     'SELECT * FROM (SELECT "apple" as fruit), (SELECT "orange" as fruit),')
 STANDARD_QUERY = (
@@ -114,10 +116,17 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
     table_data = [
-        {'bytes':b'xyw=', 'date':'2011-01-01', 'time':'23:59:59.999999'},
-        {'bytes':b'abc=', 'date':'2000-01-01', 'time':'00:00:00'},
-        {'bytes':b'dec=', 'date':'3000-12-31', 'time':'23:59:59.990000'}
+        {'bytes':b'xyw', 'date':'2011-01-01', 'time':'23:59:59.999999'},
+        {'bytes':b'abc', 'date':'2000-01-01', 'time':'00:00:00'},
+        {'bytes':b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date':'3000-12-31',
+         'time':'23:59:59.990000'},
+        {'bytes':b'\xab\xac\xad', 'date':'2000-01-01', 'time':'00:00:00'}
     ]
+    # the API Tools bigquery client expects byte values to be base-64 encoded
+    # TODO BEAM-4850: upgrade to google-cloud-bigquery which does not require
+    # handling the encoding in beam
+    for row in table_data:
+      row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
     self.bigquery_client.insert_rows(
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
 

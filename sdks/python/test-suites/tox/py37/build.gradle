@@ -42,6 +42,5 @@ testPy37Cython.mustRunAfter testPython37, testPy37Gcp
 task preCommitPy37() {
     dependsOn "testPython37"
     dependsOn "testPy37Gcp"
-    // TODO(BEAM-7066): Activate when Jenkins workers are updated with python3.7-dev
-    // dependsOn "testPy37Cython"
+    dependsOn "testPy37Cython"
 }

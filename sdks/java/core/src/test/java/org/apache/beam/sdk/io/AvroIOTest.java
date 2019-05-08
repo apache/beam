@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
+import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
 import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
@@ -66,6 +67,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -120,21 +122,20 @@ public class AvroIOTest implements Serializable {
     }
 
     @Test
-    public void testWriteWithDefaultCodec() throws Exception {
+    public void testWriteWithDefaultCodec() {
       AvroIO.Write<String> write = AvroIO.write(String.class).to("/tmp/foo/baz");
       assertEquals(CodecFactory.snappyCodec().toString(), write.inner.getCodec().toString());
     }
 
     @Test
-    public void testWriteWithCustomCodec() throws Exception {
+    public void testWriteWithCustomCodec() {
       AvroIO.Write<String> write =
           AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.snappyCodec());
       assertEquals(SNAPPY_CODEC, write.inner.getCodec().toString());
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void testWriteWithSerDeCustomDeflateCodec() throws Exception {
+    public void testWriteWithSerDeCustomDeflateCodec() {
       AvroIO.Write<String> write =
           AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.deflateCodec(9));
 
@@ -144,8 +145,7 @@ public class AvroIOTest implements Serializable {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void testWriteWithSerDeCustomXZCodec() throws Exception {
+    public void testWriteWithSerDeCustomXZCodec() {
       AvroIO.Write<String> write =
           AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.xzCodec(9));
 
@@ -189,9 +189,9 @@ public class AvroIOTest implements Serializable {
       int intField;
       String stringField;
 
-      public GenericClass() {}
+      GenericClass() {}
 
-      public GenericClass(int intField, String stringField) {
+      GenericClass(int intField, String stringField) {
         this.intField = intField;
         this.stringField = stringField;
       }
@@ -422,6 +422,15 @@ public class AvroIOTest implements Serializable {
                       .withHintMatchesManyFiles()))
           .containsInAnyOrder(values);
       PAssert.that(
+              path.apply("MatchAllReadFiles", FileIO.matchAll())
+                  .apply("ReadMatchesReadFiles", FileIO.readMatches().withCompression(AUTO))
+                  .apply(
+                      "ReadFiles",
+                      AvroIO.readFiles(GenericClass.class)
+                          .withBeamSchemas(withBeamSchemas)
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(values);
+      PAssert.that(
               path.apply(
                   "ReadAll",
                   AvroIO.readAll(GenericClass.class)
@@ -444,8 +453,20 @@ public class AvroIOTest implements Serializable {
                       .withHintMatchesManyFiles()))
           .containsInAnyOrder(values);
       PAssert.that(
+              path.apply("MatchAllParseFilesGenericRecords", FileIO.matchAll())
+                  .apply(
+                      "ReadMatchesParseFilesGenericRecords",
+                      FileIO.readMatches()
+                          .withDirectoryTreatment(FileIO.ReadMatches.DirectoryTreatment.PROHIBIT))
+                  .apply(
+                      "ParseFilesGenericRecords",
+                      AvroIO.parseFilesGenericRecords(new ParseGenericClass())
+                          .withCoder(AvroCoder.of(GenericClass.class))
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(values);
+      PAssert.that(
               path.apply(
-                  "ParseAll",
+                  "ParseAllGenericRecords",
                   AvroIO.parseAllGenericRecords(new ParseGenericClass())
                       .withCoder(AvroCoder.of(GenericClass.class))
                       .withDesiredBundleSizeBytes(10)))
@@ -456,9 +477,9 @@ public class AvroIOTest implements Serializable {
 
     @Test
     @Category(NeedsRunner.class)
-    public void testWriteThenReadMultipleFilepatterns() throws Throwable {
-      List<GenericClass> firstValues = Lists.newArrayList();
-      List<GenericClass> secondValues = Lists.newArrayList();
+    public void testWriteThenReadMultipleFilepatterns() {
+      List<GenericClass> firstValues = new ArrayList<>();
+      List<GenericClass> secondValues = new ArrayList<>();
       for (int i = 0; i < 10; ++i) {
         firstValues.add(new GenericClass(i, "a" + i));
         secondValues.add(new GenericClass(i, "b" + i));
@@ -479,7 +500,7 @@ public class AvroIOTest implements Serializable {
                   .withNumShards(3));
       writePipeline.run();
 
-      // Test readAll() and parseAllGenericRecords().
+      // Test readFiles(), readAll(), parseFilesGenericRecords() and parseAllGenericRecords().
       PCollection<String> paths =
           readPipeline.apply(
               "Create paths",
@@ -487,15 +508,38 @@ public class AvroIOTest implements Serializable {
                   tmpFolder.getRoot().getAbsolutePath() + "/first*",
                   tmpFolder.getRoot().getAbsolutePath() + "/second*"));
       PAssert.that(
+              paths
+                  .apply("MatchAllReadFiles", FileIO.matchAll())
+                  .apply("ReadMatchesReadFiles", FileIO.readMatches().withCompression(AUTO))
+                  .apply(
+                      "ReadFiles",
+                      AvroIO.readFiles(GenericClass.class)
+                          .withBeamSchemas(withBeamSchemas)
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+      PAssert.that(
               paths.apply(
-                  "Read all",
+                  "ReadAll",
                   AvroIO.readAll(GenericClass.class)
                       .withBeamSchemas(withBeamSchemas)
                       .withDesiredBundleSizeBytes(10)))
           .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
       PAssert.that(
+              paths
+                  .apply("MatchAllParseFilesGenericRecords", FileIO.matchAll())
+                  .apply(
+                      "ReadMatchesParseFilesGenericRecords",
+                      FileIO.readMatches()
+                          .withDirectoryTreatment(FileIO.ReadMatches.DirectoryTreatment.PROHIBIT))
+                  .apply(
+                      "ParseFilesGenericRecords",
+                      AvroIO.parseFilesGenericRecords(new ParseGenericClass())
+                          .withCoder(AvroCoder.of(GenericClass.class))
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+      PAssert.that(
               paths.apply(
-                  "Parse all",
+                  "ParseAllGenericRecords",
                   AvroIO.parseAllGenericRecords(new ParseGenericClass())
                       .withCoder(AvroCoder.of(GenericClass.class))
                       .withDesiredBundleSizeBytes(10)))
@@ -512,11 +556,11 @@ public class AvroIOTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
-    public void testContinuouslyWriteAndReadMultipleFilepatterns() throws Throwable {
+    @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
+    public void testContinuouslyWriteAndReadMultipleFilepatterns() {
       SimpleFunction<Long, GenericClass> mapFn = new CreateGenericClass();
-      List<GenericClass> firstValues = Lists.newArrayList();
-      List<GenericClass> secondValues = Lists.newArrayList();
+      List<GenericClass> firstValues = new ArrayList<>();
+      List<GenericClass> secondValues = new ArrayList<>();
       for (int i = 0; i < 7; ++i) {
         (i < 3 ? firstValues : secondValues).add(mapFn.apply((long) i));
       }
@@ -549,7 +593,8 @@ public class AvroIOTest implements Serializable {
                   .withNumShards(3)
                   .withWindowedWrites());
 
-      // Test read(), readAll(), parse(), and parseAllGenericRecords() with watchForNewFiles().
+      // Test read(), readFiles(), readAll(), parse(), parseFilesGenericRecords() and
+      // parseAllGenericRecords() with watchForNewFiles().
       PAssert.that(
               readPipeline.apply(
                   "Read",
@@ -577,6 +622,24 @@ public class AvroIOTest implements Serializable {
                   tmpFolder.getRoot().getAbsolutePath() + "/first*",
                   tmpFolder.getRoot().getAbsolutePath() + "/second*"));
       PAssert.that(
+              paths
+                  .apply(
+                      "Match All Read files",
+                      FileIO.matchAll()
+                          .continuously(
+                              Duration.millis(100),
+                              Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))))
+                  .apply(
+                      "Read Matches Read files",
+                      FileIO.readMatches()
+                          .withDirectoryTreatment(FileIO.ReadMatches.DirectoryTreatment.PROHIBIT))
+                  .apply(
+                      "Read files",
+                      AvroIO.readFiles(GenericClass.class)
+                          .withBeamSchemas(withBeamSchemas)
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+      PAssert.that(
               paths.apply(
                   "Read all",
                   AvroIO.readAll(GenericClass.class)
@@ -587,8 +650,26 @@ public class AvroIOTest implements Serializable {
                       .withDesiredBundleSizeBytes(10)))
           .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
       PAssert.that(
+              paths
+                  .apply(
+                      "Match All ParseFilesGenericRecords",
+                      FileIO.matchAll()
+                          .continuously(
+                              Duration.millis(100),
+                              Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))))
+                  .apply(
+                      "Match Matches ParseFilesGenericRecords",
+                      FileIO.readMatches()
+                          .withDirectoryTreatment(FileIO.ReadMatches.DirectoryTreatment.PROHIBIT))
+                  .apply(
+                      "ParseFilesGenericRecords",
+                      AvroIO.parseFilesGenericRecords(new ParseGenericClass())
+                          .withCoder(AvroCoder.of(GenericClass.class))
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+      PAssert.that(
               paths.apply(
-                  "Parse all",
+                  "ParseAllGenericRecords",
                   AvroIO.parseAllGenericRecords(new ParseGenericClass())
                       .withCoder(AvroCoder.of(GenericClass.class))
                       .watchForNewFiles(
@@ -667,9 +748,9 @@ public class AvroIOTest implements Serializable {
       String stringField;
       @Nullable String nullableField;
 
-      public GenericClassV2() {}
+      GenericClassV2() {}
 
-      public GenericClassV2(int intValue, String stringValue, String nullableValue) {
+      GenericClassV2(int intValue, String stringValue, String nullableValue) {
         this.intField = intValue;
         this.stringField = stringValue;
         this.nullableField = nullableValue;
@@ -691,7 +772,7 @@ public class AvroIOTest implements Serializable {
 
       @Override
       public boolean equals(Object other) {
-        if (other == null || !(other instanceof GenericClassV2)) {
+        if (!(other instanceof GenericClassV2)) {
           return false;
         }
         GenericClassV2 o = (GenericClassV2) other;
@@ -908,8 +989,7 @@ public class AvroIOTest implements Serializable {
         try (DataFileReader<GenericClass> reader =
             new DataFileReader<>(
                 outputFile,
-                new ReflectDatumReader<GenericClass>(
-                    ReflectData.get().getSchema(GenericClass.class)))) {
+                new ReflectDatumReader<>(ReflectData.get().getSchema(GenericClass.class)))) {
           Iterators.addAll(actualElements, reader);
         }
         outputFile.delete();
@@ -940,8 +1020,8 @@ public class AvroIOTest implements Serializable {
 
     private static class TestDynamicDestinations
         extends DynamicAvroDestinations<String, String, GenericRecord> {
-      ResourceId baseDir;
-      PCollectionView<Map<String, String>> schemaView;
+      final ResourceId baseDir;
+      final PCollectionView<Map<String, String>> schemaView;
 
       TestDynamicDestinations(ResourceId baseDir, PCollectionView<Map<String, String>> schemaView) {
         this.baseDir = baseDir;
@@ -1200,7 +1280,7 @@ public class AvroIOTest implements Serializable {
       }
     }
 
-    @SuppressWarnings("deprecation") // using AvroCoder#createDatumReader for tests.
+    // using AvroCoder#createDatumReader for tests.
     private void runTestWrite(String[] expectedElements, int numShards) throws IOException {
       File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
       String outputFilePrefix = baseOutputFile.getAbsolutePath();
@@ -1223,7 +1303,7 @@ public class AvroIOTest implements Serializable {
       assertTestOutputs(expectedElements, numShards, outputFilePrefix, shardNameTemplate);
     }
 
-    public static void assertTestOutputs(
+    static void assertTestOutputs(
         String[] expectedElements, int numShards, String outputFilePrefix, String shardNameTemplate)
         throws IOException {
       // Validate that the data written matches the expected elements in the expected order

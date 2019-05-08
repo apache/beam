@@ -239,8 +239,8 @@ class DoFnSignature(object):
 
   def get_restriction_provider(self):
     result = _find_param_with_default(self.process_method,
-                                      default_as_type=RestrictionProvider)
-    return result[1] if result else None
+                                      default_as_type=DoFn.RestrictionParam)
+    return result[1].restriction_provider if result else None
 
   def _validate(self):
     self._validate_process()
@@ -271,7 +271,7 @@ class DoFnSignature(object):
     userstate.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
-    return any([isinstance(default, RestrictionProvider) for default in
+    return any([isinstance(default, DoFn.RestrictionParam) for default in
                 self.process_method.defaults])
 
   def is_stateful_dofn(self):
@@ -538,7 +538,7 @@ class PerWindowInvoker(DoFnInvoker):
             'SDFs in multiply-windowed values with windowed arguments.')
       restriction_tracker_param = _find_param_with_default(
           self.signature.process_method,
-          default_as_type=core.RestrictionProvider)[0]
+          default_as_type=DoFn.RestrictionParam)[0]
       if not restriction_tracker_param:
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
