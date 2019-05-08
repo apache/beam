@@ -503,7 +503,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       return schema.getField(((RexInputRef) rexNode).getIndex() - leftRowColumnCount);
     } else if (rexNode instanceof RexFieldAccess) {
       // need to extract field of Struct/Row.
-      getFieldBasedOnRexFieldAccess(schema, (RexFieldAccess) rexNode, leftRowColumnCount);
+      return getFieldBasedOnRexFieldAccess(schema, (RexFieldAccess) rexNode, leftRowColumnCount);
     }
 
     throw new UnsupportedOperationException("Does not support " + rexNode.getType() + " in JOIN.");
