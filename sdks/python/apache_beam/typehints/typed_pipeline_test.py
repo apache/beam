@@ -56,7 +56,7 @@ class MainInputTest(unittest.TestCase):
     result = ['a', 'bb', 'c'] | beam.Map(str.upper)
     self.assertEqual(['A', 'BB', 'C'], sorted(result))
 
-    result = ['xa', 'bbx', 'xcx'] | beam.Map(str.strip, 'x')
+    result = ['xa', 'bbx', 'xcx'] | beam.Map(lambda x: x.strip("x"))
     self.assertEqual(['a', 'bb', 'c'], sorted(result))
 
     result = ['1', '10', '100'] | beam.Map(int)
