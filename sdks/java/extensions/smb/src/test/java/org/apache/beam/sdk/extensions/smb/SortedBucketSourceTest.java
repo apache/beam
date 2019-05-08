@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.smb;
 
-import static org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
+import static org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInput;
 import static org.apache.beam.sdk.extensions.smb.TestUtils.fromFolder;
 
 import java.nio.channels.Channels;

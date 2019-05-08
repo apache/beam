@@ -21,7 +21,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO;
 import org.apache.beam.sdk.extensions.smb.SortedBucketIO.ReadBuilder.JoinSource;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink;
-import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInputs.BucketedInput;
+import org.apache.beam.sdk.extensions.smb.SortedBucketSource.BucketedInput;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.values.TupleTag;
