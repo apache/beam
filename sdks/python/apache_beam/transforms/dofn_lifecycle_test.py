@@ -23,8 +23,6 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.metrics import Metrics
-from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 
 _global_teardown_called = False
