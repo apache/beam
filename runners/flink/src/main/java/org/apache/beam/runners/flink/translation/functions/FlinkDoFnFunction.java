@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -139,14 +140,13 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    doFnInvoker.invokeSetup();
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
   }
 
   @Override
   public void close() throws Exception {
     try {
-      doFnInvoker.invokeTeardown();
+      Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
     } finally {
       FlinkClassloading.deleteStaticCaches();
     }
