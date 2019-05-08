@@ -114,6 +114,8 @@ public class BigqueryClient {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryClient.class);
   // The maximum number of retries to execute a BigQuery RPC
   static final int MAX_QUERY_RETRIES = 4;
+  // How long should BQ jobs.query call wait for query completion. Default is 10 seconds.
+  static final Long QUERY_TIMEOUT_MS = 20_000L;
 
   // The initial backoff for executing a BigQuery RPC
   private static final Duration INITIAL_BACKOFF = Duration.standardSeconds(1L);
@@ -328,7 +330,7 @@ public class BigqueryClient {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
     IOException lastException = null;
-    QueryRequest bqQueryRequest = new QueryRequest().setQuery(query);
+    QueryRequest bqQueryRequest = new QueryRequest().setQuery(query).setTimeoutMs(QUERY_TIMEOUT_MS);
     do {
       if (lastException != null) {
         LOG.warn("Retrying query ({}) after exception", bqQueryRequest.getQuery(), lastException);
