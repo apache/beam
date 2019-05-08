@@ -100,8 +100,8 @@ class DeterministicProtoCoderTest(unittest.TestCase):
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
 
   def test_deterministic_proto_coder_determinism(self):
-    for _ in xrange(10):
-      keys = range(20)
+    for _ in range(10):
+      keys = list(range(20))
       mm_forward = test_message.MessageWithMap()
       for key in keys:
         mm_forward.field1[str(key)].field1 = str(key)
