@@ -55,7 +55,7 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.guava_testlib
   testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 // Note that no runner is specified here, so tests running under this task should not be running

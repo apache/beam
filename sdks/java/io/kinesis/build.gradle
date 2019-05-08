@@ -54,7 +54,7 @@ dependencies {
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
   testCompile "org.assertj:assertj-core:3.11.1"
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

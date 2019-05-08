@@ -86,12 +86,12 @@ dependencies {
   provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   provided library.java.kafka_clients
-  shadowTest library.java.slf4j_jdk14
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.quickcheck_core
+  shadowTestRuntimeClasspath library.java.slf4j_jdk14
 
   // Dependencies that we don't directly reference
   permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"

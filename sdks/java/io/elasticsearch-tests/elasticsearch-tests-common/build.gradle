@@ -41,9 +41,9 @@ dependencies {
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.commons_io_1x
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:6.4.0"
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":beam-runners-direct-java")
 }
