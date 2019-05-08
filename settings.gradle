@@ -41,27 +41,34 @@ project(":beam-runners-direct-java").dir = file("runners/direct-java")
 include "beam-runners-extensions-java-metrics"
 project(":beam-runners-extensions-java-metrics").dir = file("runners/extensions-java/metrics")
 /* Begin Flink Runner related settings */
-// 1.5 version with Scala 2.11 suffix
+// Flink 1.5 (with Scala 2.11 suffix)
 include "beam-runners-flink_2.11"
-project(":beam-runners-flink_2.11").dir = file("runners/flink")
+project(":beam-runners-flink_2.11").dir = file("runners/flink/1.5")
 include "beam-runners-flink_2.11-job-server"
-project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
+project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/1.5/job-server")
 include "beam-runners-flink_2.11-job-server-container"
-project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/job-server-container")
-// 1.6 version
+project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/1.5/job-server-container")
+// Flink 1.6
 include "beam-runners-flink-1.6"
 project(":beam-runners-flink-1.6").dir = file("runners/flink/1.6")
 include "beam-runners-flink-1.6-job-server"
 project(":beam-runners-flink-1.6-job-server").dir = file("runners/flink/1.6/job-server")
 include "beam-runners-flink-1.6-job-server-container"
 project(":beam-runners-flink-1.6-job-server-container").dir = file("runners/flink/1.6/job-server-container")
-// 1.7 version
+// Flink 1.7
 include "beam-runners-flink-1.7"
 project(":beam-runners-flink-1.7").dir = file("runners/flink/1.7")
 include "beam-runners-flink-1.7-job-server"
 project(":beam-runners-flink-1.7-job-server").dir = file("runners/flink/1.7/job-server")
 include "beam-runners-flink-1.7-job-server-container"
 project(":beam-runners-flink-1.7-job-server-container").dir = file("runners/flink/1.7/job-server-container")
+// Flink 1.8
+include "beam-runners-flink-1.8"
+project(":beam-runners-flink-1.8").dir = file("runners/flink/1.8")
+include "beam-runners-flink-1.8-job-server"
+project(":beam-runners-flink-1.8-job-server").dir = file("runners/flink/1.8/job-server")
+include "beam-runners-flink-1.8-job-server-container"
+project(":beam-runners-flink-1.8-job-server-container").dir = file("runners/flink/1.8/job-server-container")
 /* End Flink Runner related settings */
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
