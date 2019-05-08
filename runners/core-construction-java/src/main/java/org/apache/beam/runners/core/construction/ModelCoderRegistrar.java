@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
@@ -47,6 +48,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   static final BiMap<Class<? extends Coder>, String> BEAM_MODEL_CODER_URNS =
       ImmutableBiMap.<Class<? extends Coder>, String>builder()
           .put(ByteArrayCoder.class, ModelCoders.BYTES_CODER_URN)
+          .put(StringUtf8Coder.class, ModelCoders.STRING_UTF8_CODER_URN)
           .put(KvCoder.class, ModelCoders.KV_CODER_URN)
           .put(VarLongCoder.class, ModelCoders.INT64_CODER_URN)
           .put(IntervalWindowCoder.class, ModelCoders.INTERVAL_WINDOW_CODER_URN)
@@ -64,6 +66,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> BEAM_MODEL_CODERS =
       ImmutableMap.<Class<? extends Coder>, CoderTranslator<? extends Coder>>builder()
           .put(ByteArrayCoder.class, CoderTranslators.atomic(ByteArrayCoder.class))
+          .put(StringUtf8Coder.class, CoderTranslators.atomic(StringUtf8Coder.class))
           .put(VarLongCoder.class, CoderTranslators.atomic(VarLongCoder.class))
           .put(IntervalWindowCoder.class, CoderTranslators.atomic(IntervalWindowCoder.class))
           .put(GlobalWindow.Coder.class, CoderTranslators.atomic(GlobalWindow.Coder.class))
