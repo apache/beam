@@ -15,17 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.smb;
+package org.apache.beam.sdk.extensions.smb.benchmark;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 
-/** SmbIT. */
+/** Integration. */
 public class SmbIT {
   public static void main(String[] args) throws CannotProvideCoderException, IOException {
-    Path temp = Files.createTempDirectory("smb-");
+    final Path temp = Files.createTempDirectory("smb-");
     SinkBenchmark.main(
         new String[] {
           "--avroDestination=" + temp.resolve("avro"),
@@ -37,7 +37,7 @@ public class SmbIT {
           "--numShards=2",
         });
 
-    SmbBenchmark.main(
+    SourceBenchmark.main(
         new String[] {
           "--avroSource=" + temp.resolve("avro"),
           "--jsonSource=" + temp.resolve("json"),

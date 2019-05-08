@@ -112,8 +112,7 @@ public abstract class BucketMetadata<K, V> implements Serializable {
   }
 
   // Todo: support sources with different # buckets.
-  @VisibleForTesting
-  public boolean isCompatibleWith(BucketMetadata other) {
+  boolean isCompatibleWith(BucketMetadata other) {
     return other != null && this.hashType == other.hashType && this.numBuckets == other.numBuckets;
   }
 
