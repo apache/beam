@@ -358,7 +358,8 @@ class SyntheticSDFAsSource(beam.DoFn):
   def process(
       self,
       element,
-      restriction_tracker=SyntheticSDFSourceRestrictionProvider()):
+      restriction_tracker=beam.DoFn.RestrictionParam(
+          SyntheticSDFSourceRestrictionProvider())):
     for k in range(*restriction_tracker.current_restriction()):
       if not restriction_tracker.try_claim(k):
         return

@@ -178,6 +178,7 @@ ignore_identifiers = [
   '_StateDoFnParam',
   '_TimerDoFnParam',
   '_BundleFinalizerParam',
+  '_RestrictionDoFnParam',
 
   # Sphinx cannot find this py:class reference target
   'typing.Generic',
