@@ -36,8 +36,6 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._start_bundle_calls = 0
     self._finish_bundle_calls = 0
     self._teardown_called = False
-    self._teardown_called_counter = Metrics.counter(
-        self.__class__, 'teardown_called')
 
   def setup(self):
     assert not self._setup_called, 'setup should not be called twice'
@@ -47,7 +45,6 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
       'setup should be called before finish_bundle'
     assert not self._teardown_called, 'setup should be called before teardown'
     self._setup_called = True
-    self._teardown_called_counter.inc()
 
   def start_bundle(self):
     assert self._setup_called, 'setup should have been called'
@@ -93,10 +90,6 @@ class DoFnLifecycleTest(unittest.TestCase):
     result.wait_until_finish()
     # Assumes that the worker is run in the same process as the test.
     self.assertTrue(_global_teardown_called)
-    metrics_filter = MetricsFilter().with_name('teardown_called')
-    metrics_query_result = result.metrics().query(metrics_filter)
-    self.assertEqual(len(metrics_query_result['counters']), 1)
-    self.assertEqual(metrics_query_result['counters'][0].result, 1)
 
 
 if __name__ == '__main__':
