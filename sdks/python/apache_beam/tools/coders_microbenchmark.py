@@ -39,8 +39,8 @@ import sys
 
 from past.builtins import unicode
 
-from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+from apache_beam.coders import coders
 from apache_beam.tools import utils
 from apache_beam.transforms import window
 from apache_beam.utils import windowed_value
