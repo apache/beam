@@ -1399,7 +1399,7 @@ public class KafkaIOTest {
               .withTopic("myTopic")
               .withValueSerializer(LongSerializer.class)
               .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
-              .updateProducerProperties(ImmutableMap.of("retry.backoff.ms", 100));
+              .withProducerConfigUpdates(ImmutableMap.of("retry.backoff.ms", 100));
 
       DisplayData displayData = DisplayData.from(write);
 
