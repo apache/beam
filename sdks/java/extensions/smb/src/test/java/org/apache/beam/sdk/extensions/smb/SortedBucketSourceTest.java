@@ -67,7 +67,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
-  public void testOneShard() throws Exception {
+  public void testUniformBucketsOneShard() throws Exception {
     test(
         ImmutableMap.of(
             BucketShardId.of(0, 0), Lists.newArrayList("a1", "a2", "b1", "b2"),
@@ -78,7 +78,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
-  public void testMultiShard() throws Exception {
+  public void testUniformBucketsMultiShard() throws Exception {
     test(
         ImmutableMap.of(
             BucketShardId.of(0, 0), Lists.newArrayList("a1", "b1"),
@@ -93,7 +93,7 @@ public class SortedBucketSourceTest {
   }
 
   @Test
-  public void testMixedShard() throws Exception {
+  public void testUniformBucketsMixedShard() throws Exception {
     test(
         ImmutableMap.of(
             BucketShardId.of(0, 0), Lists.newArrayList("a1", "a2", "b1", "b2"),
@@ -103,6 +103,55 @@ public class SortedBucketSourceTest {
             BucketShardId.of(0, 1), Lists.newArrayList("a4", "c4"),
             BucketShardId.of(1, 0), Lists.newArrayList("x3", "z3"),
             BucketShardId.of(1, 1), Lists.newArrayList("x4", "z4")));
+  }
+
+  @Test
+  public void testMixedBucketsOneShard() throws Exception {
+    test(
+        ImmutableMap.of(
+            BucketShardId.of(0, 0), Lists.newArrayList("a1", "a2", "b1", "b2"),
+            BucketShardId.of(1, 0), Lists.newArrayList("x1", "x2", "y1", "y2"),
+            BucketShardId.of(2, 0), Lists.newArrayList("c1", "c2", "d1", "d2"),
+            BucketShardId.of(3, 0), Lists.newArrayList("y1", "y2", "z1", "z2")),
+        ImmutableMap.of(
+            BucketShardId.of(0, 0), Lists.newArrayList("a3", "c3"),
+            BucketShardId.of(1, 0), Lists.newArrayList("x3", "z3")));
+  }
+
+  @Test
+  public void testMixedBucketsMultiShard() throws Exception {
+    Map<BucketShardId, List<String>> lhs = new HashMap<>();
+    lhs.put(BucketShardId.of(0, 0), Lists.newArrayList("a1", "a2", "b1", "b2"));
+    lhs.put(BucketShardId.of(0, 1), Lists.newArrayList("a1", "a2", "b1", "b2"));
+    lhs.put(BucketShardId.of(1, 0), Lists.newArrayList("x1", "x2", "y1", "y2"));
+    lhs.put(BucketShardId.of(1, 1), Lists.newArrayList("x1", "x2", "y1", "y2"));
+    lhs.put(BucketShardId.of(2, 0), Lists.newArrayList("c1", "c2", "d1", "d2"));
+    lhs.put(BucketShardId.of(2, 1), Lists.newArrayList("c1", "c2", "d1", "d2"));
+    lhs.put(BucketShardId.of(3, 0), Lists.newArrayList("y1", "y2", "z1", "z2"));
+    lhs.put(BucketShardId.of(3, 1), Lists.newArrayList("y1", "y2", "z1", "z2"));
+
+    test(
+        lhs,
+        ImmutableMap.of(
+            BucketShardId.of(0, 0), Lists.newArrayList("a3", "c3"),
+            BucketShardId.of(0, 1), Lists.newArrayList("a4", "c4"),
+            BucketShardId.of(1, 0), Lists.newArrayList("x3", "z3"),
+            BucketShardId.of(1, 1), Lists.newArrayList("x4", "z4")));
+  }
+
+  @Test
+  public void testMixedBucketsMixedShard() throws Exception {
+    test(
+        ImmutableMap.of(
+            BucketShardId.of(0, 0), Lists.newArrayList("a1", "a2", "b1", "b2"),
+            BucketShardId.of(1, 0), Lists.newArrayList("x1", "x2", "y1", "y2"),
+            BucketShardId.of(2, 0), Lists.newArrayList("c1", "c2", "d1", "d2"),
+            BucketShardId.of(3, 0), Lists.newArrayList("y1", "y2", "z1", "z2")),
+        ImmutableMap.of(
+            BucketShardId.of(0, 0), Lists.newArrayList("a3", "c3"),
+            BucketShardId.of(0, 1), Lists.newArrayList("a4", "c4"),
+            BucketShardId.of(1, 0), Lists.newArrayList("x3", "z3"),
+            BucketShardId.of(1, 1), Lists.newArrayList("f4", "g4")));
   }
 
   private void test(

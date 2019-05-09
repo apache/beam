@@ -58,12 +58,10 @@ public class BucketMetadataTest {
     final TestBucketMetadata m1 = new TestBucketMetadata(1, 1, HashType.MURMUR3_32);
     final TestBucketMetadata m2 = new TestBucketMetadata(1, 1, HashType.MURMUR3_32);
     final TestBucketMetadata m3 = new TestBucketMetadata(1, 2, HashType.MURMUR3_32);
-    final TestBucketMetadata m4 = new TestBucketMetadata(2, 1, HashType.MURMUR3_32);
-    final TestBucketMetadata m5 = new TestBucketMetadata(1, 1, HashType.MURMUR3_128);
+    final TestBucketMetadata m4 = new TestBucketMetadata(1, 1, HashType.MURMUR3_128);
 
     Assert.assertTrue(m1.isCompatibleWith(m2));
     Assert.assertTrue(m1.isCompatibleWith(m3));
     Assert.assertFalse(m1.isCompatibleWith(m4));
-    Assert.assertFalse(m1.isCompatibleWith(m5));
   }
 }

@@ -96,14 +96,20 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
     BucketMetadata<?, ?> first = null;
     Coder<FinalKeyT> finalKeyCoder = null;
 
+    int leastNumBuckets = Integer.MAX_VALUE;
     // Check metadata of each source
     for (BucketedInput<?, ?> source : sources) {
       final BucketMetadata<?, ?> current = source.getMetadata();
       if (first == null) {
         first = current;
       } else {
-        Preconditions.checkState(first.isCompatibleWith(current));
+        Preconditions.checkState(
+            first.isCompatibleWith(current),
+            String.format("Source %s is incompatible with source %s", sources.get(0), source));
       }
+
+      leastNumBuckets = Math.min(current.getNumBuckets(), leastNumBuckets);
+
       if (current.getKeyClass() == finalKeyClass && finalKeyCoder == null) {
         try {
           @SuppressWarnings("unchecked")
@@ -114,26 +120,26 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         }
       }
     }
+
     Preconditions.checkNotNull(
         finalKeyCoder, "Could not infer coder for key class " + finalKeyClass);
-
-    // TODO: Support asymmetric, but still compatible, bucket sizes in reader.
-    final int numBuckets = first.getNumBuckets();
 
     // Expand sources into one key-value pair per bucket
     @SuppressWarnings("unchecked")
     final PCollection<KV<Integer, List<BucketedInput<?, ?>>>> bucketedInputs =
         (PCollection<KV<Integer, List<BucketedInput<?, ?>>>>)
-            new BucketedInputs(begin.getPipeline(), numBuckets, sources)
+            new BucketedInputs(begin.getPipeline(), leastNumBuckets, sources)
                 .expand()
                 .get(new TupleTag<>("BucketedSources"));
 
     @SuppressWarnings("deprecation")
-    Reshuffle.ViaRandomKey<KV<Integer, List<BucketedInput<?, ?>>>> reshuffle =
+    final Reshuffle.ViaRandomKey<KV<Integer, List<BucketedInput<?, ?>>>> reshuffle =
         Reshuffle.viaRandomKey();
     return bucketedInputs
         .apply("ReshuffleKeys", reshuffle)
-        .apply("MergeBuckets", ParDo.of(new MergeBuckets<>(finalKeyCoder, toFinalResult)))
+        .apply(
+            "MergeBuckets",
+            ParDo.of(new MergeBuckets<>(leastNumBuckets, finalKeyCoder, toFinalResult)))
         .setCoder(KvCoder.of(finalKeyCoder, toFinalResult.resultCoder()));
   }
 
@@ -144,10 +150,13 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
     private static final Comparator<Map.Entry<TupleTag, KV<byte[], Iterator<?>>>> keyComparator =
         (o1, o2) -> bytesComparator.compare(o1.getValue().getKey(), o2.getValue().getKey());
 
+    private final Integer leastNumBuckets;
     private final Coder<FinalKeyT> keyCoder;
     private final ToFinalResult<FinalResultT> toResult;
 
-    MergeBuckets(Coder<FinalKeyT> keyCoder, ToFinalResult<FinalResultT> toResult) {
+    MergeBuckets(
+        int leastNumBuckets, Coder<FinalKeyT> keyCoder, ToFinalResult<FinalResultT> toResult) {
+      this.leastNumBuckets = leastNumBuckets;
       this.toResult = toResult;
       this.keyCoder = keyCoder;
     }
@@ -160,7 +169,9 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
 
       // Initialize iterators and tuple tags for sources
       final KeyGroupIterator[] iterators =
-          sources.stream().map(i -> i.createIterator(bucketId)).toArray(KeyGroupIterator[]::new);
+          sources.stream()
+              .map(i -> i.createIterator(bucketId, leastNumBuckets))
+              .toArray(KeyGroupIterator[]::new);
       final TupleTag[] tupleTags = sources.stream().map(i -> i.tupleTag).toArray(TupleTag[]::new);
 
       final Map<TupleTag, KV<byte[], Iterator<?>>> nextKeyGroups = new HashMap<>();
@@ -169,13 +180,13 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         int completedSources = 0;
         // Advance key-value groups from each source
         for (int i = 0; i < numSources; i++) {
-          KeyGroupIterator it = iterators[i];
+          final KeyGroupIterator it = iterators[i];
           if (nextKeyGroups.containsKey(tupleTags[i])) {
             continue;
           }
           if (it.hasNext()) {
             @SuppressWarnings("unchecked")
-            KV<byte[], Iterator<?>> next = it.next();
+            final KV<byte[], Iterator<?>> next = it.next();
             nextKeyGroups.put(tupleTags[i], next);
           } else {
             completedSources++;
@@ -322,16 +333,25 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       }
     }
 
-    KeyGroupIterator<byte[], V> createIterator(int bucketId) {
+    KeyGroupIterator<byte[], V> createIterator(int bucketId, int leastNumBuckets) {
       // Create one iterator per shard
-      final int numShards = getMetadata().getNumShards();
+      final BucketMetadata<K, V> metadata = getMetadata();
+
+      final int numBucketsInSource = metadata.getNumBuckets();
+      final int numShards = metadata.getNumShards();
+
       final List<Iterator<V>> iterators = new ArrayList<>();
-      for (int i = 0; i < numShards; i++) {
-        ResourceId file = fileAssignment.forBucket(BucketShardId.of(bucketId, i), metadata);
-        try {
-          iterators.add(fileOperations.iterator(file));
-        } catch (Exception e) {
-          throw new RuntimeException(e);
+
+      // Since all BucketedInputs have a bucket count that's a power of two, we can infer
+      // which buckets should be merged together for the join.
+      for (int i = bucketId; i < numBucketsInSource; i += leastNumBuckets) {
+        for (int j = 0; j < numShards; j++) {
+          final ResourceId file = fileAssignment.forBucket(BucketShardId.of(i, j), metadata);
+          try {
+            iterators.add(fileOperations.iterator(file));
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
         }
       }
 
@@ -375,6 +395,13 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
         return new BucketedInput<>(
             tupleTag, filenamePrefix, filenameSuffix, fileOperations, metadata);
       }
+    }
+
+    @Override
+    public String toString() {
+      return String.format(
+          "BucketedInput[tupleTag=%s, filenamePrefix=%s, metadata=%s]",
+          tupleTag.getId(), filenamePrefix, getMetadata());
     }
   }
 }

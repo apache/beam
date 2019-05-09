@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -107,10 +108,15 @@ public class SourceBenchmark {
             MapElements.into(TypeDescriptors.longs())
                 .via(
                     c -> {
-                      System.out.println(c);
+                      System.out.println("Global count = " + c);
                       return c;
                     }));
 
-    pipeline.run();
+    long startTime = System.currentTimeMillis();
+    State state = pipeline.run().waitUntilFinish();
+    System.out.println(
+        String.format(
+            "SourceBenchmark finished with state %s in %d ms",
+            state, System.currentTimeMillis() - startTime));
   }
 }

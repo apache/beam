@@ -46,3 +46,26 @@ dependencies {
 test {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(["--runner=DirectRunner"])
 }
+
+// TODO: These tasks are here for quick reference, can probably be removed before merge.
+task runBenchmarkMatchingBuckets(type: JavaExec) {
+    classpath = sourceSets.test.runtimeClasspath
+    main = "org.apache.beam.sdk.extensions.smb.benchmark.SmbIT"
+    args "--numKeys=10000",
+            "--maxRecordsPerKey=20",
+            "--avroNumBuckets=16",
+            "--avroNumShards=2",
+            "--jsonNumBuckets=16",
+            "--jsonNumShards=2"
+}
+
+task runBenchmarkMixedBuckets(type: JavaExec) {
+    classpath = sourceSets.test.runtimeClasspath
+    main = "org.apache.beam.sdk.extensions.smb.benchmark.SmbIT"
+    args "--numKeys=10000",
+            "--maxRecordsPerKey=20",
+            "--avroNumBuckets=16",
+            "--avroNumShards=2",
+            "--jsonNumBuckets=16",
+            "--jsonNumShards=2"
+}

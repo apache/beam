@@ -82,16 +82,19 @@ public class MixedSourcesEndToEndTest implements Serializable {
   @Test
   public void testE2E() throws Exception {
     final AvroBucketMetadata<ByteBuffer, GenericRecord> avroMetadata =
-        new AvroBucketMetadata<>(2, 1, ByteBuffer.class, HashType.MURMUR3_32, "name");
+        new AvroBucketMetadata<>(4, 3, ByteBuffer.class, HashType.MURMUR3_32, "name");
 
     pipeline
         .apply(
             Create.of(
                     createUserGR("a", 1),
                     createUserGR("b", 2),
-                    createUserGR("e", 5),
                     createUserGR("c", 3),
-                    createUserGR("d", 4))
+                    createUserGR("d", 4),
+                    createUserGR("e", 5),
+                    createUserGR("f", 6),
+                    createUserGR("g", 7),
+                    createUserGR("h", 8))
                 .withCoder(AvroCoder.of(GR_USER_SCHEMA)))
         .apply(
             AvroSortedBucketIO.sink(
@@ -103,16 +106,19 @@ public class MixedSourcesEndToEndTest implements Serializable {
     pipeline.run().waitUntilFinish();
 
     final JsonBucketMetadata<String> jsonMetadata =
-        new JsonBucketMetadata<>(2, 1, String.class, HashType.MURMUR3_32, "name");
+        new JsonBucketMetadata<>(8, 4, String.class, HashType.MURMUR3_32, "name");
 
     pipeline2
         .apply(
             Create.of(
                     createUserJson("a", "US"),
+                    createUserJson("c", "DE"),
+                    createUserJson("d", "MX"),
+                    createUserJson("e", "AU"),
+                    createUserJson("f", "US"),
                     createUserJson("g", "SE"),
-                    createUserJson("d", "DE"),
-                    createUserJson("c", "MX"),
-                    createUserJson("e", "AU"))
+                    createUserJson("h", "DE"),
+                    createUserJson("i", "MX"))
                 .withCoder(TableRowJsonCoder.of()))
         .apply(
             JsonSortedBucketIO.sink(
@@ -154,22 +160,37 @@ public class MixedSourcesEndToEndTest implements Serializable {
                     "c",
                     KV.of(
                         Collections.singletonList(createUserGR("c", 3)),
-                        Collections.singletonList(createUserJson("c", "MX")))),
+                        Collections.singletonList(createUserJson("c", "DE")))),
                 KV.of(
                     "d",
                     KV.of(
                         Collections.singletonList(createUserGR("d", 4)),
-                        Collections.singletonList(createUserJson("d", "DE")))),
+                        Collections.singletonList(createUserJson("d", "MX")))),
                 KV.of(
                     "e",
                     KV.of(
                         Collections.singletonList(createUserGR("e", 5)),
                         Collections.singletonList(createUserJson("e", "AU")))),
                 KV.of(
+                    "f",
+                    KV.of(
+                        Collections.singletonList(createUserGR("f", 6)),
+                        Collections.singletonList(createUserJson("f", "US")))),
+                KV.of(
                     "g",
                     KV.of(
+                        Collections.singletonList(createUserGR("g", 7)),
+                        Collections.singletonList(createUserJson("g", "SE")))),
+                KV.of(
+                    "h",
+                    KV.of(
+                        Collections.singletonList(createUserGR("h", 8)),
+                        Collections.singletonList(createUserJson("h", "DE")))),
+                KV.of(
+                    "i",
+                    KV.of(
                         Collections.emptyList(),
-                        Collections.singletonList(createUserJson("g", "SE"))))));
+                        Collections.singletonList(createUserJson("i", "MX"))))));
 
     pipeline3.run();
   }

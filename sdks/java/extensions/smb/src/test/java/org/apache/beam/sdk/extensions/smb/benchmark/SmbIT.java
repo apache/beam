@@ -26,16 +26,15 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 public class SmbIT {
   public static void main(String[] args) throws CannotProvideCoderException, IOException {
     final Path temp = Files.createTempDirectory("smb-");
-    SinkBenchmark.main(
-        new String[] {
-          "--avroDestination=" + temp.resolve("avro"),
-          "--jsonDestination=" + temp.resolve("json"),
-          "--tempLocation=" + temp.resolve("temp"),
-          "--numKeys=1000",
-          "--maxRecordsPerKey=20",
-          "--numBuckets=16",
-          "--numShards=2",
-        });
+
+    String[] sinkArgs = new String[args.length + 3];
+    sinkArgs[0] = "--avroDestination=" + temp.resolve("avro");
+    sinkArgs[1] = "--jsonDestination=" + temp.resolve("json");
+    sinkArgs[2] = "--tempLocation=" + temp.resolve("temp");
+
+    System.arraycopy(args, 0, sinkArgs, 3, args.length);
+
+    SinkBenchmark.main(sinkArgs);
 
     SourceBenchmark.main(
         new String[] {

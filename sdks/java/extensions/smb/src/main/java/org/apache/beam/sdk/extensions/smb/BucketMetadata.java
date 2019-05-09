@@ -111,9 +111,12 @@ public abstract class BucketMetadata<K, V> implements Serializable {
     public abstract HashFunction create();
   }
 
-  // Todo: support sources with different # buckets.
   boolean isCompatibleWith(BucketMetadata other) {
-    return other != null && this.hashType == other.hashType && this.numBuckets == other.numBuckets;
+    return other != null
+        && this.hashType == other.hashType
+        // This check should be redundant since power of two is checked in BucketMetadata
+        // constructor, but it's cheap to double-check.
+        && (Math.max(numBuckets, other.numBuckets) % Math.min(numBuckets, other.numBuckets) == 0);
   }
 
   ////////////////////////////////////////

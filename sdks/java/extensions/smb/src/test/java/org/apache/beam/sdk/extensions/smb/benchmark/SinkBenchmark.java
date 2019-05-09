@@ -22,6 +22,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy;
@@ -66,20 +67,30 @@ public class SinkBenchmark {
 
     void setNumKeys(int value);
 
-    @Default.Integer(10)
-    int getNumShards();
-
-    void setNumShards(int value);
-
     @Default.Integer(500)
     int getMaxRecordsPerKey();
 
     void setMaxRecordsPerKey(int value);
 
-    @Default.Integer(128)
-    int getNumBuckets();
+    @Default.Integer(10)
+    int getAvroNumShards();
 
-    void setNumBuckets(int value);
+    void setAvroNumShards(int value);
+
+    @Default.Integer(128)
+    int getAvroNumBuckets();
+
+    void setAvroNumBuckets(int value);
+
+    @Default.Integer(10)
+    int getJsonNumShards();
+
+    void setJsonNumShards(int value);
+
+    @Default.Integer(128)
+    int getJsonNumBuckets();
+
+    void setJsonNumBuckets(int value);
   }
 
   public static void main(String[] args) throws CannotProvideCoderException {
@@ -88,8 +99,8 @@ public class SinkBenchmark {
 
     final int numKeys = sinkOptions.getNumKeys();
     final int maxRecordsPerKey = sinkOptions.getMaxRecordsPerKey();
-    final int numBuckets = sinkOptions.getNumBuckets();
-    final int numShards = sinkOptions.getNumShards();
+    final int avroNumBuckets = sinkOptions.getAvroNumBuckets();
+    final int avroNumShards = sinkOptions.getAvroNumShards();
 
     final PCollection<AvroGeneratedUser> avroData =
         pipeline
@@ -109,6 +120,9 @@ public class SinkBenchmark {
                                             .setFavoriteColor(String.format("color-%08d", j))
                                             .build())
                                 .collect(Collectors.toList())));
+
+    final int jsonNumBuckets = sinkOptions.getJsonNumBuckets();
+    final int jsonNumShards = sinkOptions.getJsonNumShards();
 
     final PCollection<TableRow> jsonData =
         pipeline
@@ -133,7 +147,11 @@ public class SinkBenchmark {
 
     final AvroBucketMetadata<CharSequence, AvroGeneratedUser> avroMetadata =
         new AvroBucketMetadata<>(
-            numBuckets, numShards, CharSequence.class, BucketMetadata.HashType.MURMUR3_32, "name");
+            avroNumBuckets,
+            avroNumShards,
+            CharSequence.class,
+            BucketMetadata.HashType.MURMUR3_32,
+            "name");
     final SMBFilenamePolicy avroPolicy =
         new SMBFilenamePolicy(
             FileSystems.matchNewResource(sinkOptions.getAvroDestination(), true), ".avro");
@@ -146,7 +164,11 @@ public class SinkBenchmark {
 
     final JsonBucketMetadata<String> jsonMetadata =
         new JsonBucketMetadata<>(
-            numBuckets, numShards, String.class, BucketMetadata.HashType.MURMUR3_32, "user");
+            jsonNumBuckets,
+            jsonNumShards,
+            String.class,
+            BucketMetadata.HashType.MURMUR3_32,
+            "user");
     final SMBFilenamePolicy jsonPolicy =
         new SMBFilenamePolicy(
             FileSystems.matchNewResource(sinkOptions.getJsonDestination(), true), ".json");
@@ -156,6 +178,11 @@ public class SinkBenchmark {
 
     jsonData.apply(jsonSink);
 
-    pipeline.run();
+    long startTime = System.currentTimeMillis();
+    State state = pipeline.run().waitUntilFinish();
+    System.out.println(
+        String.format(
+            "SinkBenchmark finished with state %s in %d ms",
+            state, System.currentTimeMillis() - startTime));
   }
 }
