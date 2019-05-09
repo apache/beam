@@ -46,7 +46,7 @@ import org.joda.time.Instant;
  */
 public class TestStreamTranslation {
 
-  private static TestStream<?> testStreamFromProtoPayload(
+  public static TestStream<?> testStreamFromProtoPayload(
       RunnerApi.TestStreamPayload testStreamPayload, RehydratedComponents components)
       throws IOException {
 
