@@ -266,7 +266,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
   SIMPLE_COLLECTION_VALIDATION_SET = set([
       (elm['project'], elm['foundation']) for elm in SIMPLE_COLLECTION])
 
-  class CsvSink(fileio.DefaultSink):
+  class CsvSink(fileio.TextSink):
     def __init__(self, headers):
       self.headers = headers
 
@@ -274,7 +274,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       self._fh.write(','.join([record[h] for h in self.headers]).encode('utf8'))
       self._fh.write('\n'.encode('utf8'))
 
-  class JsonSink(fileio.DefaultSink):
+  class JsonSink(fileio.TextSink):
 
     def write(self, record):
       self._fh.write(json.dumps(record).encode('utf8'))
@@ -287,8 +287,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     with TestPipeline() as p:
       _ = (p
            | beam.Create(WriteFilesTest.SIMPLE_COLLECTION)
-           | "Serialize" >> beam.Map(
-               lambda x: ('%s\n' % json.dumps(x)).encode('utf8'))
+           | "Serialize" >> beam.Map(json.dumps)
            | beam.io.fileio.WriteToFiles(path=dir))
 
     with TestPipeline() as p:
@@ -403,7 +402,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     for elm in WriteFilesTest.LARGER_COLLECTION:
       timestamp = int(elm)
 
-      ts.add_elements([('key', '%s\n' % elm)])
+      ts.add_elements([('key', '%s' % elm)])
       if timestamp % 5 == 0 and timestamp != 0:
         # TODO(BEAM-3759): Add many firings per window after getting PaneInfo.
         ts.advance_processing_time(5)
@@ -420,7 +419,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                  trigger=trigger.AfterWatermark(),
                  accumulation_mode=trigger.AccumulationMode.DISCARDING)
              | beam.GroupByKey()
-             | beam.FlatMap(lambda x: [r.encode('utf8') for r in x[1]]))
+             | beam.FlatMap(lambda x: x[1]))
       # Triggering after 5 processing-time seconds, and on the watermark. Also
       # discarding old elements.
 

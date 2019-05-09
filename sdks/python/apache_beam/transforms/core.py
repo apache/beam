@@ -2074,7 +2074,7 @@ class WindowInto(ParDo):
     """Initializes a WindowInto transform.
 
     Args:
-      windowfn: Function to be used for windowing
+      windowfn (Windowing, WindowFn): Function to be used for windowing.
       trigger: (optional) Trigger used for windowing, or None for default.
       accumulation_mode: (optional) Accumulation mode used for windowing,
           required for non-trivial triggers.

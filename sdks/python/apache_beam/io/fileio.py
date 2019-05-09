@@ -23,15 +23,73 @@ and its metadata; and ``ReadMatches``, which takes in a ``PCollection`` of file
 metadata records, and produces a ``PCollection`` of ``ReadableFile`` objects.
 These transforms currently do not support splitting by themselves.
 
+Writing to Files
+================
+
+The transforms in this file include ``WriteToFiles``, which allows you to write
+a ``beam.PCollection`` to files, and gives you many options to customize how to
+do this.
+
+File Naming
+-----------
+One of the parameters received by ``WriteToFiles`` is a function specifying how
+to name the files that are written. This is a function that takes in the
+following parameters:
+
+- window
+- pane
+- shard_index
+- total_shards
+- compression
+- destination
+
+It should return a file name that is unique for a combination of these
+parameters.
+
+The default naming strategy is to name files
+in the format
+`$prefix-$start-$end-$pane-$shard-of-$numShards$suffix$compressionSuffix`,
+where:
+
+- `$prefix` is, by default, `"output"`.
+- `$start` and `$end` are the boundaries of the window for the data being
+  written. These are omitted if we're using the Global window.
+- `$pane` is the index for the number of firing for a window.
+- `$shard` and `$numShards` are the current shard number, and the total number
+  of shards for this window firing.
+- `$suffix` is, by default, an empty string, but it can be set by the user via
+  ``default_file_naming``.
+
+Dynamic Destinations
+--------------------
+If the elements in the input ``beam.PCollection`` can be partitioned into groups
+that should be treated differently (e.g. some events are to be stored as CSV,
+while some others are to be stored as Avro files), it is possible to do this
+by passing a `destination` parameter to ``WriteToFiles``. Something like the
+following::
+
+    my_pcollection | beam.io.fileio.WriteToFiles(
+          path='/my/file/path',
+          destination=lambda record: 'avro' if record['type'] == 'A' else 'csv',
+          sink=lambda dest: AvroSink() if dest == 'avro' else CsvSink(),
+          file_naming=beam.io.fileio.destination_prefix_naming())
+
+In this transform, depending on the type of a record, it will be written down to
+a destination named `'avro'`, or `'csv'`. The value returned by the
+`destination` call is then passed to the `sink` call, to determine what sort of
+ sink will be used for each destination. The return type of the `destination`
+parameter can be anything, as long as elements can be grouped by it.
+
+
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 
 from __future__ import absolute_import
 
+import collections
 import logging
 import random
 import uuid
-from collections import defaultdict
 
 from past.builtins import unicode
 
@@ -208,20 +266,21 @@ class FileSink(object):
     raise NotImplementedError
 
 
-class DefaultSink(FileSink):
-  """A sink that writes elements into file handlers as they come.
+class TextSink(FileSink):
+  """A sink that encodes utf8 elements, and writes to file handlers.
 
   **NOTE: THIS CLASS IS EXPERIMENTAL.**
 
-  This sink simply calls file_handler.write(record) on all records that come
-  into it.
+  This sink simply calls file_handler.write(record.encode('utf8') + '\n') on all
+  records that come into it.
   """
 
   def open(self, fh):
     self._fh = fh
 
   def write(self, record):
-    self._fh.write(record)
+    self._fh.write(record.encode('utf8'))
+    self._fh.write(b'\n')
 
   def flush(self):
     self._fh.flush()
@@ -240,30 +299,31 @@ _DEFAULT_FILE_NAME_TEMPLATE = (
 def destination_prefix_naming():
 
   def _inner(window, pane, shard_index, total_shards, compression, destination):
-    args = {'prefix': str(destination),
-            'start': '',
-            'end': '',
-            'pane': '',
-            'shard': 0,
-            'total_shards': 0,
-            'suffix': '',
-            'compression': ''}
+    kwargs = {'prefix': str(destination),
+              'start': '',
+              'end': '',
+              'pane': '',
+              'shard': 0,
+              'total_shards': 0,
+              'suffix': '',
+              'compression': ''}
     if total_shards is not None and shard_index is not None:
-      args['shard'] = int(shard_index)
-      args['total_shards'] = int(total_shards)
+      kwargs['shard'] = int(shard_index)
+      kwargs['total_shards'] = int(total_shards)
 
     if window != GlobalWindow():
-      args['start'] = window.start.to_utc_datetime().isoformat()
-      args['end'] = window.end.to_utc_datetime().isoformat()
+      kwargs['start'] = window.start.to_utc_datetime().isoformat()
+      kwargs['end'] = window.end.to_utc_datetime().isoformat()
 
+    # TODO(pabloem): Add support for PaneInfo
     # If the PANE is the ONLY firing in the window, we don't add it.
-    if pane and not (pane.is_first and pane.is_last):
-      args['pane'] = pane.index
+    #if pane and not (pane.is_first and pane.is_last):
+    #  kwargs['pane'] = pane.index
 
     if compression:
-      args['compression'] = '.%s' % compression
+      kwargs['compression'] = '.%s' % compression
 
-    return _DEFAULT_FILE_NAME_TEMPLATE.format(**args)
+    return _DEFAULT_FILE_NAME_TEMPLATE.format(**kwargs)
 
   return _inner
 
@@ -271,72 +331,50 @@ def destination_prefix_naming():
 def default_file_naming(prefix, suffix=None):
 
   def _inner(window, pane, shard_index, total_shards, compression, destination):
-    args = {'prefix': prefix,
-            'start': '',
-            'end': '',
-            'pane': '',
-            'shard': 0,
-            'total_shards': 0,
-            'suffix': '',
-            'compression': ''}
+    kwargs = {'prefix': prefix,
+              'start': '',
+              'end': '',
+              'pane': '',
+              'shard': 0,
+              'total_shards': 0,
+              'suffix': '',
+              'compression': ''}
     if total_shards is not None and shard_index is not None:
-      args['shard'] = int(shard_index)
-      args['total_shards'] = int(total_shards)
+      kwargs['shard'] = int(shard_index)
+      kwargs['total_shards'] = int(total_shards)
 
     if window != GlobalWindow():
-      args['start'] = window.start.to_utc_datetime().isoformat()
-      args['end'] = window.end.to_utc_datetime().isoformat()
+      kwargs['start'] = window.start.to_utc_datetime().isoformat()
+      kwargs['end'] = window.end.to_utc_datetime().isoformat()
 
+    # TODO(pabloem): Add support for PaneInfo
     # If the PANE is the ONLY firing in the window, we don't add it.
-    if pane and not (pane.is_first and pane.is_last):
-      args['pane'] = pane.index
+    #if pane and not (pane.is_first and pane.is_last):
+    #  kwargs['pane'] = pane.index
 
     if compression:
-      args['compression'] = '.%s' % compression
+      kwargs['compression'] = '.%s' % compression
     if suffix:
-      args['suffix'] = suffix
+      kwargs['suffix'] = suffix
 
-    return _DEFAULT_FILE_NAME_TEMPLATE.format(**args)
+    return _DEFAULT_FILE_NAME_TEMPLATE.format(**kwargs)
 
   return _inner
 
 
-class FileResult(object):
+_FileResult = collections.namedtuple('FileResult',
+                                     ['file_name',
+                                      'shard_index',
+                                      'total_shards',
+                                      'window',
+                                      'pane',
+                                      'destination'])
+
+
+# Adding a class to contain PyDoc.
+class FileResult(_FileResult):
   """A descriptor of a file that has been written."""
-
-  def __init__(self,
-               file_name,
-               shard_index,
-               total_shards,
-               window,
-               pane,
-               destination):
-    self.file_name = file_name
-    self.shard_index = int(shard_index)
-    self.total_shards = int(total_shards)
-    self.window = window
-    self.pane = pane
-    self.destination = destination
-
-  def _tuple(self):
-    return (self.file_name,
-            self.shard_index,
-            self.total_shards,
-            self.window,
-            self.pane,
-            self.destination)
-
-  def __hash__(self):
-    return hash(self._tuple())
-
-  def __eq__(self, other):
-    return isinstance(other, FileResult) and self._tuple() == other._tuple()
-
-  def __str__(self):
-    return '_FileResult(%s)' % self.__dict__
-
-  def __repr__(self):
-    return '<%s at 0x%x>' % (self.__str__(), id(self))
+  pass
 
 
 @experimental()
@@ -381,7 +419,7 @@ class WriteToFiles(beam.PTransform):
          within the temp_location of your pipeline.
       sink (callable, FileSink): The sink to use to write into a file. It should
         implement the methods of a ``FileSink``. If none is provided, a
-        ``DefaultSink`` is used.
+        ``TextSink`` is used.
       shards (int): The number of shards per destination and trigger firing.
       max_writers_per_bundle (int): The number of writers that can be open
         concurrently in a single worker that's processing one bundle.
@@ -405,7 +443,7 @@ class WriteToFiles(beam.PTransform):
     elif callable(input_sink):
       return input_sink
     else:
-      return lambda x: DefaultSink()
+      return lambda x: TextSink()
 
   @staticmethod
   def _get_destination_fn(destination):
@@ -493,11 +531,12 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
     file_results = list(element[1])
 
     for i, r in enumerate(file_results):
+      # TODO(pabloem): Handle compression for files.
       final_file_name = self.file_naming_fn(r.window,
                                             r.pane,
                                             i,
                                             len(file_results),
-                                            '',   # TODO: ADD COMPRESSION!?
+                                            '',
                                             destination)
 
       logging.info('Moving temporary file %s to dir: %s as %s. Res: %s',
@@ -563,7 +602,8 @@ class _AppendShardedDestination(beam.DoFn):
     self.shards = shards
 
     # We start the shards for a single destination at an arbitrary point.
-    self._shard_counter = defaultdict(lambda: random.randrange(self.shards))
+    self._shard_counter = collections.defaultdict(
+        lambda: random.randrange(self.shards))
 
   def _next_shard_for_destination(self, destination):
     self._shard_counter[destination] = (
@@ -599,7 +639,7 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
 
   def process(self,
               record,
-              w=beam.DoFn.WindowParam,  # TODO(pabloem): Add Pane in FileResult
+              w=beam.DoFn.WindowParam,
               pane=beam.DoFn.PaneInfoParam):
     destination = self.destination_fn(record)
 
@@ -632,9 +672,7 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
       return self._writers_and_sinks[writer_key]
 
   def finish_bundle(self):
-    for key, writer_and_sink in self._writers_and_sinks.items():
-      writer = writer_and_sink[0]
-      sink = writer_and_sink[1]
+    for key, (writer, sink) in self._writers_and_sinks.items():
 
       sink.flush()
       writer.close()

@@ -511,8 +511,6 @@ class PerWindowInvoker(DoFnInvoker):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif d == core.DoFn.WindowParam:
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.PaneInfoParam:
-        args_with_placeholders.append(ArgPlaceholder(d))
       elif d == core.DoFn.TimestampParam:
         args_with_placeholders.append(ArgPlaceholder(d))
       elif d == core.DoFn.SideInputParam:
@@ -639,8 +637,6 @@ class PerWindowInvoker(DoFnInvoker):
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
         args_for_process[i] = windowed_value.value
-      elif p == core.DoFn.PaneInfoParam:
-        args_for_process[i] = windowed_value.pane_info
       elif p == core.DoFn.WindowParam:
         args_for_process[i] = window
       elif p == core.DoFn.TimestampParam:
