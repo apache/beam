@@ -31,6 +31,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.utils.Cache
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -54,6 +55,7 @@ public class DoFnFunction<InputT, OutputT>
     implements MapPartitionsFunction<WindowedValue<InputT>, Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
   private final DoFn<InputT, OutputT> doFn;
+  private transient boolean wasSetupCalled;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
   private final SerializablePipelineOptions serializableOptions;
@@ -90,6 +92,10 @@ public class DoFnFunction<InputT, OutputT>
   @Override
   public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
       throws Exception {
+    if (!wasSetupCalled && iter.hasNext()) {
+      DoFnInvokers.tryInvokeSetupFor(doFn);
+      wasSetupCalled = true;
+    }
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
 

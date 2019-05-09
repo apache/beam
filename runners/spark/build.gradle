@@ -186,7 +186,6 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
