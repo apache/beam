@@ -114,7 +114,6 @@ public class MongoDbIO {
   /** Read data from MongoDB. */
   public static Read read() {
     return new AutoValue_MongoDbIO_Read.Builder()
-        .setKeepAlive(true)
         .setMaxConnectionIdleTime(60000)
         .setNumSplits(0)
         .setBucketAuto(false)
@@ -128,7 +127,6 @@ public class MongoDbIO {
   /** Write data to MongoDB. */
   public static Write write() {
     return new AutoValue_MongoDbIO_Write.Builder()
-        .setKeepAlive(true)
         .setMaxConnectionIdleTime(60000)
         .setBatchSize(1024L)
         .setSslEnabled(false)
@@ -145,12 +143,6 @@ public class MongoDbIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<Document>> {
     @Nullable
     abstract String uri();
-
-    /**
-     * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
-     */
-    @Deprecated
-    abstract boolean keepAlive();
 
     abstract int maxConnectionIdleTime();
 
@@ -177,12 +169,6 @@ public class MongoDbIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setUri(String uri);
-
-      /**
-       * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
-       */
-      @Deprecated
-      abstract Builder setKeepAlive(boolean keepAlive);
 
       abstract Builder setMaxConnectionIdleTime(int maxConnectionIdleTime);
 
@@ -235,26 +221,13 @@ public class MongoDbIO {
      *   <li>{@code ?options} are connection options. Note that if {@code database} is absent there
      *       is still a {@code /} required between the last {@code host} and the {@code ?}
      *       introducing the options. Options are name=value pairs and the pairs are separated by
-     *       "{@code &}". The {@code KeepAlive} connection option can't be passed via the URI,
-     *       instead you have to use {@link Read#withKeepAlive(boolean)}. Same for the {@code
-     *       MaxConnectionIdleTime} connection option via {@link
-     *       Read#withMaxConnectionIdleTime(int)}.
+     *       "{@code &}". You can pass the {@code MaxConnectionIdleTime} connection option via
+     *       {@link Read#withMaxConnectionIdleTime(int)}.
      * </ul>
      */
     public Read withUri(String uri) {
       checkArgument(uri != null, "MongoDbIO.read().withUri(uri) called with null uri");
       return builder().setUri(uri).build();
-    }
-
-    /**
-     * Sets whether socket keep alive is enabled.
-     *
-     * @deprecated configuring keep-alive has been deprecated in the MongoDB Java API. It now
-     *     defaults to true and disabling it is not recommended.
-     */
-    @Deprecated
-    public Read withKeepAlive(boolean keepAlive) {
-      return builder().setKeepAlive(keepAlive).build();
     }
 
     /** Sets the maximum idle time for a pooled connection. */
@@ -354,7 +327,6 @@ public class MongoDbIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("uri", uri()));
-      builder.add(DisplayData.item("keepAlive", keepAlive()));
       builder.add(DisplayData.item("maxConnectionIdleTime", maxConnectionIdleTime()));
       builder.add(DisplayData.item("sslEnabled", sslEnabled()));
       builder.add(DisplayData.item("sslInvalidHostNameAllowed", sslInvalidHostNameAllowed()));
@@ -368,12 +340,9 @@ public class MongoDbIO {
   }
 
   private static MongoClientOptions.Builder getOptions(
-      boolean keepAlive,
-      int maxConnectionIdleTime,
-      boolean sslEnabled,
-      boolean sslInvalidHostNameAllowed) {
+      int maxConnectionIdleTime, boolean sslEnabled, boolean sslInvalidHostNameAllowed) {
     MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder();
-    optionsBuilder.socketKeepAlive(keepAlive).maxConnectionIdleTime(maxConnectionIdleTime);
+    optionsBuilder.maxConnectionIdleTime(maxConnectionIdleTime);
     if (sslEnabled) {
       optionsBuilder
           .sslEnabled(sslEnabled)
@@ -414,7 +383,6 @@ public class MongoDbIO {
               new MongoClientURI(
                   spec.uri(),
                   getOptions(
-                      spec.keepAlive(),
                       spec.maxConnectionIdleTime(),
                       spec.sslEnabled(),
                       spec.sslInvalidHostNameAllowed())))) {
@@ -443,7 +411,6 @@ public class MongoDbIO {
               new MongoClientURI(
                   spec.uri(),
                   getOptions(
-                      spec.keepAlive(),
                       spec.maxConnectionIdleTime(),
                       spec.sslEnabled(),
                       spec.sslInvalidHostNameAllowed())))) {
@@ -555,6 +522,11 @@ public class MongoDbIO {
           // the range from the beginning up to this split
           rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:ObjectId(\"%s\")}}", splitKey);
           filters.add(String.format("%s ]}", rangeFilter));
+          // If there is only one split, also generate a range from the split to the end
+          if (splitKeys.size() == 1) {
+            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}", splitKey);
+            filters.add(String.format("%s ]}", rangeFilter));
+          }
         } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filters define
           // the range from the previous split to the current split and also
@@ -615,8 +587,17 @@ public class MongoDbIO {
         String rangeFilter;
         if (i == 0) {
           aggregates.add(Aggregates.match(Filters.lte("_id", splitKey)));
+          if (splitKeys.size() == 1) {
+            aggregates.add(Aggregates.match(Filters.and(Filters.gt("_id", splitKey))));
+          }
         } else if (i == splitKeys.size() - 1) {
-          aggregates.add(Aggregates.match(Filters.and(Filters.gt("_id", lowestBound))));
+          // this is the last split in the list, the filters define
+          // the range from the previous split to the current split and also
+          // the current split to the end
+          aggregates.add(
+              Aggregates.match(
+                  Filters.and(Filters.gt("_id", lowestBound), Filters.lte("_id", splitKey))));
+          aggregates.add(Aggregates.match(Filters.and(Filters.gt("_id", splitKey))));
         } else {
           aggregates.add(
               Aggregates.match(
@@ -716,7 +697,6 @@ public class MongoDbIO {
           new MongoClientURI(
               spec.uri(),
               getOptions(
-                  spec.keepAlive(),
                   spec.maxConnectionIdleTime(),
                   spec.sslEnabled(),
                   spec.sslInvalidHostNameAllowed())));
@@ -729,12 +709,6 @@ public class MongoDbIO {
 
     @Nullable
     abstract String uri();
-
-    /**
-     * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
-     */
-    @Deprecated
-    abstract boolean keepAlive();
 
     abstract int maxConnectionIdleTime();
 
@@ -759,12 +733,6 @@ public class MongoDbIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setUri(String uri);
-
-      /**
-       * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
-       */
-      @Deprecated
-      abstract Builder setKeepAlive(boolean keepAlive);
 
       abstract Builder setMaxConnectionIdleTime(int maxConnectionIdleTime);
 
@@ -814,26 +782,13 @@ public class MongoDbIO {
      *   <li>{@code ?options} are connection options. Note that if {@code database} is absent there
      *       is still a {@code /} required between the last {@code host} and the {@code ?}
      *       introducing the options. Options are name=value pairs and the pairs are separated by
-     *       "{@code &}". The {@code KeepAlive} connection option can't be passed via the URI,
-     *       instead you have to use {@link Write#withKeepAlive(boolean)}. Same for the {@code
-     *       MaxConnectionIdleTime} connection option via {@link
-     *       Write#withMaxConnectionIdleTime(int)}.
+     *       "{@code &}". You can pass the {@code MaxConnectionIdleTime} connection option via
+     *       {@link Write#withMaxConnectionIdleTime(int)}.
      * </ul>
      */
     public Write withUri(String uri) {
       checkArgument(uri != null, "uri can not be null");
       return builder().setUri(uri).build();
-    }
-
-    /**
-     * Sets whether socket keep alive is enabled.
-     *
-     * @deprecated configuring keep-alive has been deprecated in the MongoDB Java API. It now
-     *     defaults to true and disabling it is not recommended.
-     */
-    @Deprecated
-    public Write withKeepAlive(boolean keepAlive) {
-      return builder().setKeepAlive(keepAlive).build();
     }
 
     /** Sets the maximum idle time for a pooled connection. */
@@ -898,7 +853,6 @@ public class MongoDbIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("uri", uri()));
-      builder.add(DisplayData.item("keepAlive", keepAlive()));
       builder.add(DisplayData.item("maxConnectionIdleTime", maxConnectionIdleTime()));
       builder.add(DisplayData.item("sslEnable", sslEnabled()));
       builder.add(DisplayData.item("sslInvalidHostNameAllowed", sslInvalidHostNameAllowed()));
@@ -925,7 +879,6 @@ public class MongoDbIO {
                 new MongoClientURI(
                     spec.uri(),
                     getOptions(
-                        spec.keepAlive(),
                         spec.maxConnectionIdleTime(),
                         spec.sslEnabled(),
                         spec.sslInvalidHostNameAllowed())));

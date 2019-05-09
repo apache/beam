@@ -24,13 +24,16 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.hamcrest.core.StringContains;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** Bounded + Bounded Test for {@code BeamJoinRel}. */
 public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   public static final TestBoundedTable ORDER_DETAILS1 =
       TestBoundedTable.of(
@@ -223,6 +226,68 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
             + " o1.order_id>o2.site_id";
 
     pipeline.enableAbandonedNodeEnforcement(false);
+    compilePipeline(sql, pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testException_join_condition1() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id = o2.site_id OR o1.price = o2.site_id";
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(StringContains.containsString("Operator OR"));
+    compilePipeline(sql, pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testException_join_condition2() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id = o2.site_id AND o1.price > o2.site_id";
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(StringContains.containsString("Non equi-join"));
+    compilePipeline(sql, pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testException_join_condition3() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id + o2.site_id = 2";
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(StringContains.containsString("column reference"));
+    thrown.expectMessage(StringContains.containsString("struct field access"));
+    compilePipeline(sql, pipeline);
+    pipeline.run();
+  }
+
+  @Test
+  public void testException_join_condition4() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id + o2.site_id = 2 AND o1.price > o2.site_id";
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(StringContains.containsString("column reference"));
+    thrown.expectMessage(StringContains.containsString("struct field access"));
     compilePipeline(sql, pipeline);
     pipeline.run();
   }

@@ -608,7 +608,6 @@ class GeneratorWrapper(object):
   next = __next__
 
   def __iter__(self):
-    while True:
-      x = next(self.internal_gen)
+    for x in self.internal_gen:
       self.interleave_func(x)
       yield x

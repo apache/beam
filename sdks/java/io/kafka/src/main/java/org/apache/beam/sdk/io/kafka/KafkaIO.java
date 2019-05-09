@@ -458,18 +458,6 @@ public class KafkaIO {
         }
         throw new RuntimeException("Couldn't resolve coder for Deserializer: " + deserializer);
       }
-
-      private static Class resolveClass(String className) {
-        try {
-          return Class.forName(className);
-        } catch (ClassNotFoundException e) {
-          throw new RuntimeException("Could not find deserializer class: " + className);
-        }
-      }
-
-      private static String utf8String(byte[] bytes) {
-        return new String(bytes, Charsets.UTF_8);
-      }
     }
 
     /**
@@ -486,7 +474,7 @@ public class KafkaIO {
         return ImmutableMap.of(URN, AutoValue_KafkaIO_Read.Builder.class);
       }
 
-      /** Parameters class to expose the transform to an external SDK. */
+      /** Parameters class to expose the Read transform to an external SDK. */
       public static class Configuration {
 
         // All byte arrays are UTF-8 encoded strings
@@ -1325,12 +1313,77 @@ public class KafkaIO {
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<K, V> {
+    abstract static class Builder<K, V>
+        implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
       abstract Builder<K, V> setTopic(String topic);
 
       abstract Builder<K, V> setWriteRecordsTransform(WriteRecords<K, V> transform);
 
       abstract Write<K, V> build();
+
+      @Override
+      public PTransform<PCollection<KV<K, V>>, PDone> buildExternal(
+          External.Configuration configuration) {
+        String topic = utf8String(configuration.topic);
+        setTopic(topic);
+
+        Map<String, Object> producerConfig = new HashMap<>();
+        for (KV<byte[], byte[]> kv : configuration.producerConfig) {
+          String key = utf8String(kv.getKey());
+          String value = utf8String(kv.getValue());
+          producerConfig.put(key, value);
+        }
+        Class keySerializer = resolveClass(utf8String(configuration.keySerializer));
+        Class valSerializer = resolveClass(utf8String(configuration.valueSerializer));
+
+        WriteRecords<K, V> writeRecords =
+            KafkaIO.<K, V>writeRecords()
+                .updateProducerProperties(producerConfig)
+                .withKeySerializer(keySerializer)
+                .withValueSerializer(valSerializer)
+                .withTopic(topic);
+        setWriteRecordsTransform(writeRecords);
+
+        return build();
+      }
+    }
+
+    /** Exposes {@link KafkaIO.Write} as an external transform for cross-language usage. */
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:kafka:write:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_KafkaIO_Write.Builder.class);
+      }
+
+      /** Parameters class to expose the Write transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        private Iterable<KV<byte[], byte[]>> producerConfig;
+        private byte[] topic;
+        private byte[] keySerializer;
+        private byte[] valueSerializer;
+
+        public void setProducerConfig(Iterable<KV<byte[], byte[]>> producerConfig) {
+          this.producerConfig = producerConfig;
+        }
+
+        public void setTopic(byte[] topic) {
+          this.topic = topic;
+        }
+
+        public void setKeySerializer(byte[] keySerializer) {
+          this.keySerializer = keySerializer;
+        }
+
+        public void setValueSerializer(byte[] valueSerializer) {
+          this.valueSerializer = valueSerializer;
+        }
+      }
     }
 
     /** Used mostly to reduce using of boilerplate of wrapping {@link WriteRecords} methods. */
@@ -1579,5 +1632,17 @@ public class KafkaIO {
 
     throw new RuntimeException(
         String.format("Could not extract the Kafka Deserializer type from %s", deserializer));
+  }
+
+  private static String utf8String(byte[] bytes) {
+    return new String(bytes, Charsets.UTF_8);
+  }
+
+  private static Class resolveClass(String className) {
+    try {
+      return Class.forName(className);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Could not find class: " + className);
+    }
   }
 }

@@ -82,7 +82,7 @@ public class KafkaRecord<K, V> {
   }
 
   public Headers getHeaders() {
-    if (!ConsumerSpEL.hasHeaders) {
+    if (!ConsumerSpEL.hasHeaders()) {
       throw new RuntimeException(
           "The version kafka-clients does not support record headers, "
               + "please use version 0.11.0.0 or newer");

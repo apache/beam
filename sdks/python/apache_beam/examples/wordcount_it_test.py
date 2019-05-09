@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import logging
+import os
+import sys
 import time
 import unittest
 
@@ -46,6 +48,10 @@ class WordCountIT(unittest.TestCase):
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
+  @unittest.skipIf(sys.version[0:3] == '3.6' and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6 '
+                   'TODO: BEAM-7183')
   @attr('IT', 'ValidatesContainer')
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')

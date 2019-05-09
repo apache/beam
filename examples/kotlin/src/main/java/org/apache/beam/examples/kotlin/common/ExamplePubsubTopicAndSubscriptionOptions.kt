@@ -31,13 +31,11 @@ interface ExamplePubsubTopicAndSubscriptionOptions : ExamplePubsubTopicOptions {
 
     /** Returns a default Pub/Sub subscription based on the project and the job names.  */
     class PubsubSubscriptionFactory : DefaultValueFactory<String> {
-        override fun create(options: PipelineOptions): String {
-            return """
+        override fun create(options: PipelineOptions) = """
                 projects/
                 ${(options as GcpOptions).project}
                 /subscriptions/
                 ${options.jobName}
             """.trimIndent()
-        }
     }
 }

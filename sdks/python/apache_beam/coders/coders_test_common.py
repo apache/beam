@@ -70,6 +70,7 @@ class CodersTest(unittest.TestCase):
     standard -= set([coders.Coder,
                      coders.FastCoder,
                      coders.ProtoCoder,
+                     coders.RunnerAPICoderHolder,
                      coders.ToStringCoder])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested

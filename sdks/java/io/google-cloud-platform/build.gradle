@@ -79,7 +79,7 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.junit
   shadowTest library.java.powermock
-  shadowTest library.java.slf4j_jdk14
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 /**

@@ -93,7 +93,7 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
-      LOG.info(validationResult.get());
+      LOG.debug(validationResult.get());
       return null;
     }
 

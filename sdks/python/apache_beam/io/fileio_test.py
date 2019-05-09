@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import csv
 import io
 import logging
+import os
 import sys
 import unittest
 
@@ -40,7 +41,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
   def test_basic_two_files(self):
     files = []
-    tempdir = '%s/' % self._new_tempdir()
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
 
     # Create a couple files to be matched
     files.append(self._create_temp_file(dir=tempdir))
@@ -57,7 +58,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
     for _ in range(2):
       # TODO: What about this having to append the ending slash?
-      d = '%s/' % self._new_tempdir()
+      d = '%s%s' % (self._new_tempdir(), os.sep)
       directories.append(d)
 
       files.append(self._create_temp_file(dir=d))
@@ -73,8 +74,8 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
   def test_match_files_one_directory_failure(self):
     directories = [
-        '%s/' % self._new_tempdir(),
-        '%s/' % self._new_tempdir()]
+        '%s%s' % (self._new_tempdir(), os.sep),
+        '%s%s' % (self._new_tempdir(), os.sep)]
 
     files = list()
     files.append(self._create_temp_file(dir=directories[0]))
@@ -92,8 +93,8 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
   def test_match_files_one_directory_failure(self):
     directories = [
-        '%s/' % self._new_tempdir(),
-        '%s/' % self._new_tempdir()]
+        '%s%s' % (self._new_tempdir(), os.sep),
+        '%s%s' % (self._new_tempdir(), os.sep)]
 
     files = list()
     files.append(self._create_temp_file(dir=directories[0]))
@@ -113,7 +114,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
 
   def test_basic_file_name_provided(self):
     content = 'TestingMyContent\nIn multiple lines\nhaha!'
-    dir = '%s/' % self._new_tempdir()
+    dir = '%s%s' % (self._new_tempdir(), os.sep)
     self._create_temp_file(dir=dir, content=content)
 
     with TestPipeline() as p:
@@ -121,15 +122,16 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
                     | beam.Create([dir])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
-                    | beam.Map(lambda f: f.read().decode('utf-8')))
+                    | beam.FlatMap(
+                        lambda f: f.read().decode('utf-8').splitlines()))
 
-      assert_that(content_pc, equal_to([content]))
+      assert_that(content_pc, equal_to(content.splitlines()))
 
   def test_csv_file_source(self):
     content = 'name,year,place\ngoogle,1999,CA\nspotify,2006,sweden'
     rows = [r.split(',') for r in content.split('\n')]
 
-    dir = '%s/' % self._new_tempdir()
+    dir = '%s%s' % (self._new_tempdir(), os.sep)
     self._create_temp_file(dir=dir, content=content)
 
     def get_csv_reader(readable_file):
@@ -150,7 +152,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
   def test_string_filenames_and_skip_directory(self):
     content = 'thecontent\n'
     files = []
-    tempdir = '%s/' % self._new_tempdir()
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
 
     # Create a couple files to be matched
     files.append(self._create_temp_file(dir=tempdir, content=content))
@@ -160,14 +162,15 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
       contents_pc = (p
                      | beam.Create(files + [tempdir])
                      | fileio.ReadMatches()
-                     | beam.Map(lambda x: x.read().decode('utf-8')))
+                     | beam.FlatMap(
+                         lambda x: x.read().decode('utf-8').splitlines()))
 
-      assert_that(contents_pc, equal_to([content]*2))
+      assert_that(contents_pc, equal_to(content.splitlines()*2))
 
   def test_fail_on_directories(self):
     content = 'thecontent\n'
     files = []
-    tempdir = '%s/' % self._new_tempdir()
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
 
     # Create a couple files to be matched
     files.append(self._create_temp_file(dir=tempdir, content=content))

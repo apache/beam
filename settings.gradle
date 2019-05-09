@@ -159,8 +159,6 @@ include "beam-sdks-java-io-hadoop-common"
 project(":beam-sdks-java-io-hadoop-common").dir = file("sdks/java/io/hadoop-common")
 include "beam-sdks-java-io-hadoop-file-system"
 project(":beam-sdks-java-io-hadoop-file-system").dir = file("sdks/java/io/hadoop-file-system")
-include "beam-sdks-java-io-hadoop-input-format"
-project(":beam-sdks-java-io-hadoop-input-format").dir = file("sdks/java/io/hadoop-input-format")
 include "beam-sdks-java-io-hadoop-format"
 project(":beam-sdks-java-io-hadoop-format").dir = file("sdks/java/io/hadoop-format")
 include "beam-sdks-java-io-hbase"
@@ -213,10 +211,14 @@ include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
 include "beam-sdks-python-test-suites-dataflow"
 project(":beam-sdks-python-test-suites-dataflow").dir = file("sdks/python/test-suites/dataflow")
-include "beam-sdks-python-test-suites-dataflow-py3"
-project(":beam-sdks-python-test-suites-dataflow-py3").dir = file("sdks/python/test-suites/dataflow/py3")
-include "beam-sdks-python-test-suites-direct-py3"
-project(":beam-sdks-python-test-suites-direct-py3").dir = file("sdks/python/test-suites/direct/py3")
+include "beam-sdks-python-test-suites-dataflow-py35"
+project(":beam-sdks-python-test-suites-dataflow-py35").dir = file("sdks/python/test-suites/dataflow/py35")
+include "beam-sdks-python-test-suites-dataflow-py36"
+project(":beam-sdks-python-test-suites-dataflow-py36").dir = file("sdks/python/test-suites/dataflow/py36")
+include "beam-sdks-python-test-suites-direct-py35"
+project(":beam-sdks-python-test-suites-direct-py35").dir = file("sdks/python/test-suites/direct/py35")
+include "beam-sdks-python-test-suites-direct-py36"
+project(":beam-sdks-python-test-suites-direct-py36").dir = file("sdks/python/test-suites/direct/py36")
 include "beam-sdks-python-test-suites-tox-py35"
 project(":beam-sdks-python-test-suites-tox-py35").dir = file("sdks/python/test-suites/tox/py35")
 include "beam-sdks-python-test-suites-tox-py36"

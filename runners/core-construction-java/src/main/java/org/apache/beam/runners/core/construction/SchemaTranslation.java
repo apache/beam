@@ -112,6 +112,7 @@ public class SchemaTranslation {
       default:
         break;
     }
+    builder.setNullable(fieldType.getNullable());
     return builder.build();
   }
 
@@ -125,7 +126,9 @@ public class SchemaTranslation {
     }
     Schema schema = builder.build();
     schema.setEncodingPositions(encodingLocationMap);
-    schema.setUUID(UUID.fromString(protoSchema.getId()));
+    if (!protoSchema.getId().isEmpty()) {
+      schema.setUUID(UUID.fromString(protoSchema.getId()));
+    }
 
     return schema;
   }

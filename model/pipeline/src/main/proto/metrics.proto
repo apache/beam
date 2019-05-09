@@ -81,6 +81,19 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
+    SAMPLED_BYTE_SIZE = 7 [(monitoring_info_spec) = {
+      urn: "beam:metric:sampled_byte_size:v1",
+      type_urn: "beam:metrics:distribution_int_64",
+      required_labels: [ "PCOLLECTION" ],
+      annotations: [ {
+        key: "description",
+        value: "The total byte size and count of a sampled "
+               " set (or all) of elements in the pcollection. Sampling is used "
+               " because calculating the byte count involves serializing the "
+               " elements which is CPU intensive."
+      } ]
+    }];
+
     START_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:start_bundle_msecs:v1",
       type_urn: "beam:metrics:sum_int_64",
@@ -175,7 +188,11 @@ message MonitoringInfo {
   }
 
   enum MonitoringInfoLabels {
-    // TODO(ajamato): Rename all references to TRANSFORM to PTRANSFORM
+    // TODO(ajamato): Rename all references from TRANSFORM to PTRANSFORM
+
+    // The values used for TRANSFORM, PCOLLECTION, WINDOWING_STRATEGY
+    // CODER, ENVIRONMENT, etc. must always match the keys used to
+    // refer to them in the ProcessBundleDescriptor.
     TRANSFORM = 0 [(label_props) = { name: "PTRANSFORM" }];
     PCOLLECTION = 1 [(label_props) = { name: "PCOLLECTION" }];
     WINDOWING_STRATEGY = 2 [(label_props) = { name: "WINDOWING_STRATEGY" }];

@@ -101,7 +101,7 @@ class DoFnLifecycleManager {
           (DoFn<?, ?>)
               SerializableUtils.deserializeFromByteArray(
                   original, "DoFn Copy in thread " + key.getName());
-      DoFnInvokers.invokerFor(fn).invokeSetup();
+      DoFnInvokers.tryInvokeSetupFor(fn);
       return fn;
     }
   }

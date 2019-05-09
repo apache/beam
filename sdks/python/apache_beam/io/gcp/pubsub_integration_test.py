@@ -20,6 +20,8 @@ Integration test for Google Cloud Pub/Sub.
 from __future__ import absolute_import
 
 import logging
+import os
+import sys
 import unittest
 import uuid
 
@@ -170,10 +172,18 @@ class PubSubIntegrationTest(unittest.TestCase):
         id_label=self.ID_LABEL,
         timestamp_attribute=self.TIMESTAMP_ATTRIBUTE)
 
+  @unittest.skipIf(sys.version[0:3] == '3.6' and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6 '
+                   'TODO: BEAM-7181')
   @attr('IT')
   def test_streaming_data_only(self):
     self._test_streaming(with_attributes=False)
 
+  @unittest.skipIf(sys.version[0:3] == '3.6' and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6 '
+                   'TODO: BEAM-7181')
   @attr('IT')
   def test_streaming_with_attributes(self):
     self._test_streaming(with_attributes=True)

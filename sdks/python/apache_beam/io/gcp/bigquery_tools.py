@@ -324,7 +324,10 @@ class BigQueryWrapper(object):
                        source_uris,
                        schema=None,
                        write_disposition=None,
-                       create_disposition=None):
+                       create_disposition=None,
+                       additional_load_parameters=None):
+    additional_load_parameters = additional_load_parameters or {}
+    job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
@@ -333,11 +336,12 @@ class BigQueryWrapper(object):
                 load=bigquery.JobConfigurationLoad(
                     sourceUris=source_uris,
                     destinationTable=table_reference,
-                    schema=schema,
+                    schema=job_schema,
                     writeDisposition=write_disposition,
                     createDisposition=create_disposition,
                     sourceFormat='NEWLINE_DELIMITED_JSON',
-                    autodetect=schema is None,
+                    autodetect=schema == 'SCHEMA_AUTODETECT',
+                    **additional_load_parameters
                 )
             ),
             jobReference=reference,
@@ -409,7 +413,9 @@ class BigQueryWrapper(object):
 
     Args:
       client: bigquery.BigqueryV2 instance
-      project_id, dataset_id, table_id: table lookup parameters
+      project_id: table lookup parameter
+      dataset_id: table lookup parameter
+      table_id: table lookup parameter
 
     Returns:
       bigquery.Table instance
@@ -421,11 +427,18 @@ class BigQueryWrapper(object):
     response = self.client.tables.Get(request)
     return response
 
-  def _create_table(self, project_id, dataset_id, table_id, schema):
+  def _create_table(self,
+                    project_id,
+                    dataset_id,
+                    table_id,
+                    schema,
+                    additional_parameters=None):
+    additional_parameters = additional_parameters or {}
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId=project_id, datasetId=dataset_id, tableId=table_id),
-        schema=schema)
+        schema=schema,
+        **additional_parameters)
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
@@ -566,7 +579,8 @@ class BigQueryWrapper(object):
                        job_id,
                        schema=None,
                        write_disposition=None,
-                       create_disposition=None):
+                       create_disposition=None,
+                       additional_load_parameters=None):
     """Starts a job to load data into BigQuery.
 
     Returns:
@@ -576,14 +590,15 @@ class BigQueryWrapper(object):
         destination.projectId, job_id, destination, files,
         schema=schema,
         create_disposition=create_disposition,
-        write_disposition=write_disposition)
+        write_disposition=write_disposition,
+        additional_load_parameters=additional_load_parameters)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_table(
       self, project_id, dataset_id, table_id, schema,
-      create_disposition, write_disposition):
+      create_disposition, write_disposition, additional_create_parameters=None):
     """Gets or creates a table based on create and write dispositions.
 
     The function mimics the behavior of BigQuery import jobs when using the
@@ -601,7 +616,7 @@ class BigQueryWrapper(object):
       A bigquery.Table instance if table was found or created.
 
     Raises:
-      RuntimeError: For various mismatches between the state of the table and
+      `RuntimeError`: For various mismatches between the state of the table and
         the create/write dispositions passed in. For example if the table is not
         empty and WRITE_EMPTY was specified then an error will be raised since
         the table was expected to be empty.
@@ -644,11 +659,14 @@ class BigQueryWrapper(object):
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
     else:
-      created_table = self._create_table(project_id=project_id,
-                                         dataset_id=dataset_id,
-                                         table_id=table_id,
-                                         schema=schema or found_table.schema)
-      logging.info('Created table %s.%s.%s with schema %s. Result: %s.',
+      created_table = self._create_table(
+          project_id=project_id,
+          dataset_id=dataset_id,
+          table_id=table_id,
+          schema=schema or found_table.schema,
+          additional_parameters=additional_create_parameters)
+      logging.info('Created table %s.%s.%s with schema %s. '
+                   'Result: %s.',
                    project_id, dataset_id, table_id,
                    schema or found_table.schema,
                    created_table)
@@ -1038,5 +1056,5 @@ class AppendDestinationsFn(DoFn):
       return lambda x: AppendDestinationsFn._value_provider_or_static_val(
           destination).get()
 
-  def process(self, element):
-    yield (self.destination(element), element)
+  def process(self, element, *side_inputs):
+    yield (self.destination(element, *side_inputs), element)

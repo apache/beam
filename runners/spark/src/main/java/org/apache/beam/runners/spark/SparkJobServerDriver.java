@@ -24,6 +24,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,10 +33,22 @@ public class SparkJobServerDriver extends JobServerDriver {
 
   @Override
   protected JobInvoker createJobInvoker() {
-    return SparkJobInvoker.create();
+    return SparkJobInvoker.create((SparkServerConfiguration) configuration);
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkJobServerDriver.class);
+
+  /** Spark runner-specific Configuration for the jobServer. */
+  public static class SparkServerConfiguration extends ServerConfiguration {
+    @Option(
+        name = "--spark-master-url",
+        usage = "Spark master url to submit job (e.g. spark://host:port, local[4])")
+    private String sparkMasterUrl = SparkPipelineOptions.DEFAULT_MASTER_URL;
+
+    String getSparkMasterUrl() {
+      return this.sparkMasterUrl;
+    }
+  }
 
   public static void main(String[] args) {
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
@@ -50,7 +63,7 @@ public class SparkJobServerDriver extends JobServerDriver {
   }
 
   private static SparkJobServerDriver fromParams(String[] args) {
-    ServerConfiguration configuration = new ServerConfiguration();
+    SparkServerConfiguration configuration = new SparkServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
       parser.parseArgument(args);
@@ -63,7 +76,7 @@ public class SparkJobServerDriver extends JobServerDriver {
     return fromConfig(configuration);
   }
 
-  private static SparkJobServerDriver fromConfig(ServerConfiguration configuration) {
+  private static SparkJobServerDriver fromConfig(SparkServerConfiguration configuration) {
     return create(
         configuration,
         createJobServerFactory(configuration),
@@ -71,14 +84,14 @@ public class SparkJobServerDriver extends JobServerDriver {
   }
 
   private static SparkJobServerDriver create(
-      ServerConfiguration configuration,
+      SparkServerConfiguration configuration,
       ServerFactory jobServerFactory,
       ServerFactory artifactServerFactory) {
     return new SparkJobServerDriver(configuration, jobServerFactory, artifactServerFactory);
   }
 
   private SparkJobServerDriver(
-      ServerConfiguration configuration,
+      SparkServerConfiguration configuration,
       ServerFactory jobServerFactory,
       ServerFactory artifactServerFactory) {
     super(configuration, jobServerFactory, artifactServerFactory);

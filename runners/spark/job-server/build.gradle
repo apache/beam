@@ -70,6 +70,10 @@ runShadow {
     args += ["--artifacts-dir=${project.property('artifactsDir')}"]
   if (project.hasProperty('cleanArtifactsPerJob'))
     args += ["--clean-artifacts-per-job=${project.property('cleanArtifactsPerJob')}"]
+  if (project.hasProperty('sparkMasterUrl'))
+    args += ["--spark-master-url=${project.property('sparkMasterUrl')}"]
+
+  systemProperties System.properties
 
   // Enable remote debugging.
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
@@ -86,7 +90,7 @@ def portableValidatesRunnerTask(String name) {
     numParallelTests: 1,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     systemProperties: [
-      "beam.spark.test.reuseSparkContext": "true",
+      "beam.spark.test.reuseSparkContext": "false",
       "spark.ui.enabled": "false",
       "spark.ui.showConsoleProgress": "false",
     ],

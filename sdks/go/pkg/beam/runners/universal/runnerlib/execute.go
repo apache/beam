@@ -17,10 +17,10 @@ package runnerlib
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
@@ -34,7 +34,7 @@ func Execute(ctx context.Context, p *pb.Pipeline, endpoint string, opt *JobOptio
 
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to job service: %v", err)
+		return "", errors.WithContextf(err, "connecting to job service")
 	}
 	defer cc.Close()
 	client := jobpb.NewJobServiceClient(cc)

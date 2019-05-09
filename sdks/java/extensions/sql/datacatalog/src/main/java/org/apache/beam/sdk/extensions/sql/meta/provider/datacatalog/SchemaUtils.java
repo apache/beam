@@ -33,20 +33,18 @@ class SchemaUtils {
 
   private static final Map<String, FieldType> FIELD_TYPES =
       ImmutableMap.<String, FieldType>builder()
-          .put("TYPE_BOOL", FieldType.BOOLEAN)
-          .put("TYPE_BYTES", FieldType.BYTES)
-          .put("TYPE_DATE", FieldType.logicalType(new CalciteUtils.DateType()))
-          .put("TYPE_DATETIME", FieldType.DATETIME)
-          .put("TYPE_DOUBLE", FieldType.DOUBLE)
-          .put("TYPE_FLOAT", FieldType.DOUBLE)
-          .put("TYPE_INT32", FieldType.INT32)
-          .put("TYPE_INT64", FieldType.INT64)
-          .put("TYPE_STRING", FieldType.STRING)
-          .put("TYPE_TIME", FieldType.logicalType(new CalciteUtils.TimeType()))
-          .put("TYPE_TIMESTAMP", FieldType.DATETIME)
-          .put(
-              "TYPE_MAP<TYPE_STRING, TYPE_STRING>",
-              FieldType.map(FieldType.STRING, FieldType.STRING))
+          .put("BOOL", FieldType.BOOLEAN)
+          .put("BYTES", FieldType.BYTES)
+          .put("DATE", FieldType.logicalType(new CalciteUtils.DateType()))
+          .put("DATETIME", FieldType.DATETIME)
+          .put("DOUBLE", FieldType.DOUBLE)
+          .put("FLOAT", FieldType.DOUBLE)
+          .put("INT32", FieldType.INT32)
+          .put("INT64", FieldType.INT64)
+          .put("STRING", FieldType.STRING)
+          .put("TIME", FieldType.logicalType(new CalciteUtils.TimeType()))
+          .put("TIMESTAMP", FieldType.DATETIME)
+          .put("MAP<STRING,STRING>", FieldType.map(FieldType.STRING, FieldType.STRING))
           .build();
 
   /** Convert DataCatalog schema to Beam schema. */
@@ -87,7 +85,7 @@ class SchemaUtils {
       return FIELD_TYPES.get(dcFieldType);
     }
 
-    if ("TYPE_STRUCT".equals(dcFieldType)) {
+    if ("STRUCT".equals(dcFieldType)) {
       Schema structSchema = fromColumnsList(column.getSubcolumnsList());
       return FieldType.row(structSchema);
     }

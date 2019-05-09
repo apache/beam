@@ -65,8 +65,8 @@ import org.slf4j.LoggerFactory;
 public class JdbcIOTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
-  public static final int EXPECTED_ROW_COUNT = 1000;
-  public static final String BACKOFF_TABLE = "UT_WRITE_BACKOFF";
+  private static final int EXPECTED_ROW_COUNT = 1000;
+  private static final String BACKOFF_TABLE = "UT_WRITE_BACKOFF";
 
   private static NetworkServerControl derbyServer;
   private static ClientDataSource dataSource;
@@ -145,16 +145,18 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testDataSourceConfigurationDataSourceWithoutPool() throws Exception {
-    JdbcIO.DataSourceConfiguration config =
-        JdbcIO.DataSourceConfiguration.create(dataSource, false);
-    assertTrue(config.buildDatasource() instanceof ClientDataSource);
+  public void testDataSourceConfigurationDataSourceWithoutPool() {
+    assertTrue(
+        JdbcIO.DataSourceConfiguration.create(dataSource).buildDatasource()
+            instanceof ClientDataSource);
   }
 
   @Test
-  public void testDataSourceConfigurationDataSourceWithPool() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource, true);
-    assertTrue(config.buildDatasource() instanceof PoolingDataSource);
+  public void testDataSourceConfigurationDataSourceWithPool() {
+    assertTrue(
+        JdbcIO.PoolableDataSourceProvider.of(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .apply(null)
+            instanceof PoolingDataSource);
   }
 
   @Test
@@ -231,7 +233,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testRead() throws Exception {
+  public void testRead() {
     PCollection<TestRow> rows =
         pipeline.apply(
             JdbcIO.<TestRow>read()
@@ -251,7 +253,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithSingleStringParameter() throws Exception {
+  public void testReadWithSingleStringParameter() {
     PCollection<TestRow> rows =
         pipeline.apply(
             JdbcIO.<TestRow>read()
@@ -421,7 +423,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteWithEmptyPCollection() throws Exception {
+  public void testWriteWithEmptyPCollection() {
     pipeline
         .apply(Create.empty(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
         .apply(

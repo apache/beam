@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import argparse
+import os
+import sys
 import unittest
 
 from nose.plugins.attrib import attr
@@ -55,6 +57,10 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
         dataflow_exercise_metrics_pipeline.legacy_metric_matchers())
     self.assertFalse(errors, str(errors))
 
+  @unittest.skipIf(sys.version[0:3] == '3.6' and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.6 '
+                   'TODO: BEAM-7183')
   @attr('IT', 'ValidatesContainer')
   def test_metrics_fnapi_it(self):
     result = self.run_pipeline(experiment='beam_fn_api')
