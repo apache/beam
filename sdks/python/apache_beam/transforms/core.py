@@ -1530,9 +1530,9 @@ class CombinePerKey(PTransformWithSideInputs):
 
   def display_data(self):
     return {'combine_fn':
-                DisplayDataItem(self.fn.__class__, label='Combine Function'),
+            DisplayDataItem(self.fn.__class__, label='Combine Function'),
             'combine_fn_dd':
-                self.fn}
+            self.fn}
 
   def make_fn(self, fn, has_side_inputs):
     self._fn_label = ptransform.label_from_callable(fn)
@@ -1809,10 +1809,10 @@ class GroupByKey(PTransform):
       # pylint: disable=bad-continuation
       return (pcoll
               | 'ReifyWindows' >> (ParDo(self.ReifyWindows())
-                .with_output_types(reify_output_type))
+                 .with_output_types(reify_output_type))
               | 'GroupByKey' >> (_GroupByKeyOnly()
-                .with_input_types(reify_output_type)
-                .with_output_types(gbk_input_type))
+                 .with_input_types(reify_output_type)
+                 .with_output_types(gbk_input_type))
               | ('GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing)
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
