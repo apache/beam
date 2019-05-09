@@ -77,9 +77,8 @@ following::
 In this transform, depending on the type of a record, it will be written down to
 a destination named `'avro'`, or `'csv'`. The value returned by the
 `destination` call is then passed to the `sink` call, to determine what sort of
- sink will be used for each destination. The return type of the `destination`
+sink will be used for each destination. The return type of the `destination`
 parameter can be anything, as long as elements can be grouped by it.
-
 
 No backward compatibility guarantees. Everything in this module is experimental.
 """
