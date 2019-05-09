@@ -37,11 +37,9 @@ class ApproximateUniqueTest(unittest.TestCase):
     # return estimation error.
     return abs(est_count - actual_count) * 1.0 / actual_count
 
-  def _assert_error(self, est_count, actual_count, max_error, p=False):
+  def _assert_error(self, est_count, actual_count, max_error):
     # return whether estimation error is smaller or equal to max error.
     est_error = self._get_error(est_count, actual_count)
-    if p:
-      print est_count, actual_count, max_error, est_error
     return [est_error <= max_error]
 
   def test_approximate_unique_global_by_invalid_size(self):
@@ -59,7 +57,9 @@ class ApproximateUniqueTest(unittest.TestCase):
       pipeline.run()
 
     expected_msg = beam.ApproximateUniqueGlobally._INPUT_SIZE_ERR_MSG % (
-      sample_size)
+        sample_size)
+
+    # beam.ApproximateUniquePerKey
 
     assert expected_msg == e.exception.args[0]
 
@@ -78,7 +78,7 @@ class ApproximateUniqueTest(unittest.TestCase):
       pipeline.run()
 
     expected_msg = beam.ApproximateUniqueGlobally._INPUT_SIZE_ERR_MSG % (
-      sample_size)
+        sample_size)
 
     assert expected_msg == e.exception.args[0]
 
@@ -97,7 +97,7 @@ class ApproximateUniqueTest(unittest.TestCase):
       pipeline.run()
 
     expected_msg = beam.ApproximateUniqueGlobally._INPUT_ERROR_ERR_MSG % (
-      est_error)
+        est_error)
 
     assert expected_msg == e.exception.args[0]
 
@@ -116,7 +116,7 @@ class ApproximateUniqueTest(unittest.TestCase):
       pipeline.run()
 
     expected_msg = beam.ApproximateUniqueGlobally._INPUT_ERROR_ERR_MSG % (
-      est_error)
+        est_error)
 
     assert expected_msg == e.exception.args[0]
 
@@ -150,24 +150,24 @@ class ApproximateUniqueTest(unittest.TestCase):
       pipeline.run()
 
     expected_msg = beam.ApproximateUniqueGlobally._MULTI_VALUE_ERR_MSG % (
-    sample_size, est_error)
+        sample_size, est_error)
 
     assert expected_msg == e.exception.args[0]
 
-  def test__sample_size_from_estimation_error(self):
+  def test__get_sample_size_from_est_error(self):
     # test if get correct sample size from input error.
-    assert 16 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
-      0.5)
-    assert 25 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
-      0.4)
-    assert 100 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
-      0.2)
-    assert 400 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
-      0.1)
-    assert 1600 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
-      0.05)
-    assert 40000 == beam.ApproximateUniqueGlobally._sample_size_from_estimation_error(
-      0.01)
+    assert 16 == beam.ApproximateUniqueGlobally._get_sample_size_from_est_error(
+        0.5)
+    assert 25 == beam.ApproximateUniqueGlobally._get_sample_size_from_est_error(
+        0.4)
+    assert 100 == beam.ApproximateUniqueGlobally._get_sample_size_from_est_error(
+        0.2)
+    assert 400 == beam.ApproximateUniqueGlobally._get_sample_size_from_est_error(
+        0.1)
+    assert 1600 == beam.ApproximateUniqueGlobally._get_sample_size_from_est_error(
+        0.05)
+    assert 40000 == beam.ApproximateUniqueGlobally._get_sample_size_from_est_error(
+        0.01)
 
   def test_approximate_unique_global_by_sample_size(self):
     # test if estimation error with a given sample size is not greater than
@@ -311,7 +311,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     sample_size = 50
     number_of_keys = 10
     input = [(random.randint(1, number_of_keys), random.randint(0, 1000))
-                    for _ in range(100)]
+             for _ in range(100)]
     actual_count = defaultdict(set)
     for (x, y) in input:
       actual_count[x].add(y)
@@ -334,7 +334,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     est_error = 0.01
     number_of_keys = 10
     input = [(random.randint(1, number_of_keys), random.randint(0, 1000))
-                    for _ in range(100)]
+             for _ in range(100)]
     actual_count = defaultdict(set)
     for (x, y) in input:
       actual_count[x].add(y)

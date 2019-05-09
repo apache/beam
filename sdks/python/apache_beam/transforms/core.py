@@ -27,10 +27,6 @@ import types
 from builtins import map
 from builtins import object
 from builtins import range
-import sys
-import math
-import heapq
-import mmh3
 
 from past.builtins import unicode
 
@@ -89,9 +85,7 @@ __all__ = [
     'Flatten',
     'Create',
     'Impulse',
-    'RestrictionProvider',
-    'ApproximateUniqueGlobally',
-    'ApproximateUniquePerKey',
+    'RestrictionProvider'
 ]
 
 # Type variables
@@ -194,9 +188,9 @@ class ProcessContinuation(object):
 class RestrictionProvider(object):
   """Provides methods for generating and manipulating restrictions.
 
-  This class should be implemented to support Splittable ``DoFn``s in Python
+  This class should be implemented to support Splittable ``DoFn`` in Python
   SDK. See https://s.apache.org/splittable-do-fn for more details about
-  Splittable ``DoFn``s.
+  Splittable ``DoFn``.
 
   To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
   method of that class should have exactly one parameter whose default value is
@@ -304,6 +298,31 @@ def get_function_arguments(obj, func):
   return getfullargspec(f)
 
 
+class RunnerAPIPTransformHolder(PTransform):
+  """A `PTransform` that holds a runner API `PTransform` proto.
+
+  This is used for transforms, for which corresponding objects
+  cannot be initialized in Python SDK. For example, for `ParDo` transforms for
+  remote SDKs that may be available in Python SDK transform graph when expanding
+  a cross-language transform since a Python `ParDo` object cannot be generated
+  without a serialized Python `DoFn` object.
+  """
+
+  def __init__(self, proto):
+    self._proto = proto
+
+  def proto(self):
+    """Runner API payload for a `PTransform`"""
+    return self._proto
+
+  def to_runner_api(self, context, has_parts=False):
+    return self._proto
+
+  def get_restriction_coder(self):
+    # TODO(BEAM-7172): support external transforms that are SDFs.
+    return None
+
+
 class _DoFnParam(object):
   """DoFn parameter."""
 
@@ -324,6 +343,18 @@ class _DoFnParam(object):
 
   def __repr__(self):
     return self.param_id
+
+
+class _RestrictionDoFnParam(_DoFnParam):
+  """Restriction Provider DoFn parameter."""
+
+  def __init__(self, restriction_provider):
+    if not isinstance(restriction_provider, RestrictionProvider):
+      raise ValueError(
+          'DoFn.RestrictionParam expected RestrictionProvider object.')
+    self.restriction_provider = restriction_provider
+    self.param_id = ('RestrictionParam(%s)'
+                     % restriction_provider.__class__.__name__)
 
 
 class _StateDoFnParam(_DoFnParam):
@@ -402,6 +433,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
 
+  RestrictionParam = _RestrictionDoFnParam
+
   @staticmethod
   def from_callable(fn):
     return CallableWrapperDoFn(fn)
@@ -422,8 +455,13 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     ``DoFn.SideInputParam``: a side input that may be used when processing.
     ``DoFn.TimestampParam``: timestamp of the input element.
     ``DoFn.WindowParam``: ``Window`` the input element belongs to.
-    A ``RestrictionProvider`` instance: an ``iobase.RestrictionTracker`` will be
-    provided here to allow treatment as a Splittable `DoFn``.
+    ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the spec
+    of the parameter.
+    ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
+    of the parameter.
+    ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
+    provided here to allow treatment as a Splittable ``DoFn``. The restriction
+    tracker will be derived from the restriction provider in the parameter.
     ``DoFn.WatermarkReporterParam``: a function that can be used to report
     output watermark of Splittable ``DoFn`` implementations.
 
@@ -480,12 +518,12 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def is_process_bounded(self):
     """Checks if an object is a bound method on an instance."""
     if not isinstance(self.process, types.MethodType):
-      return False  # Not a method
+      return False # Not a method
     if self.process.__self__ is None:
-      return False  # Method is not bound
+      return False # Method is not bound
     if issubclass(self.process.__self__.__class__, type) or \
         self.process.__self__.__class__ is type:
-      return False  # Method is a classmethod
+      return False # Method is a classmethod
     return True
 
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_DOFN)
@@ -741,7 +779,6 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
 class _ReiterableChain(object):
   """Like itertools.chain, but allowing re-iteration."""
-
   def __init__(self, iterables):
     self.iterables = iterables
 
@@ -870,7 +907,6 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
   This is identical to its parent, but avoids accepting and passing *args
   and **kwargs for efficiency as they are known to be empty.
   """
-
   def create_accumulator(self):
     return []
 
@@ -1140,6 +1176,16 @@ class ParDo(PTransformWithSideInputs):
 
   def runner_api_requires_keyed_input(self):
     return userstate.is_stateful_dofn(self.fn)
+
+  def get_restriction_coder(self):
+    """Returns `restriction coder if `DoFn` of this `ParDo` is a SDF.
+
+    Returns `None` otherwise.
+    """
+    from apache_beam.runners.common import DoFnSignature
+    signature = DoFnSignature(self.fn)
+    return (signature.get_restriction_provider().restriction_coder()
+            if signature.is_splittable_dofn() else None)
 
 
 class _MultiParDo(PTransform):
@@ -1428,7 +1474,6 @@ class CombineGlobally(PTransform):
         if combined.element_type:
           return transform.with_output_types(combined.element_type)
         return transform
-
       return (pcoll.pipeline
               | 'DoOnce' >> Create([None])
               | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
@@ -1453,7 +1498,6 @@ class CombinePerKey(PTransformWithSideInputs):
   Returns:
     A PObject holding the result of the combine operation.
   """
-
   def with_hot_key_fanout(self, fanout):
     """A per-key combine operation like self but with two levels of aggregation.
 
@@ -1676,7 +1720,6 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       def extract_output(accumulator):
         # Boolean indicates this is an accumulator.
         return (True, accumulator)
-
       create_accumulator = combine_fn.create_accumulator
       add_input = combine_fn.add_input
       merge_accumulators = combine_fn.merge_accumulators
@@ -1690,7 +1733,6 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           return combine_fn.merge_accumulators([accumulator, value])
         else:
           return combine_fn.add_input(accumulator, value)
-
       create_accumulator = combine_fn.create_accumulator
       merge_accumulators = combine_fn.merge_accumulators
       compact = combine_fn.compact
@@ -1800,7 +1842,6 @@ class GroupByKey(PTransform):
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class _GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
-
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
     return KV[key_type, Iterable[value_type]]
@@ -1814,7 +1855,6 @@ class _GroupByKeyOnly(PTransform):
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
-
   def __init__(self, windowing):
     super(_GroupAlsoByWindow, self).__init__(
         _GroupAlsoByWindowDoFn(windowing))
@@ -2068,6 +2108,7 @@ PTransform.register_urn(
     beam_runner_api_pb2.WindowingStrategy,
     WindowInto.from_runner_api_parameter)
 
+
 # Python's pickling is broken for nested classes.
 WindowIntoFn = WindowInto.WindowIntoFn
 
@@ -2169,7 +2210,6 @@ class Create(PTransform):
       coder = typecoders.registry.get_coder(self.get_output_type())
       serialized_values = [coder.encode(v) for v in self.values]
       reshuffle = self.reshuffle
-
       # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
       # These special cases are often used in building up more complex
       # transforms (e.g. Write).
@@ -2181,7 +2221,6 @@ class Create(PTransform):
             return pcoll | Reshuffle()
           else:
             return pcoll
-
       return (
           pbegin
           | Impulse()
@@ -2231,163 +2270,3 @@ class Impulse(PTransform):
   @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)
   def from_runner_api_parameter(unused_parameter, unused_context):
     return Impulse()
-
-
-class ApproximateUniqueGlobally(PTransform):
-  """
-  Hashes input elements and uses those to extrapolate the size of the entire
-  set of hash values by assuming the rest of the hash values are as densely
-  distributed as the sample space.
-
-  Args:
-    **kwargs: Accepts a single named argument "size" or "error".
-    size: an int not smaller than 16, which we would use to estimate
-    number of unique values.
-    error: max estimation error, which is a float between 0.01
-    and 0.50. If error is given, size will be calculated from error with
-    _sample_size_from_estimation_error function.
-  """
-
-  _NO_VALUE_ERR_MSG = 'Either size or error should be set. Received {}.'
-  _MULTI_VALUE_ERR_MSG = 'Either size or error should be set. ' \
-                         'Received {size = %s, error = %s}.'
-  _INPUT_SIZE_ERR_MSG = 'ApproximateUnique needs a size >= 16 for an error ' \
-                        '<= 0.50. In general, the estimation error is about ' \
-                        '2 / sqrt(sample_size). Received {size = %s}.'
-  _INPUT_ERROR_ERR_MSG = 'ApproximateUnique needs an estimation error ' \
-                         'between 0.01 and 0.50. Received {error = %s}.'
-
-  def __init__(self, **kwargs):
-    input_size = kwargs.pop('size', None)
-    input_err = kwargs.pop('error', None)
-
-    if None not in (input_size, input_err):
-      raise ValueError(self._MULTI_VALUE_ERR_MSG % (input_size, input_err))
-    elif input_size is None and input_err is None:
-      raise ValueError(self._NO_VALUE_ERR_MSG)
-    elif input_size is not None:
-      if not isinstance(input_size, int) or input_size < 16:
-        raise ValueError(self._INPUT_SIZE_ERR_MSG % (input_size))
-      else:
-        self._sample_size = input_size
-        self._max_est_err = None
-    else:
-      if input_err < 0.01 or input_err > 0.5:
-        raise ValueError(self._INPUT_ERROR_ERR_MSG % (input_err))
-      else:
-        self._sample_size = self._sample_size_from_estimation_error(input_err)
-        self._max_est_err = input_err
-
-  def expand(self, pcoll):
-    return pcoll \
-           | 'CountGlobalUniqueValues' \
-           >> (CombineGlobally(ApproximateUniqueCombineDoFn(self._sample_size)))
-
-  @staticmethod
-  def _sample_size_from_estimation_error(est_err):
-    return int(math.ceil(4.0 / math.pow(est_err, 2.0)));
-
-
-class ApproximateUniquePerKey(ApproximateUniqueGlobally):
-  def __init__(self, **kwargs):
-    super(ApproximateUniquePerKey, self).__init__(**kwargs)
-
-  def expand(self, pcoll):
-    return pcoll \
-           | 'CountPerKeyUniqueValues' \
-           >> (CombinePerKey(ApproximateUniqueCombineDoFn(self._sample_size)))
-
-
-class _LargestUnique(object):
-  """
-  An object to keep samples and calculate sample hash space. It is an
-  accumulator of a combine function.
-  """
-  _HASH_SPACE_SIZE = 2.0 * sys.maxsize
-
-  def __init__(self, sample_size):
-    self._sample_size = sample_size
-    self._min_hash = sys.maxsize
-    self._sample_heap = []
-    self._sample_set = set()
-
-  def add(self, element):
-    """
-    :param an element from pcoll.
-    :return: boolean type whether the value is in the heap
-
-    Adds a value to the heap, returning whether the value is (large enough to
-    be) in the heap.
-    """
-    if len(self._sample_heap) >= self._sample_size and element < self._min_hash:
-      return False
-
-    if element not in self._sample_set:
-      self._sample_set.add(element)
-      heapq.heappush(self._sample_heap, element)
-
-      if len(self._sample_heap) > self._sample_size:
-        temp = heapq.heappop(self._sample_heap)
-        self._sample_set.remove(temp)
-        self._min_hash = self._sample_heap[0]
-      elif element < self._min_hash:
-        self._min_hash = element
-
-    return True
-
-  def get_estimate(self):
-    """
-    :return: estimation of unique values
-
-    If heap size is smaller than sample size, just return heap size.
-    Otherwise, takes into account the possibility of hash collisions,
-    which become more likely than not for 2^32 distinct elements.
-    Note that log(1+x) ~ x for small x, so for sampleSize << maxHash
-    log(1 - sampleSize/sampleSpace) / log(1 - 1/sampleSpace) ~ sampleSize
-    and hence estimate ~ sampleSize * HASH_SPACE_SIZE / sampleSpace
-    as one would expect.
-    """
-
-    if len(self._sample_heap) < self._sample_size:
-      return len(self._sample_heap)
-    else:
-      sample_space_size = sys.maxsize - 1.0 * self._min_hash
-      est = math.log1p(-self._sample_size/ sample_space_size) \
-            / math.log1p(-1 / sample_space_size) \
-            * self._HASH_SPACE_SIZE \
-            / sample_space_size
-
-      return int(round(est))
-
-
-class ApproximateUniqueCombineDoFn(CombineFn):
-  """
-  ApproximateUniqueCombineDoFn computes an estimate of the number of
-  unique values that were combined.
-  """
-
-  def __init__(self, sample_size):
-    self._sample_size = sample_size
-
-  def create_accumulator(self, *args, **kwargs):
-    return _LargestUnique(self._sample_size)
-
-  @staticmethod
-  def add_input(accumulator, element, *args, **kwargs):
-    try:
-      accumulator.add(mmh3.hash64(str(element))[1])
-      return accumulator
-    except Exception as e:
-      raise RuntimeError("Runtime exception: %s", e)
-
-  def merge_accumulators(self, accumulators, *args, **kwargs):
-    merged_accumulator = self.create_accumulator()
-    for accumulator in accumulators:
-      for i in accumulator._sample_heap:
-        merged_accumulator.add(i)
-
-    return merged_accumulator
-
-  @staticmethod
-  def extract_output(accumulator):
-    return accumulator.get_estimate()

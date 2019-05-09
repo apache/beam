@@ -125,7 +125,7 @@ REQUIRED_PACKAGES = [
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
-    'mmh3>=2.5.1; python_version >= "2.7"',
+    'mmh3>=2.5.1; python_version < "3.0"',
     ]
 
 REQUIRED_TEST_PACKAGES = [
