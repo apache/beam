@@ -30,10 +30,10 @@ import org.apache.beam.sdk.util.CoderUtils;
  * Utility functions for dealing with key encoding. Beam requires keys to be compared in binary
  * format. The helpers here ensure that a consistent encoding is used.
  */
-class FlinkKeyUtils {
+public class FlinkKeyUtils {
 
   /** Encodes a key to a byte array wrapped inside a ByteBuffer. */
-  static <K> ByteBuffer encodeKey(K key, Coder<K> keyCoder) {
+  public static <K> ByteBuffer encodeKey(K key, Coder<K> keyCoder) {
     checkNotNull(keyCoder, "Provided coder must not be null");
     final byte[] keyBytes;
     try {

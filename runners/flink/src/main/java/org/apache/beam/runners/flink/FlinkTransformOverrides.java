@@ -47,7 +47,8 @@ class FlinkTransformOverrides {
       builder
           .add(
               PTransformOverride.of(
-                  FlinkStreamingPipelineTranslator.writeFilesNeedsOverrides(),
+                  FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory
+                      .writeFilesNeedsOverrides(),
                   new FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory(
                       checkNotNull(options))))
           .add(

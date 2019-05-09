@@ -35,7 +35,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WriteFilesPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.ShardingFunction;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -61,10 +60,6 @@ public class WriteFilesTranslation {
   /** The URN for an unknown Java {@link FileBasedSink}. */
   public static final String CUSTOM_JAVA_FILE_BASED_SINK_URN =
       "urn:beam:file_based_sink:javasdk:0.1";
-
-  /** The URN for an unknown Java {@link ShardingFunction}. */
-  public static final String CUSTOM_JAVA_SHARDING_FUNCTION_URN =
-      "urn:beam:sharding_function:javasdk:0.1";
 
   @VisibleForTesting
   static WriteFilesPayload payloadForWriteFiles(
@@ -98,22 +93,12 @@ public class WriteFilesTranslation {
             return transform.getNumShardsProvider() == null
                 && transform.getComputeNumShards() == null;
           }
-
-          @Override
-          public SdkFunctionSpec translateShardingFunction(SdkComponents newComponents) {
-            // TODO: register the environment
-            return toProto(transform.getShardingFunction());
-          }
         },
         components);
   }
 
   private static SdkFunctionSpec toProto(FileBasedSink<?, ?, ?> sink) {
     return toProto(CUSTOM_JAVA_FILE_BASED_SINK_URN, sink);
-  }
-
-  private static SdkFunctionSpec toProto(ShardingFunction<?, ?> fn) {
-    return toProto(CUSTOM_JAVA_SHARDING_FUNCTION_URN, fn);
   }
 
   private static SdkFunctionSpec toProto(String urn, Serializable serializable) {
@@ -200,37 +185,6 @@ public class WriteFilesTranslation {
           transform)
       throws IOException {
     return getWriteFilesPayload(transform).getRunnerDeterminedSharding();
-  }
-
-  public static <T, DestinationT> ShardingFunction<T, DestinationT> getShardingFunction(
-      AppliedPTransform<
-              PCollection<T>,
-              WriteFilesResult<DestinationT>,
-              ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
-          transform)
-      throws IOException {
-    WriteFilesPayload payload = getWriteFilesPayload(transform);
-    return payload.hasShardingFunction()
-        ? (ShardingFunction<T, DestinationT>)
-            shardingFunctionFromProto(payload.getShardingFunction())
-        : null;
-  }
-
-  @VisibleForTesting
-  static ShardingFunction<?, ?> shardingFunctionFromProto(SdkFunctionSpec shardingFnProto)
-      throws IOException {
-    checkArgument(
-        shardingFnProto.getSpec().getUrn().equals(CUSTOM_JAVA_SHARDING_FUNCTION_URN),
-        "Cannot extract %s instance from %s with URN %s",
-        ShardingFunction.class.getSimpleName(),
-        FunctionSpec.class.getSimpleName(),
-        shardingFnProto.getSpec().getUrn());
-
-    byte[] serializedSink = shardingFnProto.getSpec().getPayload().toByteArray();
-
-    return (ShardingFunction<?, ?>)
-        SerializableUtils.deserializeFromByteArray(
-            serializedSink, ShardingFunction.class.getSimpleName());
   }
 
   private static <T, DestinationT> WriteFilesPayload getWriteFilesPayload(
@@ -320,12 +274,6 @@ public class WriteFilesTranslation {
     public boolean isRunnerDeterminedSharding() {
       return payload.getRunnerDeterminedSharding();
     }
-
-    @Override
-    public SdkFunctionSpec translateShardingFunction(SdkComponents newComponents) {
-      // TODO: re-register the environment with the new components
-      return payload.getShardingFunction();
-    }
   }
 
   static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?, ?>> {
@@ -364,8 +312,6 @@ public class WriteFilesTranslation {
     boolean isWindowedWrites();
 
     boolean isRunnerDeterminedSharding();
-
-    SdkFunctionSpec translateShardingFunction(SdkComponents newComponents);
   }
 
   public static WriteFilesPayload payloadForWriteFilesLike(
@@ -376,7 +322,6 @@ public class WriteFilesTranslation {
         .putAllSideInputs(writeFiles.translateSideInputs(components))
         .setWindowedWrites(writeFiles.isWindowedWrites())
         .setRunnerDeterminedSharding(writeFiles.isRunnerDeterminedSharding())
-        .setShardingFunction(writeFiles.translateShardingFunction(components))
         .build();
   }
 }

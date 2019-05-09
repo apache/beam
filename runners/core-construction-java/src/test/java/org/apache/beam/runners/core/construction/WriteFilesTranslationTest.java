@@ -28,7 +28,6 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.ShardingFunction;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -57,8 +55,7 @@ public class WriteFilesTranslationTest {
         WriteFiles.to(new DummySink()),
         WriteFiles.to(new DummySink()).withWindowedWrites(),
         WriteFiles.to(new DummySink()).withNumShards(17),
-        WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42),
-        WriteFiles.to(new DummySink()).withShardingFunction(new DummyShardingFunction()));
+        WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
   }
 
   @Parameter(0)
@@ -84,10 +81,6 @@ public class WriteFilesTranslationTest {
         (FileBasedSink<String, Void, String>)
             WriteFilesTranslation.sinkFromProto(payload.getSink()),
         equalTo(writeFiles.getSink()));
-
-    assertThat(
-        WriteFilesTranslation.shardingFunctionFromProto(payload.getShardingFunction()),
-        equalTo(writeFiles.getShardingFunction()));
   }
 
   @Test
@@ -107,10 +100,9 @@ public class WriteFilesTranslationTest {
     assertThat(
         WriteFilesTranslation.isWindowedWrites(appliedPTransform),
         equalTo(writeFiles.getWindowedWrites()));
-    assertThat(WriteFilesTranslation.getSink(appliedPTransform), equalTo(writeFiles.getSink()));
     assertThat(
-        WriteFilesTranslation.getShardingFunction(appliedPTransform),
-        equalTo(writeFiles.getShardingFunction()));
+        WriteFilesTranslation.<String, Void, String>getSink(appliedPTransform),
+        equalTo(writeFiles.getSink()));
   }
 
   /**
@@ -189,25 +181,6 @@ public class WriteFilesTranslationTest {
     @Override
     public int hashCode() {
       return DummyFilenamePolicy.class.hashCode();
-    }
-  }
-
-  private static final class DummyShardingFunction implements ShardingFunction<Object, Void> {
-
-    @Override
-    public ShardedKey<Integer> assignShardKey(Void destination, Object element, int shardCount)
-        throws Exception {
-      throw new UnsupportedOperationException("Should never be called.");
-    }
-
-    @Override
-    public int hashCode() {
-      return DummyShardingFunction.class.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj instanceof DummyShardingFunction;
     }
   }
 }
