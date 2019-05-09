@@ -20,9 +20,9 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 import java.util.List;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
@@ -32,19 +32,20 @@ import org.joda.time.Instant;
 /** Flink source for executing {@link org.apache.beam.sdk.testing.TestStream}. */
 public class TestStreamSource<T> extends RichSourceFunction<WindowedValue<T>> {
 
-  private final TestStream.TestStreamCoder<T> testStreamCoder;
+  private final SerializableFunction<byte[], TestStream<T>> testStreamDecoder;
   private final byte[] payload;
 
   private volatile boolean isRunning = true;
 
-  public TestStreamSource(TestStream.TestStreamCoder<T> testStreamCoder, byte[] payload) {
-    this.testStreamCoder = testStreamCoder;
+  public TestStreamSource(
+      SerializableFunction<byte[], TestStream<T>> testStreamDecoder, byte[] payload) {
+    this.testStreamDecoder = testStreamDecoder;
     this.payload = payload;
   }
 
   @Override
   public void run(SourceContext<WindowedValue<T>> ctx) throws CoderException {
-    TestStream<T> testStream = CoderUtils.decodeFromByteArray(testStreamCoder, payload);
+    TestStream<T> testStream = testStreamDecoder.apply(payload);
     List<TestStream.Event<T>> events = testStream.getEvents();
 
     for (int eventId = 0; isRunning && eventId < events.size(); eventId++) {
