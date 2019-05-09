@@ -203,7 +203,7 @@ class Stager(object):
     if jar_packages is not None:
       resources.extend(
           self._stage_jar_packages(
-              jar_packages.split(':'), staging_location,
+              jar_packages.split(','), staging_location,
               temp_dir=temp_dir))
 
     # Pickle the main session if requested.
