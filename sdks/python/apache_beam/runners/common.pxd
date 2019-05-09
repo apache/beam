@@ -37,6 +37,8 @@ cdef class MethodWrapper(object):
   cdef bint has_userstate_arguments
   cdef object state_args_to_replace
   cdef object timer_args_to_replace
+  cdef object timestamp_arg_name
+  cdef object window_arg_name
 
 
 cdef class DoFnSignature(object):

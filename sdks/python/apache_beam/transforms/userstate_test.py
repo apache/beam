@@ -525,8 +525,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       (p
        | test_stream
        | beam.Map(lambda x: ('mykey', x))
-       | "window_into" >> beam.WindowInto(window.FixedWindows(5),
-                                          accumulation_mode=trigger.AccumulationMode.DISCARDING)
+       | "window_into" >> beam.WindowInto(
+           window.FixedWindows(5),
+           accumulation_mode=trigger.AccumulationMode.DISCARDING)
        | beam.ParDo(TimerEmittingStatefulDoFn())
        | beam.ParDo(self.record_dofn()))
 
