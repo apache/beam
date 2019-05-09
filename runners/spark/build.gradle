@@ -185,7 +185,6 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -208,8 +207,6 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
-    // Schema
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
   }
 }
 
