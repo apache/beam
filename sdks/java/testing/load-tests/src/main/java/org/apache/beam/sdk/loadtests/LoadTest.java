@@ -64,8 +64,6 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   protected SyntheticSourceOptions sourceOptions;
 
-  protected SyntheticStep.Options stepOptions;
-
   protected Pipeline pipeline;
 
   LoadTest(String[] args, Class<OptionsT> testOptions, String metricsNamespace) throws IOException {
@@ -73,10 +71,6 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     this.runtimeMonitor = new TimeMonitor<>(metricsNamespace, "runtime");
     this.options = LoadTestOptions.readFromArgs(args, testOptions);
     this.sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
-
-    if (options.getStepOptions() != null) {
-      this.stepOptions = fromJsonString(options.getStepOptions(), SyntheticStep.Options.class);
-    }
 
     this.pipeline = Pipeline.create(options);
   }
