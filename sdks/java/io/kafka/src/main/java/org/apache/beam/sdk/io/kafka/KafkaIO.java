@@ -185,7 +185,7 @@ import org.slf4j.LoggerFactory;
  *
  *      // You can further customize KafkaProducer used to write the records by adding more
  *      // settings for ProducerConfig. e.g, to enable compression :
- *      .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
+ *      .withProducerConfigUpdates(ImmutableMap.of("compression.type", "gzip"))
  *
  *      // You set publish timestamp for the Kafka records.
  *      .withInputTimestamp() // element timestamp is used while publishing to Kafka
@@ -1097,7 +1097,7 @@ public class KafkaIO {
      * bootstrapServers}.
      */
     public WriteRecords<K, V> withBootstrapServers(String bootstrapServers) {
-      return updateProducerProperties(
+      return withProducerConfigUpdates(
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
@@ -1126,8 +1126,23 @@ public class KafkaIO {
 
     /**
      * Adds the given producer properties, overriding old values of properties with the same key.
+     *
+     * @deprecated as of version 2.13. Use {@link #withProducerConfigUpdates(Map)} instead.
      */
+    @Deprecated
     public WriteRecords<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
+      Map<String, Object> config =
+          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
+      return toBuilder().setProducerConfig(config).build();
+    }
+
+    /**
+     * Update configuration for the producer. Note that the default producer properties will not be
+     * completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>By default, the producer uses the configuration from {@link #DEFAULT_PRODUCER_PROPERTIES}.
+     */
+    public WriteRecords<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
       Map<String, Object> config =
           updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
       return toBuilder().setProducerConfig(config).build();
@@ -1338,7 +1353,7 @@ public class KafkaIO {
 
         WriteRecords<K, V> writeRecords =
             KafkaIO.<K, V>writeRecords()
-                .updateProducerProperties(producerConfig)
+                .withProducerConfigUpdates(producerConfig)
                 .withKeySerializer(keySerializer)
                 .withValueSerializer(valSerializer)
                 .withTopic(topic);
@@ -1482,10 +1497,25 @@ public class KafkaIO {
 
     /**
      * Adds the given producer properties, overriding old values of properties with the same key.
+     *
+     * @deprecated as of version 2.13. Use {@link #withProducerConfigUpdates(Map)} instead.
      */
+    @Deprecated
     public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
       return withWriteRecordsTransform(
           getWriteRecordsTransform().updateProducerProperties(configUpdates));
+    }
+
+    /**
+     * Update configuration for the producer. Note that the default producer properties will not be
+     * completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>By default, the producer uses the configuration from {@link
+     * WriteRecords#DEFAULT_PRODUCER_PROPERTIES}.
+     */
+    public Write<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withProducerConfigUpdates(configUpdates));
     }
 
     @Override
