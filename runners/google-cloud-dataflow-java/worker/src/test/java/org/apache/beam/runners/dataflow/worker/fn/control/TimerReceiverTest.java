@@ -492,10 +492,10 @@ public class TimerReceiverTest implements Serializable {
     }
   }
 
-  private KV<String, org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
+  private KV<byte[], org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
       String key, long timestampOffset) throws CoderException {
     return KV.of(
-        key,
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
         org.apache.beam.runners.core.construction.Timer.of(
             BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
             CoderUtils.encodeToByteArray(VoidCoder.of(), null, Coder.Context.NESTED)));
