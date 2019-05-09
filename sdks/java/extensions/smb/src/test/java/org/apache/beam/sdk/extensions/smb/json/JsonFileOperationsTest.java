@@ -52,7 +52,7 @@ public class JsonFileOperationsTest {
     for (TableRow record : records) {
       writer.write(record);
     }
-    writer.finishWrite();
+    writer.close();
 
     final List<TableRow> actual = new ArrayList<>();
     fileOperations.iterator(file).forEachRemaining(actual::add);

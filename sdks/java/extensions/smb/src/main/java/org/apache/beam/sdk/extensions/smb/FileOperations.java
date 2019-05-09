@@ -80,13 +80,14 @@ public abstract class FileOperations<V> implements Serializable {
   }
 
   /** Sorted-bucket file writer. */
-  public abstract static class Writer<V> implements Serializable {
+  public abstract static class Writer<V> implements Serializable, AutoCloseable {
     public abstract String getMimeType();
 
     public abstract void prepareWrite(WritableByteChannel channel) throws Exception;
 
     public abstract void write(V value) throws Exception;
 
-    public abstract void finishWrite() throws Exception;
+    @Override
+    public abstract void close() throws Exception;
   }
 }

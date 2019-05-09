@@ -103,7 +103,7 @@ public class JsonFileOperations extends FileOperations<TableRow> {
     }
 
     @Override
-    public void finishWrite() throws Exception {
+    public void close() throws Exception {
       writer.close();
     }
   }

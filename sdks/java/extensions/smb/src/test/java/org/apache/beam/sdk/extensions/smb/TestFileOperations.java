@@ -77,7 +77,7 @@ class TestFileOperations extends FileOperations<String> {
       }
 
       @Override
-      public void finishWrite() throws Exception {
+      public void close() throws Exception {
         writer.close();
       }
     };

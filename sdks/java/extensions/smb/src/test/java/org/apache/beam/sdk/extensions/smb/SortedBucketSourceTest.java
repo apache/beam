@@ -245,7 +245,7 @@ public class SortedBucketSourceTest {
       for (String s : entry.getValue()) {
         writer.write(s);
       }
-      writer.finishWrite();
+      writer.close();
     }
   }
 

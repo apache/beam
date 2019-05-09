@@ -180,7 +180,7 @@ public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
     }
 
     @Override
-    public void finishWrite() throws Exception {
+    public void close() throws Exception {
       writer.close();
     }
   }

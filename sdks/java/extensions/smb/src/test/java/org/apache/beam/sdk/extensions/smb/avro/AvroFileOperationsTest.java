@@ -71,7 +71,7 @@ public class AvroFileOperationsTest {
     for (GenericRecord record : records) {
       writer.write(record);
     }
-    writer.finishWrite();
+    writer.close();
 
     final List<GenericRecord> actual = new ArrayList<>();
     fileOperations.iterator(file).forEachRemaining(actual::add);
@@ -101,7 +101,7 @@ public class AvroFileOperationsTest {
     for (AvroGeneratedUser record : records) {
       writer.write(record);
     }
-    writer.finishWrite();
+    writer.close();
 
     final List<AvroGeneratedUser> actual = new ArrayList<>();
     fileOperations.iterator(file).forEachRemaining(actual::add);
