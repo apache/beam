@@ -20,9 +20,14 @@
 from __future__ import absolute_import
 
 import sys
+import logging
 import math
 import heapq
-import mmh3
+
+try:
+  import mmh3
+except ImportError:
+  logging.info('Python version >=3.0 uses buildin hash function.')
 
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.core import *
@@ -84,12 +89,10 @@ class ApproximateUniqueGlobally(PTransform):
 
   @staticmethod
   def _get_sample_size_from_est_error(est_err):
-    return int(math.ceil(4.0 / math.pow(est_err, 2.0)));
+    return int(math.ceil(4.0 / math.pow(est_err, 2.0)))
 
 
 class ApproximateUniquePerKey(ApproximateUniqueGlobally):
-  def __init__(self, **kwargs):
-    super(ApproximateUniquePerKey, self).__init__(**kwargs)
 
   def expand(self, pcoll):
     return pcoll \
@@ -174,7 +177,10 @@ class ApproximateUniqueCombineDoFn(CombineFn):
   @staticmethod
   def add_input(accumulator, element, *args, **kwargs):
     try:
-      accumulator.add(mmh3.hash64(str(element))[1])
+      if 'mmh3' in sys.modules:
+        accumulator.add(mmh3.hash64(str(element))[1])
+      else:
+        accumulator.add(hash(str(element)))
       return accumulator
     except Exception as e:
       raise RuntimeError("Runtime exception: %s", e)
