@@ -86,7 +86,7 @@ __all__ = [
     'Create',
     'Impulse',
     'RestrictionProvider'
-]
+    ]
 
 # Type variables
 T = typehints.TypeVariable('T')
@@ -684,7 +684,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       **kwargs: Additional arguments and side inputs.
     """
     for element in elements:
-      mutable_accumulator = \
+      mutable_accumulator =\
         self.add_input(mutable_accumulator, element, *args, **kwargs)
     return mutable_accumulator
 
@@ -1120,7 +1120,7 @@ class ParDo(PTransformWithSideInputs):
 
   def to_runner_api_parameter(self, context):
     assert isinstance(self, ParDo), \
-      "expected instance of ParDo, but got %s" % self.__class__
+        "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
     from apache_beam.runners.common import DoFnSignature
@@ -1397,9 +1397,9 @@ class CombineGlobally(PTransform):
   def display_data(self):
     return {
         'combine_fn':
-          DisplayDataItem(self.fn.__class__, label='Combine Function'),
+            DisplayDataItem(self.fn.__class__, label='Combine Function'),
         'combine_fn_dd':
-          self.fn,
+            self.fn,
     }
 
   def default_label(self):
@@ -1441,8 +1441,8 @@ class CombineGlobally(PTransform):
 
     combined = (pcoll
                 | 'KeyWithVoid' >> add_input_types(
-            Map(lambda v: (None, v)).with_output_types(
-                KV[None, pcoll.element_type]))
+                    Map(lambda v: (None, v)).with_output_types(
+                        KV[None, pcoll.element_type]))
                 | 'CombinePerKey' >> combine_per_key
                 | 'UnKey' >> Map(lambda k_v: k_v[1]))
 
@@ -1530,9 +1530,9 @@ class CombinePerKey(PTransformWithSideInputs):
 
   def display_data(self):
     return {'combine_fn':
-              DisplayDataItem(self.fn.__class__, label='Combine Function'),
+                DisplayDataItem(self.fn.__class__, label='Combine Function'),
             'combine_fn_dd':
-              self.fn}
+                self.fn}
 
   def make_fn(self, fn, has_side_inputs):
     self._fn_label = ptransform.label_from_callable(fn)
@@ -1748,7 +1748,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         hot
         # Avoid double counting that may happen with stacked accumulating mode.
         | 'WindowIntoDiscarding' >> WindowInto(
-        pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
+            pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
         | CombinePerKey(PreCombineFn())
         | Map(StripNonce)
         | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
@@ -1774,7 +1774,7 @@ class GroupByKey(PTransform):
   class ReifyWindows(DoFn):
 
     def process(self, element, window=DoFn.WindowParam,
-        timestamp=DoFn.TimestampParam):
+                timestamp=DoFn.TimestampParam):
       try:
         k, v = element
       except TypeError:
@@ -1809,10 +1809,10 @@ class GroupByKey(PTransform):
       # pylint: disable=bad-continuation
       return (pcoll
               | 'ReifyWindows' >> (ParDo(self.ReifyWindows())
-                                   .with_output_types(reify_output_type))
+                .with_output_types(reify_output_type))
               | 'GroupByKey' >> (_GroupByKeyOnly()
-                                 .with_input_types(reify_output_type)
-                                 .with_output_types(gbk_input_type))
+                .with_input_types(reify_output_type)
+                .with_output_types(gbk_input_type))
               | ('GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing)
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
@@ -1931,7 +1931,7 @@ class Partition(PTransformWithSideInputs):
 
 class Windowing(object):
   def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
-      timestamp_combiner=None):
+               timestamp_combiner=None):
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
@@ -2032,7 +2032,7 @@ class WindowInto(ParDo):
       self.windowing = windowing
 
     def process(self, element, timestamp=DoFn.TimestampParam,
-        window=DoFn.WindowParam):
+                window=DoFn.WindowParam):
       context = WindowFn.AssignContext(timestamp, element=element,
                                        window=window)
       new_windows = self.windowing.windowfn.assign(context)
@@ -2147,7 +2147,7 @@ class Flatten(PTransform):
       self._check_pcollection(pcoll)
     result = pvalue.PCollection(self.pipeline)
     result.element_type = typehints.Union[
-      tuple(pcoll.element_type for pcoll in pcolls)]
+        tuple(pcoll.element_type for pcoll in pcolls)]
     return result
 
   def get_windowing(self, inputs):
