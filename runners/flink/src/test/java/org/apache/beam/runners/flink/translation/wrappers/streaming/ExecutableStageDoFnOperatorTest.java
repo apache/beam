@@ -432,7 +432,7 @@ public class ExecutableStageDoFnOperatorTest {
     cleanupTimer.setForWindow(KV.of("key", "string"), window);
 
     Mockito.verify(stateBackendLock).lock();
-    ByteBuffer key = FlinkKeyUtils.encodeKey("key", keyCoder);
+    ByteBuffer key = FlinkKeyUtils.encodeKey("key", keyCoder, Coder.Context.NESTED);
     Mockito.verify(keyedStateBackend).setCurrentKey(key);
     assertThat(
         inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME),

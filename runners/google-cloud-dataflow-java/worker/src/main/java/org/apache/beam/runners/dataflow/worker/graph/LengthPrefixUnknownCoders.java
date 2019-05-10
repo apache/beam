@@ -72,8 +72,7 @@ public class LengthPrefixUnknownCoders {
           "kind:fixed_big_endian_int64",
           "kind:var_int32",
           "kind:void",
-          "org.apache.beam.sdk.coders.DoubleCoder",
-          "org.apache.beam.sdk.coders.StringUtf8Coder");
+          "org.apache.beam.sdk.coders.DoubleCoder");
 
   private static final String LENGTH_PREFIX_CODER_TYPE = "kind:length_prefix";
 
