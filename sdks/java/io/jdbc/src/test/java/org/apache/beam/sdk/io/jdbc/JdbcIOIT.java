@@ -152,13 +152,13 @@ public class JdbcIOIT {
         });
     suppliers.add(
         reader -> {
-          double totalBytes = reader.getCounterMetric("write_bytes");
-          return NamedTestResult.create(uuid, timestamp, "write_bytes", totalBytes);
+          double byteCount = reader.getCounterMetric("byte_count");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", byteCount);
         });
     suppliers.add(
         reader -> {
-          double writeElements = reader.getCounterMetric("write_elements");
-          return NamedTestResult.create(uuid, timestamp, "write_elements", writeElements);
+          double itemCount = reader.getCounterMetric("item_count");
+          return NamedTestResult.create(uuid, timestamp, "item_count", itemCount);
         });
     return suppliers;
   }
@@ -171,17 +171,6 @@ public class JdbcIOIT {
           long readStart = reader.getStartTimeMetric("read_time");
           long readEnd = reader.getEndTimeMetric("read_time");
           return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
-        });
-
-    suppliers.add(
-        reader -> {
-          double totalBytes = reader.getCounterMetric("read_bytes");
-          return NamedTestResult.create(uuid, timestamp, "read_bytes", totalBytes);
-        });
-    suppliers.add(
-        reader -> {
-          double readElements = reader.getCounterMetric("read_elements");
-          return NamedTestResult.create(uuid, timestamp, "read_elements", readElements);
         });
     return suppliers;
   }
@@ -199,8 +188,8 @@ public class JdbcIOIT {
         .apply(GenerateSequence.from(0).to(numberOfRows))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
-        .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, "write_bytes")))
-        .apply(ParDo.of(new CountMonitor<>(NAMESPACE, "write_elements")))
+        .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, "byte_count")))
+        .apply(ParDo.of(new CountMonitor<>(NAMESPACE, "item_count")))
         .apply(
             JdbcIO.<TestRow>write()
                 .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
@@ -234,9 +223,7 @@ public class JdbcIOIT {
                     .withQuery(String.format("select name,id from %s;", tableName))
                     .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
                     .withCoder(SerializableCoder.of(TestRow.class)))
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
-            .apply(ParDo.of(new ByteMonitor<>(NAMESPACE, "read_bytes")))
-            .apply(ParDo.of(new CountMonitor<>(NAMESPACE, "read_elements")));
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
         .isEqualTo((long) numberOfRows);
