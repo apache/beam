@@ -77,6 +77,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
         signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
     checkState(!stateful, "States and timers are not supported for the moment.");
 
+    DoFnSchemaInformation doFnSchemaInformation =
+        ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
     // Init main variables
     Dataset<WindowedValue<InputT>> inputDataSet = context.getDataset(context.getInput());
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
@@ -110,7 +113,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
             inputCoder,
             outputCoderMap,
             broadcastStateData,
-            DoFnSchemaInformation.create());
+            doFnSchemaInformation);
 
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs =
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.tuple2Encoder());
