@@ -178,7 +178,9 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project(":beam-sdks-java-io-hadoop-format").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
