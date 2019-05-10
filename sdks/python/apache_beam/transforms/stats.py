@@ -18,24 +18,27 @@
 """Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
 
 from __future__ import absolute_import
+from __future__ import division
 
-import sys
+import heapq
 import logging
 import math
-import heapq
+import sys
+from builtins import round
+
+from apache_beam.transforms.core import *
+from apache_beam.transforms.ptransform import PTransform
 
 try:
   import mmh3
 except ImportError:
   logging.info('Python version >=3.0 uses buildin hash function.')
 
-from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.core import *
-
 __all__ = [
     'ApproximateUniqueGlobally',
     'ApproximateUniquePerKey',
 ]
+
 
 class ApproximateUniqueGlobally(PTransform):
   """
@@ -46,10 +49,10 @@ class ApproximateUniqueGlobally(PTransform):
   Args:
     **kwargs: Accepts a single named argument "size" or "error".
     size: an int not smaller than 16, which we would use to estimate
-    number of unique values.
+      number of unique values.
     error: max estimation error, which is a float between 0.01
-    and 0.50. If error is given, size will be calculated from error with
-    _sample_size_from_estimation_error function.
+      and 0.50. If error is given, size will be calculated from error with
+      _get_sample_size_from_est_error function.
   """
 
   _NO_VALUE_ERR_MSG = 'Either size or error should be set. Received {}.'
@@ -89,6 +92,11 @@ class ApproximateUniqueGlobally(PTransform):
 
   @staticmethod
   def _get_sample_size_from_est_error(est_err):
+    """
+    :return: sample size
+
+    Calculate sample size from estimation error
+    """
     return int(math.ceil(4.0 / math.pow(est_err, 2.0)))
 
 
@@ -159,7 +167,7 @@ class _LargestUnique(object):
             * self._HASH_SPACE_SIZE \
             / sample_space_size
 
-      return int(round(est))
+      return round(est)
 
 
 class ApproximateUniqueCombineDoFn(CombineFn):
