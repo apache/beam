@@ -773,7 +773,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       // make sure this fires after any window.maxTimestamp() timers
       Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
       // needs to match the encoding in prepareStateBackend for state request handler
-      final ByteBuffer key = FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder);
+      final ByteBuffer key =
+          FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder, Coder.Context.NESTED);
       // Ensure the state backend is not concurrently accessed by the state requests
       try {
         stateBackendLock.lock();
