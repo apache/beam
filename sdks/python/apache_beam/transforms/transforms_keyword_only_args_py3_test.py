@@ -28,9 +28,10 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+
 @unittest.skipIf(sys.version_info[0] == 2,
                  'Keyword-Only Arguments are not supported in python 2')
-# @unittest.skip('TODO BEAM-5878: support kwonly args in python 3')
+@unittest.skip('TODO BEAM-5878: support kwonly args in python 3')
 class KeywordOnlyArgsTests(unittest.TestCase):
   # Enable nose tests running in parallel
   _multiprocess_can_split_ = True
@@ -38,8 +39,6 @@ class KeywordOnlyArgsTests(unittest.TestCase):
   def test_side_input_keyword_only_args(self):
     pipeline = TestPipeline()
 
-    # Keyword-only arguments are not available on Python 2
-    # pylint: disable=syntax-error
     def sort_with_side_inputs(x, *s, reverse=False):
       for y in s:
         yield sorted([x] + y, reverse=reverse)
@@ -91,8 +90,6 @@ class KeywordOnlyArgsTests(unittest.TestCase):
     pipeline = TestPipeline()
 
     class MyDoFn(beam.DoFn):
-      # Keyword-only arguments are not available on Python 2
-      # pylint: disable=syntax-error
       def process(self, element, *s, bound=500):
         return [min(sum(s) + element, bound)]
 

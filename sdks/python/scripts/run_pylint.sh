@@ -60,8 +60,15 @@ EXCLUDED_GENERATED_FILES=(
 apache_beam/portability/api/*pb2*.py
 )
 
+# Following files contain python 3 syntax and are excluded from pylint in python 2
+EXCLUDED_PYTHON3_FILES=(
+"apache_beam/transforms/transforms_keyword_only_args_py3_test.py"
+)
+
+EXCLUDED_FILES=( "${EXCLUDED_GENERATED_FILES[@]}" "${EXCLUDED_PYTHON3_FILES[@]}" )
+
 FILES_TO_IGNORE=""
-for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
+for file in "${EXCLUDED_FILES[@]}"; do
   if test -z "$FILES_TO_IGNORE"
     then FILES_TO_IGNORE="$(basename $file)"
     else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
@@ -75,7 +82,7 @@ echo "Running pycodestyle for module $MODULE:"
 pycodestyle ${MODULE} --exclude="$FILES_TO_IGNORE"
 echo "Running flake8 for module $MODULE:"
 # TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
-flake8 ${MODULE} --count --select=E9,F822,F823 --show-source --statistics
+flake8 ${MODULE} --count --select=E9,F822,F823 --show-source --statistics --exclude="$FILES_TO_IGNORE"
 
 echo "Running isort for module $MODULE:"
 # Skip files where isort is behaving weirdly
