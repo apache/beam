@@ -157,6 +157,19 @@ class DownloaderStream(io.RawIOBase):
   def readable(self):
     return True
 
+  def readall(self):
+      """Read until EOF, using multiple read() call."""
+      res = bytearray()
+      while True:
+          data = self.read(gcsio.DEFAULT_READ_BUFFER_SIZE)
+          if not data:
+              break
+          res += data
+      if res:
+          return bytes(res)
+      else:
+          return data
+
 
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
