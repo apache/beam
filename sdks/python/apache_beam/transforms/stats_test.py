@@ -35,15 +35,6 @@ from apache_beam.testing.util import equal_to
 class ApproximateUniqueTest(unittest.TestCase):
   """Unit tests for ApproximateUniqueGlobally and ApproximateUniquePerKey."""
 
-  def _get_error(self, est_count, actual_count):
-    # return estimation error.
-    return abs(est_count - actual_count) * 1.0 / actual_count
-
-  def _assert_error(self, est_count, actual_count, max_error):
-    # return whether estimation error is smaller or equal to max error.
-    est_err = self._get_error(est_count, actual_count)
-    return [est_err <= max_error]
-
   def test_approximate_unique_global_by_invalid_size(self):
     # test if the transformation throws an error as expected with an invalid
     # small input size (< 16).
