@@ -84,4 +84,10 @@
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
+
+  <!-- Flink -->
+  <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
+  <suppress checks="JavadocPackage" files=".*runners.flink.*CoderTypeSerializer\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*EncodedTypeSerializer\.java"/>
+
 </suppressions>

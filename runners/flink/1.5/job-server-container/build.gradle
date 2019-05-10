@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+def basePath = '../../job-server-container'
+
 project.ext {
-  resource_path = '.'
+  resource_path = basePath
 }
 
 // Load the main build script which contains all build logic.
-apply from: 'flink_job_server_container.gradle'
+apply from: "$basePath/flink_job_server_container.gradle"
