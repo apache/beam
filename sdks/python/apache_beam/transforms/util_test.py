@@ -149,8 +149,6 @@ class BatchElementsTest(unittest.TestCase):
         max(stable_set), expected_target + expected_target * variance)
 
   def _run_regression_test(self, linear_regression_fn, test_outliers):
-    tolerance = 0.0001
-
     xs = [random.random() for _ in range(10)]
     ys = [2*x + 1 for x in xs]
     a, b = linear_regression_fn(xs, ys)
@@ -160,16 +158,16 @@ class BatchElementsTest(unittest.TestCase):
     xs = [1 + random.random() for _ in range(100)]
     ys = [7*x + 5 + 0.01 * random.random() for x in xs]
     a, b = linear_regression_fn(xs, ys)
-    self.assertAlmostEqual(a, 5, delta=0.01 + tolerance)
-    self.assertAlmostEqual(b, 7, delta=0.01 + tolerance)
+    self.assertAlmostEqual(a, 5, delta=0.02)
+    self.assertAlmostEqual(b, 7, delta=0.02)
 
     # Test repeated xs
     xs = [1 + random.random()] * 100
     ys = [7 * x + 5 + 0.01 * random.random() for x in xs]
     a, b = linear_regression_fn(xs, ys)
-    self.assertAlmostEqual(a, 0, delta=0.01 + tolerance)
+    self.assertAlmostEqual(a, 0, delta=0.02)
     self.assertAlmostEqual(
-        b, sum(ys)/(len(ys) * xs[0]), delta=0.01 + tolerance)
+        b, sum(ys)/(len(ys) * xs[0]), delta=0.02)
 
     if test_outliers:
       xs = [1 + random.random() for _ in range(100)]
