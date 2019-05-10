@@ -77,13 +77,14 @@ public class LengthPrefixUnknownCodersTest {
 
   private static final Coder<WindowedValue<KV<String, Integer>>> prefixedWindowedValueCoder =
       WindowedValue.getFullCoder(
-          KvCoder.of(StringUtf8Coder.of(), LengthPrefixCoder.of(VarIntCoder.of())),
+          KvCoder.of(
+              LengthPrefixCoder.of(StringUtf8Coder.of()), LengthPrefixCoder.of(VarIntCoder.of())),
           GlobalWindow.Coder.INSTANCE);
 
-  private static final Coder<WindowedValue<KV<String, byte[]>>>
+  private static final Coder<WindowedValue<KV<byte[], byte[]>>>
       prefixedAndReplacedWindowedValueCoder =
           WindowedValue.getFullCoder(
-              KvCoder.of(StringUtf8Coder.of(), LENGTH_PREFIXED_BYTE_ARRAY_CODER),
+              KvCoder.of(LENGTH_PREFIXED_BYTE_ARRAY_CODER, LENGTH_PREFIXED_BYTE_ARRAY_CODER),
               GlobalWindow.Coder.INSTANCE);
 
   private static final String MERGE_BUCKETS_DO_FN = "MergeBucketsDoFn";
@@ -123,7 +124,8 @@ public class LengthPrefixUnknownCodersTest {
 
     Coder<WindowedValue<KV<String, Integer>>> expectedCoder =
         WindowedValue.getFullCoder(
-            KvCoder.of(StringUtf8Coder.of(), LengthPrefixCoder.of(VarIntCoder.of())),
+            KvCoder.of(
+                LengthPrefixCoder.of(StringUtf8Coder.of()), LengthPrefixCoder.of(VarIntCoder.of())),
             GlobalWindow.Coder.INSTANCE);
 
     assertEquals(
@@ -136,7 +138,8 @@ public class LengthPrefixUnknownCodersTest {
   public void testLengthPrefixAndReplaceUnknownCoder() throws Exception {
     Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
         WindowedValue.getFullCoder(
-            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), GlobalWindow.Coder.INSTANCE);
+            KvCoder.of(LengthPrefixCoder.of(StringUtf8Coder.of()), VarIntCoder.of()),
+            GlobalWindow.Coder.INSTANCE);
 
     Map<String, Object> lengthPrefixedCoderCloudObject =
         forCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null), true);
