@@ -93,6 +93,9 @@ public final class RowHelpers {
   public static <T> T extractObjectFromRow(Row value) {
     // there is only one value put in each Row by the InputPartitionReader
     byte[] bytes = (byte[]) value.get(0);
+    if (bytes == null) {
+      return null;
+    }
     ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
     Kryo kryo = new Kryo();
     Input input = new Input(inputStream);
