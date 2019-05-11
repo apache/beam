@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.spark;
 
+import java.io.File;
 import java.io.Serializable;
+import java.nio.file.FileSystems;
 import java.util.Collections;
-import java.util.concurrent.Executors;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -46,8 +48,11 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,15 +61,13 @@ import org.slf4j.LoggerFactory;
  */
 public class SparkPortableExecutionTest implements Serializable {
 
+  @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
   private static final Logger LOG = LoggerFactory.getLogger(SparkPortableExecutionTest.class);
-
   private static ListeningExecutorService sparkJobExecutor;
 
   @BeforeClass
   public static void setup() {
-    // Restrict this to only one thread to avoid multiple Spark clusters up at the same time
-    // which is not suitable for memory-constraint environments, i.e. Jenkins.
-    sparkJobExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+    sparkJobExecutor = MoreExecutors.newDirectExecutorService();
   }
 
   @AfterClass
@@ -159,8 +162,166 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    while (jobInvocation.getState() != Enum.DONE) {
-      Thread.sleep(1000);
-    }
+    Assert.assertEquals(Enum.DONE, jobInvocation.getState());
+  }
+
+  /**
+   * Verifies that each executable stage runs exactly once, even if that executable stage has
+   * multiple immediate outputs. While re-computation may be necessary in the event of failure,
+   * re-computation of a whole executable stage is expensive and can cause unexpected behavior when
+   * the executable stage has side effects (BEAM-7131).
+   *
+   * <pre>
+   *    |-> B -> GBK
+   * A -|
+   *    |-> C -> GBK
+   * </pre>
+   */
+  @Test(timeout = 120_000)
+  public void testExecStageWithMultipleOutputs() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(CrashingRunner.class);
+    options
+        .as(PortablePipelineOptions.class)
+        .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
+    Pipeline pipeline = Pipeline.create(options);
+    String path =
+        FileSystems.getDefault()
+            .getPath(temporaryFolder.getRoot().getAbsolutePath(), UUID.randomUUID().toString())
+            .toString();
+    File file = new File(path);
+    PCollection<String> a =
+        pipeline
+            .apply("impulse", Impulse.create())
+            .apply(
+                "A",
+                ParDo.of(
+                    new DoFn<byte[], String>() {
+                      @ProcessElement
+                      public void process(ProcessContext context) throws Exception {
+                        context.output("A");
+                        // ParDos A, B, and C will all be fused together into the same executable
+                        // stage. This check verifies that stage is not run more than once by
+                        // enacting a side effect via the local file system.
+                        Assert.assertTrue(
+                            String.format(
+                                "Create file %s failed (ParDo A should only have been run once).",
+                                path),
+                            file.createNewFile());
+                      }
+                    }));
+    PCollection<KV<String, String>> b =
+        a.apply(
+            "B",
+            ParDo.of(
+                new DoFn<String, KV<String, String>>() {
+                  @ProcessElement
+                  public void process(ProcessContext context) {
+                    context.output(KV.of(context.element(), "B"));
+                  }
+                }));
+    PCollection<KV<String, String>> c =
+        a.apply(
+            "C",
+            ParDo.of(
+                new DoFn<String, KV<String, String>>() {
+                  @ProcessElement
+                  public void process(ProcessContext context) {
+                    context.output(KV.of(context.element(), "C"));
+                  }
+                }));
+    // Use GBKs to force re-computation of executable stage unless cached.
+    b.apply(GroupByKey.create());
+    c.apply(GroupByKey.create());
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
+    JobInvocation jobInvocation =
+        SparkJobInvoker.createJobInvocation(
+            "testExecStageWithMultipleOutputs",
+            "testExecStageWithMultipleOutputsRetrievalToken",
+            sparkJobExecutor,
+            pipelineProto,
+            options.as(SparkPipelineOptions.class));
+    jobInvocation.start();
+    Assert.assertEquals(Enum.DONE, jobInvocation.getState());
+    Assert.assertTrue(file.exists());
+  }
+
+  /**
+   * Verifies that each executable stage runs exactly once, even if that executable stage has
+   * multiple downstream consumers. While re-computation may be necessary in the event of failure,
+   * re-computation of a whole executable stage is expensive and can cause unexpected behavior when
+   * the executable stage has side effects (BEAM-7131).
+   *
+   * <pre>
+   *           |-> B
+   * A -> GBK -|
+   *           |-> C
+   * </pre>
+   */
+  @Test(timeout = 120_000)
+  public void testExecStageWithMultipleConsumers() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(CrashingRunner.class);
+    options
+        .as(PortablePipelineOptions.class)
+        .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
+    Pipeline pipeline = Pipeline.create(options);
+    String path =
+        FileSystems.getDefault()
+            .getPath(temporaryFolder.getRoot().getAbsolutePath(), UUID.randomUUID().toString())
+            .toString();
+    File file = new File(path);
+    PCollection<KV<String, Integer>> a =
+        pipeline
+            .apply("impulse", Impulse.create())
+            .apply(
+                "A",
+                ParDo.of(
+                    new DoFn<byte[], KV<String, Integer>>() {
+                      @ProcessElement
+                      public void process(ProcessContext context) throws Exception {
+                        context.output(KV.of("A", 1));
+                        // ParDo A has multiple downstream consumers (B and C, which are in separate
+                        // executable stages because of the intermediate GBK). This check verifies
+                        // that A is not run more than once by enacting a side effect via the local
+                        // file system.
+                        Assert.assertTrue(
+                            String.format(
+                                "Create file %s failed (ParDo A should only have been run once).",
+                                path),
+                            file.createNewFile());
+                      }
+                    }));
+    // use GBK to prevent fusion of A, B, and C
+    a.apply(GroupByKey.create());
+    a.apply(
+        "B",
+        ParDo.of(
+            new DoFn<KV<String, Integer>, KV<String, String>>() {
+              @ProcessElement
+              public void process(ProcessContext context) {
+                context.output(KV.of(context.element().getKey(), "B"));
+              }
+            }));
+    a.apply(
+        "C",
+        ParDo.of(
+            new DoFn<KV<String, Integer>, KV<String, String>>() {
+              @ProcessElement
+              public void process(ProcessContext context) {
+                context.output(KV.of(context.element().getKey(), "C"));
+              }
+            }));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
+    JobInvocation jobInvocation =
+        SparkJobInvoker.createJobInvocation(
+            "testExecStageWithMultipleConsumers",
+            "testExecStageWithMultipleConsumersRetrievalToken",
+            sparkJobExecutor,
+            pipelineProto,
+            options.as(SparkPipelineOptions.class));
+    jobInvocation.start();
+    Assert.assertEquals(Enum.DONE, jobInvocation.getState());
+    Assert.assertTrue(file.exists());
   }
 }
