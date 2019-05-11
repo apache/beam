@@ -1,0 +1,149 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffer messages used for testing Proto3 Schema implementation.
+ */
+
+syntax = "proto3";
+
+package proto3_schema_messages;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/descriptor.proto";
+
+option java_package = "org.apache.beam.sdk.extensions.protobuf";
+
+message MessageMeta {
+    string description = 1;
+    bool rewrite = 2;
+}
+
+message FieldMeta {
+    string description = 1;
+    int32 foobar = 2;
+}
+
+extend google.protobuf.MessageOptions {
+    MessageMeta message_meta = 66600666;
+}
+
+extend google.protobuf.FieldOptions {
+    FieldMeta field_meta = 66600666;
+}
+
+message Message {
+    Primitive message = 3;
+    repeated Primitive repeated_message = 4;
+}
+
+message Primitive {
+    double primitive_double = 3;
+    float primitive_float = 4;
+    int32 primitive_int32 = 5;
+    int64 primitive_int64 = 6;
+    uint32 primitive_uint32 = 7;
+    uint64 primitive_uint64 = 8;
+    sint32 primitive_sint32 = 9;
+    sint64 primitive_sint64 = 10;
+    fixed32 primitive_fixed32 = 11;
+    fixed64 primitive_fixed64 = 12;
+    sfixed32 primitive_sfixed32 = 13;
+    sfixed64 primitive_sfixed64 = 14;
+    bool primitive_bool = 15;
+    string primitive_string = 16;
+    bytes primitive_bytes = 17;
+}
+
+message RepeatPrimitive {
+    repeated double repeated_double = 1;
+    repeated float repeated_float = 2;
+    repeated int32 repeated_int32 = 3;
+    repeated int64 repeated_int64 = 4;
+    repeated uint32 repeated_uint32 = 5;
+    repeated uint64 repeated_uint64 = 6;
+    repeated sint32 repeated_sint32 = 7;
+    repeated sint64 repeated_sint64 = 8;
+    repeated fixed32 repeated_fixed32 = 9;
+    repeated fixed64 repeated_fixed64 = 10;
+    repeated sfixed32 repeated_sfixed32 = 11;
+    repeated sfixed64 repeated_sfixed64 = 12;
+    repeated bool repeated_bool = 13;
+    repeated string repeated_string = 14;
+    repeated bytes repeated_bytes = 15;
+}
+
+message Complex {
+    enum EnumNested {
+        UNKNOWN = 0;
+        FOO = 1;
+        BAR = 2;
+    }
+
+    EnumNested special_enum = 3;
+    repeated EnumNested repeated_enum = 4;
+
+    oneof special_oneof {
+        int32 oneof_int32 = 5;
+        bool oneof_bool = 6;
+        string oneof_string = 7;
+        Primitive oneof_primitive = 8;
+    }
+
+    map<string, int32> x = 9;
+    map<string, string> y = 10;
+    map<string, Primitive> z = 11;
+
+    oneof second_oneof {
+        int64 oneof_int64 = 12;
+        double oneof_double = 13;
+    }
+}
+
+message WktMessage {
+    google.protobuf.DoubleValue nullable_double = 1;
+    google.protobuf.FloatValue nullable_float = 2;
+    google.protobuf.Int32Value nullable_int32 = 3;
+    google.protobuf.Int64Value nullable_int64 = 4;
+    google.protobuf.UInt32Value nullable_uint32 = 5;
+    google.protobuf.UInt64Value nullable_uint64 = 6;
+    google.protobuf.BoolValue nullable_bool = 13;
+    google.protobuf.StringValue nullable_string = 14;
+    google.protobuf.BytesValue nullable_bytes = 15;
+    google.protobuf.Timestamp wkt_timestamp = 16;
+}
+
+message LatLng {
+    double latitude = 1;
+    double longitude = 2;
+}
+
+message LogicalTypes {
+    LatLng gps = 1;
+}
+
+message MessageWithMeta {
+    option (proto3_schema_messages.message_meta).description = "Cool field";
+    option (proto3_schema_messages.message_meta).rewrite = true;
+
+    string field_with_description = 1 [(proto3_schema_messages.field_meta).description = "Cool field"];
+    string field_with_foobar = 2 [(proto3_schema_messages.field_meta).foobar = 42];
+    string field_with_deprecation = 3 [deprecated = true];
+}
+

@@ -46,12 +46,18 @@ public class RowWithGetters extends Row {
   private final Map<Integer, List> cachedLists = Maps.newHashMap();
   private final Map<Integer, Map> cachedMaps = Maps.newHashMap();
 
+  private final boolean collectionHandledByGetter;
+
   RowWithGetters(
-      Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
+      Schema schema,
+      Factory<List<FieldValueGetter>> getterFactory,
+      Object getterTarget,
+      boolean collectionHandledByGetter) {
     super(schema);
     this.fieldValueGetterFactory = getterFactory;
     this.getterTarget = getterTarget;
     this.getters = fieldValueGetterFactory.create(getterTarget.getClass(), schema);
+    this.collectionHandledByGetter = collectionHandledByGetter;
   }
 
   @Nullable
@@ -87,15 +93,16 @@ public class RowWithGetters extends Row {
 
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   private <T> T getValue(FieldType type, Object fieldValue, @Nullable Integer cacheKey) {
-    if (type.getTypeName().equals(TypeName.ROW)) {
-      return (T) new RowWithGetters(type.getRowSchema(), fieldValueGetterFactory, fieldValue);
-    } else if (type.getTypeName().equals(TypeName.ARRAY)) {
+    if (type.getTypeName().equals(TypeName.ROW) && !collectionHandledByGetter) {
+      return (T)
+          new RowWithGetters(type.getRowSchema(), fieldValueGetterFactory, fieldValue, false);
+    } else if (type.getTypeName().equals(TypeName.ARRAY) && !collectionHandledByGetter) {
       return cacheKey != null
           ? (T)
               cachedLists.computeIfAbsent(
                   cacheKey, i -> getListValue(type.getCollectionElementType(), fieldValue))
           : (T) getListValue(type.getCollectionElementType(), fieldValue);
-    } else if (type.getTypeName().equals(TypeName.MAP)) {
+    } else if (type.getTypeName().equals(TypeName.MAP) && !collectionHandledByGetter) {
       Map map = (Map) fieldValue;
       return cacheKey != null
           ? (T)

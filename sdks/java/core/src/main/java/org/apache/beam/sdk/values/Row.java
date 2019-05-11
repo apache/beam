@@ -499,6 +499,7 @@ public abstract class Row implements Serializable {
     @Nullable private Factory<List<FieldValueGetter>> fieldValueGetterFactory;
     @Nullable private Object getterTarget;
     private Schema schema;
+    private boolean collectionHandledByGetter = false;
 
     Builder(Schema schema) {
       this.schema = schema;
@@ -551,6 +552,12 @@ public abstract class Row implements Serializable {
         Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
       this.fieldValueGetterFactory = fieldValueGetterFactory;
       this.getterTarget = getterTarget;
+      return this;
+    }
+
+    /** The FieldValueGetters will handle the conversion for Arrays, Maps and Rows. */
+    public Builder withFieldValueGettersHandleCollections(boolean collectionHandledByGetter) {
+      this.collectionHandledByGetter = collectionHandledByGetter;
       return this;
     }
 
@@ -754,7 +761,8 @@ public abstract class Row implements Serializable {
         return new RowWithStorage(schema, storageValues);
       } else if (fieldValueGetterFactory != null) {
         checkState(getterTarget != null, "getters require withGetterTarget.");
-        return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+        return new RowWithGetters(
+            schema, fieldValueGetterFactory, getterTarget, collectionHandledByGetter);
       } else {
         return new RowWithStorage(schema, Collections.emptyList());
       }
