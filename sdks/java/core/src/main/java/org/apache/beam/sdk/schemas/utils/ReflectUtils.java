@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.value.AutoValue;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -31,7 +32,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -39,35 +39,21 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 
 /** A set of reflection helper methods. */
 public class ReflectUtils {
   /** Represents a class and a schema. */
-  public static class ClassWithSchema {
-    private final Class clazz;
-    private final Schema schema;
+  @AutoValue
+  public abstract static class ClassWithSchema {
+    public abstract Class getClazz();
 
-    public ClassWithSchema(Class clazz, Schema schema) {
-      this.clazz = clazz;
-      this.schema = schema;
-    }
+    public abstract Schema getSchema();
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      ClassWithSchema that = (ClassWithSchema) o;
-      return Objects.equals(clazz, that.clazz) && Objects.equals(schema, that.schema);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(clazz, schema);
+    public static ClassWithSchema create(Class clazz, Schema schema) {
+      return new AutoValue_ReflectUtils_ClassWithSchema(clazz, schema);
     }
   }
 
@@ -92,6 +78,10 @@ public class ReflectUtils {
               .filter(m -> !Modifier.isStatic(m.getModifiers()))
               .collect(Collectors.toList());
         });
+  }
+
+  public static Multimap<String, Method> getMethodsMap(Class clazz) {
+    return Multimaps.index(getMethods(clazz), Method::getName);
   }
 
   @Nullable

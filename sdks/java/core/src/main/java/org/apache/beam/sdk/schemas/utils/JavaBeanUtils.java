@@ -102,7 +102,7 @@ public class JavaBeanUtils {
   public static List<FieldValueTypeInformation> getFieldTypes(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return CACHED_FIELD_TYPES.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
+        ClassWithSchema.create(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
   }
 
   // The list of getters for a class is cached, so we only create the classes the first time
@@ -121,7 +121,7 @@ public class JavaBeanUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_GETTERS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return types.stream()
@@ -130,7 +130,7 @@ public class JavaBeanUtils {
         });
   }
 
-  private static <T> FieldValueGetter createGetter(
+  public static <T> FieldValueGetter createGetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(
@@ -184,7 +184,7 @@ public class JavaBeanUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_SETTERS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return types.stream()
@@ -193,14 +193,14 @@ public class JavaBeanUtils {
         });
   }
 
-  private static FieldValueSetter createSetter(
+  public static FieldValueSetter createSetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     DynamicType.Builder<FieldValueSetter> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
             typeInformation.getMethod().getDeclaringClass(),
             typeConversionsFactory.createTypeConversion(false).convert(typeInformation.getType()));
-    builder = implementSetterMethods(builder, typeInformation.getMethod(), typeConversionsFactory);
+    builder = implementSetterMethods(builder, typeInformation, typeConversionsFactory);
     try {
       return builder
           .make()
@@ -222,14 +222,13 @@ public class JavaBeanUtils {
 
   private static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
       DynamicType.Builder<FieldValueSetter> builder,
-      Method method,
+      FieldValueTypeInformation fieldValueTypeInformation,
       TypeConversionsFactory typeConversionsFactory) {
-    FieldValueTypeInformation javaTypeInformation = FieldValueTypeInformation.forSetter(method);
     return builder
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(javaTypeInformation.getName()))
+        .intercept(FixedValue.reference(fieldValueTypeInformation.getName()))
         .method(ElementMatchers.named("set"))
-        .intercept(new InvokeSetterInstruction(method, typeConversionsFactory));
+        .intercept(new InvokeSetterInstruction(fieldValueTypeInformation, typeConversionsFactory));
   }
 
   // The list of constructors for a class is cached, so we only create the classes the first time
@@ -244,7 +243,7 @@ public class JavaBeanUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createConstructorCreator(
@@ -291,7 +290,7 @@ public class JavaBeanUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createStaticCreator(clazz, creator, schema, types, typeConversionsFactory);
@@ -377,11 +376,13 @@ public class JavaBeanUtils {
   // Implements a method to write a public set out on an object.
   private static class InvokeSetterInstruction implements Implementation {
     // Setter method that will be invoked
-    private Method method;
+    private FieldValueTypeInformation fieldValueTypeInformation;
     private final TypeConversionsFactory typeConversionsFactory;
 
-    InvokeSetterInstruction(Method method, TypeConversionsFactory typeConversionsFactory) {
-      this.method = method;
+    InvokeSetterInstruction(
+        FieldValueTypeInformation fieldValueTypeInformation,
+        TypeConversionsFactory typeConversionsFactory) {
+      this.fieldValueTypeInformation = fieldValueTypeInformation;
       this.typeConversionsFactory = typeConversionsFactory;
     }
 
@@ -393,13 +394,13 @@ public class JavaBeanUtils {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        FieldValueTypeInformation javaTypeInformation = FieldValueTypeInformation.forSetter(method);
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
         // The instruction to read the field.
         StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(2);
 
+        Method method = fieldValueTypeInformation.getMethod();
         boolean setterMethodReturnsVoid = method.getReturnType().equals(Void.TYPE);
         // Read the object onto the stack.
         StackManipulation stackManipulation =
@@ -409,7 +410,7 @@ public class JavaBeanUtils {
                 // Do any conversions necessary.
                 typeConversionsFactory
                     .createSetterConversions(readField)
-                    .convert(javaTypeInformation.getType()),
+                    .convert(fieldValueTypeInformation.getType()),
                 // Now update the field and return void.
                 MethodInvocation.invoke(new ForLoadedMethod(method)));
         if (!setterMethodReturnsVoid) {
