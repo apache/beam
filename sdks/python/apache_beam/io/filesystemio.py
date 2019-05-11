@@ -91,6 +91,7 @@ class DownloaderStream(io.RawIOBase):
     self._downloader = downloader
     self.mode = mode
     self._position = 0
+    self._reader_buffer_size = read_buffer_size
 
   def readinto(self, b):
     """Read up to len(b) bytes into b.
@@ -162,7 +163,7 @@ class DownloaderStream(io.RawIOBase):
       """Read until EOF, using multiple read() call."""
       res = bytearray()
       while True:
-          data = self.read(read_buffer_size)
+          data = self.read(self._reader_buffer_size)
           if not data:
               break
           res += data
