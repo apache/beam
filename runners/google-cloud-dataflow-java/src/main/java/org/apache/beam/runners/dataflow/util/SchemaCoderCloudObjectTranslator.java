@@ -59,7 +59,7 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
         base,
         SCHEMA,
         StringUtils.byteArrayToJsonString(
-            SchemaTranslation.schemaToProto(target.getSchema()).toByteArray()));
+            SchemaTranslation.schemaToProto(target.getSchema(), true).toByteArray()));
     return base;
   }
 

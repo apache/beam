@@ -87,4 +87,56 @@ message LogicalType {
   string urn = 1;
   bytes payload = 2;
   FieldType representation = 3;
+  FieldType argument_type = 4;
+  FieldValue argument = 5;
+}
+
+message Row {
+  repeated FieldValue values = 1;
+}
+
+message FieldValue {
+  oneof field_value {
+    AtomicTypeValue atomic_value = 1;
+    ArrayTypeValue array_value = 2;
+    IterableTypeValue iterable_value = 3;
+    MapTypeValue map_value = 4;
+    Row row_value = 5;
+    LogicalTypeValue logical_type_value = 6;
+  }
+}
+
+message AtomicTypeValue {
+  oneof value {
+    int32 byte = 1;
+    int32 int16 = 2;
+    int32 int32 = 3;
+    int64 int64 = 4;
+    float float = 5;
+    double double = 6;
+    string string = 7;
+    bool boolean = 8;
+    bytes bytes = 9;
+  }
+}
+
+message ArrayTypeValue {
+  repeated FieldValue element = 1;
+}
+
+message IterableTypeValue {
+  repeated FieldValue element = 1;
+}
+
+message MapTypeValue {
+  repeated MapTypeEntry entries = 1;
+}
+
+message MapTypeEntry {
+  FieldValue key = 1;
+  FieldValue value = 2;
+}
+
+message LogicalTypeValue {
+  FieldValue value = 1;
 }

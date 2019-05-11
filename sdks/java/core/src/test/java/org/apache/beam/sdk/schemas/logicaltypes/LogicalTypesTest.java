@@ -46,12 +46,12 @@ public class LogicalTypesTest {
     Row row1 = Row.withSchema(schema).addValue(enumeration.valueOf(1)).build();
     Row row2 = Row.withSchema(schema).addValue(enumeration.valueOf("FIRST")).build();
     assertEquals(row1, row2);
-    assertEquals(1, row1.<EnumerationType.Value>getLogicalTypeValue(0).getValue());
+    assertEquals(1, row1.getLogicalTypeValue(0, EnumerationType.Value.class).getValue());
 
     Row row3 = Row.withSchema(schema).addValue(enumeration.valueOf(2)).build();
     Row row4 = Row.withSchema(schema).addValue(enumeration.valueOf("SECOND")).build();
     assertEquals(row3, row4);
-    assertEquals(2, row3.<EnumerationType.Value>getLogicalTypeValue(0).getValue());
+    assertEquals(2, row3.getLogicalTypeValue(0, EnumerationType.Value.class).getValue());
   }
 
   @Test
@@ -62,12 +62,12 @@ public class LogicalTypesTest {
 
     Row stringOneOf =
         Row.withSchema(schema).addValue(oneOf.createValue("string", "stringValue")).build();
-    Value union = stringOneOf.getLogicalTypeValue(0);
+    Value union = stringOneOf.getLogicalTypeValue(0, OneOfType.Value.class);
     assertEquals("string", union.getCaseType().toString());
     assertEquals("stringValue", union.getValue());
 
     Row intOneOf = Row.withSchema(schema).addValue(oneOf.createValue("int32", 42)).build();
-    union = intOneOf.getLogicalTypeValue(0);
+    union = intOneOf.getLogicalTypeValue(0, OneOfType.Value.class);
     assertEquals("int32", union.getCaseType().toString());
     assertEquals(42, (int) union.getValue());
   }

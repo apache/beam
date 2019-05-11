@@ -1,0 +1,123 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffer messages used for testing Proto3 Schema implementation.
+ */
+
+syntax = "proto3";
+
+package proto3_schema_messages;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/descriptor.proto";
+
+option java_package = "org.apache.beam.sdk.extensions.protobuf";
+
+message Primitive {
+    double primitive_double = 1;
+    float primitive_float = 2;
+    int32 primitive_int32 = 3;
+    int64 primitive_int64 = 4;
+    uint32 primitive_uint32 = 5;
+    uint64 primitive_uint64 = 6;
+    sint32 primitive_sint32 = 7;
+    sint64 primitive_sint64 = 8;
+    fixed32 primitive_fixed32 = 9;
+    fixed64 primitive_fixed64 = 10;
+    sfixed32 primitive_sfixed32 = 11;
+    sfixed64 primitive_sfixed64 = 12;
+    bool primitive_bool = 13;
+    string primitive_string = 14;
+    bytes primitive_bytes = 15;
+}
+
+message RepeatPrimitive {
+    repeated double repeated_double = 1;
+    repeated float repeated_float = 2;
+    repeated int32 repeated_int32 = 3;
+    repeated int64 repeated_int64 = 4;
+    repeated uint32 repeated_uint32 = 5;
+    repeated uint64 repeated_uint64 = 6;
+    repeated sint32 repeated_sint32 = 7;
+    repeated sint64 repeated_sint64 = 8;
+    repeated fixed32 repeated_fixed32 = 9;
+    repeated fixed64 repeated_fixed64 = 10;
+    repeated sfixed32 repeated_sfixed32 = 11;
+    repeated sfixed64 repeated_sfixed64 = 12;
+    repeated bool repeated_bool = 13;
+    repeated string repeated_string = 14;
+    repeated bytes repeated_bytes = 15;
+}
+
+message MapPrimitive {
+    map<string, string> string_string_map = 1;
+    map<string, int32> string_int_map = 2;
+    map<int32, string> int_string_map = 3;
+    map<string, bytes> string_bytes_map = 4;
+}
+
+message Nested {
+  Primitive nested = 1;
+  repeated Primitive nested_list = 2;
+  map<string, Primitive> nested_map = 3;
+}
+
+message OneOf {
+  string place1 = 1;
+    oneof special_oneof {
+        int32 oneof_int32 = 2;
+        bool oneof_bool = 3;
+        string oneof_string = 4;
+        Primitive oneof_primitive = 5;
+    }
+    int32 place2 = 6;
+}
+
+message OuterOneOf {
+  oneof outer_oneof {
+    OneOf oneof_oneof = 1;
+    int32 oneof_int32 = 2;
+  }
+}
+
+message EnumMessage {
+  enum Enum {
+    ZERO  = 0;
+    TWO = 2;
+    THREE = 3;
+    }
+    Enum enum = 1;
+}
+
+message WktMessage {
+    google.protobuf.DoubleValue double = 1;
+    google.protobuf.FloatValue float = 2;
+    google.protobuf.Int32Value int32 = 3;
+    google.protobuf.Int64Value int64 = 4;
+    google.protobuf.UInt32Value uint32 = 5;
+    google.protobuf.UInt64Value uint64 = 6;
+    google.protobuf.BoolValue bool = 13;
+    google.protobuf.StringValue string = 14;
+    google.protobuf.BytesValue bytes = 15;
+    google.protobuf.Timestamp timestamp = 16;
+    google.protobuf.Duration duration = 17;
+}
+

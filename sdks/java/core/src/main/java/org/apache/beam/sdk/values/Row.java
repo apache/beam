@@ -214,9 +214,8 @@ public abstract class Row implements Serializable {
    * schema doesn't match.
    */
   @Nullable
-  @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getLogicalTypeValue(String fieldName) {
-    return getLogicalTypeValue(getSchema().indexOf(fieldName));
+  public <T> T getLogicalTypeValue(String fieldName, Class<T> clazz) {
+    return getLogicalTypeValue(getSchema().indexOf(fieldName), clazz);
   }
 
   /**
@@ -360,8 +359,7 @@ public abstract class Row implements Serializable {
    * schema doesn't match.
    */
   @Nullable
-  @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getLogicalTypeValue(int idx) {
+  public <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
     LogicalType logicalType = checkNotNull(getSchema().getField(idx).getType().getLogicalType());
     return (T) logicalType.toInputType(getValue(idx));
   }
