@@ -80,11 +80,12 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
 
-  def __init__(self, downloader, mode='rb'):
+  def __init__(self, downloader, read_buffer_size=io.DEFAULT_BUFFER_SIZE, mode='rb'):
     """Initializes the stream.
 
     Args:
       downloader: (Downloader) Filesystem dependent implementation.
+      read_buffer_size: (int) Buffer size to use during read operations.
       mode: (string) Python mode attribute for this stream.
     """
     self._downloader = downloader
@@ -161,7 +162,7 @@ class DownloaderStream(io.RawIOBase):
       """Read until EOF, using multiple read() call."""
       res = bytearray()
       while True:
-          data = self.read(gcsio.DEFAULT_READ_BUFFER_SIZE)
+          data = self.read(read_buffer_size)
           if not data:
               break
           res += data
