@@ -247,7 +247,7 @@ import org.slf4j.LoggerFactory;
  *    MyDbOutputFormatKeyClass, Object.class);
  * myHadoopConfiguration.setClass(&quot;mapreduce.job.output.value.class&quot;,
  *    MyDbOutputFormatValueClass, Object.class);
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.output.value.class&quot;,
+ * myHadoopConfiguration.setClass(&quot;mapreduce.job.partitioner.class&quot;,
  *    MyPartitionerClass, Object.class);
  * myHadoopConfiguration.setInt(&quot;mapreduce.job.reduces&quot;, 2);
  * }</pre>

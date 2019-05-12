@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static org.apache.beam.sdk.util.Transport.getJsonFactory;
-import static org.apache.beam.sdk.util.Transport.getTransport;
+import static org.apache.beam.sdk.extensions.gcp.util.Transport.getJsonFactory;
+import static org.apache.beam.sdk.extensions.gcp.util.Transport.getTransport;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.clouddebugger.v2.CloudDebugger;
@@ -30,7 +30,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
-import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /** Helpers for cloud communication. */

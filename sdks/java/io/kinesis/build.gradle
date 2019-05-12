@@ -46,15 +46,15 @@ dependencies {
   shadow library.java.aws_java_sdk_cloudwatch
   shadow library.java.aws_java_sdk_core
   shadow library.java.aws_java_sdk_kinesis
-  shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
-  shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
+  shadow "com.amazonaws:amazon-kinesis-client:1.10.0"
+  shadow "com.amazonaws:amazon-kinesis-producer:0.12.11"
   shadow "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
   testCompile "org.assertj:assertj-core:3.11.1"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

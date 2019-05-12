@@ -38,6 +38,7 @@ from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -500,7 +501,24 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
         {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
         {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
 
+    additional_bq_parameters = {
+        'timePartitioning': {'type': 'DAY'},
+        'clustering': {'fields': ['language']}}
+
+    table_ref = bigquery_tools.parse_table_reference(output_table_1)
+    table_ref2 = bigquery_tools.parse_table_reference(output_table_2)
+
     pipeline_verifiers = [
+        BigQueryTableMatcher(
+            project=self.project,
+            dataset=table_ref.datasetId,
+            table=table_ref.tableId,
+            expected_properties=additional_bq_parameters),
+        BigQueryTableMatcher(
+            project=self.project,
+            dataset=table_ref2.datasetId,
+            table=table_ref2.tableId,
+            expected_properties=additional_bq_parameters),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT * FROM %s" % output_table_1,
@@ -515,7 +533,8 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                   if 'language' in d])]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers))
+        on_success_matcher=hc.all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink')
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create([row for row in _ELEMENTS if 'language' in row])
@@ -525,11 +544,14 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                table=value_provider.StaticValueProvider(
                    str, '%s:%s' % (self.project, output_table_1)),
                schema=value_provider.StaticValueProvider(dict, schema),
+               additional_bq_parameters=additional_bq_parameters,
                method='STREAMING_INSERTS'))
       _ = (input
            | "WriteWithMultipleDests2" >> beam.io.gcp.bigquery.WriteToBigQuery(
                table=value_provider.StaticValueProvider(
                    str, '%s:%s' % (self.project, output_table_2)),
+               schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
+               additional_bq_parameters=lambda _: additional_bq_parameters,
                method='FILE_LOADS'))
 
   @attr('IT')
@@ -564,10 +586,19 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                   if 'foundation' in d])]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers))
+        on_success_matcher=hc.all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink')
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS)
+
+      schema_table_pcv = beam.pvalue.AsDict(
+          p | "MakeSchemas" >> beam.Create([(full_output_table_1, schema1),
+                                            (full_output_table_2, schema2)]))
+
+      table_record_pcv = beam.pvalue.AsDict(
+          p | "MakeTables" >> beam.Create([('table1', full_output_table_1),
+                                           ('table2', full_output_table_2)]))
 
       input2 = p | "Broken record" >> beam.Create([bad_record])
 
@@ -575,12 +606,12 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
       r = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=lambda x: (full_output_table_1
-                                if 'language' in x
-                                else full_output_table_2),
-               schema=lambda dest: (schema1
-                                    if dest == full_output_table_1
-                                    else schema2),
+               table=lambda x, tables: (tables['table1']
+                                        if 'language' in x
+                                        else tables['table2']),
+               table_side_inputs=(table_record_pcv,),
+               schema=lambda dest, table_map: table_map.get(dest, None),
+               schema_side_inputs=(schema_table_pcv,),
                method='STREAMING_INSERTS'))
 
       assert_that(r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
@@ -99,12 +98,5 @@ public class DoubleCoderTest {
   @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Double.class)));
-  }
-
-  @Test
-  public void testStructuralValueReturnTheSameValue() {
-    Double expected = 23.32;
-    Object actual = TEST_CODER.structuralValue(expected);
-    assertEquals(expected, actual);
   }
 }

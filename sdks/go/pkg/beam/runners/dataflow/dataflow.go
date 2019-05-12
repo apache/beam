@@ -20,7 +20,6 @@ package dataflow
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -32,6 +31,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
@@ -95,7 +95,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
-			return fmt.Errorf("error reading --label flag as JSON: %v", err)
+			return errors.Wrapf(err, "error reading --label flag as JSON")
 		}
 	}
 
@@ -155,7 +155,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	model, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
 	if err != nil {
-		return fmt.Errorf("failed to generate model pipeline: %v", err)
+		return errors.WithContext(err, "generating model pipeline")
 	}
 
 	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
@@ -189,7 +189,7 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 	return func(ctx context.Context, spec string, r io.Reader) error {
 		client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 		if err != nil {
-			return fmt.Errorf("couldn't establish GCS client: %v", err)
+			return errors.WithContext(err, "establishing GCS client")
 		}
 		return gcsx.WriteObject(ctx, client, bucket, path.Join(prefix, spec), r)
 	}
@@ -216,11 +216,10 @@ func createEnvironment(ctx context.Context) pb.Environment {
 		payload := &pb.DockerPayload{ContainerImage: config}
 		serializedPayload, err := proto.Marshal(payload)
 		if err != nil {
-			panic(fmt.Sprintf(
-				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
+			panic(errors.Wrapf(err,
+				"Failed to serialize Environment payload %v for config %v", payload, config))
 		}
 		environment = pb.Environment{
-			Url:     config,
 			Urn:     urn,
 			Payload: serializedPayload,
 		}

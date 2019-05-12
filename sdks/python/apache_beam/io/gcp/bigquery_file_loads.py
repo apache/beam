@@ -42,7 +42,6 @@ import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 
@@ -90,9 +89,12 @@ def file_prefix_generator(with_validation=True):
 
 
 def _make_new_file_writer(file_prefix, destination):
-  if isinstance(destination, bigquery_api.TableReference):
-    destination = '%s:%s.%s' % (
-        destination.projectId, destination.datasetId, destination.tableId)
+  destination = bigquery_tools.get_hashable_destination(destination)
+
+  # Windows does not allow : on filenames. Replacing with underscore.
+  # Other disallowed characters are:
+  # https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
+  destination = destination.replace(':', '.')
 
   directory = fs.FileSystems.join(file_prefix, destination)
 
@@ -176,14 +178,6 @@ class WriteRecordsToFile(beam.DoFn):
         'coder': self.coder.__class__.__name__
     }
 
-  @staticmethod
-  def get_hashable_destination(destination):
-    if isinstance(destination, bigquery_api.TableReference):
-      return '%s:%s.%s' % (
-          destination.projectId, destination.datasetId, destination.tableId)
-    else:
-      return destination
-
   def start_bundle(self):
     self._destination_to_file_writer = {}
 
@@ -192,7 +186,7 @@ class WriteRecordsToFile(beam.DoFn):
 
     Destination may be a ``TableReference`` or a string, and row is a
     Python dictionary for a row to be inserted to BigQuery."""
-    destination = WriteRecordsToFile.get_hashable_destination(element[0])
+    destination = bigquery_tools.get_hashable_destination(element[0])
     row = element[1]
 
     if destination in self._destination_to_file_writer:
@@ -334,10 +328,12 @@ class TriggerLoadJobs(beam.DoFn):
                create_disposition=None,
                write_disposition=None,
                test_client=None,
-               temporary_tables=False):
+               temporary_tables=False,
+               additional_bq_parameters=None):
     self.schema = schema
     self.test_client = test_client
     self.temporary_tables = temporary_tables
+    self.additional_bq_parameters = additional_bq_parameters or {}
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -350,26 +346,30 @@ class TriggerLoadJobs(beam.DoFn):
   def display_data(self):
     result = {'create_disposition': str(self.create_disposition),
               'write_disposition': str(self.write_disposition)}
-    if self.schema is not None:
-      result['schema'] = str(self.schema)
-    else:
-      result['schema'] = 'AUTODETECT'
+    result['schema'] = str(self.schema)
 
     return result
 
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
 
-  def process(self, element, load_job_name_prefix):
+  def process(self, element, load_job_name_prefix, *schema_side_inputs):
     destination = element[0]
     files = iter(element[1])
 
     if callable(self.schema):
-      schema = self.schema(destination)
+      schema = self.schema(destination, *schema_side_inputs)
     elif isinstance(self.schema, vp.ValueProvider):
       schema = self.schema.get()
     else:
       schema = self.schema
+
+    if callable(self.additional_bq_parameters):
+      additional_parameters = self.additional_bq_parameters(destination)
+    elif isinstance(self.additional_bq_parameters, vp.ValueProvider):
+      additional_parameters = self.additional_bq_parameters.get()
+    else:
+      additional_parameters = self.additional_bq_parameters
 
     job_count = 0
     batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
@@ -389,7 +389,7 @@ class TriggerLoadJobs(beam.DoFn):
                                  table_reference.datasetId,
                                  table_reference.tableId)),
           job_count)
-      logging.debug("Batch of files has %s files. Job name is %s",
+      logging.debug('Batch of files has %s files. Job name is %s.',
                     len(batch_of_files), job_name)
 
       if self.temporary_tables:
@@ -397,13 +397,16 @@ class TriggerLoadJobs(beam.DoFn):
         table_reference.tableId = job_name
         yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
 
-      logging.info("Triggering job %s to load data to BigQuery table %s.",
-                   job_name, table_reference)
+      logging.info('Triggering job %s to load data to BigQuery table %s.'
+                   'Schema: %s. Additional parameters: %s',
+                   job_name, table_reference,
+                   schema, additional_parameters)
       job_reference = self.bq_wrapper.perform_load_job(
           table_reference, batch_of_files, job_name,
           schema=schema,
           write_disposition=self.write_disposition,
-          create_disposition=self.create_disposition)
+          create_disposition=self.create_disposition,
+          additional_load_parameters=additional_parameters)
       yield (destination, job_reference)
 
       # Prepare to trigger the next job
@@ -493,6 +496,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
       coder=None,
       max_file_size=None,
       max_files_per_bundle=None,
+      additional_bq_parameters=None,
+      table_side_inputs=None,
+      schema_side_inputs=None,
       test_client=None,
       validate=True):
     self.destination = destination
@@ -511,6 +517,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # If the destination is a single one, we assume that we will have only one
     # job to run - and thus we avoid using temporary tables
     self.temp_tables = True if callable(destination) else False
+
+    self.additional_bq_parameters = additional_bq_parameters or {}
+    self.table_side_inputs = table_side_inputs or ()
+    self.schema_side_inputs = schema_side_inputs or ()
 
     self._validate = validate
     if self._validate:
@@ -550,7 +560,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         pcoll
         | "ApplyGlobalWindow" >> beam.WindowInto(beam.window.GlobalWindows())
         | "AppendDestination" >> beam.ParDo(bigquery_tools.AppendDestinationsFn(
-            self.destination))
+            self.destination), *self.table_side_inputs)
         | beam.ParDo(
             WriteRecordsToFile(max_files_per_bundle=self.max_files_per_bundle,
                                max_file_size=self.max_file_size,
@@ -591,12 +601,15 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # some of the load jobs would fail but not other.
     # If any of them fails, then copy jobs are not triggered.
     trigger_loads_outputs = (
-        grouped_files_pc | beam.ParDo(TriggerLoadJobs(
-            schema=self.schema,
-            write_disposition=self.write_disposition,
-            create_disposition=self.create_disposition,
-            test_client=self.test_client,
-            temporary_tables=self.temp_tables), load_job_name_pcv).with_outputs(
+        grouped_files_pc | beam.ParDo(
+            TriggerLoadJobs(
+                schema=self.schema,
+                write_disposition=self.write_disposition,
+                create_disposition=self.create_disposition,
+                test_client=self.test_client,
+                temporary_tables=self.temp_tables,
+                additional_bq_parameters=self.additional_bq_parameters),
+            load_job_name_pcv, *self.schema_side_inputs).with_outputs(
                 TriggerLoadJobs.TEMP_TABLES, main='main')
     )
 

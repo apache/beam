@@ -56,12 +56,12 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public synchronized ByteKeyRange currentRestriction() {
+  public ByteKeyRange currentRestriction() {
     return range;
   }
 
   @Override
-  public synchronized ByteKeyRange checkpoint() {
+  public ByteKeyRange checkpoint() {
     // If we haven't done any work, we should return the original range we were processing
     // as the checkpoint.
     if (lastAttemptedKey == null) {
@@ -99,7 +99,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
    *     current {@link ByteKeyRange} of this tracker.
    */
   @Override
-  protected synchronized boolean tryClaimImpl(ByteKey key) {
+  public boolean tryClaim(ByteKey key) {
     // Handle claiming the end of range EMPTY key
     if (key.isEmpty()) {
       checkArgument(
@@ -132,7 +132,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public synchronized void checkDone() throws IllegalStateException {
+  public void checkDone() throws IllegalStateException {
     // Handle checking the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
@@ -162,7 +162,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public synchronized String toString() {
+  public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("range", range)
         .add("lastClaimedKey", lastClaimedKey)
@@ -184,7 +184,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   private static final byte[] ZERO_BYTE_ARRAY = new byte[] {0};
 
   @Override
-  public synchronized Backlog getBacklog() {
+  public Backlog getBacklog() {
     // Return 0 for the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.

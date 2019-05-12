@@ -382,7 +382,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.util.GcsUtil$StorageObjectOrIOException"/>
+    <Class name="org.apache.beam.sdk.extensions.gcp.util.GcsUtil$StorageObjectOrIOException"/>
     <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
     <!-- It is clear from the name that this class holds either StorageObject or IOException. -->
   </Match>

@@ -23,10 +23,13 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableSpec;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -75,7 +78,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoder.of();
+      return TableDestinationCoderV2.of();
     }
   }
 
@@ -149,25 +152,42 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+        throws CannotProvideCoderException {
+      return inner.getDestinationCoderWithDefault(registry);
+    }
+
+    @Override
+    public List<PCollectionView<?>> getSideInputs() {
+      return inner.getSideInputs();
+    }
+
+    @Override
+    void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
+      super.setSideInputAccessorFromProcessContext(context);
+      inner.setSideInputAccessorFromProcessContext(context);
+    }
+
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
     }
   }
 
   /** Returns the same schema for every table. */
-  static class ConstantSchemaDestinations<T>
-      extends DelegatingDynamicDestinations<T, TableDestination> {
+  static class ConstantSchemaDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
     @Nullable private final ValueProvider<String> jsonSchema;
 
     ConstantSchemaDestinations(
-        DynamicDestinations<T, TableDestination> inner, ValueProvider<String> jsonSchema) {
+        DynamicDestinations<T, DestinationT> inner, ValueProvider<String> jsonSchema) {
       super(inner);
       checkArgument(jsonSchema != null, "jsonSchema can not be null");
       this.jsonSchema = jsonSchema;
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
+    public TableSchema getSchema(DestinationT destination) {
       String jsonSchema = this.jsonSchema.get();
       checkArgument(jsonSchema != null, "jsonSchema can not be null");
       return BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);

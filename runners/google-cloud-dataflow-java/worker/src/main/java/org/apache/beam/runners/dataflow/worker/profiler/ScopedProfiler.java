@@ -135,11 +135,11 @@ public class ScopedProfiler {
 
       // If we make it here, then we successfully invoked the above method, which means the profiler
       // is available.
-      LOG.warn("Profiling Agent found. Per-step profiling is enabled.");
+      LOG.info("Profiling Agent found. Per-step profiling is enabled.");
       return ProfilingState.PROFILING_PRESENT;
     } catch (UnsatisfiedLinkError e) {
       // If we make it here, then the profiling agent wasn't linked in.
-      LOG.warn("Profiling Agent not found. Profiles will not be available from this worker.");
+      LOG.info("Profiling Agent not found. Profiles will not be available from this worker.");
       return ProfilingState.PROFILING_ABSENT;
     }
   }

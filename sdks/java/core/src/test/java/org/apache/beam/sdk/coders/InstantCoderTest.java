@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
@@ -113,12 +112,5 @@ public class InstantCoderTest {
   @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Instant.class)));
-  }
-
-  @Test
-  public void testStructuralValueReturnTheSameValue() {
-    Instant expected = new Instant(234L);
-    Object actual = TEST_CODER.structuralValue(expected);
-    assertEquals(expected, actual);
   }
 }

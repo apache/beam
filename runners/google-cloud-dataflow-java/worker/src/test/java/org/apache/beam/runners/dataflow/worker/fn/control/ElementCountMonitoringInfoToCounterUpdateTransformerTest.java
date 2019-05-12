@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.junit.Before;
@@ -78,7 +79,7 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
             .setUrn("beam:metric:element_count:v1")
-            .putLabels("PCOLLECTION", "anyValue")
+            .putLabels(MonitoringInfoConstants.Labels.PCOLLECTION, "anyValue")
             .build();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
         new ElementCountMonitoringInfoToCounterUpdateTransformer(
@@ -97,7 +98,7 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
             .setUrn("beam:metric:element_count:v1")
-            .putLabels("PCOLLECTION", "anyValue")
+            .putLabels(MonitoringInfoConstants.Labels.PCOLLECTION, "anyValue")
             .build();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
         new ElementCountMonitoringInfoToCounterUpdateTransformer(

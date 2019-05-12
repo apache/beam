@@ -61,8 +61,14 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -84,6 +90,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -166,7 +173,7 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   // Create an intermediate type to ensure that coder inference up the inheritance tree is tested.
-  abstract static class StringIntegerDestinations extends DynamicDestinations<String, Integer> {}
+  abstract static class StringLongDestinations extends DynamicDestinations<String, Long> {}
 
   @Test
   public void testWriteEmptyPCollection() throws Exception {
@@ -193,15 +200,28 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteDynamicDestinationsBatch() throws Exception {
-    writeDynamicDestinations(false);
+    writeDynamicDestinations(false, false);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsBatchWithSchemas() throws Exception {
+    writeDynamicDestinations(false, true);
   }
 
   @Test
   public void testWriteDynamicDestinationsStreaming() throws Exception {
-    writeDynamicDestinations(true);
+    writeDynamicDestinations(true, false);
   }
 
-  public void writeDynamicDestinations(boolean streaming) throws Exception {
+  @Test
+  public void testWriteDynamicDestinationsStreamingWithSchemas() throws Exception {
+    writeDynamicDestinations(true, true);
+  }
+
+  public void writeDynamicDestinations(boolean streaming, boolean schemas) throws Exception {
+    final Schema schema =
+        Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT32).build();
+
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
 
     final PCollectionView<List<String>> sideInput1 =
@@ -231,43 +251,45 @@ public class BigQueryIOWriteTest implements Serializable {
       users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
     }
 
+    if (schemas) {
+      users =
+          users.setSchema(
+              schema,
+              user -> {
+                Matcher matcher = userPattern.matcher(user);
+                checkState(matcher.matches());
+                return Row.withSchema(schema)
+                    .addValue(matcher.group(1))
+                    .addValue(Integer.valueOf(matcher.group(2)))
+                    .build();
+              },
+              r -> r.getString(0) + r.getInt32(1));
+    }
+
     // Use a partition decorator to verify that partition decorators are supported.
     final String partitionDecorator = "20171127";
 
-    users.apply(
-        "WriteBigQuery",
+    BigQueryIO.Write<String> write =
         BigQueryIO.<String>write()
             .withTestServices(fakeBqServices)
             .withMaxFilesPerBundle(5)
             .withMaxFileSize(10)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-            .withFormatFunction(
-                user -> {
-                  Matcher matcher = userPattern.matcher(user);
-                  if (matcher.matches()) {
-                    return new TableRow()
-                        .set("name", matcher.group(1))
-                        .set("id", Integer.valueOf(matcher.group(2)));
-                  }
-                  throw new RuntimeException("Unmatching element " + user);
-                })
             .to(
-                new StringIntegerDestinations() {
+                new StringLongDestinations() {
                   @Override
-                  public Integer getDestination(ValueInSingleWindow<String> element) {
+                  public Long getDestination(ValueInSingleWindow<String> element) {
                     assertThat(
                         element.getWindow(), Matchers.instanceOf(PartitionedGlobalWindow.class));
                     Matcher matcher = userPattern.matcher(element.getValue());
-                    if (matcher.matches()) {
-                      // Since we name tables by userid, we can simply store an Integer to represent
-                      // a table.
-                      return Integer.valueOf(matcher.group(2));
-                    }
-                    throw new RuntimeException("Unmatching destination " + element.getValue());
+                    checkState(matcher.matches());
+                    // Since we name tables by userid, we can simply store a Long to represent
+                    // a table.
+                    return Long.valueOf(matcher.group(2));
                   }
 
                   @Override
-                  public TableDestination getTable(Integer userId) {
+                  public TableDestination getTable(Long userId) {
                     verifySideInputs();
                     // Each user in it's own table.
                     return new TableDestination(
@@ -276,7 +298,7 @@ public class BigQueryIOWriteTest implements Serializable {
                   }
 
                   @Override
-                  public TableSchema getSchema(Integer userId) {
+                  public TableSchema getSchema(Long userId) {
                     verifySideInputs();
                     return new TableSchema()
                         .setFields(
@@ -299,21 +321,33 @@ public class BigQueryIOWriteTest implements Serializable {
                         allOf(hasEntry("a", "a"), hasEntry("b", "b"), hasEntry("c", "c")));
                   }
                 })
-            .withoutValidation());
+            .withoutValidation();
+    if (schemas) {
+      write = write.useBeamSchema();
+    } else {
+      write =
+          write.withFormatFunction(
+              user -> {
+                Matcher matcher = userPattern.matcher(user);
+                checkState(matcher.matches());
+                return new TableRow().set("name", matcher.group(1)).set("id", matcher.group(2));
+              });
+    }
+    users.apply("WriteBigQuery", write);
     p.run();
 
-    Map<Integer, List<TableRow>> expectedTableRows = Maps.newHashMap();
+    Map<Long, List<TableRow>> expectedTableRows = Maps.newHashMap();
     for (String anUserList : userList) {
       Matcher matcher = userPattern.matcher(anUserList);
       checkState(matcher.matches());
       String nickname = matcher.group(1);
-      int userid = Integer.valueOf(matcher.group(2));
+      Long userid = Long.valueOf(matcher.group(2));
       List<TableRow> expected =
           expectedTableRows.computeIfAbsent(userid, k -> Lists.newArrayList());
-      expected.add(new TableRow().set("name", nickname).set("id", userid));
+      expected.add(new TableRow().set("name", nickname).set("id", userid.toString()));
     }
 
-    for (Map.Entry<Integer, List<TableRow>> entry : expectedTableRows.entrySet()) {
+    for (Map.Entry<Long, List<TableRow>> entry : expectedTableRows.entrySet()) {
       assertThat(
           fakeDatasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
@@ -575,6 +609,72 @@ public class BigQueryIOWriteTest implements Serializable {
             new TableRow().set("name", "b").set("number", 2),
             new TableRow().set("name", "c").set("number", 3),
             new TableRow().set("name", "d").set("number", 4)));
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class SchemaPojo {
+    final String name;
+    final int number;
+
+    @SchemaCreate
+    SchemaPojo(String name, int number) {
+      this.name = name;
+      this.number = number;
+    }
+  }
+
+  @Test
+  public void testSchemaWriteLoads() throws Exception {
+    p.apply(
+            Create.of(
+                new SchemaPojo("a", 1),
+                new SchemaPojo("b", 2),
+                new SchemaPojo("c", 3),
+                new SchemaPojo("d", 4)))
+        .apply(
+            BigQueryIO.<SchemaPojo>write()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withMethod(Method.FILE_LOADS)
+                .useBeamSchema()
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4")));
+  }
+
+  @Test
+  public void testSchemaWriteStreams() throws Exception {
+    p.apply(
+            Create.of(
+                new SchemaPojo("a", 1),
+                new SchemaPojo("b", 2),
+                new SchemaPojo("c", 3),
+                new SchemaPojo("d", 4)))
+        .apply(
+            BigQueryIO.<SchemaPojo>write()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withMethod(Method.STREAMING_INSERTS)
+                .useBeamSchema()
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4")));
   }
 
   /**

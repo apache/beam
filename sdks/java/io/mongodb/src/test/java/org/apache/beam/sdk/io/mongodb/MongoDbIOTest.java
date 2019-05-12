@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -34,9 +33,9 @@ import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.runtime.Network;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -57,10 +56,13 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Test on the MongoDbIO. */
+@RunWith(JUnit4.class)
 public class MongoDbIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIOTest.class);
 
@@ -78,11 +80,8 @@ public class MongoDbIOTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void start() throws Exception {
-    try (ServerSocket serverSocket = new ServerSocket(0)) {
-      port = serverSocket.getLocalPort();
-    }
-
+  public static void beforeClass() throws Exception {
+    port = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting MongoDB embedded instance on {}", port);
     IMongodConfig mongodConfig =
         new MongodConfigBuilder()
@@ -110,7 +109,7 @@ public class MongoDbIOTest {
   }
 
   @AfterClass
-  public static void stop() {
+  public static void afterClass() {
     LOG.info("Stopping MongoDB instance");
     client.close();
     mongodProcess.stop();
@@ -119,11 +118,18 @@ public class MongoDbIOTest {
 
   @Test
   public void testSplitIntoFilters() {
+    // A single split will result in two filters
     ArrayList<Document> documents = new ArrayList<>();
     documents.add(new Document("_id", 56));
+    List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents);
+    assertEquals(2, filters.size());
+    assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
+    assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"56\")}} ]}", filters.get(1));
+
+    // Add two more splits; now we should have 4 filters
     documents.add(new Document("_id", 109));
     documents.add(new Document("_id", 256));
-    List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents);
+    filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents);
     assertEquals(4, filters.size());
     assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
     assertEquals(
@@ -135,12 +141,22 @@ public class MongoDbIOTest {
 
   @Test
   public void testSplitIntoBucket() {
+    // a single split should result in two buckets
     ArrayList<Document> documents = new ArrayList<>();
     documents.add(new Document("_id", new ObjectId("52cc8f6254c5317943000005")));
+    List<BsonDocument> buckets = MongoDbIO.BoundedMongoDbSource.splitKeysToMatch(documents);
+    assertEquals(2, buckets.size());
+    assertEquals(
+        "{ \"$match\" : { \"_id\" : { \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
+        buckets.get(0).toString());
+    assertEquals(
+        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
+        buckets.get(1).toString());
+
+    // add more splits and verify the buckets
     documents.add(new Document("_id", new ObjectId("52cc8f6254c5317943000007")));
     documents.add(new Document("_id", new ObjectId("54242e9e54c531ef8800001f")));
-    documents.add(new Document("_id", new ObjectId("54242e9e54c531ef88000020")));
-    List<BsonDocument> buckets = MongoDbIO.BoundedMongoDbSource.splitKeysToMatch(documents);
+    buckets = MongoDbIO.BoundedMongoDbSource.splitKeysToMatch(documents);
     assertEquals(4, buckets.size());
     assertEquals(
         "{ \"$match\" : { \"_id\" : { \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
@@ -206,11 +222,9 @@ public class MongoDbIOTest {
     MongoDbIO.Read read =
         MongoDbIO.read()
             .withUri("mongodb://localhost:" + port)
-            .withKeepAlive(false)
             .withMaxConnectionIdleTime(10)
             .withDatabase(DATABASE)
             .withCollection(COLLECTION);
-    assertFalse(read.keepAlive());
     assertEquals(10, read.maxConnectionIdleTime());
 
     PCollection<Document> documents = pipeline.apply(read);

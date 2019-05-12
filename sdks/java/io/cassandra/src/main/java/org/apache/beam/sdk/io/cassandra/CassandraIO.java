@@ -255,13 +255,13 @@ public class CassandraIO {
       return builder().setUsername(username).build();
     }
 
-    /** Specify the password for authentication. */
+    /** Specify the password used for authentication. */
     public Read<T> withPassword(String password) {
       checkArgument(password != null, "password can not be null");
       return withPassword(ValueProvider.StaticValueProvider.of(password));
     }
 
-    /** Specify the clear password for authentication. */
+    /** Specify the password used for authentication. */
     public Read<T> withPassword(ValueProvider<String> password) {
       return builder().setPassword(password).build();
     }
@@ -739,28 +739,28 @@ public class CassandraIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
-    abstract List<String> hosts();
+    abstract ValueProvider<List<String>> hosts();
 
     @Nullable
-    abstract Integer port();
+    abstract ValueProvider<Integer> port();
 
     @Nullable
-    abstract String keyspace();
+    abstract ValueProvider<String> keyspace();
 
     @Nullable
     abstract Class<T> entity();
 
     @Nullable
-    abstract String username();
+    abstract ValueProvider<String> username();
 
     @Nullable
-    abstract String password();
+    abstract ValueProvider<String> password();
 
     @Nullable
-    abstract String localDc();
+    abstract ValueProvider<String> localDc();
 
     @Nullable
-    abstract String consistencyLevel();
+    abstract ValueProvider<String> consistencyLevel();
 
     abstract MutationType mutationType();
 
@@ -784,6 +784,11 @@ public class CassandraIO {
               + getMutationTypeName()
               + "().withHosts(hosts) called with empty "
               + "hosts list");
+      return withHosts(ValueProvider.StaticValueProvider.of(hosts));
+    }
+
+    /** Specify the hosts of the Apache Cassandra instances. */
+    public Write<T> withHosts(ValueProvider<List<String>> hosts) {
       return builder().setHosts(hosts).build();
     }
 
@@ -796,6 +801,11 @@ public class CassandraIO {
               + "().withPort(port) called with invalid port "
               + "number (%s)",
           port);
+      return withPort(ValueProvider.StaticValueProvider.of(port));
+    }
+
+    /** Specify the port number of the Apache Cassandra instances. */
+    public Write<T> withPort(ValueProvider<Integer> port) {
       return builder().setPort(port).build();
     }
 
@@ -807,6 +817,11 @@ public class CassandraIO {
               + getMutationTypeName()
               + "().withKeyspace(keyspace) called with "
               + "null keyspace");
+      return withKeyspace(ValueProvider.StaticValueProvider.of(keyspace));
+    }
+
+    /** Specify the Cassandra keyspace where to read data. */
+    public Write<T> withKeyspace(ValueProvider<String> keyspace) {
       return builder().setKeyspace(keyspace).build();
     }
 
@@ -832,6 +847,11 @@ public class CassandraIO {
               + getMutationTypeName()
               + "().withUsername(username) called with "
               + "null username");
+      return withUsername(ValueProvider.StaticValueProvider.of(username));
+    }
+
+    /** Specify the username for authentication. */
+    public Write<T> withUsername(ValueProvider<String> username) {
       return builder().setUsername(username).build();
     }
 
@@ -843,6 +863,11 @@ public class CassandraIO {
               + getMutationTypeName()
               + "().withPassword(password) called with "
               + "null password");
+      return withPassword(ValueProvider.StaticValueProvider.of(password));
+    }
+
+    /** Specify the password used for authentication. */
+    public Write<T> withPassword(ValueProvider<String> password) {
       return builder().setPassword(password).build();
     }
 
@@ -854,6 +879,11 @@ public class CassandraIO {
               + getMutationTypeName()
               + "().withLocalDc(localDc) called with null"
               + " localDc");
+      return withLocalDc(ValueProvider.StaticValueProvider.of(localDc));
+    }
+
+    /** Specify the local DC used for the load balancing. */
+    public Write<T> withLocalDc(ValueProvider<String> localDc) {
       return builder().setLocalDc(localDc).build();
     }
 
@@ -864,6 +894,10 @@ public class CassandraIO {
               + getMutationTypeName()
               + "().withConsistencyLevel"
               + "(consistencyLevel) called with null consistencyLevel");
+      return withConsistencyLevel(ValueProvider.StaticValueProvider.of(consistencyLevel));
+    }
+
+    public Write<T> withConsistencyLevel(ValueProvider<String> consistencyLevel) {
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
 
@@ -922,23 +956,23 @@ public class CassandraIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setHosts(List<String> hosts);
+      abstract Builder<T> setHosts(ValueProvider<List<String>> hosts);
 
-      abstract Builder<T> setPort(Integer port);
+      abstract Builder<T> setPort(ValueProvider<Integer> port);
 
-      abstract Builder<T> setKeyspace(String keyspace);
+      abstract Builder<T> setKeyspace(ValueProvider<String> keyspace);
 
       abstract Builder<T> setEntity(Class<T> entity);
 
       abstract Optional<Class<T>> entity();
 
-      abstract Builder<T> setUsername(String username);
+      abstract Builder<T> setUsername(ValueProvider<String> username);
 
-      abstract Builder<T> setPassword(String password);
+      abstract Builder<T> setPassword(ValueProvider<String> password);
 
-      abstract Builder<T> setLocalDc(String localDc);
+      abstract Builder<T> setLocalDc(ValueProvider<String> localDc);
 
-      abstract Builder<T> setConsistencyLevel(String consistencyLevel);
+      abstract Builder<T> setConsistencyLevel(ValueProvider<String> consistencyLevel);
 
       abstract Builder<T> setMutationType(MutationType mutationType);
 
@@ -1010,35 +1044,6 @@ public class CassandraIO {
 
   /** Get a Cassandra cluster using hosts and port. */
   private static Cluster getCluster(
-      List<String> hosts,
-      int port,
-      String username,
-      String password,
-      String localDc,
-      String consistencyLevel) {
-    Cluster.Builder builder =
-        Cluster.builder().addContactPoints(hosts.toArray(new String[0])).withPort(port);
-
-    if (username != null) {
-      builder.withAuthProvider(new PlainTextAuthProvider(username, password));
-    }
-
-    DCAwareRoundRobinPolicy.Builder dcAwarePolicyBuilder = new DCAwareRoundRobinPolicy.Builder();
-    if (localDc != null) {
-      dcAwarePolicyBuilder.withLocalDc(localDc);
-    }
-
-    builder.withLoadBalancingPolicy(new TokenAwarePolicy(dcAwarePolicyBuilder.build()));
-
-    if (consistencyLevel != null) {
-      builder.withQueryOptions(
-          new QueryOptions().setConsistencyLevel(ConsistencyLevel.valueOf(consistencyLevel)));
-    }
-
-    return builder.build();
-  }
-
-  private static Cluster getCluster(
       ValueProvider<List<String>> hosts,
       ValueProvider<Integer> port,
       ValueProvider<String> username,
@@ -1091,7 +1096,7 @@ public class CassandraIO {
               spec.password(),
               spec.localDc(),
               spec.consistencyLevel());
-      this.session = cluster.connect(spec.keyspace());
+      this.session = cluster.connect(spec.keyspace().get());
       this.mapperFactoryFn = spec.mapperFactoryFn();
       this.mutateFutures = new ArrayList<>();
       this.mutator = mutator;

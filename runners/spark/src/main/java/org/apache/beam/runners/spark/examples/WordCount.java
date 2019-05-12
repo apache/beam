@@ -43,7 +43,7 @@ public class WordCount {
    * pipeline.
    */
   @SuppressWarnings("StringSplitter")
-  public static class ExtractWordsFn extends DoFn<String, String> {
+  static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
 
     @ProcessElement

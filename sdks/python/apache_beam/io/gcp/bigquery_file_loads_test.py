@@ -120,7 +120,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       destinations = (
           dest_file_pc
           | "GetDests" >> beam.Map(
-              lambda x: bqfl.WriteRecordsToFile.get_hashable_destination(x[0])))
+              lambda x: bigquery_tools.get_hashable_destination(x[0])))
       assert_that(destinations, equal_to(list(_DISTINCT_DESTINATIONS)),
                   label='check destinations ')
 
@@ -146,7 +146,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
                          x[1]))
       )
       assert_that(files_per_dest,
@@ -187,7 +187,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
                          x[1])))
 
       # Only table1 and table3 get files. table2 records get spilled.
@@ -236,7 +236,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       destinations = (
           output_pc
           | "GetDests" >> beam.Map(
-              lambda x: bqfl.WriteRecordsToFile.get_hashable_destination(x[0])))
+              lambda x: bigquery_tools.get_hashable_destination(x[0])))
       assert_that(destinations, equal_to(list(_DISTINCT_DESTINATIONS)),
                   label='check destinations ')
 
@@ -257,7 +257,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
                          x[1])))
       assert_that(files_per_dest,
                   equal_to([('project1:dataset1.table1', 4),
@@ -292,7 +292,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     bq_client.jobs.Insert.return_value = result_job
 
-    transform = bigquery.WriteToBigQuery(
+    transform = bqfl.BigQueryBatchFileLoads(
         destination,
         custom_gcs_temp_location=self._new_tempdir(),
         test_client=bq_client,
@@ -312,7 +312,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           dest_files
           | "GetDests" >> beam.Map(
               lambda x: (
-                  bqfl.WriteRecordsToFile.get_hashable_destination(x[0]), x[1]))
+                  bigquery_tools.get_hashable_destination(x[0]), x[1]))
           | "GetUniques" >> beam.combiners.Count.PerKey()
           | "GetFinalDests" >>beam.Keys())
 
@@ -367,6 +367,15 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     output_table_2 = '%s%s' % (self.output_table, 2)
     output_table_3 = '%s%s' % (self.output_table, 3)
     output_table_4 = '%s%s' % (self.output_table, 4)
+    schema1 = bigquery.WriteToBigQuery.get_dict_table_schema(
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA))
+    schema2 = bigquery.WriteToBigQuery.get_dict_table_schema(
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA_2))
+
+    schema_kv_pairs = [(output_table_1, schema1),
+                       (output_table_2, schema2),
+                       (output_table_3, schema1),
+                       (output_table_4, schema2)]
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
@@ -394,10 +403,18 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                   if 'foundation' in d])]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(*pipeline_verifiers))
+        on_success_matcher=all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink')
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS)
+
+      schema_map_pcv = beam.pvalue.AsDict(
+          p | "MakeSchemas" >> beam.Create(schema_kv_pairs))
+
+      table_record_pcv = beam.pvalue.AsDict(
+          p | "MakeTables" >> beam.Create([('table1', output_table_1),
+                                           ('table2', output_table_2)]))
 
       # Get all input in same machine
       input = (input
@@ -407,9 +424,12 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
       _ = (input |
            "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
-               table=lambda x: (output_table_1
-                                if 'language' in x
-                                else output_table_2),
+               table=lambda x, tables: (tables['table1']
+                                        if 'language' in x
+                                        else tables['table2']),
+               table_side_inputs=(table_record_pcv,),
+               schema=lambda dest, schema_map: schema_map.get(dest, None),
+               schema_side_inputs=(schema_map_pcv,),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
@@ -418,6 +438,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                table=lambda x: (output_table_3
                                 if 'language' in x
                                 else output_table_4),
+               schema=lambda dest, schema_map: schema_map.get(dest, None),
+               schema_side_inputs=(schema_map_pcv,),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
                max_file_size=20,
@@ -451,7 +473,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
             query="SELECT * FROM %s" % output_table_2,
             data=[])]
 
-    args = self.test_pipeline.get_full_options_as_args()
+    args = self.test_pipeline.get_full_options_as_args(
+        experiments='use_beam_bq_sink')
 
     with self.assertRaises(Exception):
       with beam.Pipeline(argv=args) as p:

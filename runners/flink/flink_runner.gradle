@@ -75,6 +75,10 @@ test {
   } else if (project.name == "beam-runners-flink-1.7") {
     mustRunAfter(":beam-runners-flink_2.11:test")
     mustRunAfter(":beam-runners-flink-1.6:test")
+  } else if (project.name == "beam-runners-flink-1.8") {
+    mustRunAfter(":beam-runners-flink_2.11:test")
+    mustRunAfter(":beam-runners-flink-1.6:test")
+    mustRunAfter(":beam-runners-flink-1.7:test")
   }
 }
 
@@ -109,7 +113,6 @@ dependencies {
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.google_api_services_bigquery
-  shadowTest library.java.slf4j_simple
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest "org.apache.flink:flink-core:$flink_version:tests"
@@ -117,6 +120,7 @@ dependencies {
   shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
   shadowTest project(":beam-sdks-java-harness")
+  testRuntimeOnly library.java.slf4j_simple
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
@@ -136,8 +140,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptions = JsonOutput.toJson(
         ["--runner=TestFlinkRunner",
          "--streaming=${config.streaming}",
-         // TODO This should be changed to > 1
-         "--parallelism=1",
+         "--parallelism=2",
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
@@ -151,10 +154,11 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     }
   }
 }

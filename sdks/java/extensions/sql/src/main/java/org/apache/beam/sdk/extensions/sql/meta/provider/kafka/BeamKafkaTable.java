@@ -86,7 +86,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
           KafkaIO.<byte[], byte[]>read()
               .withBootstrapServers(bootstrapServers)
               .withTopics(topics)
-              .updateConsumerProperties(configUpdates)
+              .withConsumerConfigUpdates(configUpdates)
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
               .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else if (topicPartitions != null) {
@@ -94,7 +94,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
           KafkaIO.<byte[], byte[]>read()
               .withBootstrapServers(bootstrapServers)
               .withTopicPartitions(topicPartitions)
-              .updateConsumerProperties(configUpdates)
+              .withConsumerConfigUpdates(configUpdates)
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
               .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else {

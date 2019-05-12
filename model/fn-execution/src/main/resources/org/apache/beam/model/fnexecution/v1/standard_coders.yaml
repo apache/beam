@@ -207,3 +207,19 @@ examples:
     pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
     windows: [{end: 1454293425000, span: 3600000}, {end: -9223372036854410, span: 365}]
   }
+
+---
+
+coder:
+  urn: "beam:coder:double:v1"
+examples:
+  "\0\0\0\0\0\0\0\0": "0"
+  "\u0080\0\0\0\0\0\0\0": "-0"
+  "\u003f\u00b9\u0099\u0099\u0099\u0099\u0099\u009a": "0.1"
+  "\u00bf\u00b9\u0099\u0099\u0099\u0099\u0099\u009a": "-0.1"
+  "\0\0\0\0\0\0\0\u0001": "4.9e-324"
+  "\0\u0001\0\0\0\0\0\0": "1.390671161567e-309"
+  "\u007f\u00ef\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff": "1.7976931348623157e308"
+  "\u007f\u00f0\0\0\0\0\0\0": "Infinity"
+  "\u00ff\u00f0\0\0\0\0\0\0": "-Infinity"
+  "\u007f\u00f8\0\0\0\0\0\0": "NaN"

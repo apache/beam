@@ -74,6 +74,16 @@ public class VarLongCoder extends StructuredCoder<Long> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. {@link VarLongCoder} is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}. {@link #getEncodedElementByteSize} is cheap.
    */
   @Override
@@ -92,11 +102,5 @@ public class VarLongCoder extends StructuredCoder<Long> {
       throw new CoderException("cannot encode a null Long");
     }
     return VarInt.getLength(value);
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(Long value) {
-    return value;
   }
 }

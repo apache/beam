@@ -33,53 +33,31 @@ public class SimpleMonitoringInfoBuilderTest {
   @Test
   public void testReturnsNullIfSpecRequirementsNotMet() {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     assertNull(builder.build());
 
     builder.setInt64Value(1);
     assertNull(builder.build());
+  }
 
-    builder.setPCollectionLabel("myPcollection");
+  @Test
+  public void testReturnsExpectedMonitoringInfo() {
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
+    builder.setInt64Value(1);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "myPcollection");
+
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
     assertEquals(
         "myPcollection",
-        monitoringInfo.getLabelsOrDefault(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, null));
-    assertEquals(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
+        monitoringInfo.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null));
+    assertEquals(MonitoringInfoConstants.Urns.ELEMENT_COUNT, monitoringInfo.getUrn());
+    assertEquals(MonitoringInfoConstants.TypeUrns.SUM_INT64, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
-  }
-
-  @Test
-  public void testUserCounter() {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("myNamespace", "myName");
-    assertNull(builder.build());
-
-    builder.setInt64Value(1);
-    // Pass now that the spec is fully met.
-    MonitoringInfo monitoringInfo = builder.build();
-    assertTrue(monitoringInfo != null);
     assertEquals(
-        SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace:myName",
-        monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
-    assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
-  }
-
-  @Test
-  public void testUserMetricWithInvalidDelimiterCharacterIsReplaced() {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("myNamespace:withInvalidChar", "myName");
-    builder.setInt64Value(1);
-    // Pass now that the spec is fully met.
-    MonitoringInfo monitoringInfo = builder.build();
-    assertTrue(monitoringInfo != null);
-    assertEquals(
-        SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace_withInvalidChar:myName",
-        monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
-    assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
+        "myPcollection",
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION));
   }
 }

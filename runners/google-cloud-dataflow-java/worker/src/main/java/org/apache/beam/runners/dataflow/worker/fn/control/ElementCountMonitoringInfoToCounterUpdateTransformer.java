@@ -21,7 +21,9 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.NameAndKind;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -36,7 +38,7 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
 
   private final SpecMonitoringInfoValidator specValidator;
   private final Map<String, NameContext> pcollectionIdToNameContext;
-  private static final String SUPPORTED_URN = "beam:metric:element_count:v1";
+  private static final String SUPPORTED_URN = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
 
   /**
    * @param specValidator SpecMonitoringInfoValidator to utilize for default validation.
@@ -67,8 +69,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    // todo(migryz): extract and utilize pcollection label from beam_fn_api.proto
-    if (!pcollectionIdToNameContext.containsKey(monitoringInfo.getLabelsMap().get("PCOLLECTION"))) {
+    if (!pcollectionIdToNameContext.containsKey(
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION))) {
       return Optional.of(
           "Encountered ElementCount MonitoringInfo with unknown PCollectionId: "
               + monitoringInfo.toString());
@@ -84,16 +86,18 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
    * @return CounterUpdate generated based on provided monitoringInfo
    */
   @Override
+  @Nullable
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
-      LOG.info(validationResult.get());
+      LOG.debug(validationResult.get());
       return null;
     }
 
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
 
-    final String pcollectionId = monitoringInfo.getLabelsMap().get("PCOLLECTION");
+    final String pcollectionId =
+        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION);
     final String pcollectionName = pcollectionIdToNameContext.get(pcollectionId).userName();
 
     String counterName = pcollectionName + "-ElementCount";

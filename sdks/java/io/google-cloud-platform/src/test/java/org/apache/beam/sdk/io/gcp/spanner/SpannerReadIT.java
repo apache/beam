@@ -31,6 +31,7 @@ import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -61,6 +62,12 @@ public class SpannerReadIT {
 
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
+    @Description("Project that hosts Spanner instance")
+    @Nullable
+    String getInstanceProjectId();
+
+    void setInstanceProjectId(String value);
+
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
@@ -91,7 +98,10 @@ public class SpannerReadIT {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    project = options.as(GcpOptions.class).getProject();
+    project = options.getInstanceProjectId();
+    if (project == null) {
+      project = options.as(GcpOptions.class).getProject();
+    }
 
     spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 

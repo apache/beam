@@ -20,6 +20,7 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
+enablePythonPerformanceTest()
 
 
 /*************************************************************************************************/
@@ -102,6 +103,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
         "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT",
         "apache_beam.io.gcp.bigquery_io_read_it_test",
+        "apache_beam.io.gcp.datastore.v1new.datastore_write_it_test",
     ]
     def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -182,6 +184,12 @@ def portableWordCountTask(name, streaming) {
         options += ["--environment_cache_millis=10000"]
       if (project.hasProperty("jobEndpoint"))
         options += ["--job_endpoint=${project.property('jobEndpoint')}"]
+      if (project.hasProperty("environmentType")) {
+        options += ["--environment_type=${project.property('environmentType')}"]
+      }
+      if (project.hasProperty("environmentConfig")) {
+        options += ["--environment_config=${project.property('environmentConfig')}"]
+      }
       exec {
         executable 'sh'
         args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
@@ -191,41 +199,16 @@ def portableWordCountTask(name, streaming) {
   }
 }
 
-// Run single or a set of integration tests with provided test options and pipeline options.
-task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
-  doLast {
-    def argMap = [:]
-
-    // Build test options that configures test environment and framework
-    def testOptions = basicTestOpts
-    if (project.hasProperty('testOptions'))
-      // Customize test options by adding more nose flags to -Ptest_opt in commandline
-      testOptions = project.property('testOptions')
-    if (project.hasProperty('attr'))
-      testOptions += ["--attr=${project.property('attr')}"]
-    if (project.hasProperty('tests'))
-      testOptions += ["--tests=${project.property('tests')}"]
-    argMap["test_opts"] = testOptions
-
-    // Build pipeline options that configures pipeline job
-    if (project.hasProperty('pipelineOptions'))
-      argMap["pipeline_opts"] = project.property('pipelineOptions')
-    if (project.hasProperty('kmsKeyName'))
-      argMap["kms_key_name"] = project.property('kmsKeyName')
-
-    def cmdArgs = project.mapToArgString(argMap)
-    exec {
-      executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
-    }
-  }
-}
-
 // Run PostCommit integration tests on default runner (TestDataflowRunner)
 task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+
+  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+
   doLast {
     def testOpts = basicTestOpts + ["--attr=IT"]
-    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts,
+                                          "worker_jar": dataflowWorkerJar])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -234,9 +217,14 @@ task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
 }
 
 task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+
+  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+
   doLast {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
-    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts,
+                                          "worker_jar": dataflowWorkerJar])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -268,6 +256,32 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
+    }
+  }
+}
+
+task sparkValidatesRunner() {
+  dependsOn 'createProcessWorker'
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-runners-spark-job-server:shadowJar'
+  doLast {
+    def environment_config = "'{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'"
+    def argMap = [
+            "environment_type"    : "PROCESS",
+            "spark_job_server_jar": project(":beam-runners-spark-job-server:").shadowJar.archivePath,
+            "environment_config": environment_config,
+    ]
+    def argString = project.mapToArgString(argMap)
+
+    // Optionally specify test function names separated by space e.g.:
+    // ./gradlew :beam-sdks-python:sparkValidatesRunner -Ptests="test_external_transforms test_read"
+    // Otherwise run all test functions under SparkRunnerTest
+    def tests = project.hasProperty('tests') ?
+            project.property('tests').split().collect{ "SparkRunnerTest.$it" }.join(' ') : ''
+
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
     }
   }
 }
@@ -346,6 +360,7 @@ task javaReferenceRunnerValidatesRunner() {
 }
 
 task postCommit() {
+  dependsOn "crossLanguageTests"
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitIT"
@@ -403,16 +418,27 @@ project.task('createProcessWorker') {
   }
 }
 
-project.task('crossLanguagePythonJava') {
+project.task('crossLanguagePythonJavaFlink') {
   dependsOn 'setupVirtualenv'
+  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
+  dependsOn ':beam-sdks-python-container:docker'
   dependsOn ':beam-sdks-java-container:docker'
   dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
 
   doLast {
     def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def options = [
+            "--runner=PortableRunner",
+            "--experiments=worker_threads=100",
+            "--parallelism=2",
+            "--shutdown_sources_on_final_watermark",
+            "--environment_cache_millis=10000",
+            "--expansion_service_port=8096",
+            "--expansion_service_jar=${testServiceExpansionJar}",
+    ]
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${testServiceExpansionJar}"
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
     }
   }
 }
@@ -438,8 +464,13 @@ project.task('crossLanguagePortableWordCount') {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
       // TODO: Check that the output file is generated and runs.
     }
   }
+}
+
+project.task('crossLanguageTests') {
+  dependsOn "crossLanguagePythonJavaFlink"
+  dependsOn "crossLanguagePortableWordCount"
 }

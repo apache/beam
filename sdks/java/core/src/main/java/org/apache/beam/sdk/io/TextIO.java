@@ -71,7 +71,7 @@ import org.joda.time.Duration;
  * <p>To read a {@link PCollection} from one or more text files, use {@code TextIO.read()} to
  * instantiate a transform and use {@link TextIO.Read#from(String)} to specify the path of the
  * file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link
- * PCollection}, apply {@link TextIO#readAll()} or {@link TextIO#readFiles}.
+ * PCollection} you can use {@link FileIO} to match them and {@link TextIO#readFiles} to read them.
  *
  * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
  * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n', or
@@ -79,13 +79,15 @@ import org.joda.time.Duration;
  *
  * <h3>Filepattern expansion and watching</h3>
  *
- * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} and {@link
- * ReadAll#watchForNewFiles} allow streaming of new files matching the filepattern(s).
+ * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} or the
+ * combination of {@link FileIO.Match#continuously(Duration, TerminationCondition)} and {@link
+ * #readFiles()} allow streaming of new files matching the filepattern(s).
  *
- * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readAll}
+ * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readFiles()}
  * allows them in case the filepattern contains a glob wildcard character. Use {@link
- * TextIO.Read#withEmptyMatchTreatment} and {@link TextIO.ReadAll#withEmptyMatchTreatment} to
- * configure this behavior.
+ * Read#withEmptyMatchTreatment} or {@link
+ * FileIO.Match#withEmptyMatchTreatment(EmptyMatchTreatment)} plus {@link #readFiles()} to configure
+ * this behavior.
  *
  * <p>Example 1: reading a file or filepattern.
  *
@@ -106,7 +108,11 @@ import org.joda.time.Duration;
  * PCollection<String> filenames = ...;
  *
  * // Read all files in the collection.
- * PCollection<String> lines = filenames.apply(TextIO.readAll());
+ * PCollection<String> lines =
+ *     filenames
+ *         .apply(FileIO.matchAll())
+ *         .apply(FileIO.readMatches())
+ *         .apply(TextIO.readFiles());
  * }</pre>
  *
  * <p>Example 3: streaming new files matching a filepattern.
@@ -195,7 +201,13 @@ public class TextIO {
    * filepattern is expanded once at the moment it is processed, rather than watched for new files
    * matching the filepattern to appear. Likewise, every file is read once, rather than watched for
    * new entries.
+   *
+   * @deprecated You can achieve The functionality of {@link #readAll()} using {@link FileIO}
+   *     matching plus {@link #readFiles()}. This is the preferred method to make composition
+   *     explicit. {@link ReadAll} will not receive upgrades and will be removed in a future version
+   *     of Beam.
    */
+  @Deprecated
   public static ReadAll readAll() {
     return new AutoValue_TextIO_ReadAll.Builder()
         .setCompression(Compression.AUTO)
@@ -386,15 +398,17 @@ public class TextIO {
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
       }
-      // All other cases go through ReadAll.
+
+      // All other cases go through FileIO + ReadFiles
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(
-              "Via ReadAll",
-              readAll()
+              "Read Matches",
+              FileIO.readMatches()
                   .withCompression(getCompression())
-                  .withMatchConfiguration(getMatchConfiguration())
-                  .withDelimiter(getDelimiter()));
+                  .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply("Via ReadFiles", readFiles().withDelimiter(getDelimiter()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -424,7 +438,12 @@ public class TextIO {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Implementation of {@link #readAll}. */
+  /**
+   * Implementation of {@link #readAll}.
+   *
+   * @deprecated See {@link #readAll()} for details.
+   */
+  @Deprecated
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<String>> {
@@ -500,7 +519,6 @@ public class TextIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
       builder
           .add(
               DisplayData.item("compressionType", getCompression().toString())
@@ -551,6 +569,14 @@ public class TextIO {
               getDesiredBundleSizeBytes(),
               new CreateTextSourceFn(getDelimiter()),
               StringUtf8Coder.of()));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.addIfNotNull(
+          DisplayData.item("delimiter", Arrays.toString(getDelimiter()))
+              .withLabel("Custom delimiter to split records"));
     }
 
     private static class CreateTextSourceFn

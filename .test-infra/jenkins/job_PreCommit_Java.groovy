@@ -28,6 +28,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/java/.*$',
       '^runners/.*$',
       '^examples/java/.*$',
+      '^examples/kotlin/.*$',
       '^release/.*$',
     ]
 )

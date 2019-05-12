@@ -33,8 +33,6 @@ Usage:
 from __future__ import absolute_import
 
 import logging
-import os
-import sys
 import unittest
 
 from hamcrest.core.core.allof import all_of
@@ -48,10 +46,6 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-6870')
 class HourlyTeamScoreIT(unittest.TestCase):
 
   DEFAULT_INPUT_FILE = 'gs://dataflow-samples/game/gaming_data*'

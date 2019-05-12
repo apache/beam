@@ -19,6 +19,8 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Create inserts a fixed set of values into the pipeline. The values must
@@ -45,11 +47,15 @@ func CreateList(s Scope, list interface{}) PCollection {
 	return Must(TryCreate(s, ret...))
 }
 
+func addCreateCtx(err error, s Scope) error {
+	return errors.WithContextf(err, "inserting Create in scope %s", s)
+}
+
 // TryCreate inserts a fixed set of values into the pipeline. The values must
 // be of the same type.
 func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 	if len(values) == 0 {
-		return PCollection{}, fmt.Errorf("create has no values")
+		return PCollection{}, addCreateCtx(errors.New("create has no values"), s)
 	}
 
 	t := reflect.ValueOf(values[0]).Type()
@@ -58,11 +64,12 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 
 	for i, value := range values {
 		if other := reflect.ValueOf(value).Type(); other != t {
-			return PCollection{}, fmt.Errorf("value %v at index %v has type %v, want %v", value, i, other, t)
+			err := errors.Errorf("value %v at index %v has type %v, want %v", value, i, other, t)
+			return PCollection{}, addCreateCtx(err, s)
 		}
 		var buf bytes.Buffer
 		if err := enc.Encode(value, &buf); err != nil {
-			return PCollection{}, fmt.Errorf("marshalling of %v failed: %v", value, err)
+			return PCollection{}, addCreateCtx(errors.Wrapf(err, "marshalling of %v failed", value), s)
 		}
 		fn.Values = append(fn.Values, buf.Bytes())
 	}
@@ -71,7 +78,7 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 
 	ret, err := TryParDo(s, fn, imp, TypeDefinition{Var: TType, T: t})
 	if err != nil || len(ret) != 1 {
-		panic(fmt.Sprintf("internal error: %v", err))
+		panic(addCreateCtx(errors.WithContext(err, "internal error"), s))
 	}
 	return ret[0], nil
 }

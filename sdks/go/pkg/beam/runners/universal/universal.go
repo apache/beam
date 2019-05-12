@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
@@ -50,7 +51,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
 	if err != nil {
-		return fmt.Errorf("failed to generate model pipeline: %v", err)
+		return errors.WithContextf(err, "generating model pipeline")
 	}
 
 	log.Info(ctx, proto.MarshalTextString(pipeline))
@@ -81,7 +82,6 @@ func createEnvironment(ctx context.Context) pb.Environment {
 				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
 		}
 		environment = pb.Environment{
-			Url:     config,
 			Urn:     urn,
 			Payload: serializedPayload,
 		}

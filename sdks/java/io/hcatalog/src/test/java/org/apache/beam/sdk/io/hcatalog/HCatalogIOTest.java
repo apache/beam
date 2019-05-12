@@ -68,9 +68,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 
 /** Test for HCatalogIO. */
+@RunWith(JUnit4.class)
 public class HCatalogIOTest implements Serializable {
   private static final PipelineOptions OPTIONS = PipelineOptionsFactory.create();
 

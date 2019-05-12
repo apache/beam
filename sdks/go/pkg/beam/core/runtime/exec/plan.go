@@ -33,12 +33,18 @@ type Plan struct {
 	id       string
 	roots    []Root
 	units    []Unit
-	parDoIds []string
+	parDoIDs []string
 
 	status Status
 
 	// TODO: there can be more than 1 DataSource in a bundle.
 	source *DataSource
+}
+
+// hasPID provides a common interface for extracting PTransformIDs
+// from Units.
+type hasPID interface {
+	GetPID() string
 }
 
 // NewPlan returns a new bundle execution plan from the given units.
@@ -57,8 +63,8 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if s, ok := u.(*DataSource); ok {
 			source = s
 		}
-		if p, ok := u.(*ParDo); ok {
-			pardoIDs = append(pardoIDs, p.PID)
+		if p, ok := u.(hasPID); ok {
+			pardoIDs = append(pardoIDs, p.GetPID())
 		}
 	}
 	if len(roots) == 0 {
@@ -70,7 +76,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		status:   Initializing,
 		roots:    roots,
 		units:    units,
-		parDoIds: pardoIDs,
+		parDoIDs: pardoIDs,
 		source:   source,
 	}, nil
 }
@@ -175,7 +181,7 @@ func (p *Plan) Metrics() *fnpb.Metrics {
 		}
 	}
 
-	for _, pt := range p.parDoIds {
+	for _, pt := range p.parDoIDs {
 		transforms[pt] = &fnpb.Metrics_PTransform{
 			User: metrics.ToProto(p.id, pt),
 		}

@@ -65,6 +65,16 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. This coder is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
@@ -88,11 +98,5 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
       throw new CoderException("cannot encode a null Integer");
     }
     return 4;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(Integer value) {
-    return value;
   }
 }

@@ -360,6 +360,10 @@ There are 2 ways to perform this verification, either running automation script(
       sudo pip install cython
       sudo apt-get install gcc
       sudo apt-get install python-dev
+      sudo apt-get install python3-dev
+      sudo apt-get install python3.5-dev
+      sudo apt-get install python3.6-dev
+      sudo apt-get install python3.7-dev
       ```
   1. Make sure your ```time``` alias to ```/usr/bin/time```, if not:
 
@@ -409,7 +413,7 @@ The verify_release_build.sh script may include failing or flaky tests. For each 
 
 The build with `-PisRelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
 
-The file `sdks/java/javadoc/ant.xml` file contains a list of modules to include
+The file `sdks/java/javadoc/build.gradle` contains a list of modules to include
 in and exclude, plus a list of offline URLs that populate links from Beam's
 Javadoc to the Javadoc for other modules that Beam depends on.
 
@@ -463,18 +467,19 @@ Adjust any of the above properties to the improve clarity and presentation of th
 
 ### Checklist to proceed to the next step
 
-1. Release Manager’s GPG key is published to `dist.apache.org`
-2. Release Manager’s GPG key is configured in `git` configuration
-3. Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
-4. Release Manager’s Nexus User Token is configured in `settings.xml`
-5. JIRA release item for the subsequent release has been created
-6. All test failures from branch verification have associated JIRA issues
-7. There are no release blocking JIRA issues
-8. Release Notes in JIRA have been audited and adjusted
-9. Combined javadoc has the appropriate contents.
-10. Release branch has been created
-11. Originating branch has the version information updated to the new version
-12. Nightly snapshot is in progress (do revisit it continually)
+* Release Manager’s GPG key is published to `dist.apache.org`
+* Release Manager’s GPG key is configured in `git` configuration
+* Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
+* Release Manager’s Nexus User Token is configured in `settings.xml`
+* JIRA release item for the subsequent release has been created
+* All test failures from branch verification have associated JIRA issues
+* There are no release blocking JIRA issues
+* Release Notes in JIRA have been audited and adjusted
+* Combined javadoc has the appropriate contents.
+* Release branch has been created
+* There are no open pull requests to release branch
+* Originating branch has the version information updated to the new version
+* Nightly snapshot is in progress (do revisit it continually)
 
 **********
 
@@ -483,8 +488,6 @@ Adjust any of the above properties to the improve clarity and presentation of th
 The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.
 
 For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want. 
-
-*BUT* the final step of rc creation is `Build and stage python wheels`, which need to done manually.
 
 ### Run build_release_candidate.sh to create RC
 * Script: [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
@@ -510,6 +513,8 @@ For this step, we recommend you using automation script to create a RC, but you 
   1. Add new release into `website/src/get-started/downloads.md`.
   1. Update last release download links in `website/src/get-started/downloads.md`.
   1. Update `website/src/.htaccess` to redirect to the new version.
+  1. Build and stage python wheels.
+
 
 ### Run all steps manually
 
@@ -653,6 +658,12 @@ Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide)
 Once all python wheels have been staged [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/), 
 please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh) to sign and hash python wheels.
 
+### Write the Beam blog post and create a pull request
+
+Major or otherwise important releases should have a blog post. Write one if needed for this particular release. Minor releases that don’t introduce new major functionality don’t necessarily need to be blogged.
+
+*Tip:* Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
+
 #### Checklist to proceed to the next step
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
@@ -689,21 +700,25 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
-    * website pull request listing the release and publishing the API reference manual [6].
+    * website pull request listing the release [6], publishing the API reference manual [7], and the blog post [8].
     * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
     * Python artifacts are deployed along with the source release to the dist.apache.org [2].
+    * Validation sheet with a tab for 1.2.3 release to help with validation [9].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
     Thanks,
     Release Manager
 
-    [1] link
-    [2] link
+    [1] https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=...
+    [2] https://dist.apache.org/repos/dist/dev/beam/1.2.3/
     [3] https://dist.apache.org/repos/dist/release/beam/KEYS
-    [4] link
-    [5] link
-    [6] link
+    [4] https://repository.apache.org/content/repositories/orgapachebeam-NNNN/
+    [5] https://github.com/apache/beam/tree/v1.2.3-RC3
+    [6] https://github.com/apache/beam/pull/...
+    [7] https://github.com/apache/beam-site/pull/...
+    [8] https://github.com/apache/beam/pull/...
+    [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
 
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the `Fix Issues` step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
 
@@ -1054,12 +1069,6 @@ Announce on the dev@ mailing list that the release has been finished.
 Announce on the release on the user@ mailing list, listing major improvements and contributions.
 
 Announce the release on the announce@apache.org mailing list.
-
-### Beam blog
-
-Major or otherwise important releases should have a blog post. Write one if needed for this particular release. Minor releases that don’t introduce new major functionality don’t necessarily need to be blogged.
-
-*Tip:* Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
 
 ### Social media
 

@@ -69,7 +69,6 @@ dependencies {
   compile library.java.commons_compress
   compile library.java.commons_lang3
   compile library.java.guava_testlib
-  shadow library.java.antlr
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
@@ -83,7 +82,6 @@ dependencies {
   provided library.java.hamcrest_library
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
-  shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
@@ -91,4 +89,5 @@ dependencies {
   shadowTest library.java.quickcheck_core
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
+  testRuntimeOnly library.java.slf4j_jdk14
 }

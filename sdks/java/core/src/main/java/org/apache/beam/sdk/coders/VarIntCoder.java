@@ -68,6 +68,16 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. {@link VarIntCoder} is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}. {@link #getEncodedElementByteSize} is cheap.
    */
   @Override
@@ -86,11 +96,5 @@ public class VarIntCoder extends AtomicCoder<Integer> {
       throw new CoderException("cannot encode a null Integer");
     }
     return VarInt.getLength(value.longValue());
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(Integer value) {
-    return value;
   }
 }

@@ -75,6 +75,16 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. This coder is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}, because it is cheap to ascertain the byte size of a long.
    */
   @Override
@@ -91,11 +101,5 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   @Override
   public TypeDescriptor<ReadableDuration> getEncodedTypeDescriptor() {
     return TYPE_DESCRIPTOR;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(ReadableDuration value) {
-    return value;
   }
 }

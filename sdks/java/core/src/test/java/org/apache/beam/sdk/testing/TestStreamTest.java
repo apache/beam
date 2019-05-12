@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.stream.StreamSupport;
@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -136,7 +137,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testProcessingTimeTrigger() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
@@ -334,7 +335,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testEarlyPanesOfWindow() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
@@ -383,5 +384,24 @@ public class TestStreamTest implements Serializable {
         .containsInAnyOrder(KV.of("key", 6L));
 
     p.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(UsesTestStreamWithProcessingTime.class)
+  public void testCoder() throws Exception {
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .addElements("hey")
+            .advanceWatermarkTo(Instant.ofEpochMilli(22521600))
+            .advanceProcessingTime(Duration.millis(42))
+            .addElements("hey", "joe")
+            .advanceWatermarkToInfinity();
+
+    TestStream.TestStreamCoder<String> coder = TestStream.TestStreamCoder.of(StringUtf8Coder.of());
+
+    byte[] bytes = CoderUtils.encodeToByteArray(coder, testStream);
+    TestStream<String> recoveredStream = CoderUtils.decodeFromByteArray(coder, bytes);
+
+    assertThat(recoveredStream, is(testStream));
   }
 }

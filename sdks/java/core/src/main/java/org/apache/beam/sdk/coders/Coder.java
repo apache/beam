@@ -210,20 +210,15 @@ public abstract class Coder<T> implements Serializable {
   /**
    * Returns {@code true} if this {@link Coder} is injective with respect to {@link Objects#equals}.
    *
-   * <p>By default, returns false, assuming that the encoding may differ from {@link Objects#equals}
-   * in arbitrary ways.
-   *
    * <p>Whenever the encoded bytes of two values are equal, then the original values are equal
    * according to {@code Objects.equals()}. Note that this is well-defined for {@code null}.
    *
-   * <p>This condition is most notably false for arrays, where encoded equality does not correspond
-   * to Java equality. More generally, this condition is false whenever {@code equals()} compares
-   * object identity, rather than performing a semantic/structural comparison.
+   * <p>This condition is most notably false for arrays. More generally, this condition is false
+   * whenever {@code equals()} compares object identity, rather than performing a
+   * semantic/structural comparison.
    *
-   * @deprecated For coders that are injective with respect to {@link Objects#equals}, override
-   *     {@link #structuralValue(Object)} to return the input element directly.
+   * <p>By default, returns false.
    */
-  @Deprecated
   public boolean consistentWithEquals() {
     return false;
   }

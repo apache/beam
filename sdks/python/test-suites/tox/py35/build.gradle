@@ -24,7 +24,7 @@ plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 // Required to setup a Python 3 virtualenv.
-project.ext.python3 = true
+pythonVersion = '3.5'
 
 task lint {}
 check.dependsOn lint

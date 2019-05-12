@@ -32,7 +32,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -338,14 +337,7 @@ public class FlinkExecutionEnvironments {
 
       final ClusterClient<?> client;
       try {
-        // Write out the option keys and values to be compatible across different Flink versions,
-        // CoreOptions.MODE and its values CoreOptions.LEGACY_MODE and CoreOptions.NEW_MODE
-        // have been removed.
-        if ("legacy".equals(configuration.getString("mode", "new"))) {
-          client = new StandaloneClusterClient(configuration);
-        } else {
-          client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
-        }
+        client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
       } catch (Exception e) {
         throw new ProgramInvocationException(
             "Cannot establish connection to JobManager: " + e.getMessage(), e);

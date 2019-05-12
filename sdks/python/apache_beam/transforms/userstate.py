@@ -63,16 +63,43 @@ class BagStateSpec(StateSpec):
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 
-  def __init__(self, name, coder, combine_fn):
+  def __init__(self, name, coder=None, combine_fn=None):
+    """Initialize the specification for CombiningValue state.
+
+    CombiningValueStateSpec(name, combine_fn) -> Coder-inferred combining value
+      state spec.
+    CombiningValueStateSpec(name, coder, combine_fn) -> Combining value state
+      spec with coder and combine_fn specified.
+
+    Args:
+      name (str): The name by which the state is identified.
+      coder (Coder): Coder specifying how to encode the values to be combined.
+        May be inferred.
+      combine_fn (``CombineFn`` or ``callable``): Function specifying how to
+        combine the values passed to state.
+    """
     # Avoid circular import.
     from apache_beam.transforms.core import CombineFn
+    # We want the coder to be optional, but unfortunately it comes
+    # before the non-optional combine_fn parameter, which we can't
+    # change for backwards compatibility reasons.
+    #
+    # Instead, allow it to be omitted (by either passing two arguments
+    # or combine_fn by keyword.)
+    if combine_fn is None:
+      if coder is None:
+        raise ValueError('combine_fn must be provided')
+      else:
+        coder, combine_fn = None, coder
+    self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
+    if coder is None:
+      coder = self.combine_fn.get_accumulator_coder()
 
     assert isinstance(name, str)
     assert isinstance(coder, Coder)
     self.name = name
     # The coder here should be for the accumulator type of the given CombineFn.
     self.coder = coder
-    self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.StateSpec(
@@ -131,7 +158,12 @@ def on_timer(timer_spec):
 
 
 def get_dofn_specs(dofn):
-  """Gets the state and timer specs for a DoFn, if any."""
+  """Gets the state and timer specs for a DoFn, if any.
+
+  Args:
+    dofn (apache_beam.transforms.core.DoFn): The DoFn instance to introspect for
+      timer and state specs.
+  """
 
   # Avoid circular import.
   from apache_beam.runners.common import MethodWrapper

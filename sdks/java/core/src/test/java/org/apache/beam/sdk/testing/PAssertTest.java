@@ -462,7 +462,7 @@ public class PAssertTest implements Serializable {
     Throwable exc = runExpectingAssertionFailure(pipeline);
     Pattern expectedPattern =
         Pattern.compile(
-            "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
+            "Expected: iterable with items \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
     // A loose pattern, but should get the job done.
     assertTrue(
         "Expected error message from PAssert with substring matching "
@@ -484,7 +484,7 @@ public class PAssertTest implements Serializable {
     String message = thrown.getMessage();
 
     assertThat(message, containsString("Vals should have been empty"));
-    assertThat(message, containsString("Expected: iterable over [] in any order"));
+    assertThat(message, containsString("Expected: iterable with items [] in any order"));
   }
 
   @Test
@@ -498,7 +498,7 @@ public class PAssertTest implements Serializable {
     String message = thrown.getMessage();
 
     assertThat(message, containsString("GenerateSequence/Read(BoundedCountingSource).out"));
-    assertThat(message, containsString("Expected: iterable over [] in any order"));
+    assertThat(message, containsString("Expected: iterable with items [] in any order"));
   }
 
   @Test
@@ -524,7 +524,8 @@ public class PAssertTest implements Serializable {
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
     assertThat(thrown.getMessage(), containsString("Should be empty"));
-    assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
+    assertThat(
+        thrown.getMessage(), containsString("Expected: iterable with items [] in any order"));
     String stacktrace = Throwables.getStackTraceAsString(thrown);
     assertThat(stacktrace, containsString("testAssertionSiteIsCapturedWithMessage"));
     assertThat(stacktrace, containsString("assertThatCollectionIsEmptyWithMessage"));
@@ -538,7 +539,8 @@ public class PAssertTest implements Serializable {
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
-    assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
+    assertThat(
+        thrown.getMessage(), containsString("Expected: iterable with items [] in any order"));
     String stacktrace = Throwables.getStackTraceAsString(thrown);
     assertThat(stacktrace, containsString("testAssertionSiteIsCapturedWithoutMessage"));
     assertThat(stacktrace, containsString("assertThatCollectionIsEmptyWithoutMessage"));

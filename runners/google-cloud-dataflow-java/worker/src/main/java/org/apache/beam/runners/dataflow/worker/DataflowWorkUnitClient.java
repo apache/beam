@@ -42,7 +42,7 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
-import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;

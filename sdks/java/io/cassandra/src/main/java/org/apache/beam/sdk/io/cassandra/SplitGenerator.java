@@ -176,6 +176,6 @@ final class SplitGenerator {
   }
 
   private BigInteger getTargetSplitSize(long splitCount) {
-    return (rangeMax.subtract(rangeMin)).divide(BigInteger.valueOf(splitCount));
+    return rangeMax.subtract(rangeMin).divide(BigInteger.valueOf(splitCount));
   }
 }

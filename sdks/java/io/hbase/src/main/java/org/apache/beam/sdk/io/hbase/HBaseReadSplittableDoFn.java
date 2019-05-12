@@ -25,6 +25,7 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
@@ -57,7 +58,8 @@ class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c, ByteKeyRangeTracker tracker) throws Exception {
+  public void processElement(ProcessContext c, RestrictionTracker<ByteKeyRange, ByteKey> tracker)
+      throws Exception {
     final HBaseQuery query = c.element();
     TableName tableName = TableName.valueOf(query.getTableId());
     Table table = connection.getTable(tableName);

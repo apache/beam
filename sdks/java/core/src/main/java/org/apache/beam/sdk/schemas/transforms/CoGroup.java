@@ -27,6 +27,7 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
@@ -53,7 +54,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 /**
  * A transform that performs equijoins across multiple schema {@link PCollection}s.
  *
- * <p>This transform has similarites to {@link CoGroupByKey}, however works on PCollections that
+ * <p>This transform has similarities to {@link CoGroupByKey}, however works on PCollections that
  * have schemas. This allows users of the transform to simply specify schema fields to join on. The
  * output type of the transform is a {@code KV<Row, Row>} where the value contains one field for
  * every input PCollection and the key represents the fields that were joined on. By default the
@@ -117,7 +118,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * <p>Traditional (SQL) joins are cross-product joins. All rows that match the join condition are
  * combined into individual rows and returned; in fact any SQL inner joins is a subset of the
  * cross-product of two tables. This transform also supports the same functionality using the {@link
- * Inner#crossProductJoin()} method.
+ * Impl#crossProductJoin()} method.
  *
  * <p>For example, consider the SQL join: SELECT * FROM input1 INNER JOIN input2 ON input1.user =
  * input2.user
@@ -149,7 +150,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * participate fully in the join, providing inner-join semantics. This means that the join will only
  * produce values for "Bob" if all inputs have values for "Bob;" if even a single input does not
  * have a value for "Bob," an inner-join will produce no value. However, if you mark that input as
- * having outer-join participation then the join will contain values for "Bob," as long as at least
+ * having optional participation then the join will contain values for "Bob," as long as at least
  * one input has a "Bob" value; null values will be added for inputs that have no "Bob" values. To
  * continue the SQL example:
  *
@@ -159,7 +160,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <pre>{@code
  * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
- *   .apply(CoGroup.join("input1", By.fieldNames("user").withOuterJoinParticipation())
+ *   .apply(CoGroup.join("input1", By.fieldNames("user").withOptionalParticipation())
  *                 .join("input2", By.fieldNames("user"))
  *                 .crossProductJoin();
  * }</pre>
@@ -171,7 +172,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * <pre>{@code
  * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
  *   .apply(CoGroup.join("input1", By.fieldNames("user"))
- *                 .join("input2", By.fieldNames("user").withOuterJoinParticipation())
+ *                 .join("input2", By.fieldNames("user").withOptionalParticipation())
  *                 .crossProductJoin();
  * }</pre>
  *
@@ -181,17 +182,18 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <pre>{@code
  * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
- *   .apply(CoGroup.join("input1", By.fieldNames("user").withOuterJoinParticipation())
- *                 .join("input2", By.fieldNames("user").withOuterJoinParticipation())
+ *   .apply(CoGroup.join("input1", By.fieldNames("user").withOptionalParticipation())
+ *                 .join("input2", By.fieldNames("user").withOptionalParticipation())
  *                 .crossProductJoin();
  * }</pre>
  *
  * <p>While the above examples use two inputs to mimic SQL's left and right join semantics, the
- * {@link CoGroup} transform supports any number of inputs, and outer-join participation can be
+ * {@link CoGroup} transform supports any number of inputs, and optional participation can be
  * specified on any subset of them.
  *
  * <p>Do note that cross-product joins while simpler and easier to program, can cause
  */
+@Experimental(Experimental.Kind.SCHEMAS)
 public class CoGroup {
   private static final List NULL_LIST;
 
@@ -207,7 +209,7 @@ public class CoGroup {
   public abstract static class By implements Serializable {
     abstract FieldAccessDescriptor getFieldAccessDescriptor();
 
-    abstract boolean getOuterJoinParticipation();
+    abstract boolean getOptionalParticipation();
 
     abstract Builder toBuilder();
 
@@ -215,7 +217,7 @@ public class CoGroup {
     abstract static class Builder {
       abstract Builder setFieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor);
 
-      abstract Builder setOuterJoinParticipation(boolean outerJoinParticipation);
+      abstract Builder setOptionalParticipation(boolean optionalParticipation);
 
       abstract By build();
     }
@@ -234,7 +236,7 @@ public class CoGroup {
     public static By fieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor) {
       return new AutoValue_CoGroup_By.Builder()
           .setFieldAccessDescriptor(fieldAccessDescriptor)
-          .setOuterJoinParticipation(false)
+          .setOptionalParticipation(false)
           .build();
     }
 
@@ -244,8 +246,8 @@ public class CoGroup {
      *
      * <p>This only affects the results of expandCrossProduct.
      */
-    public By withOuterJoinParticipation() {
-      return toBuilder().setOuterJoinParticipation(true).build();
+    public By withOptionalParticipation() {
+      return toBuilder().setOptionalParticipation(true).build();
     }
   }
 
@@ -275,10 +277,10 @@ public class CoGroup {
           : joinArgsMap.get(tag).getFieldAccessDescriptor();
     }
 
-    private boolean getOuterJoinParticipation(String tag) {
+    private boolean getOptionalParticipation(String tag) {
       return (allInputsJoinArgs != null)
-          ? allInputsJoinArgs.getOuterJoinParticipation()
-          : joinArgsMap.get(tag).getOuterJoinParticipation();
+          ? allInputsJoinArgs.getOptionalParticipation()
+          : joinArgsMap.get(tag).getOptionalParticipation();
     }
   }
 
@@ -287,8 +289,8 @@ public class CoGroup {
    *
    * <p>The same fields and other options are used in all input PCollections.
    */
-  public static Inner join(By clause) {
-    return new Inner(new JoinArguments(clause));
+  public static Impl join(By clause) {
+    return new Impl(new JoinArguments(clause));
   }
 
   /**
@@ -297,8 +299,8 @@ public class CoGroup {
    *
    * <p>Each PCollection in the input must have args specified for the join key.
    */
-  public static Inner join(String tag, By clause) {
-    return new Inner(new JoinArguments(ImmutableMap.of(tag, clause)));
+  public static Impl join(String tag, By clause) {
+    return new Impl(new JoinArguments(ImmutableMap.of(tag, clause)));
   }
 
   // Contains summary information needed for implementing the join.
@@ -421,14 +423,14 @@ public class CoGroup {
   }
 
   /** The implementing PTransform. */
-  public static class Inner extends PTransform<PCollectionTuple, PCollection<KV<Row, Row>>> {
+  public static class Impl extends PTransform<PCollectionTuple, PCollection<KV<Row, Row>>> {
     private final JoinArguments joinArgs;
 
-    private Inner() {
+    private Impl() {
       this(new JoinArguments(Collections.emptyMap()));
     }
 
-    private Inner(JoinArguments joinArgs) {
+    private Impl(JoinArguments joinArgs) {
       this.joinArgs = joinArgs;
     }
 
@@ -437,11 +439,11 @@ public class CoGroup {
      *
      * <p>Each PCollection in the input must have fields specified for the join key.
      */
-    public Inner join(String tag, By clause) {
+    public Impl join(String tag, By clause) {
       if (joinArgs.allInputsJoinArgs != null) {
         throw new IllegalStateException("Cannot set both a global and per-tag fields.");
       }
-      return new Inner(joinArgs.with(tag, clause));
+      return new Impl(joinArgs.with(tag, clause));
     }
 
     /** Expand the join into individual rows, similar to SQL joins. */
@@ -546,12 +548,12 @@ public class CoGroup {
 
     private Schema getOutputSchema(JoinInformation joinInformation) {
       // Construct the output schema. It contains one field for each input PCollection, of type
-      // ROW. If a field supports outer-join semantics, then that field will be nullable in the
+      // ROW. If a field has optional participation, then that field will be nullable in the
       // schema.
       Schema.Builder joinedSchemaBuilder = Schema.builder();
       for (Map.Entry<String, Schema> entry : joinInformation.componentSchemas.entrySet()) {
         FieldType fieldType = FieldType.row(entry.getValue());
-        if (joinArgs.getOuterJoinParticipation(entry.getKey())) {
+        if (joinArgs.getOptionalParticipation(entry.getKey())) {
           fieldType = fieldType.withNullable(true);
         }
         joinedSchemaBuilder.addField(entry.getKey(), fieldType);
@@ -613,8 +615,8 @@ public class CoGroup {
         for (int i = 0; i < sortedTags.size(); ++i) {
           String tag = sortedTags.get(i);
           Iterable items = gbkResult.getAll(tagToKeyedTag.get(i));
-          if (!items.iterator().hasNext() && joinArgs.getOuterJoinParticipation(tag)) {
-            // If this tag has outer-join participation, then empty should participate as a
+          if (!items.iterator().hasNext() && joinArgs.getOptionalParticipation(tag)) {
+            // If this tag has optional participation, then empty should participate as a
             // single null.
             items = () -> NULL_LIST.iterator();
           }

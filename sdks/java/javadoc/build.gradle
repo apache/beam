@@ -23,7 +23,8 @@
  * Generated files will be located under beam/sdks/java/javadoc/build/docs/javadoc and are
  * used as part of the beam-site source tree.
  */
-plugins { id 'java' }
+plugins { id 'org.apache.beam.module' }
+applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 
 for (p in rootProject.subprojects) {
@@ -74,8 +75,6 @@ task aggregateJavadoc(type: Javadoc) {
     failOnError false
     title "Apache Beam " + project.version
     overview 'overview.html'
-    addStringOption('Xdoclint:all', '-quiet')
-    addStringOption('Xdoclint:-missing', '-quiet')
     linksOffline 'http://avro.apache.org/docs/1.7.7/api/java/', 'avro-docs'
     linksOffline 'https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.22.0/', 'apiclient-docs'
     linksOffline 'https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.22.0/', 'oauth-docs'

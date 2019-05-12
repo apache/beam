@@ -53,11 +53,11 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile "org.testcontainers:clickhouse:$testcontainers_version"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":beam-runners-direct-java")
 }

@@ -39,7 +39,9 @@ job(jobName) {
             tempRoot       : 'gs://temp-storage-for-perf-tests',
             project        : 'apache-beam-testing',
             postgresPort   : '5432',
-            numberOfRecords: '5000000'
+            numberOfRecords: '5000000',
+            bigQueryDataset: 'beam_performance',
+            bigQueryTable  : 'jdbcioit_results',
     ]
 
     String namespace = commonJobProperties.getKubernetesNamespace(jobName)

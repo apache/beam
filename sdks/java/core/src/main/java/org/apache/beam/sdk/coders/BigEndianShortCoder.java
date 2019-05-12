@@ -65,6 +65,16 @@ public class BigEndianShortCoder extends AtomicCoder<Short> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. This coder is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
@@ -88,11 +98,5 @@ public class BigEndianShortCoder extends AtomicCoder<Short> {
       throw new CoderException("cannot encode a null Short");
     }
     return 2;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(Short value) {
-    return value;
   }
 }

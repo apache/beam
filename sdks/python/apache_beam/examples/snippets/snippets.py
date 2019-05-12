@@ -1127,7 +1127,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
 
   # [START model_bigqueryio_write_input]
   quotes = p | beam.Create([
-      {'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'},
+      {'source': 'Mahatma Gandhi', 'quote': 'My life is my message.'},
       {'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."},
   ])
   # [END model_bigqueryio_write_input]
@@ -1335,3 +1335,20 @@ class Count(beam.PTransform):
         | 'PairWithOne' >> beam.Map(lambda v: (v, 1))
         | beam.CombinePerKey(sum))
 # [END model_library_transforms_count]
+
+
+def file_process_pattern_access_metadata():
+
+  import apache_beam as beam
+  from apache_beam.io import fileio
+
+  # [START FileProcessPatternAccessMetadataSnip1]
+  with beam.Pipeline() as p:
+    readable_files = (p
+                      | fileio.MatchFiles('hdfs://path/to/*.txt')
+                      | fileio.ReadMatches()
+                      | beam.Reshuffle())
+    files_and_contents = (readable_files
+                          | beam.Map(lambda x: (x.metadata.path,
+                                                x.read_utf8())))
+  # [END FileProcessPatternAccessMetadataSnip1]

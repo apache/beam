@@ -43,11 +43,12 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.TimerRegistry;
-import org.apache.samza.task.TaskContext;
+import org.apache.samza.context.Context;
+import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +66,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private final Coder<K> keyCoder;
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
   private final String stepName;
+  private final String stepId;
+  private final IsBounded isBounded;
 
   private transient StateInternalsFactory<K> stateInternalsFactory;
   private transient SamzaTimerInternalsFactory<K> timerInternalsFactory;
@@ -77,11 +80,15 @@ public class GroupByKeyOp<K, InputT, OutputT>
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
-      String stepName) {
+      String stepName,
+      String stepId,
+      IsBounded isBounded) {
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
+    this.stepId = stepId;
+    this.isBounded = isBounded;
 
     if (!(inputCoder instanceof KeyedWorkItemCoder)) {
       throw new IllegalArgumentException(
@@ -97,8 +104,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
   @Override
   public void open(
       Config config,
-      TaskContext context,
-      TimerRegistry<KeyedTimerData<K>> timerRegistry,
+      Context context,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       OpEmitter<KV<K, OutputT>> emitter) {
     this.pipelineOptions =
         Base64Serializer.deserializeUnchecked(
@@ -108,16 +115,16 @@ public class GroupByKeyOp<K, InputT, OutputT>
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            null, context, pipelineOptions, null, mainOutputTag);
+            stepId, null, context.getTaskContext(), pipelineOptions, null);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
-            mainOutputTag.getId(),
+            stepId,
             Collections.singletonMap(
                 SamzaStoreStateInternals.BEAM_STORE,
-                SamzaStoreStateInternals.getBeamStore(context)),
+                SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
             keyCoder,
             pipelineOptions.getStoreBatchGetSize());
 
@@ -128,6 +135,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
             TIMER_STATE_ID,
             nonKeyedStateInternalsFactory,
             windowingStrategy,
+            isBounded,
             pipelineOptions);
 
     final DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
@@ -170,7 +178,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
             windowingStrategy,
             DoFnSchemaInformation.create());
 
-    final SamzaExecutionContext executionContext = (SamzaExecutionContext) context.getUserContext();
+    final SamzaExecutionContext executionContext =
+        (SamzaExecutionContext) context.getApplicationContainerContext();
     this.fnRunner =
         DoFnRunnerWithMetrics.wrap(doFnRunner, executionContext.getMetricsContainer(), stepName);
   }

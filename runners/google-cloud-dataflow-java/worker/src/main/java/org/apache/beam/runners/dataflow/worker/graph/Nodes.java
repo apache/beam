@@ -39,7 +39,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;

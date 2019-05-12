@@ -82,6 +82,16 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
   /**
    * {@inheritDoc}
    *
+   * @return {@code true}. This coder is injective.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
@@ -101,11 +111,5 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
     return VAR_INT_CODER.getEncodedElementByteSize(value.scale())
         + BIG_INT_CODER.getEncodedElementByteSize(value.unscaledValue());
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Object structuralValue(BigDecimal value) {
-    return value;
   }
 }
