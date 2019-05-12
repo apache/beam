@@ -360,6 +360,10 @@ There are 2 ways to perform this verification, either running automation script(
       sudo pip install cython
       sudo apt-get install gcc
       sudo apt-get install python-dev
+      sudo apt-get install python3-dev
+      sudo apt-get install python3.5-dev
+      sudo apt-get install python3.6-dev
+      sudo apt-get install python3.7-dev
       ```
   1. Make sure your ```time``` alias to ```/usr/bin/time```, if not:
 

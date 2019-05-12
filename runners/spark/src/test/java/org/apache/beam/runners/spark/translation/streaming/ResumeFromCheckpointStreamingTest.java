@@ -260,7 +260,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
             .withTopics(Collections.singletonList(TOPIC))
             .withKeyDeserializer(StringDeserializer.class)
             .withValueDeserializer(InstantDeserializer.class)
-            .updateConsumerProperties(ImmutableMap.of("auto.offset.reset", "earliest"))
+            .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
             .withTimestampFn(KV::getValue)
             .withWatermarkFn(
                 kv -> {

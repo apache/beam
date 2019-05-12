@@ -306,7 +306,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.13.0'
+    project.version = '2.14.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -387,7 +387,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.12.0"
     def protobuf_version = "3.6.0"
     def quickcheck_version = "0.8"
-    def spark_version = "2.4.2"
+    def spark_version = "2.4.3"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {

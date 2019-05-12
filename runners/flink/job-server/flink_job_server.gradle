@@ -142,7 +142,11 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      if (streaming) {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+      } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      }
       //SplitableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
