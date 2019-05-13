@@ -38,13 +38,13 @@ In that spirit, let's have an overview of the things that have happened, what th
 ## Meetups
 We've had a flurry of activity, with several meetups in the planning process and more popping up globally over time. As diversity of contributors is a core ASF value, this geographic spread is exciting for the community. Here's a picture from the latest Apache Beam meetup organized at Lyft in San Francisco:
 
-<img src="{{ "/images/blog/Lyft.jpg" | prepend: site.baseurl }}" alt="Beam Meetup Bay Area" >
+<img src="{{ "https://secure.meetupstatic.com/photos/event/8/0/1/2/600_481292786.jpeg" | prepend: site.baseurl }}" alt="Beam Meetup Bay Area" >
 
 We have more [Bay Area meetups](https://www.meetup.com/San-Francisco-Apache-Beam) coming soon, and the community is looking into kicking off a meetup in Toronto!
 
 [London](https://www.meetup.com/London-Apache-Beam-Meetup) had its first meetup of 2019 at the start of April:
 
-<img src="{{ "/images/blog/IMG_20190403_191541-01.jpg" | prepend: site.baseurl }}" alt="Beam Meetup London" height="360" width="640" >
+<img src="{{ "https://secure.meetupstatic.com/photos/event/4/7/0/e/600_480318190.jpeg" | prepend: site.baseurl }}" alt="Beam Meetup London" height="360" width="640" >
 
 and [Stockholm](https://www.meetup.com/Apache-Beam-Stockholm/events/260634514) had its second meetup at the start of May:
 
@@ -60,7 +60,7 @@ Even if you can’t travel to these meetups, you can stay informed on the happen
 ## Summits
 The first summit of the year will be held in Berlin:
 
-<img src="{{ "/images/blog/banner.jpg" | prepend: site.baseurl }}" alt="Beam Summit Europe Banner" >
+<img src="{{ "ttps://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&auto=compress&rect=0%2C115%2C2666%2C1333&s=2680f5036dcad9177b027cce026c0224" | prepend: site.baseurl }}" alt="Beam Summit Europe Banner" >
 
 You can find more info on the [website](https://beamsummit.org) and read about the inaugural edition of the Beam Summit Europe [here](https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html). At these summits, you have the opportunity to meet with other Apache Beam creators and users, get expert advice, learn from the speaker sessions, and participate in workshops. 
 
