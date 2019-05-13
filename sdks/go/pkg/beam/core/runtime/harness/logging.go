@@ -22,6 +22,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/ptypes"
@@ -148,5 +149,5 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 
 		// fmt.Fprintf(os.Stderr, "SENT: %v\n", msg)
 	}
-	return fmt.Errorf("internal: buffer closed?")
+	return errors.New("internal: buffer closed?")
 }

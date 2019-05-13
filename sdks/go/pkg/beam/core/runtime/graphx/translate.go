@@ -24,6 +24,7 @@ import (
 	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -567,7 +568,7 @@ func makeWindowCoder(w *window.Fn) *coder.WindowCoder {
 func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
 	ref, err := EncodeMultiEdge(edge)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to serialize %v: %v", edge, err))
+		panic(errors.Wrapf(err, "Failed to serialize %v", edge))
 	}
 	return protox.MustEncodeBase64(&v1.TransformPayload{
 		Urn:  URNDoFn,

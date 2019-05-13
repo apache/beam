@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var intInput = []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}
@@ -315,7 +316,7 @@ func (*MyErrorCombine) MergeAccumulators(a, b int64) (int64, error) {
 func intCoder(t reflect.Type) *coder.Coder {
 	c, err := coderx.NewVarIntZ(t)
 	if err != nil {
-		panic(fmt.Sprintf("Couldn't get VarInt coder for %v: %v", t, err))
+		panic(errors.Wrapf(err, "Couldn't get VarInt coder for %v", t))
 	}
 	return &coder.Coder{Kind: coder.Custom, T: typex.New(t), Custom: c}
 }

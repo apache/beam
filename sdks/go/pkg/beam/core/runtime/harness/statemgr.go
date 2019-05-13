@@ -24,10 +24,10 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
 )
 
 // ScopedSideInputReader scopes the global gRPC state manager to a single instruction
@@ -55,7 +55,7 @@ func (s *ScopedSideInputReader) Open(ctx context.Context, id exec.StreamID, key,
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return nil, fmt.Errorf("instruction %v no longer processing", s.instID)
+		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
 	ret := newSideInputReader(ch, id.Target, s.instID, key, w)
 	s.opened = append(s.opened, ret)
@@ -67,7 +67,7 @@ func (s *ScopedSideInputReader) open(ctx context.Context, port exec.Port) (*Stat
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return nil, fmt.Errorf("instruction %v no longer processing", s.instID)
+		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
 	local := s.mgr
 	s.mu.Unlock()
@@ -129,7 +129,7 @@ func (r *sideInputReader) Read(buf []byte) (int, error) {
 		r.mu.Lock()
 		if r.closed {
 			r.mu.Unlock()
-			return 0, fmt.Errorf("side input closed")
+			return 0, errors.New("side input closed")
 		}
 		local := r.ch
 		r.mu.Unlock()
@@ -219,12 +219,12 @@ type StateChannel struct {
 func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error) {
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect: %v", err)
+		return nil, errors.Wrap(err, "failed to connect")
 	}
 	client, err := pb.NewBeamFnStateClient(cc).State(ctx)
 	if err != nil {
 		cc.Close()
-		return nil, fmt.Errorf("failed to connect to data service: %v", err)
+		return nil, errors.Wrap(err, "failed to connect to data service")
 	}
 
 	ret := &StateChannel{
@@ -248,7 +248,7 @@ func (c *StateChannel) read(ctx context.Context) {
 				log.Warnf(ctx, "StateChannel %v closed", c.id)
 				return
 			}
-			panic(fmt.Errorf("state channel %v bad: %v", c.id, err))
+			panic(errors.Wrapf(err, "state channel %v bad", c.id))
 		}
 
 		c.mu.Lock()
