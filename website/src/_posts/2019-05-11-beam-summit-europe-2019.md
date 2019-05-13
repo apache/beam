@@ -60,7 +60,7 @@ Even if you can’t travel to these meetups, you can stay informed on the happen
 ## Summits
 The first summit of the year will be held in Berlin:
 
-<img src="{{ "ttps://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&auto=compress&rect=0%2C115%2C2666%2C1333&s=2680f5036dcad9177b027cce026c0224" | prepend: site.baseurl }}" alt="Beam Summit Europe Banner" >
+<img src="{{ "https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&auto=compress&rect=0%2C115%2C2666%2C1333&s=2680f5036dcad9177b027cce026c0224" | prepend: site.baseurl }}" alt="Beam Summit Europe Banner" >
 
 You can find more info on the [website](https://beamsummit.org) and read about the inaugural edition of the Beam Summit Europe [here](https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html). At these summits, you have the opportunity to meet with other Apache Beam creators and users, get expert advice, learn from the speaker sessions, and participate in workshops. 
 
