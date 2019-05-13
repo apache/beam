@@ -39,9 +39,9 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.worker.BeamWorkerInitializer;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
@@ -71,11 +71,11 @@ public class FnHarnessTest {
   private static @Mock Consumer<PipelineOptions> beforeProcessingMock = mock(Consumer.class);
 
   /**
-   * Fake BeamWorkerInitializer that simply forwards calls to mocked functions so that they can be
-   * observed in tests.
+   * Fake JvmInitializer that simply forwards calls to mocked functions so that they can be observed
+   * in tests.
    */
-  @AutoService(BeamWorkerInitializer.class)
-  public static class FnHarnessTestInitializer implements BeamWorkerInitializer {
+  @AutoService(JvmInitializer.class)
+  public static class FnHarnessTestInitializer implements JvmInitializer {
     @Override
     public void onStartup() {
       onStartupMock.run();

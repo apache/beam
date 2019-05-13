@@ -17,34 +17,32 @@
  */
 package org.apache.beam.sdk.fn;
 
+import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.sdk.worker.BeamWorkerInitializer;
 
-/** Helpers for executing {@link BeamWorkerInitializer} implementations. */
-public class BeamWorkerInitializers {
+/** Helpers for executing {@link JvmInitializer} implementations. */
+public class JvmInitializers {
   /**
-   * Finds all registered implementations of BeamWorkerInitializer and executes their {@code
-   * onStartup} methods. Should be called in worker harness implementations at the very beginning of
-   * their main method.
+   * Finds all registered implementations of JvmInitializer and executes their {@code onStartup}
+   * methods. Should be called in worker harness implementations at the very beginning of their main
+   * method.
    */
   public static void runOnStartup() {
-    for (BeamWorkerInitializer initializer :
-        ReflectHelpers.loadServicesOrdered(BeamWorkerInitializer.class)) {
+    for (JvmInitializer initializer : ReflectHelpers.loadServicesOrdered(JvmInitializer.class)) {
       initializer.onStartup();
     }
   }
 
   /**
-   * Finds all registered implementations of BeamWorkerInitializer and executes their {@code
+   * Finds all registered implementations of JvmInitializer and executes their {@code
    * beforeProcessing} methods. Should be called in worker harness implementations after
    * initialization but before beginning to process any data.
    *
    * @param options The pipeline options passed to the worker.
    */
   public static void runBeforeProcessing(PipelineOptions options) {
-    for (BeamWorkerInitializer initializer :
-        ReflectHelpers.loadServicesOrdered(BeamWorkerInitializer.class)) {
+    for (JvmInitializer initializer : ReflectHelpers.loadServicesOrdered(JvmInitializer.class)) {
       initializer.beforeProcessing(options);
     }
   }

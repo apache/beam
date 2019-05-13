@@ -116,9 +116,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWo
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
-import org.apache.beam.sdk.fn.BeamWorkerInitializers;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -242,7 +242,7 @@ public class StreamingDataflowWorker {
   }
 
   public static void main(String[] args) throws Exception {
-    BeamWorkerInitializers.runOnStartup();
+    JvmInitializers.runOnStartup();
 
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
     DataflowWorkerHarnessOptions options =
@@ -264,7 +264,7 @@ public class StreamingDataflowWorker {
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.fromDataflowWorkerHarnessOptions(options, sdkHarnessRegistry);
 
-    BeamWorkerInitializers.runBeforeProcessing(options);
+    JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
     worker.start();
   }

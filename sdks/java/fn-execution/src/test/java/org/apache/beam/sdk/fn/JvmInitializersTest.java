@@ -21,25 +21,25 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.worker.BeamWorkerInitializer;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link BeamWorkerInitializers}. */
+/** Tests for {@link JvmInitializers}. */
 @RunWith(JUnit4.class)
-public final class BeamWorkerInitializersTest {
+public final class JvmInitializersTest {
 
   private static Boolean onStartupRan;
   private static Boolean beforeProcessingRan;
   private static PipelineOptions receivedOptions;
 
   /** Test initializer implementation. Methods simply produce observable side effects. */
-  @AutoService(BeamWorkerInitializer.class)
-  public static class TestInitializer extends BeamWorkerInitializer {
+  @AutoService(JvmInitializer.class)
+  public static class TestInitializer implements JvmInitializer {
     @Override
     public void onStartup() {
       onStartupRan = true;
@@ -61,7 +61,7 @@ public final class BeamWorkerInitializersTest {
 
   @Test
   public void runOnStartup_runsInitializers() {
-    BeamWorkerInitializers.runOnStartup();
+    JvmInitializers.runOnStartup();
 
     assertTrue(onStartupRan);
   }
@@ -70,7 +70,7 @@ public final class BeamWorkerInitializersTest {
   public void runBeforeProcessing_runsInitializersWithOptions() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
 
-    BeamWorkerInitializers.runBeforeProcessing(options);
+    JvmInitializers.runBeforeProcessing(options);
 
     assertTrue(beforeProcessingRan);
     assertEquals(options, receivedOptions);

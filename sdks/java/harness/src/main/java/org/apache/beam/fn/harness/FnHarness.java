@@ -34,9 +34,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builde
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.fn.BeamWorkerInitializers;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
@@ -87,7 +87,7 @@ public class FnHarness {
 
   @VisibleForTesting
   public static void main(Function<String, String> environmentVarGetter) throws Exception {
-    BeamWorkerInitializers.runOnStartup();
+    JvmInitializers.runOnStartup();
     System.out.format("SDK Fn Harness started%n");
     System.out.format("Harness ID %s%n", environmentVarGetter.apply(HARNESS_ID));
     System.out.format(
@@ -200,7 +200,7 @@ public class FnHarness {
           new BeamFnControlClient(
               id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);
 
-      BeamWorkerInitializers.runBeforeProcessing(options);
+      JvmInitializers.runBeforeProcessing(options);
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.worker;
+package org.apache.beam.sdk.harness;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,13 +27,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * beforeProcessing} functions at the appropriate stage of execution. Currently this is only
  * supported in the portable worker and legacy Dataflow worker.
  *
- * <p>{@link java.util.ServiceLoader} is used to discover implementations of {@link
- * BeamWorkerInitializer}, note that you will need to register your implementation with the
- * appropriate resources to ensure your code is executed. You can use a tool like {@link
- * com.google.auto.service.AutoService} to automate this.
+ * <p>{@link java.util.ServiceLoader} is used to discover implementations of {@link JvmInitializer},
+ * note that you will need to register your implementation with the appropriate resources to ensure
+ * your code is executed. You can use a tool like {@link com.google.auto.service.AutoService} to
+ * automate this.
  */
 @Experimental
-public interface BeamWorkerInitializer {
+public interface JvmInitializer {
 
   /**
    * Implement onStartup to run some custom initialization immediately after the worker begins
