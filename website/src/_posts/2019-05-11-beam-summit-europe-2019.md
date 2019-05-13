@@ -24,7 +24,7 @@ limitations under the License.
 # The Apache Beam community in 2019
 
 
-2019 has already been a busy time for the Apache Beam. The ASF blog featured [our way of community building](https://blogs.apache.org/comdev/date/20190222) and we've had [more Beam meetups](https://www.meetup.com/San-Francisco-Apache-Beam/events/257482350)  around the world. Apache Beam also received the [Technology of the Year Award](https://www.infoworld.com/article/3336072/infoworlds-2019-technology-of-the-year-award-winners.html) from InfoWorld.
+2019 has already been a busy time for the Apache Beam community. The ASF blog featured [our way of community building](https://blogs.apache.org/comdev/date/20190222) and we've had [more Beam meetups](https://www.meetup.com/San-Francisco-Apache-Beam/events/257482350)  around the world. Apache Beam also received the [Technology of the Year Award](https://www.infoworld.com/article/3336072/infoworlds-2019-technology-of-the-year-award-winners.html) from InfoWorld.
 
 As these events happened, we were building up to the [20th anniversary of the Apache Software Foundation](https://opensource.googleblog.com/2019/03/celebrating-20-years-of-apache.html).  The contributions of the Beam community were a part of Maximilian Michels blog post on the success of the ASF's open source development model:
 
@@ -78,11 +78,11 @@ Stay tuned for more information on the summit in North America and Asia.
   
 ## Why community engagement matters
 Why we need a strong Apache Beam community:
-* We’re gaining lots of code contributions and need committers to review them
+* We're receiving lots of code contributions and need committers to review those and help onboard new contributors to the project.
 * We want people to feel a sense of ownership to the project. By fostering this level of engagement, the work becomes even more exciting.
 * A healthy community has a further reach and leads to more growth. More hours can be contributed to the project as we can spread the work and ownership.
 
 Why are we organizing these summits:
-* We’d like to give folks a place to meet, congregate, and share ideas.
+* We'd like to give folks a place to meet, congregate, and share ideas.
 * We know that offline interactions often changes the nature of the online ones in a positive manner.
 * Building an active and diverse community is part of the Apache Way. These summits provide an opportunity for us to engage people from different locations, companies, and backgrounds.
