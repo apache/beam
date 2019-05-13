@@ -64,15 +64,16 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
  *
- * <p>Since Beam does not fully support global sort, it uses {@link Top} to implement the
- * {@code Sort} algebra. The following types of ORDER BY are supported:
+ * <p>Since Beam does not fully support global sort, it uses {@link Top} to implement the {@code
+ * Sort} algebra. The following types of ORDER BY are supported:
  *
  * <pre>{@code
  * SELECT * FROM t ORDER BY id DESC LIMIT 10;
  * SELECT * FROM t ORDER BY id DESC LIMIT 10 OFFSET 5;
  * }</pre>
  *
- * <p>but an ORDER BY without a LIMIT is NOT supported. For example, the following will throw an exception:
+ * <p>but an ORDER BY without a LIMIT is NOT supported. For example, the following will throw an
+ * exception:
  *
  * <pre>{@code
  * SELECT * FROM t ORDER BY id DESC;
