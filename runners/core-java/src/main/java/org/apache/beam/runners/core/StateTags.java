@@ -328,13 +328,12 @@ public class StateTags {
       }
 
       SimpleStateTag<?> otherTag = (SimpleStateTag<?>) other;
-      return Objects.equals(this.getId(), otherTag.getId())
-          && Objects.equals(this.getSpec(), otherTag.getSpec());
+      return Objects.equals(this.getId(), otherTag.getId());
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(getClass(), this.getId(), this.getSpec());
+      return Objects.hash(getClass(), this.getId());
     }
   }
 }
