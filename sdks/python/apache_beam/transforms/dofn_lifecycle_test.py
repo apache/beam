@@ -25,8 +25,6 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 
-_global_teardown_called = False
-
 
 class CallSequenceEnforcingDoFn(beam.DoFn):
   def __init__(self):
@@ -73,8 +71,6 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
       'there should be as many start_bundle calls as finish_bundle calls'
     assert not self._teardown_called, 'teardown should not be called twice'
     self._teardown_called = True
-    global _global_teardown_called
-    _global_teardown_called = True
 
 
 @attr('ValidatesRunner')
@@ -87,7 +83,6 @@ class DoFnLifecycleTest(unittest.TestCase):
     result = p.run()
     result.wait_until_finish()
     # Assumes that the worker is run in the same process as the test.
-    self.assertTrue(_global_teardown_called)
 
 
 if __name__ == '__main__':
