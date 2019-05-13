@@ -478,7 +478,7 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_setBogusRunner() throws Exception {
-    thrown.expectMessage("Error while executing SQL \"SELECT * FROM test\"");
+    thrown.expectMessage("Unknown 'runner' specified 'bogus'");
 
     CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
     Statement statement = connection.createStatement();

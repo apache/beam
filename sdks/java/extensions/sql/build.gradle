@@ -59,7 +59,7 @@ configurations {
 }
 
 def calcite_version = "1.19.0"
-def avatica_version = "1.14.0"
+def avatica_version = "1.15.0"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
