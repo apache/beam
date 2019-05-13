@@ -54,6 +54,8 @@ public class DataflowBatchWorkerHarness {
 
   /** Creates the worker harness and then runs it. */
   public static void main(String[] args) throws Exception {
+    // Call user-defined initialization immediately upon starting, as is guaranteed in
+    // BeamWorkerInitializer
     BeamWorkerInitializers.runOnStartup();
     DataflowWorkerHarnessHelper.initializeLogging(DataflowBatchWorkerHarness.class);
     DataflowWorkerHarnessOptions pipelineOptions =
