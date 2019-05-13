@@ -126,12 +126,12 @@ The operator consumes `input`, it applies given lambda expression (`String::valu
 First step to build any operator is to give it a name through `named()` method. The name is propagated through system and can latter be used when debugging.
 
 ### Coders and Types
-Beam's Java SDK requires developers to supply `Coder` for custom element type in order to have a way of materializing elements. Euphoria allows to use [Kryo](https://github.com/EsotericSoftware/kryo) as a way of serialization. The [Kryo](https://github.com/EsotericSoftware/kryo) is located in `:beam-sdks-java-extensions-kryo` module.
+Beam's Java SDK requires developers to supply `Coder` for custom element type in order to have a way of materializing elements. Euphoria allows to use [Kryo](https://github.com/EsotericSoftware/kryo) as a way of serialization. The [Kryo](https://github.com/EsotericSoftware/kryo) is located in `:sdks:java:extensions:kryo` module.
 
 ```groovy
 //gradle
 dependencies {
-    compile "org.apache.beam:beam-sdks-java-extensions-kryo:${beam.version}"
+    compile "org.apache.beam:sdks:java:extensions:kryo:${beam.version}"
 }
 ```
 ```xml

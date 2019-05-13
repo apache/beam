@@ -17,6 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+archivesBaseName = 'beam-sdks-java-nexmark'
 applyJavaNature(testShadowJar: true, exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
@@ -28,9 +29,9 @@ def nexmarkArgsProperty = "nexmark.args"
 // When running via Gradle, this property sets the runner dependency
 def nexmarkRunnerProperty = "nexmark.runner"
 def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
-        ?: ":beam-runners-direct-java"
-def shouldProvideSpark = ":beam-runners-spark".equals(nexmarkRunnerDependency)
-def isDataflowRunner = ":beam-runners-google-cloud-dataflow-java".equals(nexmarkRunnerDependency)
+        ?: ":runners:direct-java"
+def shouldProvideSpark = ":runners:spark".equals(nexmarkRunnerDependency)
+def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(nexmarkRunnerDependency)
 
 if (isDataflowRunner) {
   /*
@@ -38,7 +39,7 @@ if (isDataflowRunner) {
    * the following projects are evaluated before we evaluate this project. This is because
    * we are attempting to reference a property from the project directly.
    */
-  evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+  evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 }
 
 configurations {
@@ -50,12 +51,12 @@ configurations {
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-test-utils", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:sql", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  shadow project(path: ":sdks:java:testing:test-utils", configuration: "shadow")
   shadow library.java.google_api_services_bigquery
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
@@ -65,13 +66,13 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.commons_lang3
   shadow library.java.kafka_clients
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadow project(path: ":runners:direct-java", configuration: "shadow")
   provided library.java.junit
   provided library.java.hamcrest_core
-  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
-  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:testing:test-utils", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
 
@@ -80,7 +81,7 @@ dependencies {
 
   // The Spark runner requires the user to provide a Spark dependency. For self-contained
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
-  // to not hardcode any runner other than :beam-runners-direct-java
+  // to not hardcode any runner other than :runners:direct-java
   if (shouldProvideSpark) {
     gradleRun library.java.spark_streaming
     gradleRun library.java.spark_core, {
@@ -100,8 +101,8 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":beam-runners-spark" or ":beam-runners-flink"
-//       Defaults to ":beam-runners-direct-java"
+//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.5"
+//       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args
 //       Specify the command line for invoking org.apache.beam.sdk.nexmark.Main
@@ -109,9 +110,9 @@ task run(type: JavaExec) {
   def nexmarkArgsStr =  project.findProperty(nexmarkArgsProperty) ?: ""
 
   if (isDataflowRunner) {
-    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
 
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
     // Provide job with a customizable worker jar.
     // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
     // More context and discussions can be found in PR#6694.

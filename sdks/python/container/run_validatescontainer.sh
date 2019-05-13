@@ -48,12 +48,12 @@ PROJECT=${PROJECT:-apache-beam-testing}
 # Other variables branched by Python version.
 if [[ $1 == "python2" ]]; then
   IMAGE_NAME="python"       # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="beam-sdks-python-container"  # Use this to build container by Gradle.
+  CONTAINER_PROJECT="sdks:python:container"  # Use this to build container by Gradle.
   GRADLE_PY3_FLAG=""        # Use this in Gradle command.
   PY_INTERPRETER="python"   # Use this in virtualenv command.
 elif [[ $1 == "python3" ]]; then
   IMAGE_NAME="python3"          # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="beam-sdks-python-container-py3"  # Use this to build container by Gradle.
+  CONTAINER_PROJECT="sdks:python:container:py3"  # Use this to build container by Gradle.
   GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
   PY_INTERPRETER="python3.5"    # Use this in virtualenv command.
 else

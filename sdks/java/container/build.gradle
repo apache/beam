@@ -25,7 +25,7 @@ description = "Apache Beam :: SDKs :: Java :: Container"
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":beam-sdks-go:goBuild"
+resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
 configurations {
   dockerDependency
@@ -35,14 +35,14 @@ dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
   dockerDependency library.java.slf4j_api
   dockerDependency library.java.slf4j_jdk14
-  dockerDependency project(path: ":beam-sdks-java-harness", configuration: "shadow")
+  dockerDependency project(path: ":sdks:java:harness", configuration: "shadow")
   // For executing KafkaIO, e.g. as an external transform
-  dockerDependency project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
+  dockerDependency project(path: ":sdks:java:io:kafka", configuration: "shadow")
 }
 
 def dockerfileName = project.findProperty('dockerfile') ?: 'Dockerfile'
