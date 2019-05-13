@@ -30,8 +30,8 @@ configurations {
 }
 
 dependencies {
-  sdkSourceTarball project(path: ":beam-sdks-python", configuration: "distConfig")
-  sdkHarnessLauncher project(path: ":beam-sdks-python-container", configuration: "sdkHarnessLauncher")
+  sdkSourceTarball project(path: ":sdks:python", configuration: "distConfig")
+  sdkHarnessLauncher project(path: ":sdks:python:container", configuration: "sdkHarnessLauncher")
 }
 
 task copyDockerfileDependencies(type: Copy) {

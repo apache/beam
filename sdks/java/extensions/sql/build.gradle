@@ -71,8 +71,8 @@ dependencies {
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:join-library", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.commons_codec
   shadow library.java.commons_csv
@@ -82,9 +82,9 @@ dependencies {
   shadow library.java.joda_time
   shadow "com.alibaba:fastjson:1.2.49"
   shadow "com.jayway.jsonpath:json-path:2.4.0"
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  provided project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  provided project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   provided library.java.kafka_clients
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
@@ -190,11 +190,11 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   maxParallelForks 4
-  classpath = project(":beam-sdks-java-extensions-sql")
+  classpath = project(":sdks:java:extensions:sql")
           .sourceSets
           .test
           .runtimeClasspath
-  testClassesDirs = files(project(":beam-sdks-java-extensions-sql").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 

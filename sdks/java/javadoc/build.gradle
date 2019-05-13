@@ -19,7 +19,7 @@
 /*
  * Aggregate Javadoc is not published to Maven Central. Each Java module that is published
  * to Maven Cental packages its own Javadoc. To generate aggregated javadocs, run:
- *   ./gradlew :beam-sdks-java-javadoc:aggregateJavadoc
+ *   ./gradlew :sdks:java:javadoc:aggregateJavadoc
  * Generated files will be located under beam/sdks/java/javadoc/build/docs/javadoc and are
  * used as part of the beam-site source tree.
  */
@@ -28,19 +28,19 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 
 for (p in rootProject.subprojects) {
-  if (!p.name.equals(project.name) && !p.name.equals('beam-sdks-java-bom')) {
-    evaluationDependsOn(':' + p.name)
+  if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+    evaluationDependsOn(p.path)
   }
 }
 
 ext.getExportedJavadocProjects = {
   def exportedJavadocProjects = new ArrayList<>();
   for (p in rootProject.subprojects) {
-    if (!p.name.equals(project.name) && !p.name.equals('beam-sdks-java-bom')) {
-      def subproject = project(':' + p.name)
+    if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+      def subproject = p // project(':' + p.name)
       if (subproject.ext.properties.containsKey('exportJavadoc') &&
           subproject.ext.properties.exportJavadoc) {
-        exportedJavadocProjects.add(':' + p.name)
+        exportedJavadocProjects.add(p.path)
       }
     }
   }

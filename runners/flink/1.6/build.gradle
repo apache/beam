@@ -27,6 +27,7 @@ project.ext {
   test_source_dirs = ["$basePath/src/test/java", "../1.5/src/test/java"]
   main_resources_dirs = ["$basePath/src/main/resources"]
   test_resources_dirs = ["$basePath/src/test/resources"]
+  archives_base_name = 'beam-runners-flink-1.6'
 }
 
 // Load the main build script which contains all build logic.

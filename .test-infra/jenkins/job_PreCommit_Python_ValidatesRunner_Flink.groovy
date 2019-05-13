@@ -23,7 +23,7 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
         scope: this,
         nameBase: 'Python_PVR_Flink',
-        gradleTask: ':beam-sdks-python:flinkValidatesRunner',
+        gradleTask: ':sdks:python:flinkValidatesRunner',
         triggerPathPatterns: [
                 '^model/.*$',
                 '^runners/.*$',

@@ -26,7 +26,7 @@ ext.summary = "IO library to read and write Amazon Web Services services from Be
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.aws_java_sdk_cloudwatch
   shadow library.java.aws_java_sdk_core
   shadow library.java.aws_java_sdk_s3
@@ -39,8 +39,8 @@ dependencies {
   shadow library.java.slf4j_api
   runtime 'commons-codec:commons-codec:1.9'
   runtime "org.apache.httpcomponents:httpclient:4.5.6"
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
   testCompile "io.findify:s3mock_2.12:0.2.4"
   shadowTest library.java.guava_testlib
   shadowTest library.java.hamcrest_core
@@ -49,7 +49,7 @@ dependencies {
   shadowTest library.java.junit
   shadowTest group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.12', version: '0.14.1'
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java")
 }
 
 test {
