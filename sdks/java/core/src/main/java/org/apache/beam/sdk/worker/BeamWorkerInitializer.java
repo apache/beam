@@ -33,7 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * com.google.auto.service.AutoService} to automate this.
  */
 @Experimental
-public abstract class BeamWorkerInitializer {
+public interface BeamWorkerInitializer {
 
   /**
    * Implement onStartup to run some custom initialization immediately after the worker begins
@@ -44,7 +44,7 @@ public abstract class BeamWorkerInitializer {
    * onStartup} is also provided if initialization absolutely needs to be run immediately after
    * starting.
    */
-  public void onStartup() {}
+  default void onStartup() {}
 
   /**
    * Implement beforeProcessing to run some custom initialization after the worker initializes
@@ -52,5 +52,5 @@ public abstract class BeamWorkerInitializer {
    *
    * @param options The pipeline options passed to the worker.
    */
-  public void beforeProcessing(PipelineOptions options) {}
+  default void beforeProcessing(PipelineOptions options) {}
 }

@@ -75,7 +75,7 @@ public class FnHarnessTest {
    * observed in tests.
    */
   @AutoService(BeamWorkerInitializer.class)
-  public static class FnHarnessTestInitializer extends BeamWorkerInitializer {
+  public static class FnHarnessTestInitializer implements BeamWorkerInitializer {
     @Override
     public void onStartup() {
       onStartupMock.run();
