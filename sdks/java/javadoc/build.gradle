@@ -80,16 +80,8 @@ task aggregateJavadoc(type: Javadoc) {
     failOnError false
     title "Apache Beam " + project.version
     overview 'overview.html'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.avro), 'avro-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.google_api_client), 'apiclient-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.google_oauth_client), 'oauth-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.google_cloud_bigquery), 'bq-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.datastore_v1_protos), 'datastore-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.guava), 'guava-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.jackson_annotations), 'jackson-annotations-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.jackson_databind), 'jackson-databind-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.hamcrest_core), 'hamcrest-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.joda_time), 'joda-docs'
-    linksOffline createJavadocIOUrlForDependency(project.library.java.junit), 'junit-docs'
+    for (dep in project.library.java.values()) {
+      links createJavadocIOUrlForDependency(dep)
+    }
   }
 }
