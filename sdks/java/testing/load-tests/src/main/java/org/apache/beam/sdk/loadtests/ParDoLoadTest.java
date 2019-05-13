@@ -74,7 +74,7 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
         pipeline
             .apply("Read input", readFromSource(sourceOptions))
             .apply(ParDo.of(runtimeMonitor))
-            .apply(ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
+            .apply(ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")));
 
     for (int i = 0; i < options.getNumberOfCounterOperations(); i++) {
       input = input.apply(String.format("Step: %d", i), ParDo.of(new SyntheticStep(stepOptions)));

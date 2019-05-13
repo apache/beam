@@ -17,29 +17,27 @@
  */
 package org.apache.beam.sdk.testutils.metrics;
 
-import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * Monitor that records the number of bytes flowing through a PCollection.
+ * Monitor that records number of elements flowing through a pipeline
  *
- * <p>To use: apply a monitor in a desired place in the pipeline. This will capture how many bytes
- * flew through this DoFn. Such information can be then collected and written out and queried using
- * {@link org.apache.beam.sdk.testutils.metrics.MetricsReader}.
+ * <p>To use: apply a monitor in a desired place in the pipeline. This will capture how many
+ * elements * flew through this DoFn. Such information can be then collected and written out and
+ * queried using * {@link org.apache.beam.sdk.testutils.metrics.MetricsReader}.
  */
-public class ByteMonitor<T> extends DoFn<T, T> {
+public class CountMonitor<T> extends DoFn<T, T> {
+  private Counter counter;
 
-  private Counter totalBytes;
-
-  public ByteMonitor(String namespace, String name) {
-    this.totalBytes = Metrics.counter(namespace, name);
+  public CountMonitor(String namespace, String name) {
+    this.counter = Metrics.counter(namespace, name);
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) {
-    totalBytes.inc(ObjectSizeCalculator.getObjectSize(c.element()));
-    c.output(c.element());
+  public void processElement(ProcessContext context) {
+    counter.inc();
+    context.output(context.element());
   }
 }
