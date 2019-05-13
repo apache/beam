@@ -17,4 +17,8 @@
  */
 
 /** Utilities for configuring worker environment. */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.worker;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;
