@@ -1356,31 +1356,31 @@ Thanks everyone!
     <p>Java Quickstart Validation</p>
 
     <p>Direct Runner:</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-runners-direct-java:runQuickstartJavaDirect \ 
+    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:direct-java:runQuickstartJavaDirect \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 </code></pre>
     </div>
     <p>Apex Local Runner</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-runners-apex:runQuickstartJavaApex \
+    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:apex:runQuickstartJavaApex \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam${KEY} \
 -Pver=${RELEASE_VERSION}
 </code></pre>
     </div>
     <p>Flink Local Runner</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal \
+    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:flink:1.5:runQuickstartJavaFlinkLocal \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 </code></pre>
     </div>
     <p>Spark Local Runner</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-runners-spark:runQuickstartJavaSpark \
+    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:spark:runQuickstartJavaSpark \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 </code></pre>
     </div>
     <p>Dataflow Runner</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow \
+    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver= ${RELEASE_VERSION}\
 -PgcpProject=${YOUR_GCP_PROJECT} \
@@ -1414,7 +1414,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON}
 </code></pre>
         </div>
         <p>Run</p>
-        <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+        <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \ 
  -Pver= ${RELEASE_VERSION}\
  -PgcpProject=${YOUR_GCP_PROJECT} \

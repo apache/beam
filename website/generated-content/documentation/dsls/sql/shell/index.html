@@ -278,7 +278,7 @@ limitations under the License.
 
 <p>To use Beam SQL shell, you must first clone the <a href="https://github.com/apache/beam">Beam SDK repository</a>. Then, from the root of the repository clone, execute the following commands to run the shell:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':beam-runners-flink_2.11,:beam-sdks-java-io-kafka' installDist
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.5,:sdks:java:io:kafka' installDist
 
 ./sdks/java/extensions/sql/shell/build/install/beam-sdks-java-extensions-sql-shell/bin/beam-sdks-java-extensions-sql-shell
 </code></pre>
@@ -370,7 +370,7 @@ No rows affected (0.042 seconds)
   <li>
     <p>Make sure the SQL shell includes the desired runner. Add the corresponding project id to the <code class="highlighter-rouge">-Pbeam.sql.shell.bundled</code> parameter of the Gradle invocation (<a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/shell/build.gradle">source code</a>, <a href="https://github.com/apache/beam/blob/master/settings.gradle">project ids</a>). For example, use the following command to include Flink runner and KafkaIO:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':beam-runners-flink_2.11,:beam-sdks-java-io-kafka' installDist
+    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.5,:sdks:java:io:kafka' installDist
 </code></pre>
     </div>
 
@@ -399,7 +399,7 @@ No rows affected (0.042 seconds)
 
 <p>You can also build your own standalone package for SQL shell using <code class="highlighter-rouge">distZip</code> or <code class="highlighter-rouge">distTar</code> tasks. For example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':beam-runners-flink_2.11,:beam-sdks-java-io-kafka' distZip
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.5,:sdks:java:io:kafka' distZip
 
 ls ./sdks/java/extensions/sql/shell/build/distributions/
 beam-sdks-java-extensions-sql-shell-2.6.0-SNAPSHOT.tar beam-sdks-java-extensions-sql-shell-2.6.0-SNAPSHOT.zip

@@ -405,11 +405,11 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <p>First step to build any operator is to give it a name through <code class="highlighter-rouge">named()</code> method. The name is propagated through system and can latter be used when debugging.</p>
 
 <h3 id="coders-and-types">Coders and Types</h3>
-<p>Beam’s Java SDK requires developers to supply <code class="highlighter-rouge">Coder</code> for custom element type in order to have a way of materializing elements. Euphoria allows to use <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> as a way of serialization. The <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> is located in <code class="highlighter-rouge">:beam-sdks-java-extensions-kryo</code> module.</p>
+<p>Beam’s Java SDK requires developers to supply <code class="highlighter-rouge">Coder</code> for custom element type in order to have a way of materializing elements. Euphoria allows to use <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> as a way of serialization. The <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> is located in <code class="highlighter-rouge">:sdks:java:extensions:kryo</code> module.</p>
 
 <div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="c1">//gradle</span>
 <span class="n">dependencies</span> <span class="o">{</span>
-    <span class="n">compile</span> <span class="s2">"org.apache.beam:beam-sdks-java-extensions-kryo:${beam.version}"</span>
+    <span class="n">compile</span> <span class="s2">"org.apache.beam:sdks:java:extensions:kryo:${beam.version}"</span>
 <span class="o">}</span>
 </code></pre>
 </div>

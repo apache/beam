@@ -448,8 +448,8 @@ to this, the necessary dependencies must be configured.</p>
     The command line to pass to the Nexmark main program.
 
 -P nexmark.runner
-The Gradle project name of the runner, such as ":beam-runners-direct-java" or
-":beam-runners-flink. The project names can be found in the root
+The Gradle project name of the runner, such as ":runners:direct-java" or
+":runners:flink:1.5. The project names can be found in the root
     `settings.gradle`.
 </code></pre>
 </div>
@@ -835,8 +835,8 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.</p>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
-    -Pnexmark.runner=":beam-runners-direct-java" \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:direct-java" \
     -Pnexmark.args="
         --runner=DirectRunner
         --streaming=false
@@ -850,8 +850,8 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.</p>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
-    -Pnexmark.runner=":beam-runners-direct-java" \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:direct-java" \
     -Pnexmark.args="
         --runner=DirectRunner
         --streaming=true
@@ -871,8 +871,8 @@ configure logging.</p>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
-    -Pnexmark.runner=":beam-runners-spark" \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:spark" \
     -Pnexmark.args="
         --runner=SparkRunner
         --suite=SMOKE
@@ -885,8 +885,8 @@ configure logging.</p>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
-    -Pnexmark.runner=":beam-runners-spark" \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:spark" \
     -Pnexmark.args="
         --runner=SparkRunner
         --suite=SMOKE
@@ -901,8 +901,8 @@ configure logging.</p>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
-    -Pnexmark.runner=":beam-runners-flink_2.11" \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:flink:1.5" \
     -Pnexmark.args="
         --runner=FlinkRunner
         --suite=SMOKE
@@ -916,8 +916,8 @@ configure logging.</p>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
-    -Pnexmark.runner=":beam-runners-flink_2.11" \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:flink:1.5" \
     -Pnexmark.args="
         --runner=FlinkRunner
         --suite=SMOKE
@@ -933,8 +933,8 @@ configure logging.</p>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
-    -Pnexmark.runner=":beam-runners-apex" \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:apex" \
     -Pnexmark.args="
         --runner=ApexRunner
         --suite=SMOKE
@@ -947,8 +947,8 @@ configure logging.</p>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
-    -Pnexmark.runner=":beam-runners-apex" \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:apex" \
     -Pnexmark.args="
         --runner=ApexRunner
         --suite=SMOKE
@@ -972,7 +972,7 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
 
 <p>Launch:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":beam-runners-google-cloud-dataflow" \
     -Pnexmark.args="
         --runner=DataflowRunner
@@ -1016,7 +1016,7 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
 
 <p>Building package:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:assemble
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:assemble
 </code></pre>
 </div>
 

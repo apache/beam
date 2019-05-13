@@ -442,10 +442,10 @@ download it on the <a href="/get-started/downloads/">Downloads page</a>. In the 
 available.
 </span></p>
 
-<p><span class="language-py">1. <em>Only required once:</em> Build the SDK harness container: <code class="highlighter-rouge">./gradlew :beam-sdks-python-container:docker</code>
+<p><span class="language-py">1. <em>Only required once:</em> Build the SDK harness container: <code class="highlighter-rouge">./gradlew :sdks:python:container:docker</code>
 </span></p>
 
-<p><span class="language-py">2. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :beam-runners-flink_2.11-job-server:runShadow</code>
+<p><span class="language-py">2. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.5:job-server:runShadow</code>
 </span></p>
 
 <p><span class="language-py">
@@ -475,7 +475,7 @@ To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-re
 <p><span class="language-py">1. Start a Flink cluster which exposes the Rest interface on <code class="highlighter-rouge">localhost:8081</code> by default.
 </span></p>
 
-<p><span class="language-py">2. Start JobService with Flink Rest endpoint: <code class="highlighter-rouge">./gradlew :beam-runners-flink_2.11-job-server:runShadow -PflinkMasterUrl=localhost:8081</code>.
+<p><span class="language-py">2. Start JobService with Flink Rest endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.5:job-server:runShadow -PflinkMasterUrl=localhost:8081</code>.
 </span></p>
 
 <p><span class="language-py">3. Submit the pipeline as above.
