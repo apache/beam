@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Opcode represents a primitive Beam instruction kind.
@@ -187,10 +188,12 @@ func (e *MultiEdge) String() string {
 func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
 	if len(ns) == 0 {
 		// TODO(BEAM-7086) Reduce the repetition in the context of all the errors in this file.
-		return nil, fmt.Errorf("creating new CoGBK in scope %v: needs at least 1 input", s)
+		err := errors.New("needs at least 1 input")
+		return nil, errors.WithContextf(err, "creating new CoGBK in scope %v", s)
 	}
 	if !typex.IsKV(ns[0].Type()) {
-		return nil, fmt.Errorf("creating new CoGBK in scope %v: input type must be KV: %v", s, ns[0])
+		err := errors.Errorf("input type must be KV: %v", ns[0])
+		return nil, errors.WithContextf(err, "creating new CoGBK in scope %v", s)
 	}
 
 	// (1) Create CoGBK result type: KV<T,U>, .., KV<T,Z> -> CoGBK<T,U,..,Z>.
@@ -203,16 +206,20 @@ func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
 	for i := 1; i < len(ns); i++ {
 		n := ns[i]
 		if !typex.IsKV(n.Type()) {
-			return nil, fmt.Errorf("creating new CoGBK in scope %v: input type must be KV: %v", s, n)
+			err := errors.Errorf("input type must be KV: %v", n)
+			return nil, errors.WithContextf(err, "creating new CoGBK in scope %v", s)
 		}
 		if !n.Coder.Components[0].Equals(c) {
-			return nil, fmt.Errorf("creating new CoGBK in scope %v: key coder for %v is %v, want %v", s, n, n.Coder.Components[0], c)
+			err := errors.Errorf("key coder for %v is %v, want %v", n, n.Coder.Components[0], c)
+			return nil, errors.WithContextf(err, "creating new CoGBK in scope %v", s)
 		}
 		if !w.Equals(n.WindowingStrategy()) {
-			return nil, fmt.Errorf("creating new CoGBK in scope %v: mismatched CoGBK windowing strategies: %v, want %v", s, n.WindowingStrategy(), w)
+			err := errors.Errorf("mismatched CoGBK windowing strategies: %v, want %v", n.WindowingStrategy(), w)
+			return nil, errors.WithContextf(err, "creating new CoGBK in scope %v", s)
 		}
 		if bounded != n.Bounded() {
-			return nil, fmt.Errorf("creating new CoGBK in scope %v: unmatched CoGBK boundedness: %v, want %v", s, n.Bounded(), bounded)
+			err := errors.Errorf("unmatched CoGBK boundedness: %v, want %v", n.Bounded(), bounded)
+			return nil, errors.WithContextf(err, "creating new CoGBK in scope %v", s)
 		}
 
 		comp = append(comp, n.Type().Components()[1])
@@ -236,7 +243,8 @@ func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
 // the shared input type.
 func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	if len(in) < 2 {
-		return nil, fmt.Errorf("creating new Flatten in scope %v: Flatten needs at least 2 input, got %v", s, len(in))
+		err := errors.Errorf("Flatten needs at least 2 input, got %v", len(in))
+		return nil, errors.WithContextf(err, "creating new Flatten in scope %v", s)
 	}
 	t := in[0].Type()
 	w := inputWindow(in)
@@ -252,14 +260,17 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	}
 	for _, n := range in {
 		if !typex.IsEqual(t, n.Type()) {
-			return nil, fmt.Errorf("creating new Flatten in scope %v: mismatched Flatten input types: %v, want %v", s, n.Type(), t)
+			err := errors.Errorf("mismatched Flatten input types: %v, want %v", n.Type(), t)
+			return nil, errors.WithContextf(err, "creating new Flatten in scope %v", s)
 		}
 		if !w.Equals(n.WindowingStrategy()) {
-			return nil, fmt.Errorf("creating new Flatten in scope %v: mismatched Flatten window types: %v, want %v", s, n.WindowingStrategy(), w)
+			err := errors.Errorf("mismatched Flatten window types: %v, want %v", n.WindowingStrategy(), w)
+			return nil, errors.WithContextf(err, "creating new Flatten in scope %v", s)
 		}
 	}
 	if typex.IsCoGBK(t) {
-		return nil, fmt.Errorf("creating new Flatten in scope %v: Flatten input type cannot be CoGBK: %v", s, t)
+		err := errors.Errorf("Flatten input type cannot be CoGBK: %v", t)
+		return nil, errors.WithContextf(err, "creating new Flatten in scope %v", s)
 	}
 
 	edge := g.NewEdge(s)
@@ -300,7 +311,7 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs ma
 
 	inbound, kinds, outbound, out, err := Bind(u.ProcessElementFn(), typedefs, NodeTypes(in)...)
 	if err != nil {
-		return nil, fmt.Errorf("creating new DoFn in scope %v: %v", s, err)
+		return nil, errors.WithContextf(err, "creating new DoFn in scope %v", s)
 	}
 
 	edge := g.NewEdge(s)
@@ -329,10 +340,12 @@ const CombinePerKeyScope = "CombinePerKey"
 func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder) (*MultiEdge, error) {
 	inT := in.Type()
 	if !typex.IsCoGBK(inT) {
-		return nil, fmt.Errorf("creating new Combine in scope %v: Combine requires CoGBK type: %v", s, inT)
+		err := errors.Errorf("Combine requires CoGBK type: %v", inT)
+		return nil, errors.WithContextf(err, "creating new Combine in scope %v", s)
 	}
 	if len(inT.Components()) > 2 {
-		return nil, fmt.Errorf("creating new Combine in scope %v: Combine cannot follow multi-input CoGBK: %v", s, inT)
+		err := errors.Errorf("Combine cannot follow multi-input CoGBK: %v", inT)
+		return nil, errors.WithContextf(err, "creating new Combine in scope %v", s)
 	}
 
 	// Create a synthetic function for binding purposes. It takes main input
@@ -381,7 +394,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder) (*M
 
 	inbound, kinds, outbound, out, err := Bind(synth, nil, inT)
 	if err != nil {
-		return nil, fmt.Errorf("creating new Combine in scope %v: %v", s, err)
+		return nil, errors.WithContextf(err, "creating new Combine in scope %v", s)
 	}
 
 	edge := g.NewEdge(s)
