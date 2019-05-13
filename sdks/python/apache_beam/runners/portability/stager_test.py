@@ -587,7 +587,7 @@ class StagerTest(unittest.TestCase):
     options = PipelineOptions()
     self.update_options(options)
     options.view_as(DebugOptions).experiments = [
-        'jar_packages=%s:%s:%s:%s' % (
+        'jar_packages=%s,%s,%s,%s' % (
             os.path.join(source_dir, 'abc.jar'),
             os.path.join(source_dir, 'xyz.jar'),
             os.path.join(source_dir, 'ijk.jar'),
