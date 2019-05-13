@@ -15,24 +15,20 @@
 # limitations under the License.
 #
 
-"""Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
+"""This module has all statistic related transforms."""
 
 from __future__ import absolute_import
 from __future__ import division
 
 import heapq
-import logging
 import math
 import sys
 from builtins import round
 
+import mmh3
+
 from apache_beam.transforms.core import *
 from apache_beam.transforms.ptransform import PTransform
-
-try:
-  import mmh3
-except ImportError:
-  logging.info('Python version >=3.0 uses buildin hash function.')
 
 __all__ = [
     'ApproximateUniqueGlobally',
@@ -64,26 +60,24 @@ class ApproximateUniqueGlobally(PTransform):
   _INPUT_ERROR_ERR_MSG = 'ApproximateUnique needs an estimation error ' \
                          'between 0.01 and 0.50. Received {error = %s}.'
 
-  def __init__(self, **kwargs):
-    input_size = kwargs.pop('size', None)
-    input_err = kwargs.pop('error', None)
+  def __init__(self, size=None, error=None):
 
-    if None not in (input_size, input_err):
-      raise ValueError(self._MULTI_VALUE_ERR_MSG % (input_size, input_err))
-    elif input_size is None and input_err is None:
+    if None not in (size, error):
+      raise ValueError(self._MULTI_VALUE_ERR_MSG % (size, error))
+    elif size is None and error is None:
       raise ValueError(self._NO_VALUE_ERR_MSG)
-    elif input_size is not None:
-      if not isinstance(input_size, int) or input_size < 16:
-        raise ValueError(self._INPUT_SIZE_ERR_MSG % (input_size))
+    elif size is not None:
+      if not isinstance(size, int) or size < 16:
+        raise ValueError(self._INPUT_SIZE_ERR_MSG % (size))
       else:
-        self._sample_size = input_size
+        self._sample_size = size
         self._max_est_err = None
     else:
-      if input_err < 0.01 or input_err > 0.5:
-        raise ValueError(self._INPUT_ERROR_ERR_MSG % (input_err))
+      if error < 0.01 or error > 0.5:
+        raise ValueError(self._INPUT_ERROR_ERR_MSG % (error))
       else:
-        self._sample_size = self._get_sample_size_from_est_error(input_err)
-        self._max_est_err = input_err
+        self._sample_size = self._get_sample_size_from_est_error(error)
+        self._max_est_err = error
 
   def expand(self, pcoll):
     return pcoll \
@@ -97,6 +91,7 @@ class ApproximateUniqueGlobally(PTransform):
 
     Calculate sample size from estimation error
     """
+    # math.ceil in python 2.7 returns float, while it returns int in python 3.
     return int(math.ceil(4.0 / math.pow(est_err, 2.0)))
 
 
@@ -147,22 +142,29 @@ class _LargestUnique(object):
 
   def get_estimate(self):
     """
-    :return: estimation of unique values
+    :return: estimation count of unique values
 
     If heap size is smaller than sample size, just return heap size.
     Otherwise, takes into account the possibility of hash collisions,
     which become more likely than not for 2^32 distinct elements.
     Note that log(1+x) ~ x for small x, so for sampleSize << maxHash
-    log(1 - sampleSize/sampleSpace) / log(1 - 1/sampleSpace) ~ sampleSize
-    and hence estimate ~ sampleSize * HASH_SPACE_SIZE / sampleSpace
+    log(1 - sample_size/sample_space) / log(1 - 1/sample_space) ~ sample_size
+    and hence estimate ~ sample_size * hash_space / sample_space
     as one would expect.
+
+    Given sample_size / sample_space = est / hash_space
+    est = sample_size * hash_space / sample_space
+
+    Given above sample_size approximate,
+    est = log1p(-sample_size/sample_space) / log1p(-1/sample_space)
+      * hash_space / sample_space
     """
 
     if len(self._sample_heap) < self._sample_size:
       return len(self._sample_heap)
     else:
       sample_space_size = sys.maxsize - 1.0 * self._min_hash
-      est = math.log1p(-self._sample_size/ sample_space_size) \
+      est = math.log1p(-self._sample_size / sample_space_size) \
             / math.log1p(-1 / sample_space_size) \
             * self._HASH_SPACE_SIZE \
             / sample_space_size
@@ -185,10 +187,7 @@ class ApproximateUniqueCombineDoFn(CombineFn):
   @staticmethod
   def add_input(accumulator, element, *args, **kwargs):
     try:
-      if 'mmh3' in sys.modules:
-        accumulator.add(mmh3.hash64(str(element))[1])
-      else:
-        accumulator.add(hash(str(element)))
+      accumulator.add(mmh3.hash64(str(element))[1])
       return accumulator
     except Exception as e:
       raise RuntimeError("Runtime exception: %s", e)

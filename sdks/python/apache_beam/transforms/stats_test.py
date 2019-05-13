@@ -222,8 +222,8 @@ class ApproximateUniqueTest(unittest.TestCase):
 
   def test_approximate_unique_global_by_sample_size_with_big_population(self):
     # test if estimation error is smaller than expected max error with a small
-    # sample and a big population (sample size = 0.3% of population).
-    sample_size = 30
+    # sample and a big population (sample size = 1% of population).
+    sample_size = 100
     max_err = 2 / math.sqrt(sample_size)
     test_input = [random.randint(0, 1000) for _ in range(10000)]
     actual_count = len(set(test_input))
@@ -282,8 +282,8 @@ class ApproximateUniqueTest(unittest.TestCase):
   def test_approximate_unique_global_by_error_with_big_population(self):
     # test if estimation error from input error is with in expected range with
     # a big population.
-    est_err = 0.3
-    test_input = [random.randint(0, 1000) for _ in range(100000)]
+    est_err = 0.2
+    test_input = [random.randint(0, 1000) for _ in range(10000)]
     actual_count = len(set(test_input))
 
     pipeline = TestPipeline()
