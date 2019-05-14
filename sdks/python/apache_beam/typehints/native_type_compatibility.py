@@ -87,7 +87,8 @@ def _safe_issubclass(derived, parent):
     if (hasattr(typing, '_GenericAlias') and
         (type(derived) == typing._GenericAlias)):
       # Python 3.7+
-      out = issubclass(derived.__origin__, parent.__origin__)
+      out = (issubclass(derived.__origin__, parent.__origin__) and
+             (type(derived.__args__[0]) != typing.TypeVar))
     else:
       out = issubclass(derived, parent)
     return out
@@ -99,16 +100,18 @@ def _match_issubclass(match_against):
   return lambda user_type: _safe_issubclass(user_type, match_against)
 
 
-def _match_same_type(match_against):
-  # For Union types. They can't be compared with isinstance either, so we
-  # Have to compare their types directly.
-
+def _match_union_type(match_against):
   def matcher(derived, parent):
     try:
       return derived.__origin__ is parent
     except AttributeError:
       return type(derived) == type(parent)
+  return lambda user_type: matcher(user_type, match_against)
 
+
+def _match_any_type(match_against):
+  def matcher(derived, parent):
+    return type(derived) == type(parent)
   return lambda user_type: matcher(user_type, match_against)
 
 
@@ -133,7 +136,7 @@ def convert_to_beam_type(typ):
 
   type_map = [
       _TypeMapEntry(
-          match=_match_same_type(typing.Any),
+          match=_match_any_type(typing.Any),
           arity=0,
           beam_type=typehints.Any),
       _TypeMapEntry(
@@ -157,8 +160,10 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.Tuple),
           arity=-1,
           beam_type=typehints.Tuple),
+      # For Union types. They can't be compared with isinstance either, so we
+      # have to compare their types directly.
       _TypeMapEntry(
-          match=_match_same_type(typing.Union),
+          match=_match_union_type(typing.Union),
           arity=-1,
           beam_type=typehints.Union)
   ]
