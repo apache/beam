@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-import sys
 import typing
 import unittest
 
@@ -108,41 +107,17 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertTrue(native_type_compatibility._safe_issubclass(
         parent=typing.List,
         derived=typing.List[bytes]))
-    self.assertFalse(native_type_compatibility._safe_issubclass(
-        parent=typing.List,
-        derived=typing.Dict[bytes, int]))
     self.assertTrue(native_type_compatibility._safe_issubclass(
         parent=typing.Set,
         derived=typing.Set[int]))
     self.assertFalse(native_type_compatibility._safe_issubclass(
         parent=typing.List,
         derived=typing.Set[float]))
-    self.assertTrue(native_type_compatibility._safe_issubclass(
-        parent=typing.Tuple,
-        derived=typing.Tuple[int]))
     self.assertFalse(native_type_compatibility._safe_issubclass(
         parent=typing.List,
         derived=typing.Tuple[bytes]))
 
-  @unittest.skipIf(sys.version_info >= (2, 7, 0),
-                   'Order dosent matter in python 3')
-  def test_is_sub_class_order(self):
-    self.assertTrue(native_type_compatibility._safe_issubclass(
-        parent=typing.Dict[bytes, int],
-        derived=typing.Dict))
-    self.assertTrue(native_type_compatibility._safe_issubclass(
-        parent=typing.List[bytes],
-        derived=typing.List))
-    self.assertTrue(native_type_compatibility._safe_issubclass(
-        parent=typing.Set[int],
-        derived=typing.Set))
-    self.assertTrue(native_type_compatibility._safe_issubclass(
-        parent=typing.Tuple[int],
-        derived=typing.Tuple))
-
-  @unittest.skipIf(sys.version_info.major != '3',
-                   'Order matters in python 2')
-  def test_is_sub_class_order(self):
+  def test_order(self):
     self.assertFalse(native_type_compatibility._safe_issubclass(
         parent=typing.Dict[bytes, int],
         derived=typing.Dict))
@@ -152,9 +127,6 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertFalse(native_type_compatibility._safe_issubclass(
         parent=typing.Set[int],
         derived=typing.Set))
-    self.assertFalse(native_type_compatibility._safe_issubclass(
-        parent=typing.Tuple[int],
-        derived=typing.Tuple))
 
 
 if __name__ == '__main__':
