@@ -1,0 +1,1721 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="StudySettings">
+    <StudyTaskManager>
+      <option name="VERSION" value="14" />
+      <option name="myUserTests">
+        <map />
+      </option>
+      <option name="course">
+        <EduCourse>
+          <option name="authors">
+            <list>
+              <StepikUserInfo>
+                <option name="firstName" value="Henry" />
+                <option name="id" value="-1" />
+                <option name="lastName" value="Suryawirawan" />
+              </StepikUserInfo>
+            </list>
+          </option>
+          <option name="compatible" value="true" />
+          <option name="courseMode" value="Course Creator" />
+          <option name="createDate" value="0" />
+          <option name="customPresentableName" />
+          <option name="description" value="This course provides a series of kata to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
+          <option name="environment" value="" />
+          <option name="fromZip" value="false" />
+          <option name="id" value="0" />
+          <option name="index" value="-1" />
+          <option name="instructors">
+            <list />
+          </option>
+          <option name="language" value="Python 2.7" />
+          <option name="languageCode" value="en" />
+          <option name="name" value="Beam Kata - Python" />
+          <option name="public" value="false" />
+          <option name="sectionIds">
+            <list />
+          </option>
+          <option name="stepikChangeStatus" value="Content changed" />
+          <option name="type" value="pycharm10 Python 2.7" />
+          <option name="updateDate" value="0" />
+          <option name="items">
+            <list>
+              <Section>
+                <option name="courseId" value="0" />
+                <option name="customPresentableName" />
+                <option name="id" value="0" />
+                <option name="index" value="1" />
+                <option name="name" value="Introduction" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Content changed" />
+                <option name="updateDate" value="0" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Hello Beam" />
+                      <option name="stepikChangeStatus" value="Up to date" />
+                      <option name="updateDate" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Hello Beam Pipeline&lt;/h2&gt;&#10;&lt;p&gt;This kata is to create a simple pipeline that takes a hardcoded input element &quot;Hello Beam&quot;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Hardcoded input can be created using &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Create&quot;&gt;Create&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Hello Beam" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="903" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.Create(['Hello Beam'])" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="0" />
+                <option name="customPresentableName" />
+                <option name="id" value="0" />
+                <option name="index" value="2" />
+                <option name="name" value="Core Transforms" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Content changed" />
+                <option name="updateDate" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Map" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;ParDo&lt;/h2&gt;&#10;&lt;p&gt;ParDo is a Beam transform for generic parallel processing. The ParDo processing paradigm is similar to the “Map” phase of a Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each element in the input PCollection, performs some processing function (your user code) on that element, and emits zero, one, or multiple elements to an output PCollection.&lt;/p&gt;&#10;&lt;p&gt;For this task, please write a simple ParDo that maps the input element by multiplying it by 10.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Override &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process&quot;&gt;process&lt;/a&gt; method&lt;/div&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo&quot;&gt;ParDo&lt;/a&gt; with&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn&quot;&gt;DoFn&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="ParDo" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="919" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="def process(self, element):&#10;        yield element * 10" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="1" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1036" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.ParDo(MultiplyByTenDoFn())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;ParDo OneToMany&lt;/h2&gt;&#10;&lt;p&gt;For this task, please write a ParDo that maps each input sentence into words tokenized by whitespace (&quot; &quot;).&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Override &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process&quot;&gt;process&lt;/a&gt; method.&#10;    You can return an Iterable for multiple elements or call &quot;yield&quot; for each element to return a generator.&lt;/div&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo&quot;&gt;ParDo&lt;/a&gt;&#10;    with &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn&quot;&gt;DoFn&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="2" />
+                            <option name="name" value="ParDo OneToMany" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="920" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="def process(self, element):&#10;        return element.split()" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="1" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1057" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.ParDo(BreakIntoWordsDoFn())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;MapElements&lt;/h2&gt;&#10;&lt;p&gt;The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a simple map function that multiplies all input elements by 5 using&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Map&quot;&gt;&#10;        Map&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Map&quot;&gt;Map&lt;/a&gt;&#10;    with a lambda.&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="3" />
+                            <option name="name" value="Map" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="942" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.Map(lambda num: num * 5)" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;FlatMapElements&lt;/h2&gt;&#10;&lt;p&gt;The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&lt;/p&gt;&#10;&lt;p&gt;FlatMap can be used to simplify DoFn that maps an element to multiple elements (one to many).&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a function that maps each input sentence into words tokenized by whitespace (&quot; &quot;) using&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap&quot;&gt;&#10;        FlatMap&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap&quot;&gt;FlatMap&lt;/a&gt;&#10;    with a lambda.&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="4" />
+                            <option name="name" value="FlatMap" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="968" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.FlatMap(lambda sentence: sentence.split())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="2" />
+                      <option name="name" value="GroupByKey" />
+                      <option name="stepikChangeStatus" value="Up to date" />
+                      <option name="updateDate" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;GroupByKey&lt;/h2&gt;&#10;&lt;p&gt;GroupByKey is a Beam transform for processing collections of key/value pairs. It’s a parallel reduction operation,&#10;    analogous to the Shuffle phase of a Map/Shuffle/Reduce-style algorithm. The input to GroupByKey is a collection of&#10;    key/value pairs that represents a multimap, where the collection contains multiple pairs that have the same key,&#10;    but different values. Given such a collection, you use GroupByKey to collect all of the values associated with each&#10;    unique key.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey&quot;&gt;&#10;        GroupByKey&lt;/a&gt; transform that groups words by its first letter.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Refer to&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey&quot;&gt;GroupByKey&lt;/a&gt;&#10;    to solve this problem&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="GroupByKey" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="8" />
+                                            <option name="offset" value="970" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="| TODO()" />
+                                            <option name="possibleAnswer" value="| beam.Map(lambda word: (word[0], word))&#10;   | beam.GroupByKey()" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="3" />
+                      <option name="name" value="CoGroupByKey" />
+                      <option name="stepikChangeStatus" value="Up to date" />
+                      <option name="updateDate" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;CoGroupByKey&lt;/h2&gt;&#10;&lt;p&gt;CoGroupByKey performs a relational join of two or more key/value PCollections that have the same key type.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.util.html#apache_beam.transforms.util.CoGroupByKey&quot;&gt;&#10;        CoGroupByKey&lt;/a&gt; transform that join words by its first alphabetical letter, and then produces the string&#10;    representation of the WordsAlphabet model.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Refer to&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.util.html#apache_beam.transforms.util.CoGroupByKey&quot;&gt;CoGroupByKey&lt;/a&gt;&#10;    to solve this problem&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="CoGroupByKey" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1228" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="def map_to_alphabet_kv(word):&#10;        return (word[0], word)&#10;&#10;    def cogbk_result_to_wordsalphabet(cgbk_result):&#10;        (alphabet, words) = cgbk_result&#10;        return WordsAlphabet(alphabet, words['fruits'][0], words['countries'][0])&#10;&#10;    fruits_kv = (fruits | 'Fruit to KV' &gt;&gt; beam.Map(map_to_alphabet_kv))&#10;    countries_kv = (countries | 'Country to KV' &gt;&gt; beam.Map(map_to_alphabet_kv))&#10;&#10;    return ({'fruits': fruits_kv, 'countries': countries_kv}&#10;            | beam.CoGroupByKey()&#10;            | beam.Map(cogbk_result_to_wordsalphabet))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="4" />
+                      <option name="name" value="Combine" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - Simple Function&lt;/h2&gt;&#10;&lt;p&gt;Combine is a Beam transform for combining collections of elements or values in your data.&#10;  When you apply a Combine transform, you must provide the function that contains the logic for&#10;  combining the elements or values. The combining function should be commutative and associative,&#10;  as the function is not necessarily invoked exactly once on all values with a given key. Because&#10;  the input data (including the value collection) may be distributed across multiple workers, the&#10;  combining function might be called multiple times to perform partial combining on subsets of&#10;  the value collection.&lt;/p&gt;&#10;&lt;p&gt;Simple combine operations, such as sums, can usually be implemented as a simple function.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement the summation of numbers using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineGlobally&quot;&gt;&#10;    CombineGlobally&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Implement a simple Python function that performs the summation of the values.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Simple Function" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="900" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="total = 0&#10;&#10;    for num in numbers:&#10;        total += num&#10;&#10;    return total" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="1" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1036" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.CombineGlobally(sum)" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - CombineFn&lt;/h2&gt;&#10;&lt;p&gt;Combine is a Beam transform for combining collections of elements or values in your data.&#10;  When you apply a Combine transform, you must provide the function that contains the logic for&#10;  combining the elements or values. The combining function should be commutative and associative,&#10;  as the function is not necessarily invoked exactly once on all values with a given key. Because&#10;  the input data (including the value collection) may be distributed across multiple workers, the&#10;  combining function might be called multiple times to perform partial combining on subsets of&#10;  the value collection.&lt;/p&gt;&#10;&lt;p&gt;Complex combination operations might require you to create a subclass of CombineFn that has an&#10;  accumulation type distinct from the input/output type. You should use CombineFn if the combine&#10;  function requires a more sophisticated accumulator, must perform additional pre- or&#10;  post-processing, might change the output type, or takes the key into account.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement the average of numbers using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn&quot;&gt;&#10;    Combine.CombineFn&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Extend the &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn&quot;&gt;CombineFn&lt;/a&gt;&#10;  class that counts the average of the number.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="2" />
+                            <option name="name" value="CombineFn" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="916" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="def create_accumulator(self):&#10;        return 0.0, 0&#10;&#10;    def add_input(self, accumulator, element):&#10;        (sum, count) = accumulator&#10;        return sum + element, count + 1&#10;&#10;    def merge_accumulators(self, accumulators):&#10;        sums, counts = zip(*accumulators)&#10;        return sum(sums), sum(counts)&#10;&#10;    def extract_output(self, accumulator):&#10;        (sum, count) = accumulator&#10;        return sum / count if count else float('NaN')" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="1" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1420" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.CombineGlobally(AverageFn())" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Combine - Combine PerKey&lt;/h2&gt;&#10;&lt;p&gt;After creating a keyed PCollection (for example, by using a GroupByKey transform), a common&#10;  pattern is to combine the collection of values associated with each key into a single, merged value.&#10;  This pattern of a GroupByKey followed by merging the collection of values is equivalent to&#10;  Combine PerKey transform. The combine function you supply to Combine PerKey must be an associative&#10;  reduction function or a subclass of CombineFn.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement the sum of scores per player using&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.CombinePerKey&quot;&gt;&#10;    CombinePerKey&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.CombinePerKey&quot;&gt;CombinePerKey(CombineFn)&lt;/a&gt;.&lt;/div&gt;&#10;&lt;div class='hint'&gt;Extend the &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn&quot;&gt;CombineFn&lt;/a&gt;&#10;  class that counts the sum of the number.&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="3" />
+                            <option name="name" value="Combine PerKey" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1088" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.CombinePerKey(sum)" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="5" />
+                      <option name="name" value="Flatten" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Flatten&lt;/h2&gt;&#10;&lt;p&gt;Flatten is a Beam transform for PCollection objects that store the same data type.&#10;  Flatten merges multiple PCollection objects into a single logical PCollection.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten&quot;&gt;&#10;    Flatten&lt;/a&gt; transform that merges two PCollection of words into a single PCollection.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten&quot;&gt;Flatten&lt;/a&gt;&#10;  to solve this problem.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Flatten" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1140" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.Flatten()" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="6" />
+                      <option name="name" value="Partition" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Partition&lt;/h2&gt;&#10;&lt;p&gt;Partition is a Beam transform for PCollection objects that store the same data type.&#10;  Partition splits a single PCollection into a fixed number of smaller collections.&lt;/p&gt;&#10;&lt;p&gt;Partition divides the elements of a PCollection according to a partitioning function&#10;  that you provide. The partitioning function contains the logic that determines how to split up&#10;  the elements of the input PCollection into each resulting partition PCollection.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a&#10;  &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Partition&quot;&gt;&#10;    Partition&lt;/a&gt; transform that splits a PCollection of numbers into two PCollections.&#10;  The first PCollection contains numbers greater than 100, and the second PCollection contains&#10;  the remaining numbers.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Refer to &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Partition&quot;&gt;Partition&lt;/a&gt;&#10;  to solve this problem.&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Partition" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="924" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="if number &gt; 100:&#10;        return 0&#10;    else:&#10;        return 1" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="1" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1087" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.Partition(partition_fn, 2)" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="0" />
+                <option name="customPresentableName" />
+                <option name="id" value="0" />
+                <option name="index" value="3" />
+                <option name="name" value="Common Transforms" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Filter" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter using ParDo&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to implement a filter function that filters out the even numbers by using&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo&quot;&gt;&#10;        ParDo&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Override &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process&quot;&gt;process&lt;/a&gt;&#10;    method. You can use &quot;yield&quot; for each intended element.&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="ParDo" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="942" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="def process(self, element):&#10;        if element % 2 == 1:&#10;            yield element" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Filter&lt;/h2&gt;&#10;&lt;p&gt;The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.&lt;/p&gt;&#10;&lt;p&gt;In this task, we are going to implement a filter function that filters out the odd numbers by using&#10;    &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter&quot;&gt;&#10;        Filter&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter&quot;&gt;Filter&lt;/a&gt;&#10;    with a lambda.&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="2" />
+                            <option name="name" value="Filter" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="934" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.Filter(lambda num: num % 2 == 0)" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="2" />
+                      <option name="name" value="Aggregation" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Count&lt;/h2&gt;&#10;&lt;p&gt;&#10;    In this task, we are going to count the number of elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Count&quot;&gt;Count&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Count" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="934" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.combiners.Count.Globally()" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Sum&lt;/h2&gt;&#10;&lt;p&gt;&#10;    In this task, we are going to compute the sum of all elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineGlobally&quot;&gt;CombineGlobally&lt;/a&gt;&#10;    and Python built-in &lt;a href=&quot;https://docs.python.org/2/library/functions.html#sum&quot;&gt;sum&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="2" />
+                            <option name="name" value="Sum" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="934" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.CombineGlobally(sum)" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Mean&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to compute the mean/average of all elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Mean&quot;&gt;Mean&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="3" />
+                            <option name="name" value="Mean" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="934" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.combiners.Mean.Globally()" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Smallest&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to compute the smallest of the elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Top.Smallest&quot;&gt;Top.Smallest&lt;/a&gt;&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="4" />
+                            <option name="name" value="Smallest" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="934" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.combiners.Top.Smallest(1)" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Aggregation - Largest&lt;/h2&gt;&#10;&lt;p&gt;In this task, we are going to compute the largest of the elements from an input.&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class=&quot;hint&quot;&gt;&#10;  Use &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Top.Largest&quot;&gt;Top.Largest&lt;/a&gt;&#10;&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="5" />
+                            <option name="name" value="Largest" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="934" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.combiners.Top.Largest(1)" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+              <Section>
+                <option name="courseId" value="0" />
+                <option name="customPresentableName" />
+                <option name="id" value="0" />
+                <option name="index" value="4" />
+                <option name="name" value="Examples" />
+                <option name="position" value="0" />
+                <option name="stepikChangeStatus" value="Content changed" />
+                <option name="updateDate" value="0" />
+                <option name="items">
+                  <list>
+                    <Lesson>
+                      <option name="customPresentableName" />
+                      <option name="id" value="0" />
+                      <option name="index" value="1" />
+                      <option name="name" value="Word Count" />
+                      <option name="stepikChangeStatus" value="Content changed" />
+                      <option name="updateDate" value="0" />
+                      <option name="unitId" value="0" />
+                      <option name="items">
+                        <list>
+                          <EduTask>
+                            <option name="customPresentableName" />
+                            <option name="descriptionFormat" value="HTML" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Word Count Pipeline&lt;/h2&gt;&#10;&lt;p&gt;This kata is to create a pipeline that counts the number of words.&lt;/p&gt;&#10;&lt;p&gt;For this task, please output the count of each word in the following format:&lt;br/&gt;&#10;  &lt;pre&gt;&#10;    word:count&#10;    ball:5&#10;    book:3&#10;  &lt;/pre&gt;&#10;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Refer to your lessons above.&lt;/div&gt;&#10;&lt;/html&gt;&#10;" />
+                            <option name="feedbackLink">
+                              <FeedbackLink>
+                                <option name="link" />
+                                <option name="type" value="STEPIK" />
+                              </FeedbackLink>
+                            </option>
+                            <option name="id" value="0" />
+                            <option name="index" value="1" />
+                            <option name="name" value="Word Count" />
+                            <option name="record" value="-1" />
+                            <option name="status" value="Unchecked" />
+                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="files">
+                              <map>
+                                <entry key="task.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list>
+                                          <AnswerPlaceholder>
+                                            <option name="hints">
+                                              <list />
+                                            </option>
+                                            <option name="index" value="0" />
+                                            <option name="initialState" />
+                                            <option name="initializedFromDependency" value="false" />
+                                            <option name="length" value="6" />
+                                            <option name="offset" value="1021" />
+                                            <option name="placeholderDependency" />
+                                            <option name="placeholderText" value="TODO()" />
+                                            <option name="possibleAnswer" value="beam.FlatMap(lambda sentence: sentence.split())&#10;   | beam.combiners.Count.PerElement()&#10;   | beam.Map(lambda (k, v): k + &quot;:&quot; + str(v))" />
+                                            <option name="selected" value="false" />
+                                            <option name="status" value="Unchecked" />
+                                            <option name="studentAnswer" />
+                                            <option name="useLength" value="false" />
+                                          </AnswerPlaceholder>
+                                        </list>
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="task.py" />
+                                      <option name="text" value="# TODO: type solution here&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="true" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                                <entry key="tests.py">
+                                  <value>
+                                    <TaskFile>
+                                      <option name="answerPlaceholders">
+                                        <list />
+                                      </option>
+                                      <option name="highlightErrors" value="true" />
+                                      <option name="name" value="tests.py" />
+                                      <option name="text" value="from test_helper import run_common_tests, failed, passed, get_answer_placeholders&#10;&#10;&#10;def test_answer_placeholders():&#10;    placeholders = get_answer_placeholders()&#10;    placeholder = placeholders[0]&#10;    if placeholder == &quot;&quot;:       # TODO: your condition here&#10;        passed()&#10;    else:&#10;        failed()&#10;&#10;&#10;if __name__ == '__main__':&#10;    run_common_tests()&#10;    # test_answer_placeholders()       # TODO: uncomment test call&#10;&#10;&#10;" />
+                                      <option name="trackChanges" value="true" />
+                                      <option name="trackLengths" value="true" />
+                                      <option name="visible" value="false" />
+                                    </TaskFile>
+                                  </value>
+                                </entry>
+                              </map>
+                            </option>
+                            <option name="updateDate" value="0" />
+                          </EduTask>
+                        </list>
+                      </option>
+                    </Lesson>
+                  </list>
+                </option>
+              </Section>
+            </list>
+          </option>
+        </EduCourse>
+      </option>
+    </StudyTaskManager>
+  </component>
+</project>
