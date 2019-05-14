@@ -37,7 +37,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Apex',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:apex:validatesRunner')
+      tasks(':beam-runners-apex:validatesRunner')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

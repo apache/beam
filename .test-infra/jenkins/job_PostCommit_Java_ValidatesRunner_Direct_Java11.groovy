@@ -38,14 +38,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Direc
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:direct-java:shadowJar')
-            tasks(':runners:direct-java:shadowTestJar')
+            tasks(':beam-runners-direct-java:shadowJar')
+            tasks(':beam-runners-direct-java:shadowTestJar')
             switches("-Dorg.gradle.java.home=${JAVA_8_HOME}")
         }
 
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:direct-java:validatesRunner')
+            tasks(':beam-runners-direct-java:validatesRunner')
             switches("-Dorg.gradle.java.home=${JAVA_11_HOME}")
             switches('-x shadowJar')
             switches('-x shadowTestJar')
