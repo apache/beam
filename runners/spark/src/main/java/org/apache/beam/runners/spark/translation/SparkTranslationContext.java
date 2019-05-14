@@ -17,12 +17,15 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.spark.api.java.JavaSparkContext;
 
@@ -33,6 +36,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 public class SparkTranslationContext {
   private final JavaSparkContext jsc;
   final JobInfo jobInfo;
+  // Map pCollection IDs to the number of times they are consumed as inputs.
+  private final Map<String, Integer> consumptionCount = new HashMap<>();
   private final Map<String, Dataset> datasets = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
   final SerializablePipelineOptions serializablePipelineOptions;
@@ -49,9 +54,14 @@ public class SparkTranslationContext {
   }
 
   /** Add output of transform to context. */
-  public void pushDataset(String pCollectionId, Dataset dataset) {
+  public void pushDataset(String pCollectionId, Dataset dataset, Coder coder) {
     dataset.setName(pCollectionId);
-    // TODO cache
+    SparkPipelineOptions sparkOptions =
+        serializablePipelineOptions.get().as(SparkPipelineOptions.class);
+    if (!sparkOptions.isCacheDisabled() && consumptionCount.getOrDefault(pCollectionId, 0) > 1) {
+      String storageLevel = sparkOptions.getStorageLevel();
+      dataset.cache(storageLevel, coder);
+    }
     datasets.put(pCollectionId, dataset);
     leaves.add(dataset);
   }
@@ -68,6 +78,11 @@ public class SparkTranslationContext {
     for (Dataset dataset : leaves) {
       dataset.action(); // force computation.
     }
+  }
+
+  public void incrementConsumptionCount(String pCollectionId) {
+    int count = consumptionCount.getOrDefault(pCollectionId, 0);
+    consumptionCount.put(pCollectionId, count + 1);
   }
 
   /** Generate a unique pCollection id number to identify runner-generated sinks. */
