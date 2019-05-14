@@ -33,8 +33,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Publish', '',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':website:clean')
-      tasks(':website:publishWebsite')
+      tasks(':beam-website:clean')
+      tasks(':beam-website:publishWebsite')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

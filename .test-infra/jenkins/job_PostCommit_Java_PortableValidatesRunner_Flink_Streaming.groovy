@@ -36,7 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink_Streaming',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:flink:1.5:job-server:validatesPortableRunnerStreaming')
+      tasks(':beam-runners-flink_2.11-job-server:validatesPortableRunnerStreaming')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

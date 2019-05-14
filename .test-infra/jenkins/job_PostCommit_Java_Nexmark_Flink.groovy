@@ -38,9 +38,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN BATCH MODE USING FLINK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
+      tasks(':beam-sdks-java-nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
+      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--streaming=false',
@@ -53,9 +53,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
+      tasks(':beam-sdks-java-nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
+      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--streaming=true',
@@ -68,9 +68,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
+      tasks(':beam-sdks-java-nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
+      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--queryLanguage=sql',
@@ -83,9 +83,9 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
+      tasks(':beam-sdks-java-nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
+      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--queryLanguage=sql',
