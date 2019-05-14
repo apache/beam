@@ -20,6 +20,99 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Beam community update!</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;h1 id=&quot;the-apache-beam-community-in-2019&quot;&gt;The Apache Beam community in 2019&lt;/h1&gt;
+
+&lt;p&gt;2019 has already been a busy time for the Apache Beam community. The ASF blog featured &lt;a href=&quot;https://blogs.apache.org/comdev/date/20190222&quot;&gt;our way of community building&lt;/a&gt; and we’ve had &lt;a href=&quot;https://www.meetup.com/San-Francisco-Apache-Beam/events/257482350&quot;&gt;more Beam meetups&lt;/a&gt;  around the world. Apache Beam also received the &lt;a href=&quot;https://www.infoworld.com/article/3336072/infoworlds-2019-technology-of-the-year-award-winners.html&quot;&gt;Technology of the Year Award&lt;/a&gt; from InfoWorld.&lt;/p&gt;
+
+&lt;p&gt;As these events happened, we were building up to the &lt;a href=&quot;https://opensource.googleblog.com/2019/03/celebrating-20-years-of-apache.html&quot;&gt;20th anniversary of the Apache Software Foundation&lt;/a&gt;.  The contributions of the Beam community were a part of Maximilian Michels blog post on the success of the ASF’s open source development model:&lt;/p&gt;
+
+&lt;blockquote class=&quot;twitter-tweet&quot; data-lang=&quot;nl&quot;&gt;&lt;p lang=&quot;en&quot; dir=&quot;ltr&quot;&gt;Success at Apache: What You Need to Know by Maximilian Michels &lt;a href=&quot;https://t.co/XjtVYgPAHX&quot;&gt;https://t.co/XjtVYgPAHX&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/Apache?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#Apache&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/Open?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#Open&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/Innovation?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#Innovation&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/Community?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#Community&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/people?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#people&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/processes?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#processes&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/JustWorks?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#JustWorks&lt;/a&gt; &lt;a href=&quot;https://twitter.com/stadtlegende?ref_src=twsrc%5Etfw&quot;&gt;@stadtlegende&lt;/a&gt; &lt;a href=&quot;https://t.co/xSibnyWAMe&quot;&gt;pic.twitter.com/xSibnyWAMe&lt;/a&gt;&lt;/p&gt;&amp;mdash; Apache - The ASF (@TheASF) &lt;a href=&quot;https://twitter.com/TheASF/status/1110364656143601664?ref_src=twsrc%5Etfw&quot;&gt;26 maart 2019&lt;/a&gt;&lt;/blockquote&gt;
+
+&lt;script async=&quot;&quot; src=&quot;https://platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+
+&lt;p&gt;In that spirit, let’s have an overview of the things that have happened, what the next few months look like, and how we can foster even more community growth.&lt;/p&gt;
+
+&lt;h2 id=&quot;meetups&quot;&gt;Meetups&lt;/h2&gt;
+&lt;p&gt;We’ve had a flurry of activity, with several meetups in the planning process and more popping up globally over time. As diversity of contributors is a core ASF value, this geographic spread is exciting for the community. Here’s a picture from the latest Apache Beam meetup organized at Lyft in San Francisco:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://secure.meetupstatic.com/photos/event/8/0/1/2/600_481292786.jpeg&quot; alt=&quot;Beam Meetup Bay Area&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We have more &lt;a href=&quot;https://www.meetup.com/San-Francisco-Apache-Beam&quot;&gt;Bay Area meetups&lt;/a&gt; coming soon, and the community is looking into kicking off a meetup in Toronto!&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.meetup.com/London-Apache-Beam-Meetup&quot;&gt;London&lt;/a&gt; had its first meetup of 2019 at the start of April:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://secure.meetupstatic.com/photos/event/4/7/0/e/600_480318190.jpeg&quot; alt=&quot;Beam Meetup London&quot; height=&quot;360&quot; width=&quot;640&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;and &lt;a href=&quot;https://www.meetup.com/Apache-Beam-Stockholm/events/260634514&quot;&gt;Stockholm&lt;/a&gt; had its second meetup at the start of May:&lt;/p&gt;
+
+&lt;blockquote class=&quot;twitter-tweet&quot; data-lang=&quot;en-gb&quot;&gt;&lt;p lang=&quot;en&quot; dir=&quot;ltr&quot;&gt;Big audience for the second &lt;a href=&quot;https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw&quot;&gt;@ApacheBeam&lt;/a&gt; meetup in Stockholm! Gleb, &lt;a href=&quot;https://twitter.com/kanterov?ref_src=twsrc%5Etfw&quot;&gt;@kanterov&lt;/a&gt; from &lt;a href=&quot;https://twitter.com/SpotifyEng?ref_src=twsrc%5Etfw&quot;&gt;@SpotifyEng&lt;/a&gt; kicking off the first talk with Beam SQL.&lt;a href=&quot;https://twitter.com/hashtag/ApacheBeamStockholm?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#ApacheBeamStockholm&lt;/a&gt; &lt;a href=&quot;https://t.co/fDqPPFh2gY&quot;&gt;pic.twitter.com/fDqPPFh2gY&lt;/a&gt;&lt;/p&gt;&amp;mdash; Matthias Baetens 🌆 (@matthiasbaetens) &lt;a href=&quot;https://twitter.com/matthiasbaetens/status/1125442916711915521?ref_src=twsrc%5Etfw&quot;&gt;6 May 2019&lt;/a&gt;&lt;/blockquote&gt;
+&lt;script async=&quot;&quot; src=&quot;https://platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+
+&lt;p&gt;Keep an eye out for a meetup in &lt;a href=&quot;https://www.meetup.com/Paris-Apache-Beam-Meetup&quot;&gt;Paris&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;If you are interested in starting your own meetup, feel free &lt;a href=&quot;https://beam.apache.org/community/contact-us&quot;&gt;to reach out&lt;/a&gt;! Good places to start include our Slack channel, the dev and user mailing lists, or the Apache Beam Twitter.&lt;/p&gt;
+
+&lt;p&gt;Even if you can’t travel to these meetups, you can stay informed on the happenings of the community.  The talks and sessions from previous conferences and meetups are archived on the &lt;a href=&quot;https://www.youtube.com/c/ApacheBeamYT&quot;&gt;Apache Beam YouTube channel&lt;/a&gt;. If you want your session added to the channel, don’t hesitate to get in touch! And in case you want to attend the next Beam event in style, you can also order your swag on the &lt;a href=&quot;https://store-beam.myshopify.com&quot;&gt;Beam swag store&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;summits&quot;&gt;Summits&lt;/h2&gt;
+&lt;p&gt;The first summit of the year will be held in Berlin:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&amp;amp;auto=compress&amp;amp;rect=0%2C115%2C2666%2C1333&amp;amp;s=2680f5036dcad9177b027cce026c0224&quot; alt=&quot;Beam Summit Europe Banner&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;You can find more info on the &lt;a href=&quot;https://beamsummit.org&quot;&gt;website&lt;/a&gt; and read about the inaugural edition of the Beam Summit Europe &lt;a href=&quot;https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html&quot;&gt;here&lt;/a&gt;. At these summits, you have the opportunity to meet with other Apache Beam creators and users, get expert advice, learn from the speaker sessions, and participate in workshops.&lt;/p&gt;
+
+&lt;p&gt;We strongly encourage you to get involved again this year! You can participate in the following ways for the upcoming summit in Europe:&lt;/p&gt;
+
+&lt;p&gt;🎫 If you want to secure your ticket to attend the Beam Summit Europe 2019, check our &lt;a href=&quot;http://beam-summit-europe.eventbrite.com&quot;&gt;event page&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;💸 If you want to make the Summit even &lt;strong&gt;more&lt;/strong&gt; awesome, check out our &lt;a href=&quot;https://drive.google.com/file/d/1R3vvOHihQbpuzF2aaSV8WYg9YHRmJwxS/view&quot;&gt;sponsor booklet&lt;/a&gt;!&lt;/p&gt;
+
+&lt;p&gt;We also launched the CfP for our Beam Summit in North America, which will be held in collaboration with &lt;a href=&quot;https://www.apachecon.com&quot;&gt;ApacheCon&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;🎤 If you want to give a talk, take a look at our &lt;a href=&quot;https://www.apachecon.com/acna19/cfp.html&quot;&gt;CfP&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Stay tuned for more information on the summit in North America and Asia.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-community-engagement-matters&quot;&gt;Why community engagement matters&lt;/h2&gt;
+&lt;p&gt;Why we need a strong Apache Beam community:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;We’re receiving lots of code contributions and need committers to review those and help onboard new contributors to the project.&lt;/li&gt;
+  &lt;li&gt;We want people to feel a sense of ownership to the project. By fostering this level of engagement, the work becomes even more exciting.&lt;/li&gt;
+  &lt;li&gt;A healthy community has a further reach and leads to more growth. More hours can be contributed to the project as we can spread the work and ownership.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Why are we organizing these summits:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;We’d like to give folks a place to meet, congregate, and share ideas.&lt;/li&gt;
+  &lt;li&gt;We know that offline interactions often changes the nature of the online ones in a positive manner.&lt;/li&gt;
+  &lt;li&gt;Building an active and diverse community is part of the Apache Way. These summits provide an opportunity for us to engage people from different locations, companies, and backgrounds.&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Sat, 11 May 2019 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2019/05/11/beam-summit-europe-2019.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/11/beam-summit-europe-2019.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam + Kotlin = ❤️</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -906,64 +999,6 @@ Valentyn Tymofieiev, xiliu, XuMingmin, Yifan Zou, Yueyang Qiu.&lt;/p&gt;
         <pubDate>Wed, 03 Oct 2018 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2018/10/03/beam-2.7.0.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2018/10/03/beam-2.7.0.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Beam Summit Europe 2018</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;With a growing community of contributors and users, the Apache Beam project is organising the first European Beam Summit.&lt;/p&gt;
-
-&lt;p&gt;We are happy to invite you to this event, which will take place in &lt;strong&gt;London&lt;/strong&gt; on &lt;strong&gt;October 1st and 2nd of 2018&lt;/strong&gt;. &lt;!--more--&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/blog/Facebook-AD.png&quot; alt=&quot;Beam Summit Europe 2018 flyer&quot; height=&quot;360&quot; width=&quot;640&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;what-is-the-beam-summit-2018&quot;&gt;What is the Beam Summit 2018?&lt;/h3&gt;
-&lt;p&gt;The summit is a 2 day, multi-track event.&lt;/p&gt;
-
-&lt;p&gt;During the first day we’ll host sessions to share use cases from companies using Apache Beam, community driven talks, and a session to discuss the project’s roadmap (from the main partners in the project as well as all users planning to contribute to the project and wanting to share their plans). We’ll also have break-out sessions that will allow cross team collaboration in multiple sub-topics.&lt;/p&gt;
-
-&lt;p&gt;The second day will be a “hands-on” day. We will offer an introductory session to Apache Beam. Additionally, we’ll host an advanced track for more advanced users with open-table discussions about more complex and newer Apache Beam features.&lt;/p&gt;
-
-&lt;p&gt;The agenda will grow and be communicated in the coming month, keep an eye on the page.&lt;/p&gt;
-
-&lt;h3 id=&quot;event-details&quot;&gt;Event Details&lt;/h3&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Venue&lt;/strong&gt;: &lt;a href=&quot;https://goo.gl/maps/LAC4haDzSzR2&quot;&gt;Level39, One Canada Square, Canary Wharf, London E14 5AB&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Dates&lt;/strong&gt;: 1-2 October 2018&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;how-do-i-register&quot;&gt;How do I register?&lt;/h3&gt;
-&lt;p&gt;You can register for free on the &lt;a href=&quot;https://www.eventbrite.com/e/beam-summit-london-2018-tickets-49100625292#tickets&quot;&gt;Eventbrite registration page&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;i-am-interested-in-speaking-how-do-i-propose-my-session&quot;&gt;I am interested in speaking, how do I propose my session?&lt;/h3&gt;
-&lt;p&gt;With this we are also launching a Call for Papers in case you want to secure a slot for one of the sessions. Please fill out the &lt;a href=&quot;https://goo.gl/forms/nrZOCC1JwEfLtKfA2&quot;&gt;CfP form&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;id-love-to-get-involved-as-a-volunteer-or-sponsor&quot;&gt;I’d love to get involved as a volunteer or sponsor&lt;/h3&gt;
-&lt;p&gt;Furthermore, in order to keep this event free, we are looking for people to help out at and/or sponsor some parts of the conference. If you (or your company) are interested to help out, please reach out to: &lt;a href=&quot;mailto:baetensmatthias@gmail.com&quot;&gt;baetensmatthias@gmail.com&lt;/a&gt; or &lt;a href=&quot;mailto:alex@vanboxel.be&quot;&gt;alex@vanboxel.be&lt;/a&gt;. You can find more info in the &lt;a href=&quot;https://drive.google.com/file/d/1RnZ52rGaB6BR-EKneBcabdMcg9Pl7z9M&quot;&gt;sponsor booklet&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;Thanks, and we hope to see you at the event! 
-The Events &amp;amp; Meetups Group&lt;/p&gt;
-</description>
-        <pubDate>Tue, 21 Aug 2018 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2018/08/21/beam-summit-europe.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2018/08/21/beam-summit-europe.html</guid>
         
         
         <category>blog</category>
