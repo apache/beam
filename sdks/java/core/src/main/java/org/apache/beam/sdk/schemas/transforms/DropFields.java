@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -59,6 +61,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
  * PCollection<Row> noLatitude = events.apply(DropFields.fields("location.latitude"));
  * }</pre>
  */
+@Experimental(Kind.SCHEMAS)
 public class DropFields {
   public static <T> Inner<T> fields(String... fields) {
     return fields(FieldAccessDescriptor.withFieldNames(fields));
@@ -81,6 +84,9 @@ public class DropFields {
     }
 
     FieldAccessDescriptor complement(Schema inputSchema, FieldAccessDescriptor input) {
+      // Create a FieldAccessDescriptor that select all fields _not_ selected in the input
+      // descriptor. Maintain
+      // the original order of the schema.
       Set<String> fieldNamesToSelect = Sets.newHashSet();
       Map<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> nestedFieldsToSelect =
           Maps.newHashMap();
@@ -91,8 +97,7 @@ public class DropFields {
         }
         Field field = inputSchema.getField(i);
         Map<Integer, FieldAccessDescriptor.FieldDescriptor> nestedFields =
-            input.getNestedFieldsAccessed().entrySet().stream()
-                .map(Map.Entry::getKey)
+            input.getNestedFieldsAccessed().keySet().stream()
                 .collect(Collectors.toMap(k -> k.getFieldId(), k -> k));
 
         FieldAccessDescriptor.FieldDescriptor fieldDescriptor = nestedFields.get(i);
@@ -138,7 +143,7 @@ public class DropFields {
       FieldAccessDescriptor selectDescriptor =
           complement(inputSchema, fieldsToDrop.resolve(inputSchema));
 
-      return Select.<T>fieldAccess(selectDescriptor).expand(input);
+      return input.apply(Select.fieldAccess(selectDescriptor));
     }
   }
 }

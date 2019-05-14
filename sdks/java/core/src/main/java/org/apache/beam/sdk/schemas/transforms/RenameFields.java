@@ -22,6 +22,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -40,7 +42,8 @@ import org.apache.commons.compress.utils.Lists;
 
 /**
  * A transform for renaming fields inside an existing schema. Top level or nested fields can be
- * renamed.
+ * renamed. When renaming a nested field, the nested prefix does not need to be specified again when
+ * specifying the new name.
  *
  * <p>Example use:
  *
@@ -48,9 +51,10 @@ import org.apache.commons.compress.utils.Lists;
  * PCollection<Row> renamedEvents =
  *   events.apply(RenameFields.<Event>create()
  *       .rename("userName", "userId")
- *       .rename("location.country", "location.countryCode"));
+ *       .rename("location.country", "countryCode"));
  * }</pre>
  */
+@Experimental(Kind.SCHEMAS)
 public class RenameFields {
   /** Create an instance of this transform. */
   public static <T> Inner<T> create() {

@@ -229,7 +229,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return builder().setFieldsAccessed(Sets.newLinkedHashSet(fields)).build();
   }
 
-  // Union a set of FieldAccessDescriptors. This function currenty only supports descriptors with
+  // Union a set of FieldAccessDescriptors. This function currently only supports descriptors with
   // containing named fields, not those containing ids.
   private static FieldAccessDescriptor union(
       Iterable<FieldAccessDescriptor> fieldAccessDescriptors) {

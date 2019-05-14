@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier.Kind;
@@ -62,6 +63,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimaps;
  *       .field("userDetails.isSpecialUser", "FieldType.BOOLEAN", false));
  * }</pre>
  */
+@Experimental(Experimental.Kind.SCHEMAS)
 public class AddFields {
   public static <T> Inner<T> create() {
     return new Inner<>();
@@ -210,7 +212,7 @@ public class AddFields {
       return new Inner<>(fields);
     }
 
-    private AddFieldsInformation getAddFieldsInformation(
+    private static AddFieldsInformation getAddFieldsInformation(
         Schema inputSchema, Collection<NewField> fieldsToAdd) {
       List<NewField> newTopLevelFields =
           fieldsToAdd.stream()
@@ -222,7 +224,7 @@ public class AddFields {
               .collect(Collectors.toList());
       // Group all nested fields together by the field at the current level. For example, if adding
       // a.b, a.c, a.d
-      // this map will contain a -> {a.b, a.c, a.d}/
+      // this map will contain a -> {a.b, a.c, a.d}.
       Multimap<String, NewField> newNestedFieldsMap =
           Multimaps.index(newNestedFields, NewField::getName);
 
@@ -305,7 +307,7 @@ public class AddFields {
           Schema.FieldType.row(schema), newValuesThisLevel, nestedNewValueList);
     }
 
-    AddFieldsInformation getAddFieldsInformation(
+    private static AddFieldsInformation getAddFieldsInformation(
         Schema.FieldType inputFieldType, Collection<NewField> nestedFields) {
       AddFieldsInformation addFieldsInformation;
       Schema.FieldType fieldType;
@@ -337,7 +339,7 @@ public class AddFields {
       return addFieldsInformation.toBuilder().setOutputFieldType(fieldType).build();
     }
 
-    Row fillNewFields(Row row, AddFieldsInformation addFieldsInformation) {
+    private static Row fillNewFields(Row row, AddFieldsInformation addFieldsInformation) {
       Schema outputSchema = checkNotNull(addFieldsInformation.getOutputFieldType().getRowSchema());
 
       List<Object> newValues = Lists.newArrayListWithCapacity(outputSchema.getFieldCount());
@@ -356,7 +358,7 @@ public class AddFields {
       // If there are brand new simple (i.e. have no nested values) fields at this level, then add
       // the default values for all of them.
       newValues.addAll(addFieldsInformation.getDefaultValues());
-      // If we are creating new recursive fields, populate new values for the here.
+      // If we are creating new recursive fields, populate new values for them here.
       for (int i = newValues.size(); i < addFieldsInformation.getNestedNewValues().size(); ++i) {
         AddFieldsInformation newNestedField = addFieldsInformation.getNestedNewValues().get(i);
         if (newNestedField != null) {
@@ -367,7 +369,7 @@ public class AddFields {
       return Row.withSchema(outputSchema).attachValues(newValues).build();
     }
 
-    Object fillNewFields(
+    private static Object fillNewFields(
         Object original, Schema.FieldType fieldType, AddFieldsInformation addFieldsInformation) {
       switch (fieldType.getTypeName()) {
         case ROW:

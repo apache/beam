@@ -132,7 +132,7 @@ public class DropFieldsTest {
     pipeline.run();
   }
 
-  // drop making sure a nested field remainsx
+  // drop making sure a nested field remains.
 
   @Test
   @Category(NeedsRunner.class)
@@ -158,7 +158,4 @@ public class DropFieldsTest {
     PAssert.that(result).containsInAnyOrder(expectedRows);
     pipeline.run();
   }
-
-  @Test
-  public void testDropAllFields() {}
 }
