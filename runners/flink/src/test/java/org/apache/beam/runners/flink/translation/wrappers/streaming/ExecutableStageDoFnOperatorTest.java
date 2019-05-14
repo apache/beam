@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
@@ -44,11 +45,13 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
@@ -131,6 +134,32 @@ public class ExecutableStageDoFnOperatorTest {
                   .putPcollections("input", PCollection.getDefaultInstance())
                   .build())
           .build();
+
+  private final String stateId = "userState";
+  private final ExecutableStagePayload stagePayloadWithUserState =
+      stagePayload
+          .toBuilder()
+          .setComponents(
+              stagePayload
+                  .getComponents()
+                  .toBuilder()
+                  .putTransforms(
+                      "transform",
+                      RunnerApi.PTransform.newBuilder()
+                          .setSpec(
+                              RunnerApi.FunctionSpec.newBuilder()
+                                  .setUrn(PAR_DO_TRANSFORM_URN)
+                                  .build())
+                          .putInputs("input", "input")
+                          .build())
+                  .build())
+          .addUserStates(
+              ExecutableStagePayload.UserStateId.newBuilder()
+                  .setLocalName(stateId)
+                  .setTransformId("transform")
+                  .build())
+          .build();
+
   private final JobInfo jobInfo =
       JobInfo.create("job-id", "job-name", "retrieval-token", Struct.getDefaultInstance());
 
@@ -432,7 +461,7 @@ public class ExecutableStageDoFnOperatorTest {
     cleanupTimer.setForWindow(KV.of("key", "string"), window);
 
     Mockito.verify(stateBackendLock).lock();
-    ByteBuffer key = FlinkKeyUtils.encodeKey("key", keyCoder, Coder.Context.NESTED);
+    ByteBuffer key = FlinkKeyUtils.encodeKey("key", keyCoder);
     Mockito.verify(keyedStateBackend).setCurrentKey(key);
     assertThat(
         inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME),
@@ -539,8 +568,7 @@ public class ExecutableStageDoFnOperatorTest {
     stateBackendLock.lock();
 
     KeyedStateBackend<ByteBuffer> keyedStateBackend = operator.getKeyedStateBackend();
-    ByteBuffer key =
-        FlinkKeyUtils.encodeKey(one.getValue().getKey(), keyCoder, Coder.Context.NESTED);
+    ByteBuffer key = FlinkKeyUtils.encodeKey(one.getValue().getKey(), keyCoder);
     keyedStateBackend.setCurrentKey(key);
 
     DoFnOperator.FlinkTimerInternals timerInternals =
@@ -552,13 +580,19 @@ public class ExecutableStageDoFnOperatorTest {
     Collection<?> cleanupTimers =
         (Collection) Whitebox.getInternalState(stateCleaner, "cleanupQueue");
 
+    // create some state which can be cleaned up
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+    StateNamespace stateNamespace = StateNamespaces.window(windowCoder, window);
+    BagState<String> state =
+        operator.keyedStateInternals.state(
+            stateNamespace, StateTags.bag(stateId, StringUtf8Coder.of()));
+    state.add("testUserState");
+    assertThat(testHarness.numKeyedStateEntries(), is(1));
+
     // user timer that fires after the end of the window and after state cleanup
     TimerInternals.TimerData userTimer =
         TimerInternals.TimerData.of(
-            timerInputId,
-            StateNamespaces.window(windowCoder, window),
-            window.maxTimestamp().plus(1),
-            TimeDomain.EVENT_TIME);
+            timerInputId, stateNamespace, window.maxTimestamp().plus(1), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(userTimer);
 
     // start of bundle
@@ -598,6 +632,8 @@ public class ExecutableStageDoFnOperatorTest {
       operator.invokeFinishBundle();
       assertThat(cleanupTimers, hasSize(0));
     }
+
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
 
     testHarness.close();
   }
@@ -687,6 +723,13 @@ public class ExecutableStageDoFnOperatorTest {
     FlinkExecutableStageContext.Factory contextFactory =
         Mockito.mock(FlinkExecutableStageContext.Factory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
+
+    final ExecutableStagePayload stagePayload;
+    if (keyCoder != null) {
+      stagePayload = this.stagePayloadWithUserState;
+    } else {
+      stagePayload = this.stagePayload;
+    }
 
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(

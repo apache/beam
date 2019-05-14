@@ -69,6 +69,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -736,6 +737,11 @@ public class FlinkStreamingPortablePipelineTranslator
                 valueCoder.getClass().getSimpleName()));
       }
       keyCoder = ((KvCoder) valueCoder).getKeyCoder();
+      if (keyCoder instanceof LengthPrefixCoder) {
+        // Remove any unnecessary length prefixes which add more payload
+        // but also are not expected for state requests inside the operator.
+        keyCoder = ((LengthPrefixCoder) keyCoder).getValueCoder();
+      }
       keySelector = new KvToByteBufferKeySelector(keyCoder);
       inputDataStream = inputDataStream.keyBy(keySelector);
     }
