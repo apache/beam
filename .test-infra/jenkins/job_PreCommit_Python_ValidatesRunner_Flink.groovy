@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -21,16 +20,21 @@ import PrecommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'Python_PVR_Flink',
-        gradleTask: ':sdks:python:flinkValidatesRunner',
-        triggerPathPatterns: [
-                '^model/.*$',
-                '^runners/.*$',
-                '^sdks/python/.*$',
-                '^release/.*$',
-        ]
+    scope: this,
+    nameBase: 'Python_PVR_Flink',
+    gradleTask: ':beam-sdks-python:flinkValidatesRunner',
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^runners/core-construction-java/.*$',
+      '^runners/core-java/.*$',
+      '^runners/extensions-java/.*$'
+      '^runners/flink/.*$',
+      '^runners/java-fn-execution/.*$',
+      '^runners/reference/.*$',
+      '^sdks/python/.*$',
+      '^release/.*$',
+    ]
 )
 builder.build {
-  previousNames('beam_PostCommit_Python_VR_Flink')
+    previousNames('beam_PostCommit_Python_VR_Flink')
 }
