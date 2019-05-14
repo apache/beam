@@ -48,7 +48,7 @@ public class FlattenP extends AbstractProcessor {
   protected boolean tryProcess(int ordinal, @Nonnull Object item) {
     Coder inputCoder = inputOrdinalCoders.get(ordinal);
     WindowedValue<Object> windowedValue = Utils.decodeWindowedValue((byte[]) item, inputCoder);
-    return tryEmit(Utils.encodeWindowedValue(windowedValue, outputCoder));
+    return tryEmit(Utils.encode(windowedValue, outputCoder));
   }
 
   /** Jet {@link Processor} supplier that will provide instances of {@link FlattenP}. */
