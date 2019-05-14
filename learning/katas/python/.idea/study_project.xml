@@ -12,22 +12,24 @@
             <list>
               <StepikUserInfo>
                 <option name="firstName" value="Henry" />
-                <option name="id" value="-1" />
+                <option name="id" value="48485817" />
                 <option name="lastName" value="Suryawirawan" />
               </StepikUserInfo>
             </list>
           </option>
           <option name="compatible" value="true" />
           <option name="courseMode" value="Course Creator" />
-          <option name="createDate" value="0" />
+          <option name="createDate" value="1557824500323" />
           <option name="customPresentableName" />
           <option name="description" value="This course provides a series of kata to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
           <option name="environment" value="" />
           <option name="fromZip" value="false" />
-          <option name="id" value="0" />
+          <option name="id" value="54532" />
           <option name="index" value="-1" />
           <option name="instructors">
-            <list />
+            <list>
+              <option value="48485817" />
+            </list>
           </option>
           <option name="language" value="Python 2.7" />
           <option name="languageCode" value="en" />
@@ -36,30 +38,30 @@
           <option name="sectionIds">
             <list />
           </option>
-          <option name="stepikChangeStatus" value="Content changed" />
-          <option name="type" value="pycharm10 Python 2.7" />
-          <option name="updateDate" value="0" />
+          <option name="stepikChangeStatus" value="Up to date" />
+          <option name="type" value="pycharm11 Python 2.7" />
+          <option name="updateDate" value="1557824500000" />
           <option name="items">
             <list>
               <Section>
-                <option name="courseId" value="0" />
+                <option name="courseId" value="54532" />
                 <option name="customPresentableName" />
-                <option name="id" value="0" />
+                <option name="id" value="85644" />
                 <option name="index" value="1" />
                 <option name="name" value="Introduction" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="0" />
+                <option name="updateDate" value="1557824504000" />
                 <option name="items">
                   <list>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229517" />
                       <option name="index" value="1" />
                       <option name="name" value="Hello Beam" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824508000" />
+                      <option name="unitId" value="202042" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -72,7 +74,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713750" />
                             <option name="index" value="1" />
                             <option name="name" value="Hello Beam" />
                             <option name="record" value="-1" />
@@ -130,7 +132,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824510000" />
                           </EduTask>
                         </list>
                       </option>
@@ -139,24 +141,24 @@
                 </option>
               </Section>
               <Section>
-                <option name="courseId" value="0" />
+                <option name="courseId" value="54532" />
                 <option name="customPresentableName" />
-                <option name="id" value="0" />
+                <option name="id" value="85645" />
                 <option name="index" value="2" />
                 <option name="name" value="Core Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" />
+                <option name="updateDate" value="1557824511000" />
                 <option name="items">
                   <list>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229518" />
                       <option name="index" value="1" />
                       <option name="name" value="Map" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824515000" />
+                      <option name="unitId" value="202043" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -169,7 +171,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713751" />
                             <option name="index" value="1" />
                             <option name="name" value="ParDo" />
                             <option name="record" value="-1" />
@@ -244,7 +246,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824517000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -256,7 +258,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713752" />
                             <option name="index" value="2" />
                             <option name="name" value="ParDo OneToMany" />
                             <option name="record" value="-1" />
@@ -331,7 +333,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824519000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -343,7 +345,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713753" />
                             <option name="index" value="3" />
                             <option name="name" value="Map" />
                             <option name="record" value="-1" />
@@ -401,7 +403,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824521000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -413,7 +415,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713754" />
                             <option name="index" value="4" />
                             <option name="name" value="FlatMap" />
                             <option name="record" value="-1" />
@@ -471,19 +473,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824523000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229519" />
                       <option name="index" value="2" />
                       <option name="name" value="GroupByKey" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824527000" />
+                      <option name="unitId" value="202044" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -496,7 +498,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713756" />
                             <option name="index" value="1" />
                             <option name="name" value="GroupByKey" />
                             <option name="record" value="-1" />
@@ -554,19 +556,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824529000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229520" />
                       <option name="index" value="3" />
                       <option name="name" value="CoGroupByKey" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824533000" />
+                      <option name="unitId" value="202045" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -579,7 +581,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713757" />
                             <option name="index" value="1" />
                             <option name="name" value="CoGroupByKey" />
                             <option name="record" value="-1" />
@@ -637,19 +639,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824535000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229521" />
                       <option name="index" value="4" />
                       <option name="name" value="Combine" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824539000" />
+                      <option name="unitId" value="202046" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -662,7 +664,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713758" />
                             <option name="index" value="1" />
                             <option name="name" value="Simple Function" />
                             <option name="record" value="-1" />
@@ -737,7 +739,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1557824541000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -749,7 +751,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713759" />
                             <option name="index" value="2" />
                             <option name="name" value="CombineFn" />
                             <option name="record" value="-1" />
@@ -824,7 +826,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1557824543000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -836,7 +838,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713760" />
                             <option name="index" value="3" />
                             <option name="name" value="Combine PerKey" />
                             <option name="record" value="-1" />
@@ -894,19 +896,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1557824546000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229522" />
                       <option name="index" value="5" />
                       <option name="name" value="Flatten" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824550000" />
+                      <option name="unitId" value="202047" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -919,7 +921,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713761" />
                             <option name="index" value="1" />
                             <option name="name" value="Flatten" />
                             <option name="record" value="-1" />
@@ -977,19 +979,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1557824553000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229523" />
                       <option name="index" value="6" />
                       <option name="name" value="Partition" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824556000" />
+                      <option name="unitId" value="202048" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1002,7 +1004,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713762" />
                             <option name="index" value="1" />
                             <option name="name" value="Partition" />
                             <option name="record" value="-1" />
@@ -1077,7 +1079,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1557824558000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1086,24 +1088,24 @@
                 </option>
               </Section>
               <Section>
-                <option name="courseId" value="0" />
+                <option name="courseId" value="54532" />
                 <option name="customPresentableName" />
-                <option name="id" value="0" />
+                <option name="id" value="85646" />
                 <option name="index" value="3" />
                 <option name="name" value="Common Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" />
+                <option name="updateDate" value="1557824560000" />
                 <option name="items">
                   <list>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229524" />
                       <option name="index" value="1" />
                       <option name="name" value="Filter" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824563000" />
+                      <option name="unitId" value="202049" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1116,7 +1118,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713763" />
                             <option name="index" value="1" />
                             <option name="name" value="ParDo" />
                             <option name="record" value="-1" />
@@ -1174,7 +1176,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824566000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1186,7 +1188,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713764" />
                             <option name="index" value="2" />
                             <option name="name" value="Filter" />
                             <option name="record" value="-1" />
@@ -1244,19 +1246,19 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824567000" />
                           </EduTask>
                         </list>
                       </option>
                     </Lesson>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229525" />
                       <option name="index" value="2" />
                       <option name="name" value="Aggregation" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824571000" />
+                      <option name="unitId" value="202050" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1269,7 +1271,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713765" />
                             <option name="index" value="1" />
                             <option name="name" value="Count" />
                             <option name="record" value="-1" />
@@ -1327,7 +1329,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824574000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1339,7 +1341,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713766" />
                             <option name="index" value="2" />
                             <option name="name" value="Sum" />
                             <option name="record" value="-1" />
@@ -1397,7 +1399,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824575000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1409,7 +1411,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713767" />
                             <option name="index" value="3" />
                             <option name="name" value="Mean" />
                             <option name="record" value="-1" />
@@ -1467,7 +1469,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" />
+                            <option name="updateDate" value="1557824578000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1479,7 +1481,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713768" />
                             <option name="index" value="4" />
                             <option name="name" value="Smallest" />
                             <option name="record" value="-1" />
@@ -1537,7 +1539,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1557824580000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1549,7 +1551,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713769" />
                             <option name="index" value="5" />
                             <option name="name" value="Largest" />
                             <option name="record" value="-1" />
@@ -1607,7 +1609,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1557824582000" />
                           </EduTask>
                         </list>
                       </option>
@@ -1616,24 +1618,24 @@
                 </option>
               </Section>
               <Section>
-                <option name="courseId" value="0" />
+                <option name="courseId" value="54532" />
                 <option name="customPresentableName" />
-                <option name="id" value="0" />
+                <option name="id" value="85647" />
                 <option name="index" value="4" />
                 <option name="name" value="Examples" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="0" />
+                <option name="updateDate" value="1557824583000" />
                 <option name="items">
                   <list>
                     <Lesson>
                       <option name="customPresentableName" />
-                      <option name="id" value="0" />
+                      <option name="id" value="229526" />
                       <option name="index" value="1" />
                       <option name="name" value="Word Count" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="0" />
-                      <option name="unitId" value="0" />
+                      <option name="updateDate" value="1557824587000" />
+                      <option name="unitId" value="202051" />
                       <option name="items">
                         <list>
                           <EduTask>
@@ -1646,7 +1648,7 @@
                                 <option name="type" value="STEPIK" />
                               </FeedbackLink>
                             </option>
-                            <option name="id" value="0" />
+                            <option name="id" value="713770" />
                             <option name="index" value="1" />
                             <option name="name" value="Word Count" />
                             <option name="record" value="-1" />
@@ -1704,7 +1706,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="0" />
+                            <option name="updateDate" value="1557824590000" />
                           </EduTask>
                         </list>
                       </option>
