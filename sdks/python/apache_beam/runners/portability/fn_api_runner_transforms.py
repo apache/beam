@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Pipeline transformations for the FnApiRunner.
+"""Pipeline transformations for the FnApiRunner. c
 """
 from __future__ import absolute_import
 from __future__ import print_function
@@ -383,6 +383,7 @@ class TransformContext(object):
     self.components.pcollections[pcoll_id].coder_id = (
         self.length_prefixed_coder(
             self.components.pcollections[pcoll_id].coder_id))
+    warnings.warn("FREDWARNING2" + str(self.components.pcollections[pcoll_id].coder_id))
 
 
 def leaf_transform_stages(

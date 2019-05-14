@@ -22,7 +22,6 @@ import logging
 import os
 import random
 import shutil
-import sys
 import tempfile
 import threading
 import time
@@ -240,10 +239,10 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': [1]})]))
 
-  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.'
-                   'See BEAM-6878')
+  # @unittest.skipIf(sys.version_info >= (3, 6, 0) and
+  #                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+  #                  'This test still needs to be fixed on Python 3.6.'
+  #                  'See BEAM-6878')
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
