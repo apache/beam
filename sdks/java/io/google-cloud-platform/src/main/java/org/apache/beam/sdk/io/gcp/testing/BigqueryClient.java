@@ -276,6 +276,7 @@ public class BigqueryClient {
     return response;
   }
 
+  /** Performs a query without flattening results. */
   @Nonnull
   public List<TableRow> queryUnflattened(String query, String projectId, boolean typed)
       throws IOException, InterruptedException {
@@ -356,6 +357,7 @@ public class BigqueryClient {
         lastException);
   }
 
+  /** Creates a new dataset. */
   public void createNewDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
@@ -453,6 +455,7 @@ public class BigqueryClient {
         lastException);
   }
 
+  /** Inserts rows to a table using a BigQuery streaming write. */
   public void insertDataToTable(
       String projectId, String datasetId, String tableName, List<Map<String, Object>> rows)
       throws IOException, InterruptedException {
