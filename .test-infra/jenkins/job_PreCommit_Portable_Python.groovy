@@ -26,10 +26,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^model/.*$',
       '^runners/core-construction-java/.*$',
       '^runners/core-java/.*$',
-      '^runners/extensions-java/.*$'
+      '^runners/extensions-java/.*$',
       '^runners/flink/.*$',
       '^runners/java-fn-execution/.*$',
-      '^runners/reference/.*$'
+      '^runners/reference/.*$',
       '^sdks/python/.*$',
       '^release/.*$',
     ]
