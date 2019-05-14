@@ -137,14 +137,23 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
 elif [[ "$RUNNER" == "flink" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
-    echo "No endpoint specified; starting a new Flink job server"
-    JOB_PORT=8099 # TODO(ibzib) dynamically allocate port
+    # Hacky python script to find a free port. Note there is a small chance the chosen port could
+    # get taken before being claimed by the job server.
+    SOCKET_SCRIPT="
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind(('localhost', 0))
+print s.getsockname()[1]
+s.close()
+    "
+    JOB_PORT=$(python -c "$SOCKET_SCRIPT")
+    ENDPOINT="localhost:$JOB_PORT"
+    echo "No endpoint specified; starting a new Flink job server on $ENDPOINT"
     java \
         -jar $FLINK_JOB_SERVER_JAR \
         --flink-master-url [local] \
         --job-port $JOB_PORT \
         --artifact-port 0 &
-    ENDPOINT="localhost:$JOB_PORT"
   fi
 fi
 
