@@ -21,11 +21,11 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.publish.maven.MavenPublication
@@ -36,6 +36,9 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
+
+import java.util.concurrent.atomic.AtomicInteger
+
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -1090,11 +1093,18 @@ class BeamModulePlugin implements Plugin<Project> {
                 def generateDependenciesFromConfiguration = { param ->
                   project.configurations."${param.configuration}".allDependencies.each {
                     def dependencyNode = dependenciesNode.appendNode('dependency')
-                    dependencyNode.appendNode('groupId', it.group)
-                    dependencyNode.appendNode('artifactId', it.name)
-                    dependencyNode.appendNode('version', it.version)
 
-                    dependencyNode.appendNode('scope', param.scope)
+                    if (it instanceof ProjectDependency) {
+                      dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
+                      dependencyNode.appendNode('artifactId', it.getDependencyProject().archivesBaseName)
+                      dependencyNode.appendNode('version', it.version)
+                      dependencyNode.appendNode('scope', param.scope)
+                    } else {
+                      dependencyNode.appendNode('groupId', it.group)
+                      dependencyNode.appendNode('artifactId', it.name)
+                      dependencyNode.appendNode('version', it.version)
+                      dependencyNode.appendNode('scope', param.scope)
+                    }
 
                     // Start with any exclusions that were added via configuration exclude rules.
                     // Then add all the exclusions that are specific to the dependency (if any
