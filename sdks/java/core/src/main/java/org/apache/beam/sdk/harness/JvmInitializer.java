@@ -23,9 +23,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 /**
  * A service interface for defining one-time initialization of the JVM during pipeline execution.
  *
- * <p>During pipeline execution, {@code onStartup} and {@code beforeProcessing} will be invoked
- *  at the appropriate stage of execution after the JVM is launched. Currently this is only
- * supported in portable pipelines or when using Google Cloud Dataflow.
+ * <p>During pipeline execution, {@code onStartup} and {@code beforeProcessing} will be invoked at
+ * the appropriate stage of execution after the JVM is launched. Currently this is only supported in
+ * portable pipelines or when using Google Cloud Dataflow.
  *
  * <p>{@link java.util.ServiceLoader} is used to discover implementations of {@link JvmInitializer},
  * note that you will need to register your implementation with the appropriate resources to ensure
@@ -36,8 +36,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public interface JvmInitializer {
 
   /**
-   * Implement onStartup to run some custom initialization immediately after the JVM is launched
-   * for pipeline execution.
+   * Implement onStartup to run some custom initialization immediately after the JVM is launched for
+   * pipeline execution.
    *
    * <p>In general users should prefer to implement {@code beforeProcessing} to perform custom
    * initialization so that basic services such as logging can be initialized first, but {@code
@@ -47,8 +47,8 @@ public interface JvmInitializer {
   default void onStartup() {}
 
   /**
-   * Implement beforeProcessing to run some custom initialization after basic services such
-   * as logging, but before data processing begins.
+   * Implement beforeProcessing to run some custom initialization after basic services such as
+   * logging, but before data processing begins.
    *
    * @param options The pipeline options passed to the worker.
    */
