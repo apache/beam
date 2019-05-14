@@ -388,6 +388,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
     private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
+    private static final PipelineOptionsParameter PIPELINE_OPTIONS_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -439,7 +441,7 @@ public abstract class DoFnSignature {
 
     /** Returns a {@link PipelineOptionsParameter}. */
     public static PipelineOptionsParameter pipelineOptions() {
-      return new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
+      return PIPELINE_OPTIONS_PARAMETER;
     }
 
     /** Returns a {@link RestrictionTrackerParameter}. */
