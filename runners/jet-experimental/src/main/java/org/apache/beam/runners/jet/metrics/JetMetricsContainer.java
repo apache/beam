@@ -18,6 +18,7 @@
 package org.apache.beam.runners.jet.metrics;
 
 import com.hazelcast.jet.IMapJet;
+import com.hazelcast.jet.Util;
 import com.hazelcast.jet.core.Processor;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -36,21 +37,23 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 /** Jet specific implementation of {@link MetricsContainer}. */
 public class JetMetricsContainer implements MetricsContainer {
 
-  public static final String METRICS_ACCUMULATOR_NAME =
-      "metrics"; // todo: should be unique for the current pipeline, I guess
+  public static String getMetricsMapName(long jobId) {
+    return Util.idToString(jobId) + "_METRICS";
+  }
+
   private final String stepName;
+  private final String metricsKey;
+
   private final Map<MetricName, CounterImpl> counters = new HashMap<>();
   private final Map<MetricName, DistributionImpl> distributions = new HashMap<>();
   private final Map<MetricName, GaugeImpl> gauges = new HashMap<>();
+
   private final IMapJet<String, MetricUpdates> accumulator;
 
-  public JetMetricsContainer(String stepName, Processor.Context context) {
-    this.stepName = stepName + "/" + context.globalProcessorIndex();
-    this.accumulator = context.jetInstance().getMap(METRICS_ACCUMULATOR_NAME);
-  }
-
-  public static String ownerIdFromStepName(String stepName) {
-    return stepName.substring(0, stepName.indexOf('/'));
+  public JetMetricsContainer(String stepName, String ownerId, Processor.Context context) {
+    this.metricsKey = context.globalProcessorIndex() + "/" + stepName + "/" + ownerId;
+    this.stepName = stepName;
+    this.accumulator = context.jetInstance().getMap(getMetricsMapName(context.jobId()));
   }
 
   @Override
@@ -74,7 +77,7 @@ public class JetMetricsContainer implements MetricsContainer {
         extractUpdates(this.distributions);
     ImmutableList<MetricUpdates.MetricUpdate<GaugeData>> gauges = extractUpdates(this.gauges);
     MetricUpdates updates = new MetricUpdatesImpl(counters, distributions, gauges);
-    accumulator.put(stepName, updates);
+    accumulator.put(metricsKey, updates);
   }
 
   private <UpdateT, CellT extends AbstractMetric<UpdateT>>
@@ -98,7 +101,7 @@ public class JetMetricsContainer implements MetricsContainer {
     private final Iterable<MetricUpdate<DistributionData>> distributions;
     private final Iterable<MetricUpdate<GaugeData>> gauges;
 
-    public MetricUpdatesImpl(
+    MetricUpdatesImpl(
         Iterable<MetricUpdate<Long>> counters,
         Iterable<MetricUpdate<DistributionData>> distributions,
         Iterable<MetricUpdate<GaugeData>> gauges) {

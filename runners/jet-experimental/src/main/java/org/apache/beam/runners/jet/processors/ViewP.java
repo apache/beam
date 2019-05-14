@@ -91,7 +91,7 @@ public class ViewP extends AbstractProcessor {
                                 e.getValue().timestamp,
                                 Collections.singleton(e.getKey()),
                                 e.getValue().pane);
-                        return Utils.encodeWindowedValue(outputValue, outputCoder);
+                        return Utils.encode(outputValue, outputCoder);
                       }));
     }
     return emitFromTraverser(resultTraverser);
