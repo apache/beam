@@ -761,9 +761,6 @@ public class JdbcIO {
     @Teardown
     public void teardown() throws Exception {
       connection.close();
-      if (dataSource instanceof AutoCloseable) {
-        ((AutoCloseable) dataSource).close();
-      }
     }
   }
 
@@ -1062,13 +1059,6 @@ public class JdbcIO {
           }
         }
         records.clear();
-      }
-
-      @Teardown
-      public void teardown() throws Exception {
-        if (dataSource instanceof AutoCloseable) {
-          ((AutoCloseable) dataSource).close();
-        }
       }
     }
   }
