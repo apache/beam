@@ -296,11 +296,11 @@ new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 class IndexAssigningStatefulDoFn(DoFn):
   INDEX_STATE = CombiningStateSpec('index', sum)
 
-  def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
+  def process(self, element, index=DoFn.StateParam(INDEX_STATE)):
     unused_key, value = element
-    next_index = state.read() or 0
-    yield (value, next_index)
-    state.add(1)
+    current_index = index.read()
+    yield (value, current_index)
+    index.add(1)
 ```
 
 Let's dissect this:
