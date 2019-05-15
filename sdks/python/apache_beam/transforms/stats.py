@@ -84,8 +84,8 @@ class ApproximateUniqueGlobally(PTransform):
     coder = coders.registry.get_coder(pcoll)
     return pcoll \
            | 'CountGlobalUniqueValues' \
-           >> (CombineGlobally(_ApproximateUniqueCombineFn(self._sample_size,
-                                                           coder)))
+           >> (CombineGlobally(ApproximateUniqueCombineFn(self._sample_size,
+                                                          coder)))
 
   def display_data(self):
     return {'sample_size': self._sample_size,
@@ -108,8 +108,8 @@ class ApproximateUniquePerKey(ApproximateUniqueGlobally):
     coder = coders.registry.get_coder(pcoll)
     return pcoll \
            | 'CountPerKeyUniqueValues' \
-           >> (CombinePerKey(_ApproximateUniqueCombineFn(self._sample_size,
-                                                         coder)))
+           >> (CombinePerKey(ApproximateUniqueCombineFn(self._sample_size,
+                                                        coder)))
 
 
 class _LargestUnique(object):
@@ -181,9 +181,9 @@ class _LargestUnique(object):
       return round(est)
 
 
-class _ApproximateUniqueCombineFn(CombineFn):
+class ApproximateUniqueCombineFn(CombineFn):
   """
-  _ApproximateUniqueCombineFn computes an estimate of the number of
+  ApproximateUniqueCombineFn computes an estimate of the number of
   unique values that were combined.
   """
 
