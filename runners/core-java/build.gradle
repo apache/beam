@@ -31,14 +31,14 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":model:fn-execution", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":sdks:java:fn-execution", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
   shadow library.java.joda_time
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library

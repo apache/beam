@@ -78,8 +78,8 @@ task preCommitPy2() {
 }
 
 task portablePreCommit() {
-  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
-  dependsOn ':beam-sdks-python-container:docker'
+  dependsOn ':runners:flink:1.5:job-server-container:docker'
+  dependsOn ':sdks:python:container:docker'
   dependsOn portableWordCountTask('portableWordCountBatch', false)
   dependsOn portableWordCountTask('portableWordCountStreaming', true)
 }
@@ -142,22 +142,22 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 // 2. Either a) or b)
 //  a) If you want the Job Server to run in a Docker container:
 //
-//    ./gradlew :beam-runners-flink_2.11-job-server-container:docker
+//    ./gradlew :runners:flink:1.5:job-server-container:docker
 //
 //  b) Otherwise, start a local JobService, for example, the Portable Flink runner
 //    (in a separate shell since it continues to run):
 //
-//    ./gradlew :beam-runners-flink_2.11-job-server:runShadow
+//    ./gradlew :runners:flink:1.5:job-server:runShadow
 //
 // Then you can run this example:
 //
 //  Docker (2a):
 //
-//    ./gradlew :beam-sdks-python:portableWordCount
+//    ./gradlew :sdks:python:portableWordCount
 //
 //  Local JobService (2b):
 //
-//    ./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099
+//    ./gradlew :sdks:python:portableWordCount -PjobEndpoint=localhost:8099
 //
 task portableWordCount {
   dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"))
@@ -166,7 +166,7 @@ task portableWordCount {
 def portableWordCountTask(name, streaming) {
   tasks.create(name) {
     dependsOn = ['installGcpTest']
-    mustRunAfter = [':beam-runners-flink_2.11-job-server-container:docker', ':beam-sdks-python-container:docker']
+    mustRunAfter = [':runners:flink:1.5:job-server-container:docker', ':sdks:python:container:docker']
     doLast {
       // TODO: Figure out GCS credentials and use real GCS input and output.
       def options = [
@@ -201,9 +201,9 @@ def portableWordCountTask(name, streaming) {
 
 // Run PostCommit integration tests on default runner (TestDataflowRunner)
 task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
-  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     def testOpts = basicTestOpts + ["--attr=IT"]
@@ -217,9 +217,9 @@ task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
 }
 
 task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
-  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
@@ -233,9 +233,9 @@ task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
 }
 
 task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
-  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
@@ -304,22 +304,22 @@ def flinkCompatibilityMatrix = {
   def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
   def workerType = config.workerType.name()
   def streaming = config.streaming
-  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
+  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${project(":sdks:python").buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
   def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
   def extra_experiments = []
   if (config.preOptimize)
     extra_experiments.add('pre_optimize=all')
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
+    dependsOn ':runners:flink:1.5:job-server:shadowJar'
     if (workerType.toLowerCase() == 'docker')
-      dependsOn ':beam-sdks-python-container:docker'
+      dependsOn ':sdks:python:container:docker'
     else if (workerType.toLowerCase() == 'process')
       dependsOn 'createProcessWorker'
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.5:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
       }
     }
   }
@@ -349,12 +349,12 @@ task flinkValidatesRunner() {
 // the SDK environment.
 task javaReferenceRunnerValidatesRunner() {
   dependsOn 'setupVirtualenv'
-  dependsOn ':beam-runners-reference-job-server:shadowJar'
-  dependsOn ':beam-sdks-python-container:docker'
+  dependsOn ':runners:reference:job-server:shadowJar'
+  dependsOn ':sdks:python:container:docker'
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.java_reference_runner_test --job_server_jar=${project(":beam-runners-reference-job-server:").shadowJar.archivePath} --environment_type=DOCKER"
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.java_reference_runner_test --job_server_jar=${project(":runners:reference:job-server:").shadowJar.archivePath} --environment_type=DOCKER"
     }
   }
 }
@@ -398,13 +398,13 @@ task buildSnapshot() {
 }
 
 project.task('createProcessWorker') {
-  dependsOn ':beam-sdks-python-container:build'
+  dependsOn ':sdks:python:container:build'
   dependsOn 'setupVirtualenv'
   def sdkWorkerFile = file("${project.buildDir}/sdk_worker.sh")
   def osType = 'linux'
   if (Os.isFamily(Os.FAMILY_MAC))
     osType = 'darwin'
-  def workerScript = "${project(":beam-sdks-python-container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
+  def workerScript = "${project(":sdks:python:container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
   def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
   outputs.file sdkWorkerFile
   doLast {
@@ -420,13 +420,13 @@ project.task('createProcessWorker') {
 
 project.task('crossLanguagePythonJavaFlink') {
   dependsOn 'setupVirtualenv'
-  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
-  dependsOn ':beam-sdks-python-container:docker'
-  dependsOn ':beam-sdks-java-container:docker'
-  dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
+  dependsOn ':runners:flink:1.5:job-server-container:docker'
+  dependsOn ':sdks:python:container:docker'
+  dependsOn ':sdks:java:container:docker'
+  dependsOn ':runners:core-construction-java:buildTestExpansionServiceJar'
 
   doLast {
-    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def testServiceExpansionJar = project(":runners:core-construction-java:").buildTestExpansionServiceJar.archivePath
     def options = [
             "--runner=PortableRunner",
             "--experiments=worker_threads=100",
@@ -445,13 +445,13 @@ project.task('crossLanguagePythonJavaFlink') {
 
 project.task('crossLanguagePortableWordCount') {
   dependsOn 'setupVirtualenv'
-  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
-  dependsOn ':beam-sdks-python-container:docker'
-  dependsOn ':beam-sdks-java-container:docker'
-  dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
+  dependsOn ':runners:flink:1.5:job-server-container:docker'
+  dependsOn ':sdks:python:container:docker'
+  dependsOn ':sdks:java:container:docker'
+  dependsOn ':runners:core-construction-java:buildTestExpansionServiceJar'
 
   doLast {
-    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
+    def testServiceExpansionJar = project(":runners:core-construction-java:").buildTestExpansionServiceJar.archivePath
     def options = [
             "--input=/etc/profile",
             "--output=/tmp/py-wordcount-portable",

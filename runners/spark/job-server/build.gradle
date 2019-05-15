@@ -35,7 +35,7 @@ applyJavaNature(
   },
 )
 
-def sparkRunnerProject = ":${project.name.replace("-job-server", "")}"
+def sparkRunnerProject = project.parent.path
 
 description = project(sparkRunnerProject).description + " :: Job Server"
 
@@ -52,10 +52,10 @@ dependencies {
   compile project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "shadowTest")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
-  validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:reference:java", configuration: "shadowTest")
+  compile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
 //  TODO: Enable AWS and HDFS file system.
 }
 

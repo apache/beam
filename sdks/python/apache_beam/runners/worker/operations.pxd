@@ -68,6 +68,7 @@ cdef class Operation(object):
   cpdef start(self)
   cpdef process(self, WindowedValue windowed_value)
   cpdef finish(self)
+  cpdef teardown(self)
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
   cpdef execution_time_monitoring_infos(self, transform_id)
   cpdef user_monitoring_infos(self, transform_id)

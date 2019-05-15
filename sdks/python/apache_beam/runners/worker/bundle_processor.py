@@ -746,6 +746,10 @@ class BundleProcessor(object):
         monitoring_info.labels['TAG'] = actual_output_tags[0]
     return monitoring_info
 
+  def shutdown(self):
+    for op in self.ops.values():
+      op.teardown()
+
 
 class ExecutionContext(object):
   def __init__(self):
@@ -870,7 +874,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
-    logging.error(
+    logging.info(
         'Missing required coder_id on grpc_port for %s; '
         'using deprecated fallback.',
         transform_id)
@@ -895,7 +899,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
-    logging.error(
+    logging.info(
         'Missing required coder_id on grpc_port for %s; '
         'using deprecated fallback.',
         transform_id)

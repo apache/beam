@@ -472,6 +472,15 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """
     raise NotImplementedError
 
+  def setup(self):
+    """Called to prepare an instance for processing bundles of elements.
+
+    This is a good place to initialize transient in-memory resources, such as
+    network connections. The resources can then be disposed in
+    ``DoFn.teardown``.
+    """
+    pass
+
   def start_bundle(self):
     """Called before a bundle of elements is processed on a worker.
 
@@ -483,6 +492,24 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   def finish_bundle(self):
     """Called after a bundle of elements is processed on a worker.
+    """
+    pass
+
+  def teardown(self):
+    """Called to use to clean up this instance before it is discarded.
+
+    A runner will do its best to call this method on any given instance to
+    prevent leaks of transient resources, however, there may be situations where
+    this is impossible (e.g. process crash, hardware failure, etc.) or
+    unnecessary (e.g. the pipeline is shutting down and the process is about to
+    be killed anyway, so all transient resources will be released automatically
+    by the OS). In these cases, the call may not happen. It will also not be
+    retried, because in such situations the DoFn instance no longer exists, so
+    there's no instance to retry it on.
+
+    Thus, all work that depends on input elements, and all externally important
+    side effects, must be performed in ``DoFn.process`` or
+    ``DoFn.finish_bundle``.
     """
     pass
 

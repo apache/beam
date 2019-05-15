@@ -847,7 +847,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     pass
 
   def stop_worker(self):
-    pass
+    self.worker.stop()
 
   def done(self):
     pass
@@ -1134,7 +1134,7 @@ class WorkerHandlerManager(object):
       try:
         controller.close()
       except Exception:
-        logging.info("Error closing controller %s" % controller, exc_info=True)
+        logging.error("Error closing controller %s" % controller, exc_info=True)
     self._cached_handlers = {}
 
 

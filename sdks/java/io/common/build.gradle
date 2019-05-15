@@ -26,5 +26,5 @@ dependencies {
   shadowTest library.java.vendored_guava_20_0
   testCompile library.java.junit
   testCompile library.java.postgres
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadow")
 }

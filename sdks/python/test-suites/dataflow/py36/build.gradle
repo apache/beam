@@ -32,9 +32,9 @@ def basicTestOpts = [
 ]
 
 task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
-  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     def testOpts = basicTestOpts + ["--attr=IT"]
@@ -52,9 +52,9 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
 }
 
 task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
-  def dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
