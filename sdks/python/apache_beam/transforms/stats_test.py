@@ -175,8 +175,8 @@ class ApproximateUniqueTest(unittest.TestCase):
               | 'get_estimate'
               >> beam.ApproximateUniqueGlobally(size=sample_size)
               | 'compare'
-              >> beam.ParDo(lambda x: [abs(x - actual_count) * 1.0
-                                       / actual_count <= max_err]))
+              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                         / actual_count <= max_err]))
 
     assert_that(result, equal_to([True]),
                 label='assert:global_by_size')
@@ -196,8 +196,8 @@ class ApproximateUniqueTest(unittest.TestCase):
               | 'get_estimate'
               >> beam.ApproximateUniqueGlobally(size=sample_size)
               | 'compare'
-              >> beam.ParDo(lambda x: [abs(x - actual_count) * 1.0
-                                       / actual_count <= max_err]))
+              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                         / actual_count <= max_err]))
 
     assert_that(result, equal_to([True]),
                 label='assert:global_by_size_with_duplicates')
@@ -234,8 +234,8 @@ class ApproximateUniqueTest(unittest.TestCase):
               | 'get_estimate'
               >> beam.ApproximateUniqueGlobally(size=sample_size)
               | 'compare'
-              >> beam.ParDo(lambda x: [abs(x - actual_count) * 1.0
-                                       / actual_count <= max_err]))
+              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                         / actual_count <= max_err]))
 
     assert_that(result, equal_to([True]),
                 label='assert:global_by_sample_size_with_big_population')
@@ -253,8 +253,8 @@ class ApproximateUniqueTest(unittest.TestCase):
               | 'get_estimate'
               >> beam.ApproximateUniqueGlobally(error=est_err)
               | 'compare'
-              >> beam.ParDo(lambda x: [abs(x - actual_count) * 1.0
-                                       / actual_count <= est_err]))
+              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                         / actual_count <= est_err]))
 
     assert_that(result, equal_to([True]),
                 label='assert:global_by_error')
@@ -292,8 +292,8 @@ class ApproximateUniqueTest(unittest.TestCase):
               | 'get_estimate'
               >> beam.ApproximateUniqueGlobally(error=est_err)
               | 'compare'
-              >> beam.ParDo(lambda x: [abs(x - actual_count) * 1.0
-                                       / actual_count <= est_err]))
+              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                         / actual_count <= est_err]))
 
     assert_that(result, equal_to([True]),
                 label='assert:global_by_error_with_big_population')
@@ -316,9 +316,10 @@ class ApproximateUniqueTest(unittest.TestCase):
               | 'get_estimate'
               >> beam.ApproximateUniquePerKey(size=sample_size)
               | 'compare'
-              >> beam.ParDo(lambda x: [abs(x[1] - len(actual_count_dict[x[0]]))
-                                       * 1.0 / len(actual_count_dict[x[0]])
-                                       <= max_err]))
+              >> beam.FlatMap(lambda x: [abs(x[1]
+                                             - len(actual_count_dict[x[0]]))
+                                         * 1.0 / len(actual_count_dict[x[0]])
+                                         <= max_err]))
 
     assert_that(result, equal_to([True] * number_of_keys),
                 label='assert:perkey_by_size')
@@ -340,9 +341,10 @@ class ApproximateUniqueTest(unittest.TestCase):
               | 'get_estimate'
               >> beam.ApproximateUniquePerKey(error=est_err)
               | 'compare'
-              >> beam.ParDo(lambda x: [abs(x[1] - len(actual_count_dict[x[0]]))
-                                       * 1.0 / len(actual_count_dict[x[0]])
-                                       <= est_err]))
+              >> beam.FlatMap(lambda x: [abs(x[1]
+                                             - len(actual_count_dict[x[0]]))
+                                         * 1.0 / len(actual_count_dict[x[0]])
+                                         <= est_err]))
 
     assert_that(result, equal_to([True] * number_of_keys),
                 label='assert:perkey_by_error')
@@ -372,8 +374,8 @@ class ApproximateUniqueTest(unittest.TestCase):
               | 'get_estimate'
               >> beam.ApproximateUniqueGlobally(error=est_err)
               | 'compare'
-              >> beam.ParDo(lambda x: [abs(x - actual_count) * 1.0
-                                       / actual_count <= est_err]))
+              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                         / actual_count <= est_err]))
 
     assert_that(result, equal_to([True]),
                 label='assert:globally_by_error_with_skewed_data')

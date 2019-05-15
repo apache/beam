@@ -27,6 +27,7 @@ from builtins import round
 
 import mmh3
 
+from apache_beam import coders
 from apache_beam.transforms.core import *
 from apache_beam.transforms.ptransform import PTransform
 
@@ -80,9 +81,15 @@ class ApproximateUniqueGlobally(PTransform):
         self._max_est_err = error
 
   def expand(self, pcoll):
+    coder = coders.registry.get_coder(pcoll)
     return pcoll \
            | 'CountGlobalUniqueValues' \
-           >> (CombineGlobally(ApproximateUniqueCombineDoFn(self._sample_size)))
+           >> (CombineGlobally(_ApproximateUniqueCombineFn(self._sample_size,
+                                                           coder)))
+
+  def display_data(self):
+    return {'sample_size': self._sample_size,
+            'max_estimation_error': self._max_est_err}
 
   @staticmethod
   def _get_sample_size_from_est_error(est_err):
@@ -98,9 +105,11 @@ class ApproximateUniqueGlobally(PTransform):
 class ApproximateUniquePerKey(ApproximateUniqueGlobally):
 
   def expand(self, pcoll):
+    coder = coders.registry.get_coder(pcoll)
     return pcoll \
            | 'CountPerKeyUniqueValues' \
-           >> (CombinePerKey(ApproximateUniqueCombineDoFn(self._sample_size)))
+           >> (CombinePerKey(_ApproximateUniqueCombineFn(self._sample_size,
+                                                         coder)))
 
 
 class _LargestUnique(object):
@@ -164,34 +173,36 @@ class _LargestUnique(object):
       return len(self._sample_heap)
     else:
       sample_space_size = sys.maxsize - 1.0 * self._min_hash
-      est = math.log1p(-self._sample_size / sample_space_size) \
-            / math.log1p(-1 / sample_space_size) \
-            * self._HASH_SPACE_SIZE \
-            / sample_space_size
+      est = (math.log1p(-self._sample_size / sample_space_size)
+             / math.log1p(-1 / sample_space_size)
+             * self._HASH_SPACE_SIZE
+             / sample_space_size)
 
       return round(est)
 
 
-class ApproximateUniqueCombineDoFn(CombineFn):
+class _ApproximateUniqueCombineFn(CombineFn):
   """
-  ApproximateUniqueCombineDoFn computes an estimate of the number of
+  _ApproximateUniqueCombineFn computes an estimate of the number of
   unique values that were combined.
   """
 
-  def __init__(self, sample_size):
+  def __init__(self, sample_size, coder):
     self._sample_size = sample_size
+    self._coder = coder
 
   def create_accumulator(self, *args, **kwargs):
     return _LargestUnique(self._sample_size)
 
-  @staticmethod
-  def add_input(accumulator, element, *args, **kwargs):
+  def add_input(self, accumulator, element, *args, **kwargs):
     try:
-      accumulator.add(mmh3.hash64(str(element))[1])
+      accumulator.add(mmh3.hash64(self._coder.encode(element))[1])
       return accumulator
     except Exception as e:
       raise RuntimeError("Runtime exception: %s", e)
 
+  # created an issue https://issues.apache.org/jira/browse/BEAM-7285 to speep up
+  # merge process.
   def merge_accumulators(self, accumulators, *args, **kwargs):
     merged_accumulator = self.create_accumulator()
     for accumulator in accumulators:
