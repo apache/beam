@@ -17,28 +17,20 @@
  */
 package org.apache.beam.runners.samza;
 
-import org.apache.samza.config.Config;
-import org.apache.samza.context.ExternalContext;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 
-/** Life cycle listener for a Samza pipeline during runtime. */
-public interface SamzaPipelineLifeCycleListener {
-  /** Callback when the pipeline options is created. */
-  void onInit(Config config, SamzaPipelineOptions options);
+/** Samza pipeline option that contains portability specific logic. For internal usage only. */
+public interface SamzaPortablePipelineOptions extends SamzaPipelineOptions {
+  @Description("The job service port. (Default: 11440) ")
+  @Default.Integer(11440)
+  int getJobPort();
 
-  /** Callback when the pipeline is started. */
-  ExternalContext onStart();
+  void setJobPort(int port);
 
-  /**
-   * Callback after the pipeline is submmitted. This will be invoked only for Samza jobs submitted
-   * to a cluster.
-   */
-  void onSubmit();
+  @Description("The FnControl port. (Default: 11441) ")
+  @Default.Integer(11441)
+  int getControlPort();
 
-  /** Callback after the pipeline is finished. */
-  void onFinish();
-
-  /** A registrar for {@link SamzaPipelineLifeCycleListener}. */
-  interface Registrar {
-    SamzaPipelineLifeCycleListener getLifeCycleListener();
-  }
+  void setControlPort(int port);
 }
