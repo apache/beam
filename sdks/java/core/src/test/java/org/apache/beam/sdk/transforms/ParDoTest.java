@@ -2908,7 +2908,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStreamWithProcessingTime.class})
     public void testSimpleProcessingTimerTimer() throws Exception {
       final String timerId = "foo";
 
