@@ -504,8 +504,8 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
       def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
         unused_key, value = element
-        next_index = state.read() or 0
-        yield (value, next_index)
+        current_index = state.read()
+        yield (value, current_index)
         state.add(1)
 
     with TestPipeline() as p:
