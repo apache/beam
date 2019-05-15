@@ -52,6 +52,8 @@ public class MonitoringInfoMetricName extends MetricName {
   public String getNamespace() {
     if (labels.containsKey(MonitoringInfoConstants.Labels.NAMESPACE)) {
       return labels.getOrDefault(MonitoringInfoConstants.Labels.NAMESPACE, null);
+    } else if (labels.containsKey(MonitoringInfoConstants.Labels.PTRANSFORM)) {
+      return labels.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     } else {
       return urn.split(":", 2)[0];
     }
