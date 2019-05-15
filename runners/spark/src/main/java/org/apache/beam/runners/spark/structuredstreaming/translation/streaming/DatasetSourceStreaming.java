@@ -134,6 +134,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
       // offsets are ignored see javadoc
       for (DatasetPartitionReader partitionReader : partitionReaders) {
         try {
+          // TODO: is checkpointMark stored in reliable storage ?
           partitionReader.reader.getCheckpointMark().finalizeCheckpoint();
         } catch (IOException e) {
           throw new RuntimeException(
