@@ -94,7 +94,7 @@ func NewFn(fn interface{}) (*Fn, error) {
 
 	case reflect.Ptr:
 		if val.Elem().Kind() != reflect.Struct {
-			return nil, fmt.Errorf("value %v must be ptr to struct", fn)
+			return nil, errors.Errorf("value %v must be ptr to struct", fn)
 		}
 
 		// Note that a ptr receiver is necessary if struct fields are updated in the
@@ -107,7 +107,7 @@ func NewFn(fn interface{}) (*Fn, error) {
 			for name, mfn := range methodsFuncs {
 				f, err := funcx.New(mfn)
 				if err != nil {
-					return nil, fmt.Errorf("method %v invalid: %v", name, err)
+					return nil, errors.Wrapf(err, "method %v invalid", name)
 				}
 				methods[name] = f
 			}
@@ -133,14 +133,14 @@ func NewFn(fn interface{}) (*Fn, error) {
 
 			f, err := funcx.New(reflectx.MakeFunc(val.Method(i).Interface()))
 			if err != nil {
-				return nil, fmt.Errorf("method %v invalid: %v", m.Name, err)
+				return nil, errors.Wrapf(err, "method %v invalid", m.Name)
 			}
 			methods[m.Name] = f
 		}
 		return &Fn{Recv: fn, methods: methods}, nil
 
 	default:
-		return nil, fmt.Errorf("value %v must be function or (ptr to) struct", fn)
+		return nil, errors.Errorf("value %v must be function or (ptr to) struct", fn)
 	}
 }
 
@@ -220,7 +220,7 @@ func AsDoFn(fn *Fn) (*DoFn, error) {
 	}
 
 	if _, ok := fn.methods[processElementName]; !ok {
-		return nil, fmt.Errorf("graph.AsDoFn: failed to find %v method: %v", processElementName, fn)
+		return nil, errors.Errorf("graph.AsDoFn: failed to find %v method: %v", processElementName, fn)
 	}
 
 	// TODO(herohde) 5/18/2017: validate the signatures, incl. consistency.
@@ -296,7 +296,7 @@ func AsCombineFn(fn *Fn) (*CombineFn, error) {
 
 	mergeFn, ok := fn.methods[mergeAccumulatorsName]
 	if !ok {
-		return nil, fmt.Errorf("%v: failed to find required %v method on type: %v", fnKind, mergeAccumulatorsName, fn.Name())
+		return nil, errors.Errorf("%v: failed to find required %v method on type: %v", fnKind, mergeAccumulatorsName, fn.Name())
 	}
 
 	// CombineFn methods must satisfy the following:
@@ -306,7 +306,7 @@ func AsCombineFn(fn *Fn) (*CombineFn, error) {
 	// ExtractOutput func(A) (O, error?)
 	// This means that the other signatures *must* match the type used in MergeAccumulators.
 	if len(mergeFn.Ret) <= 0 {
-		return nil, fmt.Errorf("%v: %v requires at least 1 return value. : %v", fnKind, mergeAccumulatorsName, mergeFn)
+		return nil, errors.Errorf("%v: %v requires at least 1 return value. : %v", fnKind, mergeAccumulatorsName, mergeFn)
 	}
 	accumType := mergeFn.Ret[0].T
 
@@ -359,7 +359,7 @@ func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
 
 	for key := range fn.methods {
 		if !m[key] {
-			return fmt.Errorf("%s: unexpected exported method %v present. Valid methods are: %v", fnKind, key, names)
+			return errors.Errorf("%s: unexpected exported method %v present. Valid methods are: %v", fnKind, key, names)
 		}
 	}
 	return nil

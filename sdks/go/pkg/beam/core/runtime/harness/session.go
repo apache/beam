@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
 )
@@ -68,7 +69,7 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	body := bufPool.Get().(*proto.Buffer)
 	defer bufPool.Put(body)
 	if err := body.Marshal(pb); err != nil {
-		return fmt.Errorf("Unable to marshal message for session recording: %v", err)
+		return errors.Wrap(err, "unable to marshal message for session recording")
 	}
 
 	eh := &session.EntryHeader{
@@ -79,13 +80,13 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	hdr := bufPool.Get().(*proto.Buffer)
 	defer bufPool.Put(hdr)
 	if err := hdr.Marshal(eh); err != nil {
-		return fmt.Errorf("Unable to marshal message header for session recording: %v", err)
+		return errors.Wrap(err, "unable to marshal message header for session recording")
 	}
 
 	l := bufPool.Get().(*proto.Buffer)
 	defer bufPool.Put(l)
 	if err := l.EncodeVarint(uint64(len(hdr.Bytes()))); err != nil {
-		return fmt.Errorf("Unable to write entry header length: %v", err)
+		return errors.Wrap(err, "unable to write entry header length")
 	}
 
 	// Acquire the lock to write the file.
@@ -93,13 +94,13 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	defer sessionLock.Unlock()
 
 	if _, err := capture.Write(l.Bytes()); err != nil {
-		return fmt.Errorf("Unable to write entry header length: %v", err)
+		return errors.Wrap(err, "unable to write entry header length")
 	}
 	if _, err := capture.Write(hdr.Bytes()); err != nil {
-		return fmt.Errorf("Unable to write entry header: %v", err)
+		return errors.Wrap(err, "unable to write entry header")
 	}
 	if _, err := capture.Write(body.Bytes()); err != nil {
-		return fmt.Errorf("Unable to write entry body: %v", err)
+		return errors.Wrap(err, "unable to write entry body")
 	}
 	return nil
 }
