@@ -22,6 +22,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Signature is a concise representation of a group of function types. The
@@ -118,7 +119,7 @@ func Satisfy(fn interface{}, sig *Signature) error {
 	default:
 		value := reflect.ValueOf(fn)
 		if value.Kind() != reflect.Func {
-			return fmt.Errorf("not a function: %v", value)
+			return errors.Errorf("not a function: %v", value)
 		}
 		typ = value.Type()
 	}
@@ -129,11 +130,11 @@ func Satisfy(fn interface{}, sig *Signature) error {
 		out = append(out, typ.Out(i))
 	}
 	if len(in) < len(sig.Args) || len(out) < len(sig.Return) {
-		return fmt.Errorf("not enough required parameters: %v", typ)
+		return errors.Errorf("not enough required parameters: %v", typ)
 	}
 
 	if len(in) > len(sig.Args)+len(sig.OptArgs) || len(out) > len(sig.Return)+len(sig.OptReturn) {
-		return fmt.Errorf("too many parameters: %v", typ)
+		return errors.Errorf("too many parameters: %v", typ)
 	}
 
 	// (1) Create generic binding. If inconsistent, reject fn. We do not allow
@@ -170,7 +171,7 @@ func bind(list, models []reflect.Type, m map[string]reflect.Type) error {
 
 		name := list[i].Name()
 		if current, ok := m[name]; ok && current != t {
-			return fmt.Errorf("bind conflict for %v: %v != %v", name, current, t)
+			return errors.Errorf("bind conflict for %v: %v != %v", name, current, t)
 		}
 		m[name] = t
 	}
@@ -210,7 +211,7 @@ func matchOpt(list, models []reflect.Type, m map[string]reflect.Type) error {
 			// Substitute optional types, if bound.
 			subst, ok := m[t.Name()]
 			if !ok {
-				return fmt.Errorf("optional generic parameter not bound %v", t.Name())
+				return errors.Errorf("optional generic parameter not bound %v", t.Name())
 			}
 			t = subst
 		}
@@ -219,7 +220,7 @@ func matchOpt(list, models []reflect.Type, m map[string]reflect.Type) error {
 		}
 
 		if i == len(models) {
-			return fmt.Errorf("failed to match optional parameter %v", t)
+			return errors.Errorf("failed to match optional parameter %v", t)
 		}
 	}
 	return nil
@@ -228,6 +229,6 @@ func matchOpt(list, models []reflect.Type, m map[string]reflect.Type) error {
 // MustSatisfy panics if the given fn does not satisfy the signature.
 func MustSatisfy(fn interface{}, sig *Signature) {
 	if err := Satisfy(fn, sig); err != nil {
-		panic(fmt.Sprintf("fn does not satisfy signature %v: %v", sig, err))
+		panic(errors.Wrapf(err, "fn does not satisfy signature %v", sig))
 	}
 }

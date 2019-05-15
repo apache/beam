@@ -25,6 +25,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -49,13 +50,13 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 	conn, err := dial(ctx, controlEndpoint, 60*time.Second)
 	if err != nil {
-		return fmt.Errorf("Failed to connect: %v", err)
+		return errors.Wrap(err, "failed to connect")
 	}
 	defer conn.Close()
 
 	client, err := fnpb.NewBeamFnControlClient(conn).Control(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to control service: %v", err)
+		return errors.Wrapf(err, "failed to connect to control service")
 	}
 
 	log.Debugf(ctx, "Successfully connected to control @ %v", controlEndpoint)
@@ -101,7 +102,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 				recordFooter()
 				return nil
 			}
-			return fmt.Errorf("recv failed: %v", err)
+			return errors.Wrapf(err, "recv failed")
 		}
 
 		// Launch a goroutine to handle the control message.
