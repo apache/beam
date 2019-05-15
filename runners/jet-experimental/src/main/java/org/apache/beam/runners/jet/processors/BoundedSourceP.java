@@ -90,7 +90,8 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
       }
       return outputCoder == null
           ? res
-          : Utils.encodeWindowedValue(res, outputCoder); // todo: this is not nice, have done this only as a quick fix for
+          : Utils.encodeWindowedValue(
+              res, outputCoder); // todo: this is not nice, have done this only as a quick fix for
       // BoundedSourcePTest
     } catch (IOException e) {
       throw rethrow(e);

@@ -109,7 +109,8 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                         windowedValue.getTimestamp(),
                         windowedValue.getWindows(),
                         windowedValue.getPane());
-                KeyManager keyManager = keyManagers.computeIfAbsent(key, k -> new KeyManager(k, latestWatermark));
+                KeyManager keyManager =
+                    keyManagers.computeIfAbsent(key, k -> new KeyManager(k, latestWatermark));
                 keyManager.processElement(updatedWindowedValue);
               }
               return appendableTraverser;
