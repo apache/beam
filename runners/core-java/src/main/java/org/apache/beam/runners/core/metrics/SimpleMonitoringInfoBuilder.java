@@ -42,8 +42,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  *
  * <p>SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
  * builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN); builder.setInt64Value(1);
- * builder.setPTransformLabel("myTransform"); builder.setPCollectionLabel("myPcollection");
- * MonitoringInfo mi = builder.build();
+ * builder.setPTransformLabel("myTransform");
+ * builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "myTransform"); MonitoringInfo mi =
+ * builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
   private final boolean validateAndDropInvalid;
@@ -96,6 +97,29 @@ public class SimpleMonitoringInfoBuilder {
   public SimpleMonitoringInfoBuilder setInt64Value(long value) {
     this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
     this.setInt64TypeUrn();
+    return this;
+  }
+
+  /**
+   * Sets the IntDistributionData of the DistributionData in the MonitoringInfo, and the appropriate
+   * type URN.
+   */
+  public SimpleMonitoringInfoBuilder setInt64DistributionValue(DistributionData data) {
+    this.builder
+        .getMetricBuilder()
+        .getDistributionDataBuilder()
+        .getIntDistributionDataBuilder()
+        .setCount(data.count())
+        .setSum(data.sum())
+        .setMin(data.min())
+        .setMax(data.max());
+    this.setInt64DistributionTypeUrn();
+    return this;
+  }
+
+  /** Sets the the appropriate type URN for int64 distribution tuples. */
+  public SimpleMonitoringInfoBuilder setInt64DistributionTypeUrn() {
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64);
     return this;
   }
 
