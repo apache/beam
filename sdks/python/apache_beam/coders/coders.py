@@ -751,6 +751,9 @@ class ProtoCoder(FastCoder):
     # a Map.
     return False
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return DeterministicProtoCoder(self.proto_message_type)
+
   def __eq__(self, other):
     return (type(self) == type(other)
             and self.proto_message_type == other.proto_message_type)
@@ -765,6 +768,25 @@ class ProtoCoder(FastCoder):
     else:
       raise ValueError(('Expected a subclass of google.protobuf.message.Message'
                         ', but got a %s' % typehint))
+
+
+class DeterministicProtoCoder(ProtoCoder):
+  """A deterministic Coder for Google Protocol Buffers.
+
+  It supports both Protocol Buffers syntax versions 2 and 3. However,
+  the runtime version of the python protobuf library must exactly match the
+  version of the protoc compiler what was used to generate the protobuf
+  messages.
+  """
+
+  def _create_impl(self):
+    return coder_impl.DeterministicProtoCoderImpl(self.proto_message_type)
+
+  def is_deterministic(self):
+    return True
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return self
 
 
 class TupleCoder(FastCoder):
