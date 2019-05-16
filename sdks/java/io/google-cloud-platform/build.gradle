@@ -74,6 +74,7 @@ dependencies {
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadowTest")
   shadowTest project(path: ":runners:direct-java", configuration: "shadow")
+  shadowTest project(path: ":sdks:java:extensions:sql", configuration: "shadow")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core

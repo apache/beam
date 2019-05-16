@@ -31,10 +31,12 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -130,7 +132,7 @@ public class BigQueryUtils {
           .put("SqlDateType", StandardSQLTypeName.DATE)
           .put("SqlTimeType", StandardSQLTypeName.TIME)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
-          .put("SqlTimestampWithLocalTzType", StandardSQLTypeName.TIMESTAMP)
+          .put("SqlTimestampWithLocalTzType", StandardSQLTypeName.DATETIME)
           .put("SqlCharType", StandardSQLTypeName.STRING)
           .build();
 
@@ -147,6 +149,79 @@ public class BigQueryUtils {
       }
     }
     return BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
+  }
+
+  /**
+   * Get the Beam {@link FieldType} from a BigQuery type name.
+   *
+   * <p>Supports both standard and legacy SQL types.
+   *
+   * @param typeName Name of the type
+   * @param nestedFields Nested fields for the given type (eg. RECORD type)
+   * @return Corresponding Beam {@link FieldType}
+   */
+  private static FieldType fromTableFieldSchemaType(
+      String typeName, List<TableFieldSchema> nestedFields) {
+    switch (typeName) {
+      case "STRING":
+        return FieldType.STRING;
+      case "BYTES":
+        return FieldType.BYTES;
+      case "INT64":
+      case "INTEGER":
+        return FieldType.INT64;
+      case "FLOAT64":
+      case "FLOAT":
+        return FieldType.DOUBLE;
+      case "BOOL":
+      case "BOOLEAN":
+        return FieldType.BOOLEAN;
+      case "TIMESTAMP":
+        return FieldType.DATETIME;
+      case "TIME":
+        return FieldType.logicalType(
+            new LogicalTypes.PassThroughLogicalType<Instant>(
+                "SqlTimeType", "", FieldType.DATETIME) {});
+      case "DATE":
+        return FieldType.logicalType(
+            new LogicalTypes.PassThroughLogicalType<Instant>(
+                "SqlDateType", "", FieldType.DATETIME) {});
+      case "DATETIME":
+        return FieldType.logicalType(
+            new LogicalTypes.PassThroughLogicalType<Instant>(
+                "SqlTimestampWithLocalTzType", "", FieldType.DATETIME) {});
+      case "STRUCT":
+      case "RECORD":
+        Schema rowSchema = fromTableFieldSchema(nestedFields);
+        return FieldType.row(rowSchema);
+      default:
+        throw new UnsupportedOperationException(
+            "Converting BigQuery type " + typeName + " to Beam type is unsupported");
+    }
+  }
+
+  private static Schema fromTableFieldSchema(List<TableFieldSchema> tableFieldSchemas) {
+    Schema.Builder schemaBuilder = Schema.builder();
+    for (TableFieldSchema tableFieldSchema : tableFieldSchemas) {
+      FieldType fieldType =
+          fromTableFieldSchemaType(tableFieldSchema.getType(), tableFieldSchema.getFields());
+
+      Optional<Mode> fieldMode = Optional.ofNullable(tableFieldSchema.getMode()).map(Mode::valueOf);
+      if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()) {
+        fieldType = FieldType.array(fieldType);
+      }
+
+      // if the mode is not defined or if it is set to NULLABLE, then the field is nullable
+      boolean nullable =
+          !fieldMode.isPresent() || fieldMode.filter(m -> m == Mode.NULLABLE).isPresent();
+      Field field = Field.of(tableFieldSchema.getName(), fieldType).withNullable(nullable);
+      if (tableFieldSchema.getDescription() != null
+          && !"".equals(tableFieldSchema.getDescription())) {
+        field = field.withDescription(tableFieldSchema.getDescription());
+      }
+      schemaBuilder.addField(field);
+    }
+    return schemaBuilder.build();
   }
 
   private static List<TableFieldSchema> toTableFieldSchema(Schema schema) {
@@ -186,6 +261,25 @@ public class BigQueryUtils {
   /** Convert a Beam {@link Schema} to a BigQuery {@link TableSchema}. */
   public static TableSchema toTableSchema(Schema schema) {
     return new TableSchema().setFields(toTableFieldSchema(schema));
+  }
+
+  /** Convert a BigQuery {@link TableSchema} to a Beam {@link Schema}. */
+  public static Schema fromTableSchema(TableSchema tableSchema) {
+    return fromTableFieldSchema(tableSchema.getFields());
+  }
+
+  private static final BigQueryIO.TypedRead.ToBeamRowFunction<TableRow>
+      TABLE_ROW_TO_BEAM_ROW_FUNCTION = beamSchema -> (TableRow tr) -> toBeamRow(beamSchema, tr);
+
+  public static final BigQueryIO.TypedRead.ToBeamRowFunction<TableRow> tableRowToBeamRow() {
+    return TABLE_ROW_TO_BEAM_ROW_FUNCTION;
+  }
+
+  private static final BigQueryIO.TypedRead.FromBeamRowFunction<TableRow>
+      TABLE_ROW_FROM_BEAM_ROW_FUNCTION = ignored -> BigQueryUtils::toTableRow;
+
+  public static final BigQueryIO.TypedRead.FromBeamRowFunction<TableRow> tableRowFromBeamRow() {
+    return TABLE_ROW_FROM_BEAM_ROW_FUNCTION;
   }
 
   private static final SerializableFunction<Row, TableRow> ROW_TO_TABLE_ROW =
@@ -285,6 +379,30 @@ public class BigQueryUtils {
       default:
         return fieldValue;
     }
+  }
+
+  /**
+   * Tries to parse the JSON {@link TableRow} from BigQuery.
+   *
+   * <p>Only supports basic types and arrays. Doesn't support date types or structs.
+   */
+  public static Row toBeamRow(Schema rowSchema, TableRow jsonBqRow) {
+    return rowSchema.getFields().stream()
+        .map(field -> toBeamRowFieldValue(field, jsonBqRow.get(field.getName())))
+        .collect(toRow(rowSchema));
+  }
+
+  private static Object toBeamRowFieldValue(Field field, Object bqValue) {
+    if (bqValue == null) {
+      if (field.getType().getNullable()) {
+        return null;
+      } else {
+        throw new IllegalArgumentException(
+            "Received null value for non-nullable field " + field.getName());
+      }
+    }
+
+    return toBeamValue(field.getType(), bqValue);
   }
 
   /**

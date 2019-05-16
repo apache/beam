@@ -149,7 +149,7 @@ class WriteTables<DestinationT>
         checkArgument(
             tableSchema != null,
             "Unless create disposition is %s, a schema must be specified, i.e. "
-                + "DynamicDestinations.getSchema() may not return null. "
+                + "DynamicDestinations.getBeamSchema() may not return null. "
                 + "However, create disposition is %s, and %s returned null for destination %s",
             CreateDisposition.CREATE_NEVER,
             firstPaneCreateDisposition,
