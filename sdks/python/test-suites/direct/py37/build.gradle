@@ -20,7 +20,7 @@ plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 // Required to setup a Python 3 virtualenv.
-pythonVersion = '3.6'
+pythonVersion = '3.7'
 
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
