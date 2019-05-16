@@ -21,6 +21,7 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -36,8 +37,6 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
-
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
@@ -300,6 +299,10 @@ class BeamModulePlugin implements Plugin<Project> {
     return project.hasProperty('isRelease')
   }
 
+  def archivesBaseName(Project p) {
+    'beam' + p.path.replace(':', '-')
+  }
+
   void apply(Project project) {
 
     /** ***********************************************************************************************/
@@ -315,7 +318,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.apply plugin: 'base'
-    project.archivesBaseName = 'beam' + project.path.replace(':', '-')
+    project.archivesBaseName = archivesBaseName(project)
 
     project.apply plugin: 'org.apache.beam.jenkins'
 
@@ -1096,7 +1099,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
                     if (it instanceof ProjectDependency) {
                       dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
-                      dependencyNode.appendNode('artifactId', it.getDependencyProject().archivesBaseName)
+                      dependencyNode.appendNode('artifactId', archivesBaseName(it.getDependencyProject()))
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
                     } else {
