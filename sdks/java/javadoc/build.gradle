@@ -53,6 +53,11 @@ task allJavadoc() {
 }
 
 task aggregateJavadoc(type: Javadoc) {
+  def createJavadocIOUrlForDependency = {
+    def dependency = dependencies.create(it)
+    return 'https://static.javadoc.io/' + dependency.getGroup() + '/' + dependency.getName() + '/' + dependency.getVersion()
+  }
+
   def exportedJavadocProjects = getExportedJavadocProjects()
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
@@ -75,16 +80,8 @@ task aggregateJavadoc(type: Javadoc) {
     failOnError false
     title "Apache Beam " + project.version
     overview 'overview.html'
-    linksOffline 'http://avro.apache.org/docs/1.7.7/api/java/', 'avro-docs'
-    linksOffline 'https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.22.0/', 'apiclient-docs'
-    linksOffline 'https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.22.0/', 'oauth-docs'
-    linksOffline 'https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/', 'bq-docs'
-    linksOffline 'http://googlecloudplatform.github.io/google-cloud-java/0.8.0/apidocs/index.html', 'datastore-docs'
-    linksOffline 'http://google.github.io/guava/releases/20.0/api/docs/', 'guava-docs'
-    linksOffline 'http://fasterxml.github.io/jackson-annotations/javadoc/2.9/', 'jackson-annotations-docs'
-    linksOffline 'http://fasterxml.github.io/jackson-databind/javadoc/2.9/', 'jackson-databind-docs'
-    linksOffline 'http://hamcrest.org/JavaHamcrest/javadoc/1.3/', 'hamcrest-docs'
-    linksOffline 'http://www.joda.org/joda-time/apidocs', 'joda-docs'
-    linksOffline 'http://junit.sourceforge.net/javadoc/', 'junit-docs'
+    for (dep in project.library.java.values()) {
+      links createJavadocIOUrlForDependency(dep)
+    }
   }
 }
