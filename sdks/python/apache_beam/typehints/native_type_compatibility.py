@@ -86,6 +86,11 @@ def _safe_issubclass(derived, parent):
   try:
     return issubclass(derived, parent)
   except TypeError:
+    if hasattr(derived, '__origin__'):
+      try:
+        return issubclass(derived.__origin__, parent)
+      except TypeError:
+        pass
     return False
 
 
@@ -102,6 +107,11 @@ def _match_same_type(match_against):
 def _match_is_named_tuple(user_type):
   return (_safe_issubclass(user_type, typing.Tuple) and
           hasattr(user_type, '_field_types'))
+
+
+def _match_is_union_py3(user_type):
+  return (hasattr(user_type, '__origin__') and
+          user_type.__origin__ is typing.Union)
 
 
 def convert_to_beam_type(typ):
@@ -144,11 +154,17 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.Tuple),
           arity=-1,
           beam_type=typehints.Tuple),
-      _TypeMapEntry(
-          match=_match_same_type(typing.Union),
-          arity=-1,
-          beam_type=typehints.Union)
   ]
+  if sys.version_info.major >= 3:
+    type_map.append(
+        _TypeMapEntry(
+            match=_match_is_union_py3, arity=-1, beam_type=typehints.Union))
+  else:
+    type_map.append(
+        _TypeMapEntry(
+            match=_match_same_type(typing.Union),
+            arity=-1,
+            beam_type=typehints.Union))
 
   # Find the first matching entry.
   matched_entry = next((entry for entry in type_map if entry.match(typ)), None)
