@@ -133,6 +133,11 @@ import org.slf4j.LoggerFactory;
  * );
  * }</pre>
  *
+ * By default, the provided function instantiates a DataSource per execution thread. In some
+ * circumstances, such as DataSources that have a pool of connections, this can quickly overwhelm
+ * the database by requesting too many connections. In that case you should make the DataSource a
+ * static singleton so it gets instantiated only once per JVM.
+ *
  * <h3>Writing to JDBC datasource</h3>
  *
  * <p>JDBC sink supports writing records into a database. It writes a {@link PCollection} to the
