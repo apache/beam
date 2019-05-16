@@ -95,6 +95,7 @@ This is a collection of documents that may or may not be up to date.
 - Integrating runners & IO [[doc](https://docs.google.com/document/d/1ZFVlnldrIYhUgOfxIT2JcmTFFSWTl4HwAnQsnwiNL1g)]
 - Beam SQL Pipeline Options [[doc](https://docs.google.com/document/d/1UTsSBuruJRfGnVOS9eXbQI6NauCD4WnSAPgA_Y0zjdk)]
 - Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
+- Portable Beam Schemas [[doc](https://s.apache.org/beam-schemas)]
 
 ### Portability
 - Fn API
