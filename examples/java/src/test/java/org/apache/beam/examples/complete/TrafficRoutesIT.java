@@ -77,7 +77,6 @@ public class TrafficRoutesIT {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(backoffFactory.backoff());
     String res = "empty_result";
-    int attemptNum = 1;
     do {
       QueryResponse response =
           this.bqClient.queryWithRetries(
