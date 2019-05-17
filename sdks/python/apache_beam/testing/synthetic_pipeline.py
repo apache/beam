@@ -17,7 +17,7 @@
 
 """A set of utilities to write pipelines for performance tests.
 
-This module offers a way to create pipelines using synthetic sources and steps.
+xThis module offers a way to create pipelines using synthetic sources and steps.
 Exact shape of the pipeline and the behaviour of sources and steps can be
 controlled through arguments. Please see function 'parse_args()' for more
 details about the arguments.
