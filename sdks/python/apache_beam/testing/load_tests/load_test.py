@@ -33,6 +33,8 @@ class LoadTest(unittest.TestCase):
         'numRecords': options.get('num_records'),
         'keySizeBytes': options.get('key_size'),
         'valueSizeBytes': options.get('value_size'),
+        'hotKeyFraction': options.get('hot_key_fraction', 0),
+        'numHotKeys': options.get('num_hot_keys', 0),
         'bundleSizeDistribution': {
             'type': options.get(
                 'bundle_size_distribution_type', 'const'
