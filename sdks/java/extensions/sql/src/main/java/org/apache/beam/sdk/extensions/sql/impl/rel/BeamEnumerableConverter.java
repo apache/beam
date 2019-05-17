@@ -21,7 +21,8 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -108,23 +109,16 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return implementor.result(physType, list.toBlock());
   }
 
+  /**
+   * Called by the code generated in {@link
+   * BeamEnumerableConverter#implement(EnumerableRelImplementor, Prefer)}.
+   */
   public static Enumerable<Object> toEnumerable(BeamRelNode node) {
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
       final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
       return toEnumerable(options, node);
-    } finally {
-      Thread.currentThread().setContextClassLoader(originalClassLoader);
-    }
-  }
-
-  public static List<Row> toRowList(BeamRelNode node) {
-    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-    try {
-      Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
-      return toRowList(options, node);
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
@@ -141,28 +135,23 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return options;
   }
 
-  static List<Row> toRowList(PipelineOptions options, BeamRelNode node) {
-    checkAndFailOnNonDirectRunner(options, "toRowList is only available in DirectRunner.");
-
-    if (node instanceof BeamIOSinkRel) {
-      throw new UnsupportedOperationException("Does not support BeamIOSinkRel in toRowList.");
-    } else if (isLimitQuery(node)) {
-      return new ArrayList<>(limitCollectRows(options, node));
-    }
-
-    return new ArrayList<>(collectRows(options, node));
+  static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
+    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(getRows(options, node)));
   }
 
-  static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
+  static Collection<Row> getRows(PipelineOptions options, BeamRelNode node) {
     checkAndFailOnNonDirectRunner(
         options, "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
 
+    Collection<Row> result;
     if (node instanceof BeamIOSinkRel) {
-      return count(options, node);
+      result = count(options, node);
     } else if (isLimitQuery(node)) {
-      return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(limitCollectRows(options, node)));
+      result = limitCollectRows(options, node);
+    } else {
+      result = collectRows(options, node);
     }
-    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues((collectRows(options, node))));
+    return result;
   }
 
   private static PipelineResult limitRun(
@@ -229,7 +218,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         errorMessage);
   }
 
-  private static Queue<Row> limitCollectRows(PipelineOptions options, BeamRelNode node) {
+  private static Collection<Row> limitCollectRows(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
     ConcurrentLinkedQueue<Row> values = new ConcurrentLinkedQueue<>();
 
@@ -266,7 +255,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
-  private static List<Object> rowToAvaticaAndUnboxValues(Queue<Row> values) {
+  private static List<Object> rowToAvaticaAndUnboxValues(Collection<Row> values) {
     return values.stream()
         .map(
             row -> {
@@ -346,7 +335,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
-  private static Enumerable<Object> count(PipelineOptions options, BeamRelNode node) {
+  private static Collection<Row> count(PipelineOptions options, BeamRelNode node) {
     Pipeline pipeline = Pipeline.create(options);
     BeamSqlRelUtils.toPCollection(pipeline, node).apply(ParDo.of(new RowCounter()));
     PipelineResult result = pipeline.run();
@@ -366,7 +355,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         count = iterator.next().getAttempted();
       }
     }
-    return Linq4j.singletonEnumerable(count);
+    return Collections.singletonList(
+        Row.withSchema(Schema.builder().addInt64Field("count").build()).addValue(count).build());
   }
 
   private static class RowCounter extends DoFn<Row, Void> {

@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.Collection;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -120,9 +120,9 @@ public class BeamEnumerableConverterTest {
                   rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
       BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
 
-      List<Row> rowList = BeamEnumerableConverter.toRowList(options, node);
-      assertTrue(rowList.size() == 1);
-      assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
+      Collection<Row> rows = BeamEnumerableConverter.getRows(options, node);
+      assertEquals(1, rows.size());
+      assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rows.iterator().next());
     }
 
     @Test
@@ -148,9 +148,9 @@ public class BeamEnumerableConverterTest {
               null,
               rexBuilder.makeBigintLiteral(new BigDecimal(1)));
 
-      List<Row> rowList = BeamEnumerableConverter.toRowList(options, nodeLimit);
-      assertTrue(rowList.size() == 1);
-      assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
+      Collection<Row> rows = BeamEnumerableConverter.getRows(options, nodeLimit);
+      assertEquals(1, rows.size());
+      assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rows.iterator().next());
     }
 
     private static class FakeTable extends BaseBeamTable {
