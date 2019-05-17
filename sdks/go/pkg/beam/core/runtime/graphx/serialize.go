@@ -568,7 +568,7 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 		elm, err := decodeType(t.GetElement())
 		if err != nil {
 			wrapped := errors.Wrap(err, "bad element")
-			return nil, errors.WithContextf(wrapped, "failed to decode type %v, bad element: %v", t)
+			return nil, errors.WithContextf(wrapped, "failed to decode type %v, bad element", t)
 		}
 		return reflect.SliceOf(elm), nil
 
@@ -578,7 +578,7 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 			fType, err := decodeType(f.Type)
 			if err != nil {
 				wrapped := errors.Wrap(err, "bad field type")
-				return nil, errors.WithContextf(wrapped, "failed to decode type %v, bad field type: %v", t)
+				return nil, errors.WithContextf(wrapped, "failed to decode type %v, bad field type", t)
 			}
 
 			field := reflect.StructField{
