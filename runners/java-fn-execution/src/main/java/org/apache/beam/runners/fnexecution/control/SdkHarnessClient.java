@@ -386,12 +386,12 @@ public class SdkHarnessClient implements AutoCloseable {
    */
   public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,
-      Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputDesinations,
+      Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputDestinations,
       StateDelegator stateDelegator) {
     @SuppressWarnings("unchecked")
     BundleProcessor bundleProcessor =
         clientProcessors.computeIfAbsent(
-            descriptor.getId(), s -> create(descriptor, remoteInputDesinations, stateDelegator));
+            descriptor.getId(), s -> create(descriptor, remoteInputDestinations, stateDelegator));
     checkArgument(
         bundleProcessor.processBundleDescriptor.equals(descriptor),
         "The provided %s with id %s collides with an existing %s with the same id but "

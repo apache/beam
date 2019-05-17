@@ -80,4 +80,10 @@ public interface PortablePipelineOptions extends PipelineOptions {
   int getEnvironmentCacheMillis();
 
   void setEnvironmentCacheMillis(int environmentCacheMillis);
+
+  @Description("Duration in milliseconds for environment expiration. 0 means no expiration.")
+  @Default.Integer(0)
+  int getEnvironmentExpirationMillis();
+
+  void setEnvironmentExpirationMillis(int environmentExpirationMillis);
 }
