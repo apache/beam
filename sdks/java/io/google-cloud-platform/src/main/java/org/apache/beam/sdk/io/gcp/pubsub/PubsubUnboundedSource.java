@@ -151,6 +151,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Period of updates to determine watermark and other stats. */
   private static final Duration SAMPLE_UPDATE = Duration.standardSeconds(5);
 
+  /**
+   * Period after which watermark should be updated regardless of number of samples. It has to be
+   * longer than {@link PubsubUnboundedSource#SAMPLE_PERIOD}, so that for most of the cases value
+   * returned from {@link MovingFunction#isSignificant()} is sufficient to decide about watermark
+   * update.
+   */
+  private static final Duration UPDATE_THRESHOLD = SAMPLE_PERIOD.multipliedBy(2);
+
   /** Period for logging stats. */
   private static final Duration LOG_PERIOD = Duration.standardSeconds(30);
 
@@ -962,8 +970,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         // Advance watermark to current time.
         // TODO: Estimate a timestamp lag.
         lastWatermarkMsSinceEpoch = nowMsSinceEpoch;
-      } else if (minReadTimestampMsSinceEpoch.isSignificant()
-          || minUnreadTimestampMsSinceEpoch.isSignificant()) {
+      } else if (shouldUpdate(nowMsSinceEpoch)) {
         // Take minimum of the timestamps in all unread messages and recently read messages.
         lastWatermarkMsSinceEpoch = Math.min(readMin, unreadMin);
       }
@@ -971,6 +978,22 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       minWatermarkMsSinceEpoch.add(nowMsSinceEpoch, lastWatermarkMsSinceEpoch);
       maxWatermarkMsSinceEpoch.add(nowMsSinceEpoch, lastWatermarkMsSinceEpoch);
       return new Instant(lastWatermarkMsSinceEpoch);
+    }
+
+    /**
+     * In case of streams with low traffic, {@link MovingFunction} could never get enough samples in
+     * {@link PubsubUnboundedSource#SAMPLE_PERIOD} to move watermark. To prevent this situation, we need to
+     * check if watermark is stale (it was not updated during {@link
+     * PubsubUnboundedSource#UPDATE_THRESHOLD}) and force its update if it is.
+     *
+     * @param nowMsSinceEpoch - current timestamp
+     * @return should the watermark be updated
+     */
+    private boolean shouldUpdate(long nowMsSinceEpoch) {
+      boolean hasEnoughSamples = minReadTimestampMsSinceEpoch.isSignificant()
+          || minUnreadTimestampMsSinceEpoch.isSignificant();
+      boolean isStale = lastWatermarkMsSinceEpoch < (nowMsSinceEpoch - UPDATE_THRESHOLD.getMillis());
+      return hasEnoughSamples || isStale;
     }
 
     @Override
