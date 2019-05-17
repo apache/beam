@@ -58,9 +58,6 @@ public class TestJetRunner extends PipelineRunner<PipelineResult> {
   private final JetRunner delegate;
 
   private TestJetRunner(PipelineOptions options) {
-    JetPipelineOptions jetPipelineOptions = options.as(JetPipelineOptions.class);
-    jetPipelineOptions.setJetStartOwnCluster(false);
-
     this.factory = new JetTestInstanceFactory();
 
     this.delegate = JetRunner.fromOptions(options, factory::newClient);
