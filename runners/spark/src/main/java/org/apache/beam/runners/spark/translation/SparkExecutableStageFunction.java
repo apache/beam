@@ -107,43 +107,45 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   @Override
   public Iterator<RawUnionValue> call(Iterator<WindowedValue<InputT>> inputs) throws Exception {
-    JobBundleFactory jobBundleFactory = jobBundleFactoryCreator.create();
-    ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-    try (StageBundleFactory stageBundleFactory = jobBundleFactory.forStage(executableStage)) {
-      ConcurrentLinkedQueue<RawUnionValue> collector = new ConcurrentLinkedQueue<>();
-      ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
-      StateRequestHandler stateRequestHandler =
-          getStateRequestHandler(executableStage, stageBundleFactory.getProcessBundleDescriptor());
-      String stageName = stagePayload.getInput();
-      MetricsContainerImpl container = metricsAccumulator.value().getContainer(stageName);
-      BundleProgressHandler bundleProgressHandler =
-          new BundleProgressHandler() {
-            @Override
-            public void onProgress(ProcessBundleProgressResponse progress) {
-              container.update(progress.getMonitoringInfosList());
-            }
-
-            @Override
-            public void onCompleted(ProcessBundleResponse response) {
-              container.update(response.getMonitoringInfosList());
-            }
-          };
-      try (RemoteBundle bundle =
-          stageBundleFactory.getBundle(
-              receiverFactory, stateRequestHandler, bundleProgressHandler)) {
-        String inputPCollectionId = executableStage.getInputPCollection().getId();
-        FnDataReceiver<WindowedValue<?>> mainReceiver =
-            bundle.getInputReceivers().get(inputPCollectionId);
-        while (inputs.hasNext()) {
-          WindowedValue<InputT> input = inputs.next();
-          mainReceiver.accept(input);
+    try (JobBundleFactory jobBundleFactory = jobBundleFactoryCreator.create()) {
+      ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
+      try (StageBundleFactory stageBundleFactory = jobBundleFactory.forStage(executableStage)) {
+        ConcurrentLinkedQueue<RawUnionValue> collector = new ConcurrentLinkedQueue<>();
+        ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
+        StateRequestHandler stateRequestHandler =
+            getStateRequestHandler(
+                executableStage, stageBundleFactory.getProcessBundleDescriptor());
+        BundleProgressHandler bundleProgressHandler = getBundleProgressHandler();
+        try (RemoteBundle bundle =
+            stageBundleFactory.getBundle(
+                receiverFactory, stateRequestHandler, bundleProgressHandler)) {
+          String inputPCollectionId = executableStage.getInputPCollection().getId();
+          FnDataReceiver<WindowedValue<?>> mainReceiver =
+              bundle.getInputReceivers().get(inputPCollectionId);
+          while (inputs.hasNext()) {
+            WindowedValue<InputT> input = inputs.next();
+            mainReceiver.accept(input);
+          }
         }
+        return collector.iterator();
       }
-      return collector.iterator();
-    } catch (Exception e) {
-      LOG.error("Spark executable stage fn terminated with exception: ", e);
-      throw e;
     }
+  }
+
+  private BundleProgressHandler getBundleProgressHandler() {
+    String stageName = stagePayload.getInput();
+    MetricsContainerImpl container = metricsAccumulator.value().getContainer(stageName);
+    return new BundleProgressHandler() {
+      @Override
+      public void onProgress(ProcessBundleProgressResponse progress) {
+        container.update(progress.getMonitoringInfosList());
+      }
+
+      @Override
+      public void onCompleted(ProcessBundleResponse response) {
+        container.update(response.getMonitoringInfosList());
+      }
+    };
   }
 
   private StateRequestHandler getStateRequestHandler(
