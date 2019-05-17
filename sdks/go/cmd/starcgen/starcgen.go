@@ -172,7 +172,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("error opening %q: %v", *output, err)
 	}
-	if err := Generate(f, *output, pkg, strings.Split(*ids, ","), fset, fs); err != nil {
+	splitIds := make([]string, 0) // If no ids are specified, we should pass an empty slice.
+	if len(*ids) > 0 {
+		splitIds = strings.Split(*ids, ",")
+	}
+	if err := Generate(f, *output, pkg, splitIds, fset, fs); err != nil {
 		log.Fatal(err)
 	}
 }
