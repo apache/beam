@@ -17,7 +17,7 @@
 
 """A set of utilities to write pipelines for performance tests.
 
-xThis module offers a way to create pipelines using synthetic sources and steps.
+This module offers a way to create pipelines using synthetic sources and steps.
 Exact shape of the pipeline and the behaviour of sources and steps can be
 controlled through arguments. Please see function 'parse_args()' for more
 details about the arguments.
@@ -115,6 +115,108 @@ class SyntheticStep(beam.DoFn):
       for _ in range(self._output_records_per_input_record):
         yield element
 
+class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
+  """A `RestrictionProvider` for SyntheticSDFStep.
+
+  In initial_restriction and split that operates on num_records and ignores
+  source description (element).
+
+  """
+
+  def __init__(self, num_records, initial_splitting_num_bundles):
+    self._num_records = num_records
+    self._initial_splitting_num_bundles = initial_splitting_num_bundles
+
+  def initial_restriction(self, element):
+    return (0, self._num_records)
+
+  def create_tracker(self, restriction):
+    return restriction_trackers.OffsetRestrictionTracker(
+        restriction[0], restriction[1])
+
+  def split(self, element, restriction):
+    bundle_ranges = []
+    start_position, stop_position = restriction
+    if self._initial_splitting_num_bundles < 2:
+      bundle_ranges.append((start_position, stop_position))
+      return bundle_ranges
+    num_bundles = self._initial_splitting_num_bundles
+    num_records_per_bundle = (stop_position - start_position) // num_bundles
+
+    for i in range(0, num_bundles):
+      final_position = start_position + num_records_per_bundle
+      if i == num_bundles - 1:
+        final_position = stop_position  # Final bundle goes to end
+      bundle_ranges.append((start_position, final_position))
+      start_position = final_position
+    return bundle_ranges
+
+  def restriction_size(self, element, restriction):
+    (start, stop) = restriction
+    element_size = len(element) if isinstance(element, str) else 1
+    return (stop - start) * element_size
+
+""" A function which returns a SyntheticSDFStep with given parameters. """
+def getSyntheticSDFStep(per_element_delay_sec=0,
+                        per_bundle_delay_sec=0,
+                        output_records_per_input_record=1,
+                        output_filter_ratio=0,
+                        initial_splitting_num_bundles=2):
+
+  class SyntheticSDFStep(beam.DoFn):
+    """A SplittableDoFn of which behavior can be controlled through prespecified
+       parameters.
+    """
+
+    def __init__(self, per_element_delay_sec_arg, per_bundle_delay_sec_arg,
+                 output_filter_ratio_arg):
+      if per_element_delay_sec_arg and per_element_delay_sec_arg < 1e-3:
+        raise ValueError(
+            'Per element sleep time must be at least 1e-3. '
+            'Received: %r', per_element_delay_sec_arg)
+      self._per_element_delay_sec = per_element_delay_sec_arg
+      self._per_bundle_delay_sec = per_bundle_delay_sec_arg
+      self._output_filter_ratio = output_filter_ratio_arg
+
+    def start_bundle(self):
+      self._start_time = time.time()
+
+    def finish_bundle(self):
+      # The target is for the enclosing stage to take as close to as possible
+      # the given number of seconds, so we only sleep enough to make up for
+      # overheads not incurred elsewhere.
+      to_sleep = self._per_bundle_delay_sec - (time.time() - self._start_time)
+
+      # Ignoring sub-millisecond sleep times.
+      if to_sleep >= 1e-3:
+        time.sleep(to_sleep)
+
+    def process(self,
+                element,
+                restriction_tracker=beam.DoFn.RestrictionParam(
+                    SyntheticSDFStepRestrictionProvider(
+                        output_records_per_input_record,
+                        initial_splitting_num_bundles))):
+      if self._per_element_delay_sec >= 1e-3:
+        time.sleep(self._per_element_delay_sec)
+
+      filter_element = False
+      if self._output_filter_ratio > 0:
+        if np.random.random() < self._output_filter_ratio:
+          filter_element = True
+
+      for k in range(*restriction_tracker.current_restriction()):
+        if not restriction_tracker.try_claim(k):
+          return
+
+        if self._per_element_delay_sec >= 1e-3:
+          time.sleep(self._per_element_delay_sec)
+
+        if not filter_element:
+          yield element
+
+  return SyntheticSDFStep(per_element_delay_sec, per_bundle_delay_sec,
+                          output_filter_ratio)
 
 class SyntheticSource(iobase.BoundedSource):
   """A custom source of a specified size.
@@ -450,6 +552,9 @@ def _parse_steps(json_str):
         for each input element to a step.
     (4) output_filter_ratio - the probability at which a step may filter out a
         given element by not producing any output for that element.
+    (5) splittable - if the step should be splittable.
+    (6) initial_splitting_num_bundles - number of bundles initiall split if step
+        is splittable.
   """
   all_steps = []
   json_data = json.loads(json_str)
@@ -467,6 +572,12 @@ def _parse_steps(json_str):
     steps['output_filter_ratio'] = (
         float(val['output_filter_ratio'])
         if 'output_filter_ratio' in val else 0)
+    steps['splittable'] = (
+        bool(val['splittable'])
+        if 'splittable' in val else False)
+    steps['initial_splitting_num_bundles'] = (
+        int(val['initial_splitting_num_bundles'])
+        if 'initial_splitting_num_bundles' in val else 2)
     all_steps.append(steps)
 
   return all_steps
@@ -496,7 +607,9 @@ def parse_args(args):
            '    Defaults to 0.'
            '(3) An integer "output_records_per_input_record". Defaults to 1.'
            '(4) A float "output_filter_ratio" in the range [0, 1] . '
-           '    Defaults to 0.')
+           '    Defaults to 0.'
+           '(5) A bool "splittable" that defaults to false.'
+           '(6) A integer "initial_splitting_num_bundles". Defaults to 2.')
 
   parser.add_argument(
       '--input',
@@ -595,14 +708,25 @@ def run(argv=None):
 
       new_pc_list = []
       for pc_no, pc in enumerate(pc_list):
-        new_pc = pc | 'SyntheticStep %d.%d' % (step_no, pc_no) >> beam.ParDo(
-            SyntheticStep(
-                per_element_delay_sec=steps['per_element_delay'],
+        if steps['splittable']:
+          step = getSyntheticSDFStep(
+              per_element_delay_sec=steps['per_element_delay'],
+              per_bundle_delay_sec=steps['per_bundle_delay'],
+              output_records_per_input_record=
+              steps['output_records_per_input_record'],
+              output_filter_ratio=steps['output_filter_ratio'],
+              initial_splitting_num_bundles=
+              steps['initial_splitting_num_bundles'])
+        else:
+          step = SyntheticStep(
+              per_element_delay_sec=steps['per_element_delay'],
                 per_bundle_delay_sec=steps['per_bundle_delay'],
                 output_records_per_input_record=
                 steps['output_records_per_input_record'],
                 output_filter_ratio=
-                steps['output_filter_ratio']))
+                steps['output_filter_ratio'])
+        new_pc = pc | 'SyntheticStep %d.%d' % (
+              step_no, pc_no) >> beam.ParDo(step)
         new_pc_list.append(new_pc)
       pc_list = new_pc_list
 

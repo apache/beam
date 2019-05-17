@@ -69,6 +69,31 @@ class SyntheticPipelineTest(unittest.TestCase):
     # TODO(chamikaramj): Fix the flaky time based bounds.
     self.assertTrue(0.5 <= elapsed <= 3, elapsed)
 
+ def testSyntheticSDFStep(self):
+    start = time.time()
+    with beam.Pipeline() as p:
+      pcoll = p | beam.Create(list(range(10))) | beam.ParDo(
+          synthetic_pipeline.getSyntheticSDFStep(0, 0.5, 10))
+      assert_that(
+          pcoll | beam.combiners.Count.Globally(), equal_to([100]))
+
+    elapsed = time.time() - start
+    # TODO(chamikaramj): Fix the flaky time based bounds.
+    self.assertTrue(0.5 <= elapsed <= 3, elapsed)
+
+  def testSyntheticStepSplitProvider(self):
+    provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(5, 2)
+    self.assertEquals(provider.split('ab', (2, 15)), [(2, 8), (8, 15)])
+    self.assertEquals(provider.split('ab', (0, 8)), [(0, 4), (4, 8)])
+
+    provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(10, 1)
+    self.assertEquals(provider.split('ab', (1, 10)), [(1, 10)])
+    self.assertEquals(provider.restriction_size('ab', (1, 10)), 9 * 2)
+
+    provider = synthetic_pipeline.SyntheticSDFStepRestrictionProvider(10, 3)
+    self.assertEquals(provider.split('ab', (1, 10)), [(1, 4), (4, 7), (7, 10)])
+    self.assertEquals(provider.initial_restriction('a'), (0, 10))
+
   def testSyntheticSource(self):
     def assert_size(element, expected_size):
       assert len(element) == expected_size
@@ -111,7 +136,12 @@ class SyntheticPipelineTest(unittest.TestCase):
         source, 1, 0.3)
 
   def run_pipeline(self, barrier, writes_output=True):
-    steps = [{'per_element_delay': 1}, {'per_element_delay': 1}]
+    steps = [{
+        'per_element_delay': 1
+    }, {
+        'per_element_delay': 1,
+        'splittable': True
+    }]
     args = ['--barrier=%s' % barrier, '--runner=DirectRunner',
             '--steps=%s' % json.dumps(steps),
             '--input=%s' % json.dumps(input_spec(10, 1, 1))]
