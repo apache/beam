@@ -107,8 +107,6 @@ __all__ = [
     'TypeCheckError',
 ]
 
-logger = logging.getLogger(__name__)
-
 # This is missing in the builtin types module.  str.upper is arbitrary, any
 # method on a C-implemented type will do.
 # pylint: disable=invalid-name
@@ -283,21 +281,14 @@ def getcallargs_forhints_impl_py2(func, argspec, packed_typeargs, typekwargs):
   # Monkeypatch inspect.getfullargspec to allow passing non-function objects.
   # getfullargspec (getargspec on Python 2) are used by inspect.getcallargs.
   # TODO(BEAM-5490): Reimplement getcallargs and stop relying on monkeypatch.
-  if _use_full_argspec:
-    inspect.getfullargspec = getfullargspec
-  else:  # Python 2
-    inspect.getargspec = getfullargspec
-
+  inspect.getargspec = getfullargspec
   try:
     callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)
   except TypeError as e:
     raise TypeCheckError(e)
   finally:
     # Revert monkey-patch.
-    if _use_full_argspec:
-      inspect.getfullargspec = _original_getfullargspec
-    else:
-      inspect.getargspec = _original_getfullargspec
+    inspect.getargspec = _original_getfullargspec
 
   if argspec.defaults:
     # Declare any default arguments to be Any.
@@ -310,11 +301,8 @@ def getcallargs_forhints_impl_py2(func, argspec, packed_typeargs, typekwargs):
   if argspec.varargs:
     callargs[argspec.varargs] = typekwargs.get(
         argspec.varargs, typehints.Tuple[typehints.Any, ...])
-  if _use_full_argspec:
-    varkw = argspec.varkw
-  else:  # Python 2
-    varkw = argspec.keywords
 
+  varkw = argspec.keywords
   if varkw:
     # TODO(robertwb): Consider taking the union of key and value types.
     callargs[varkw] = typekwargs.get(
@@ -332,7 +320,7 @@ def getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs):
     #  inspect.signature in getfullargspec (for Py3).
     signature = inspect.signature(func)
   except ValueError as e:
-    logger.warning('Could not get signature for function: %s: %s', func, e)
+    logging.warning('Could not get signature for function: %s: %s', func, e)
     return {}
   try:
     bindings = signature.bind(*packed_typeargs, **typekwargs)
@@ -340,7 +328,6 @@ def getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs):
     # Might be raised due to too few or too many arguments.
     raise TypeCheckError(e)
   bound_args = bindings.arguments
-  missing = []
   for param in signature.parameters.values():
     if param.kind == inspect.Parameter.VAR_POSITIONAL:
       bound_args[param.name] = typehints.Tuple[typehints.Any, ...]
@@ -350,8 +337,6 @@ def getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs):
       # Declare unbound parameters with defaults to be Any.
       bound_args[param.name] = typehints.Any
 
-  if missing:
-    raise TypeCheckError('Missing required arguments: %s', missing)
   return dict(bound_args)
 
 
