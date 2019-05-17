@@ -39,5 +39,6 @@ dependencies {
 }
 
 runShadow {
+  jvmArgs = ["-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"]
   args = []
 }

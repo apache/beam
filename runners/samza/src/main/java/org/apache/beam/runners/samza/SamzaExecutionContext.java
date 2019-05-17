@@ -19,7 +19,13 @@ package org.apache.beam.runners.samza;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -38,6 +44,8 @@ import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.vendor.grpc.v1p13p1.io.netty.util.internal.StringUtil;
+import org.apache.commons.io.FileUtils;
 import org.apache.samza.context.ApplicationContainerContext;
 import org.apache.samza.context.ApplicationContainerContextFactory;
 import org.apache.samza.context.ContainerContext;
@@ -86,6 +94,33 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
     this.jobBundleFactory = jobBundleFactory;
   }
 
+  private static ServerFactory createControlServerFactory(
+      int controlPort, boolean useToken, String token) throws IOException {
+    if (useToken) {
+      return ServerFactory.createAuthEnabledServerFactory(() -> controlPort, token);
+    } else {
+      return ServerFactory.createWithPortSupplier(() -> controlPort);
+    }
+  }
+
+  private static ServerFactory createDataStateServerFactory(boolean useToken, String token)
+      throws IOException {
+    if (useToken) {
+      return ServerFactory.createAuthEnabledServerFactory(() -> 0, token);
+    } else {
+      return ServerFactory.createDefault();
+    }
+  }
+
+  private static void writeFsTokenToFile(String tokenPath, String token) throws IOException {
+    final File file = new File(tokenPath);
+    if (!file.createNewFile()) {
+      LOG.info("Fs token file already exists. Will override.");
+    }
+    Files.setPosixFilePermissions(file.toPath(), PosixFilePermissions.fromString("rw-------"));
+    FileUtils.writeStringToFile(file, token, Charset.defaultCharset());
+  }
+
   @Override
   public void start() {
     checkState(getJobBundleFactory() == null, "jobBundleFactory has been created!");
@@ -95,23 +130,39 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
         controlClientPool = MapControlClientPool.create();
         dataExecutor = Executors.newCachedThreadPool();
 
+        final String fsTokenPath = SamzaRunnerOverrideConfigs.getFsTokenPath(options);
+        final String fsToken = UUID.randomUUID().toString(); // 128 bits
+        final boolean useToken = !StringUtil.isNullOrEmpty(fsTokenPath);
+
+        if (useToken) {
+          LOG.info("Creating secure (auth-enabled) channels with fs token path: {}", fsTokenPath);
+          writeFsTokenToFile(fsTokenPath, fsToken);
+        } else {
+          LOG.info("Fs token path not provided. Will create channels in insecure mode.");
+        }
+
+        final ServerFactory controlServerFactory =
+            createControlServerFactory(
+                SamzaRunnerOverrideConfigs.getFnControlPort(options), useToken, fsToken);
+        final ServerFactory dataStateServerFactory =
+            createDataStateServerFactory(useToken, fsToken);
+
         fnControlServer =
             GrpcFnServer.allocatePortAndCreateFor(
                 FnApiControlClientPoolService.offeringClientsToPool(
                     controlClientPool.getSink(), () -> SAMZA_WORKER_ID),
-                ServerFactory.createWithPortSupplier(
-                    () -> SamzaRunnerOverrideConfigs.getFnControlPort(options)));
+                controlServerFactory);
         LOG.info("Started control server on port {}", fnControlServer.getServer().getPort());
 
         fnDataServer =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcDataService.create(dataExecutor, OutboundObserverFactory.serverDirect()),
-                ServerFactory.createDefault());
+                dataStateServerFactory);
         LOG.info("Started data server on port {}", fnDataServer.getServer().getPort());
 
         fnStateServer =
             GrpcFnServer.allocatePortAndCreateFor(
-                GrpcStateService.create(), ServerFactory.createDefault());
+                GrpcStateService.create(), dataStateServerFactory);
         LOG.info("Started state server on port {}", fnStateServer.getServer().getPort());
 
         final long waitTimeoutMs =

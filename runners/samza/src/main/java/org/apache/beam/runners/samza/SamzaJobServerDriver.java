@@ -63,6 +63,7 @@ public class SamzaJobServerDriver {
     overrideConfig.put(
         SamzaRunnerOverrideConfigs.FN_CONTROL_PORT,
         String.valueOf(pipelineOptions.getControlPort()));
+    overrideConfig.put(SamzaRunnerOverrideConfigs.FS_TOKEN_PATH, pipelineOptions.getFsTokenPath());
     pipelineOptions.setConfigOverride(overrideConfig);
     return new SamzaJobServerDriver(pipelineOptions);
   }

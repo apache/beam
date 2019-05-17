@@ -38,6 +38,7 @@ from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.token_auth_interceptor import TokenAuthInterceptor
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -326,10 +327,11 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   Caches the created channels by ``data descriptor url``.
   """
 
-  def __init__(self, credentials=None):
+  def __init__(self, credentials=None, token=None):
     self._data_channel_cache = {}
     self._lock = threading.Lock()
     self._credentials = None
+    self._token = token
     if credentials is not None:
       logging.info('Using secure channel creds.')
       self._credentials = credentials
@@ -354,7 +356,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
                 url, self._credentials, options=channel_options)
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,
-                                                WorkerIdInterceptor())
+                                                WorkerIdInterceptor(),
+                                                TokenAuthInterceptor(self._token))
           self._data_channel_cache[url] = GrpcClientDataChannel(
               beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
 

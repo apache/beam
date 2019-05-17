@@ -32,6 +32,7 @@ import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.BindableService;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerInterceptor;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerInterceptors;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.NettyServerBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollEventLoopGroup;
@@ -70,6 +71,19 @@ public abstract class ServerFactory {
     return new InetSocketAddressServerFactory(urlFactory, portSupplier);
   }
 
+  /**
+   * Create a {@link InetSocketAddressServerFactory} that uses the ports from a supplier and enables
+   * file based token authentication with the given token.
+   */
+  public static ServerFactory createAuthEnabledServerFactory(
+      Supplier<Integer> portSupplier, String token) {
+    return new InetSocketAddressServerFactory(
+        UrlFactory.createDefault(),
+        portSupplier,
+        GrpcContextHeaderAccessorProvider.interceptor(),
+        GrpcFileTokenAuthProvider.interceptor(token));
+  }
+
   /** Create a {@link EpollSocket}. */
   public static ServerFactory createEpollSocket() {
     return new EpollSocket();
@@ -99,6 +113,7 @@ public abstract class ServerFactory {
   public abstract Server create(
       List<BindableService> services, Endpoints.ApiServiceDescriptor serviceDescriptor)
       throws IOException;
+
   /**
    * Creates a {@link Server gRPC Server} using the default server factory.
    *
@@ -107,14 +122,21 @@ public abstract class ServerFactory {
   public static class InetSocketAddressServerFactory extends ServerFactory {
     private final UrlFactory urlFactory;
     private final Supplier<Integer> portSupplier;
+    private final ServerInterceptor[] interceptors;
 
     private InetSocketAddressServerFactory(UrlFactory urlFactory) {
       this(urlFactory, () -> 0);
     }
 
     private InetSocketAddressServerFactory(UrlFactory urlFactory, Supplier<Integer> portSupplier) {
+      this(urlFactory, portSupplier, GrpcContextHeaderAccessorProvider.interceptor());
+    }
+
+    private InetSocketAddressServerFactory(
+        UrlFactory urlFactory, Supplier<Integer> portSupplier, ServerInterceptor... interceptors) {
       this.urlFactory = urlFactory;
       this.portSupplier = portSupplier;
+      this.interceptors = interceptors;
     }
 
     @Override
@@ -123,7 +145,7 @@ public abstract class ServerFactory {
         throws IOException {
       InetSocketAddress address =
           new InetSocketAddress(InetAddress.getLoopbackAddress(), portSupplier.get());
-      Server server = createServer(services, address);
+      Server server = createServer(services, address, interceptors);
       apiServiceDescriptor.setUrl(urlFactory.createUrl(address.getHostName(), server.getPort()));
       return server;
     }
@@ -139,23 +161,21 @@ public abstract class ServerFactory {
           getClass().getSimpleName(),
           ServerFactory.class.getSimpleName(),
           serviceDescriptor.getUrl());
-      return createServer(services, (InetSocketAddress) socketAddress);
+      return createServer(services, (InetSocketAddress) socketAddress, interceptors);
     }
 
-    private static Server createServer(List<BindableService> services, InetSocketAddress socket)
+    private static Server createServer(
+        List<BindableService> services, InetSocketAddress socket, ServerInterceptor... interceptors)
         throws IOException {
       NettyServerBuilder builder =
-          NettyServerBuilder.forPort(socket.getPort())
+          NettyServerBuilder.forAddress(socket)
               // Set the message size to max value here. The actual size is governed by the
               // buffer size in the layers above.
               .maxMessageSize(Integer.MAX_VALUE)
               .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       services.stream()
           .forEach(
-              service ->
-                  builder.addService(
-                      ServerInterceptors.intercept(
-                          service, GrpcContextHeaderAccessorProvider.interceptor())));
+              service -> builder.addService(ServerInterceptors.intercept(service, interceptors)));
       return builder.build().start();
     }
   }
