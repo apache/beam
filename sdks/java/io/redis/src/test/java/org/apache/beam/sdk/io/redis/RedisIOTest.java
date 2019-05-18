@@ -174,6 +174,37 @@ public class RedisIOTest {
     assertEquals(6, count);
   }
 
+  @Test
+  public void testWriteUsingINCRBY() throws Exception {
+    String key = "key_incr";
+    List<String> values = Arrays.asList("0", "1", "2", "-3", "2", "4", "0", "5");
+    List<KV<String, String>> data = buildConstantKeyList(key, values);
+
+    PCollection<KV<String, String>> write = p.apply(Create.of(data));
+    write.apply(RedisIO.write().withEndpoint(REDIS_HOST, port).withMethod(Method.INCRBY));
+
+    p.run();
+
+    long count = Long.parseLong(client.get(key));
+    assertEquals(11, count);
+  }
+
+  @Test
+  public void testWriteUsingDECRBY() throws Exception {
+    String key = "key_decr";
+
+    List<String> values = Arrays.asList("-10", "1", "2", "-3", "2", "4", "0", "5");
+    List<KV<String, String>> data = buildConstantKeyList(key, values);
+
+    PCollection<KV<String, String>> write = p.apply(Create.of(data));
+    write.apply(RedisIO.write().withEndpoint(REDIS_HOST, port).withMethod(Method.DECRBY));
+
+    p.run();
+
+    long count = Long.parseLong(client.get(key));
+    assertEquals(-1, count);
+  }
+
   private static List<KV<String, String>> buildConstantKeyList(String key, List<String> values) {
     List<KV<String, String>> data = new ArrayList<>();
     for (String value : values) {
