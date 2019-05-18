@@ -31,16 +31,16 @@ class PickleCoderTest(unittest.TestCase):
   def test_basics(self):
     v = ('a' * 10, 'b' * 90)
     pickler = coders.PickleCoder()
-    self.assertEquals(v, pickler.decode(pickler.encode(v)))
+    self.assertEqual(v, pickler.decode(pickler.encode(v)))
     pickler = coders.Base64PickleCoder()
-    self.assertEquals(v, pickler.decode(pickler.encode(v)))
-    self.assertEquals(
+    self.assertEqual(v, pickler.decode(pickler.encode(v)))
+    self.assertEqual(
         coders.Base64PickleCoder().encode(v),
         base64.b64encode(coders.PickleCoder().encode(v)))
 
   def test_equality(self):
-    self.assertEquals(coders.PickleCoder(), coders.PickleCoder())
-    self.assertEquals(coders.Base64PickleCoder(), coders.Base64PickleCoder())
+    self.assertEqual(coders.PickleCoder(), coders.PickleCoder())
+    self.assertEqual(coders.Base64PickleCoder(), coders.Base64PickleCoder())
     self.assertNotEquals(coders.Base64PickleCoder(), coders.PickleCoder())
     self.assertNotEquals(coders.Base64PickleCoder(), object())
 

@@ -29,52 +29,52 @@ from apache_beam.internal.pickler import loads
 class PicklerTest(unittest.TestCase):
 
   def test_basics(self):
-    self.assertEquals([1, 'a', (u'z',)], loads(dumps([1, 'a', (u'z',)])))
+    self.assertEqual([1, 'a', (u'z',)], loads(dumps([1, 'a', (u'z',)])))
     fun = lambda x: 'xyz-%s' % x
-    self.assertEquals('xyz-abc', loads(dumps(fun))('abc'))
+    self.assertEqual('xyz-abc', loads(dumps(fun))('abc'))
 
   def test_lambda_with_globals(self):
     """Tests that the globals of a function are preserved."""
 
     # The point of the test is that the lambda being called after unpickling
     # relies on having the re module being loaded.
-    self.assertEquals(
+    self.assertEqual(
         ['abc', 'def'],
         loads(dumps(module_test.get_lambda_with_globals()))('abc def'))
 
   def test_lambda_with_main_globals(self):
-    self.assertEquals(unittest, loads(dumps(lambda: unittest))())
+    self.assertEqual(unittest, loads(dumps(lambda: unittest))())
 
   def test_lambda_with_closure(self):
     """Tests that the closure of a function is preserved."""
-    self.assertEquals(
+    self.assertEqual(
         'closure: abc',
         loads(dumps(module_test.get_lambda_with_closure('abc')))())
 
   def test_class(self):
     """Tests that a class object is pickled correctly."""
-    self.assertEquals(
+    self.assertEqual(
         ['abc', 'def'],
         loads(dumps(module_test.Xyz))().foo('abc def'))
 
   def test_object(self):
     """Tests that a class instance is pickled correctly."""
-    self.assertEquals(
+    self.assertEqual(
         ['abc', 'def'],
         loads(dumps(module_test.XYZ_OBJECT)).foo('abc def'))
 
   def test_nested_class(self):
     """Tests that a nested class object is pickled correctly."""
-    self.assertEquals(
+    self.assertEqual(
         'X:abc',
         loads(dumps(module_test.TopClass.NestedClass('abc'))).datum)
-    self.assertEquals(
+    self.assertEqual(
         'Y:abc',
         loads(dumps(module_test.TopClass.MiddleClass.NestedClass('abc'))).datum)
 
   def test_dynamic_class(self):
     """Tests that a nested class object is pickled correctly."""
-    self.assertEquals(
+    self.assertEqual(
         'Z:abc',
         loads(dumps(module_test.create_class('abc'))).get())
 
@@ -83,8 +83,8 @@ class PicklerTest(unittest.TestCase):
       dumps((_ for _ in range(10)))
 
   def test_recursive_class(self):
-    self.assertEquals('RecursiveClass:abc',
-                      loads(dumps(module_test.RecursiveClass('abc').datum)))
+    self.assertEqual('RecursiveClass:abc',
+                     loads(dumps(module_test.RecursiveClass('abc').datum)))
 
 
 if __name__ == '__main__':

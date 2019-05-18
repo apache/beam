@@ -41,15 +41,15 @@ class StreamTest(unittest.TestCase):
     out_s.write(b'xyz', True)
     out_s.write(b'', True)
     in_s = self.InputStream(out_s.get())
-    self.assertEquals(b'abc\0\t\n', in_s.read(6))
-    self.assertEquals(b'xyz', in_s.read_all(True))
-    self.assertEquals(b'', in_s.read_all(True))
+    self.assertEqual(b'abc\0\t\n', in_s.read(6))
+    self.assertEqual(b'xyz', in_s.read_all(True))
+    self.assertEqual(b'', in_s.read_all(True))
 
   def test_read_all(self):
     out_s = self.OutputStream()
     out_s.write(b'abc')
     in_s = self.InputStream(out_s.get())
-    self.assertEquals(b'abc', in_s.read_all(False))
+    self.assertEqual(b'abc', in_s.read_all(False))
 
   def test_read_write_byte(self):
     out_s = self.OutputStream()
@@ -57,9 +57,9 @@ class StreamTest(unittest.TestCase):
     out_s.write_byte(0)
     out_s.write_byte(0xFF)
     in_s = self.InputStream(out_s.get())
-    self.assertEquals(1, in_s.read_byte())
-    self.assertEquals(0, in_s.read_byte())
-    self.assertEquals(0xFF, in_s.read_byte())
+    self.assertEqual(1, in_s.read_byte())
+    self.assertEqual(0, in_s.read_byte())
+    self.assertEqual(0xFF, in_s.read_byte())
 
   def test_read_write_large(self):
     values = range(4 * 1024)
@@ -68,7 +68,7 @@ class StreamTest(unittest.TestCase):
       out_s.write_bigendian_int64(v)
     in_s = self.InputStream(out_s.get())
     for v in values:
-      self.assertEquals(v, in_s.read_bigendian_int64())
+      self.assertEqual(v, in_s.read_bigendian_int64())
 
   def run_read_write_var_int64(self, values):
     out_s = self.OutputStream()
@@ -76,7 +76,7 @@ class StreamTest(unittest.TestCase):
       out_s.write_var_int64(v)
     in_s = self.InputStream(out_s.get())
     for v in values:
-      self.assertEquals(v, in_s.read_var_int64())
+      self.assertEqual(v, in_s.read_var_int64())
 
   def test_small_var_int64(self):
     self.run_read_write_var_int64(range(-10, 30))
@@ -97,7 +97,7 @@ class StreamTest(unittest.TestCase):
       out_s.write_bigendian_double(v)
     in_s = self.InputStream(out_s.get())
     for v in values:
-      self.assertEquals(v, in_s.read_bigendian_double())
+      self.assertEqual(v, in_s.read_bigendian_double())
 
   def test_read_write_bigendian_int64(self):
     values = 0, 1, -1, 2**63-1, -2**63, int(2**61 * math.pi)
@@ -106,7 +106,7 @@ class StreamTest(unittest.TestCase):
       out_s.write_bigendian_int64(v)
     in_s = self.InputStream(out_s.get())
     for v in values:
-      self.assertEquals(v, in_s.read_bigendian_int64())
+      self.assertEqual(v, in_s.read_bigendian_int64())
 
   def test_read_write_bigendian_uint64(self):
     values = 0, 1, 2**64-1, int(2**61 * math.pi)
@@ -115,7 +115,7 @@ class StreamTest(unittest.TestCase):
       out_s.write_bigendian_uint64(v)
     in_s = self.InputStream(out_s.get())
     for v in values:
-      self.assertEquals(v, in_s.read_bigendian_uint64())
+      self.assertEqual(v, in_s.read_bigendian_uint64())
 
   def test_read_write_bigendian_int32(self):
     values = 0, 1, -1, 2**31-1, -2**31, int(2**29 * math.pi)
@@ -124,31 +124,31 @@ class StreamTest(unittest.TestCase):
       out_s.write_bigendian_int32(v)
     in_s = self.InputStream(out_s.get())
     for v in values:
-      self.assertEquals(v, in_s.read_bigendian_int32())
+      self.assertEqual(v, in_s.read_bigendian_int32())
 
   def test_byte_counting(self):
     bc_s = self.ByteCountingOutputStream()
-    self.assertEquals(0, bc_s.get_count())
+    self.assertEqual(0, bc_s.get_count())
     bc_s.write(b'def')
-    self.assertEquals(3, bc_s.get_count())
+    self.assertEqual(3, bc_s.get_count())
     bc_s.write(b'')
-    self.assertEquals(3, bc_s.get_count())
+    self.assertEqual(3, bc_s.get_count())
     bc_s.write_byte(10)
-    self.assertEquals(4, bc_s.get_count())
+    self.assertEqual(4, bc_s.get_count())
     # "nested" also writes the length of the string, which should
     # cause 1 extra byte to be counted.
     bc_s.write(b'2345', nested=True)
-    self.assertEquals(9, bc_s.get_count())
+    self.assertEqual(9, bc_s.get_count())
     bc_s.write_var_int64(63)
-    self.assertEquals(10, bc_s.get_count())
+    self.assertEqual(10, bc_s.get_count())
     bc_s.write_bigendian_int64(42)
-    self.assertEquals(18, bc_s.get_count())
+    self.assertEqual(18, bc_s.get_count())
     bc_s.write_bigendian_int32(36)
-    self.assertEquals(22, bc_s.get_count())
+    self.assertEqual(22, bc_s.get_count())
     bc_s.write_bigendian_double(6.25)
-    self.assertEquals(30, bc_s.get_count())
+    self.assertEqual(30, bc_s.get_count())
     bc_s.write_bigendian_uint64(47)
-    self.assertEquals(38, bc_s.get_count())
+    self.assertEqual(38, bc_s.get_count())
 
 
 try:

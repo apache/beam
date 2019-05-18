@@ -617,7 +617,7 @@ class TranscriptTest(unittest.TestCase):
 
       if action != 'expect':
         # Fail if we have output that was not expected in the transcript.
-        self.assertEquals(
+        self.assertEqual(
             [], output, msg='Unexpected output: %s before %s' % (output, line))
 
       if action == 'input':
@@ -654,7 +654,7 @@ class TranscriptTest(unittest.TestCase):
         self.fail('Unknown action: ' + action)
 
     # Fail if we have output that was not expected in the transcript.
-    self.assertEquals([], output, msg='Unexpected output: %s' % output)
+    self.assertEqual([], output, msg='Unexpected output: %s' % output)
 
 
 TRANSCRIPT_TEST_FILE = os.path.join(
