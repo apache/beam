@@ -299,8 +299,8 @@ class LocalFileSystemTest(unittest.TestCase):
       f.write('Hello')
     with open(path2, 'a') as f:
       f.write('foo')
-    self.assertEquals(self.fs.checksum(path1), str(5))
-    self.assertEquals(self.fs.checksum(path2), str(3))
+    self.assertEqual(self.fs.checksum(path1), str(5))
+    self.assertEqual(self.fs.checksum(path2), str(3))
 
   def make_tree(self, path, value, expected_leaf_count=None):
     """Create a file+directory structure from a simple dict-based DSL

@@ -122,7 +122,7 @@ class SdkWorkerMainTest(unittest.TestCase):
           Exception, sdk_worker_main._get_worker_count,
           PipelineOptions.from_dictionary(json.loads(pipeline_options)))
     else:
-      self.assertEquals(
+      self.assertEqual(
           sdk_worker_main._get_worker_count(
               PipelineOptions.from_dictionary(json.loads(pipeline_options))),
           expected)
