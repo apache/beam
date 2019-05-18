@@ -258,7 +258,6 @@ public class ParDoLifecycleTest implements Serializable {
     // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
     // teardown to be called on fn itself, but on any deserialized instance on which any other
     // lifecycle method was called
-    // ExceptionThrowingFn.callStateMap
     ExceptionThrowingFn.callStateMap
         .values()
         .forEach(
