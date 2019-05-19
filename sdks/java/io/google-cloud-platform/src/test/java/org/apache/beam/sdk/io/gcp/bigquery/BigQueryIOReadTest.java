@@ -46,13 +46,13 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
-import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -67,7 +67,6 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
@@ -409,7 +408,8 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Test
-  public void testReadTableWithSqlTransform() throws IOException, InterruptedException {
+  public void testReadTableWithSchema() throws IOException, InterruptedException {
+    // setup
     Table someTable = new Table();
     someTable.setSchema(
         new TableSchema()
@@ -420,11 +420,11 @@ public class BigQueryIOReadTest implements Serializable {
     someTable.setTableReference(
         new TableReference()
             .setProjectId("non-executing-project")
-            .setDatasetId("somedataset")
-            .setTableId("sometable"));
+            .setDatasetId("schema_dataset")
+            .setTableId("schema_table"));
     someTable.setNumBytes(1024L * 1024L);
     FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    fakeDatasetService.createDataset("non-executing-project", "somedataset", "", "", null);
+    fakeDatasetService.createDataset("non-executing-project", "schema_dataset", "", "", null);
     fakeDatasetService.createTable(someTable);
 
     List<TableRow> records =
@@ -432,6 +432,7 @@ public class BigQueryIOReadTest implements Serializable {
             new TableRow().set("name", "a").set("number", 1L),
             new TableRow().set("name", "b").set("number", 2L),
             new TableRow().set("name", "c").set("number", 3L));
+
     fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
 
     FakeBigQueryServices fakeBqServices =
@@ -439,41 +440,29 @@ public class BigQueryIOReadTest implements Serializable {
             .withJobService(new FakeJobService())
             .withDatasetService(fakeDatasetService);
 
-    Schema schema =
-        Schema.of(
-            Schema.Field.of("name", Schema.FieldType.STRING),
-            Schema.Field.of("number", Schema.FieldType.INT64));
-
+    // test
     BigQueryIO.TypedRead<TableRow> read =
         BigQueryIO.readTableRows()
-            .from("non-executing-project:somedataset.sometable")
+            .from("non-executing-project:schema_dataset.schema_table")
             .withTestServices(fakeBqServices)
             .withoutValidation();
 
     PCollection<TableRow> bqRows = p.apply(read);
+    PCollection<Row> output = bqRows.apply(Select.fieldNames("name", "number"));
 
-    PCollection<Row> output =
-        PCollectionTuple.of("mytable", bqRows)
-            .apply(SqlTransform.query("SELECT name, number FROM mytable"));
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of("name", Schema.FieldType.STRING),
+            Schema.Field.of("number", Schema.FieldType.INT64));
 
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(
-                Row.withSchema(schema).addValues("a", 1L).build(),
-                Row.withSchema(schema).addValues("b", 2L).build(),
-                Row.withSchema(schema).addValues("c", 3L).build()));
+                Row.withSchema(expectedSchema).addValues("a", 1L).build(),
+                Row.withSchema(expectedSchema).addValues("b", 2L).build(),
+                Row.withSchema(expectedSchema).addValues("c", 3L).build()));
 
     p.run();
-  }
-
-  private Long toLong(Object v) {
-    if (v instanceof Long) {
-      return (Long) v;
-    } else if (v instanceof String) {
-      return Long.valueOf((String) v);
-    }
-
-    return 0L;
   }
 
   @Test

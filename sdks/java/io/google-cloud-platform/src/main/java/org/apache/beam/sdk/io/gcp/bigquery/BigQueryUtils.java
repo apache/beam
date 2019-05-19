@@ -382,11 +382,17 @@ public class BigQueryUtils {
   }
 
   /**
-   * Tries to parse the JSON {@link TableRow} from BigQuery.
+   * Tries to convert a JSON {@link TableRow} from BigQuery into a Beam {@link Row}.
    *
    * <p>Only supports basic types and arrays. Doesn't support date types or structs.
    */
   public static Row toBeamRow(Schema rowSchema, TableRow jsonBqRow) {
+    // TODO deprecate toBeamRow(Schema, TableSchema, TableRow) function in favour of this function.
+    // This function attempts to convert TableRows without  having access to the
+    // corresponding TableSchema because:
+    // 1. TableSchema contains redundant information already available in the Schema object.
+    // 2. TableSchema objects are not serializable and are therefore harder to propagate through a
+    // pipeline.
     return rowSchema.getFields().stream()
         .map(field -> toBeamRowFieldValue(field, jsonBqRow.get(field.getName())))
         .collect(toRow(rowSchema));
@@ -438,9 +444,12 @@ public class BigQueryUtils {
     if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
           .stream()
-              .map(v -> ((Map<String, Object>) v).get("v"))
               .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
               .collect(toList());
+    }
+
+    if (jsonBQValue instanceof TableRow) {
+      return toBeamRow(fieldType.getRowSchema(), (TableRow) jsonBQValue);
     }
 
     throw new UnsupportedOperationException(
