@@ -18,24 +18,12 @@
 package org.apache.beam.sdk.extensions.sorter;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Paths;
-import org.apache.beam.sdk.values.KV;
 
 /** Does an external sort of the provided values. */
-class ExternalSorter implements Sorter {
-  private final Options options;
-
-  /** Whether {@link #sort()} was already called. */
-  private boolean sortCalled = false;
-
-  /** Sorter used to sort the input. */
-  private ExternalFileSorter sorter;
-
-  private boolean initialized = false;
+public abstract class ExternalSorter implements Sorter {
+  protected final Options options;
 
   /** {@link Options} contains configuration of the sorter. */
   public static class Options implements Serializable {
@@ -61,7 +49,7 @@ class ExternalSorter implements Sorter {
      * Sets the size of the memory buffer in megabytes. Must be greater than zero and less than
      * 2048.
      */
-    public Options setMemoryMB(int memoryMB) {
+    public ExternalSorter.Options setMemoryMB(int memoryMB) {
       checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
       // integer overflow
@@ -76,44 +64,7 @@ class ExternalSorter implements Sorter {
     }
   }
 
-  /** Returns a {@link Sorter} configured with the given {@link Options}. */
-  public static ExternalSorter create(Options options) {
-    return new ExternalSorter(options);
-  }
-
-  @Override
-  public void add(KV<byte[], byte[]> record) throws IOException {
-    checkState(!sortCalled, "Records can only be added before sort()");
-
-    initSorter();
-
-    sorter.add(record.getKey(), record.getValue());
-  }
-
-  @Override
-  public Iterable<KV<byte[], byte[]>> sort() throws IOException {
-    checkState(!sortCalled, "sort() can only be called once.");
-    sortCalled = true;
-
-    initSorter();
-
-    return sorter.sort();
-  }
-
-  private ExternalSorter(Options options) {
+  ExternalSorter(Options options) {
     this.options = options;
-  }
-
-  /**
-   * Initializes the sorter. Does some local file system setup, and is somewhat expensive (~20 ms on
-   * local machine). Only executed when necessary.
-   */
-  private void initSorter() throws IOException {
-    if (!initialized) {
-      sorter =
-          new ExternalFileSorter(
-              Paths.get(options.getTempLocation()), (long) options.getMemoryMB() * 1024 * 1024);
-      initialized = true;
-    }
   }
 }

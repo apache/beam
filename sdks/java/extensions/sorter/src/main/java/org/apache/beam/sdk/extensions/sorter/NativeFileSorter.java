@@ -18,12 +18,16 @@
 package org.apache.beam.sdk.extensions.sorter;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -42,9 +46,9 @@ import org.slf4j.LoggerFactory;
  * External Sorter based on <a
  * href="https://github.com/lemire/externalsortinginjava">lemire/externalsortinginjava</a>.
  */
-public class ExternalFileSorter {
+public class NativeFileSorter {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ExternalFileSorter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(NativeFileSorter.class);
 
   private static final int MAX_TEMP_FILES = 1024;
   private static final long OBJECT_OVERHEAD = getObjectOverhead();
@@ -57,17 +61,17 @@ public class ExternalFileSorter {
   private final Path tempDir;
   private final long maxMemory;
   private final File dataFile;
-  private final FileOutputStream dataStream;
+  private final OutputStream dataStream;
 
   private boolean sortCalled = false;
 
   /** Create a new file sorter. */
-  public ExternalFileSorter(Path tempDir, long maxMemory) throws IOException {
+  public NativeFileSorter(Path tempDir, long maxMemory) throws IOException {
     this.tempDir = tempDir;
     this.maxMemory = maxMemory;
 
     this.dataFile = Files.createTempFile(tempDir, "input", "seq").toFile();
-    this.dataStream = new FileOutputStream(dataFile);
+    this.dataStream = new BufferedOutputStream(new FileOutputStream(dataFile));
     dataFile.deleteOnExit();
 
     LOG.debug("Created input file {}", dataFile);
@@ -112,7 +116,7 @@ public class ExternalFileSorter {
         "Sort in batch with fileSize: {}, memory: {}, blockSize: {}", fileSize, memory, blockSize);
 
     final List<File> files = new ArrayList<>();
-    FileInputStream inputStream = new FileInputStream(dataFile);
+    InputStream inputStream = new BufferedInputStream(new FileInputStream(dataFile));
     try {
       final List<KV<byte[], byte[]>> tempList = new ArrayList<>();
       KV<byte[], byte[]> kv = KV.of(null, null);
@@ -140,7 +144,7 @@ public class ExternalFileSorter {
 
     tempList.sort(KV_COMPARATOR);
 
-    FileOutputStream outputStream = new FileOutputStream(tempFile);
+    OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile));
     try {
       for (KV<byte[], byte[]> kv : tempList) {
         CODER.encode(kv.getKey(), outputStream);
@@ -170,7 +174,7 @@ public class ExternalFileSorter {
 
   /** Creates an {@link Iterator} over the key-value pairs in a file. */
   private Iterator<KV<byte[], byte[]>> iterateFile(File file) throws FileNotFoundException {
-    final FileInputStream inputStream = new FileInputStream(file);
+    final InputStream inputStream = new BufferedInputStream(new FileInputStream(file));
     return new Iterator<KV<byte[], byte[]>>() {
       KV<byte[], byte[]> nextKv = readNext();
 
@@ -199,7 +203,7 @@ public class ExternalFileSorter {
   }
 
   /** Reads the next key-value pair from a file. */
-  private KV<byte[], byte[]> readKeyValue(FileInputStream inputStream) throws IOException {
+  private KV<byte[], byte[]> readKeyValue(InputStream inputStream) throws IOException {
     try {
       final byte[] keyBytes = CODER.decode(inputStream);
       final byte[] valueBytes = CODER.decode(inputStream);
@@ -210,6 +214,11 @@ public class ExternalFileSorter {
   }
 
   ////////////////////////////////////////////////////////////////////////////////
+
+  private int bufferSize(int numFiles) {
+    final long memory = maxMemory > 0 ? maxMemory : estimateAvailableMemory();
+    return (int) (memory / numFiles / 2);
+  }
 
   /**
    * This method calls the garbage collector and then returns the free memory. This avoids problems

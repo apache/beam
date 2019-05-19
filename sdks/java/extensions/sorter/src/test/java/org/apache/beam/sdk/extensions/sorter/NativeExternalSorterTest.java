@@ -35,7 +35,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for Sorter. */
 @RunWith(JUnit4.class)
-public class ExternalSorterTest {
+public class NativeExternalSorterTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private static Path tmpLocation;
 
@@ -67,37 +67,37 @@ public class ExternalSorterTest {
   @Test
   public void testEmpty() throws Exception {
     SorterTestUtils.testEmpty(
-        ExternalSorter.create(
-            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
+        NativeExternalSorter.create(
+            new NativeExternalSorter.Options().setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testSingleElement() throws Exception {
     SorterTestUtils.testSingleElement(
-        ExternalSorter.create(
-            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
+        NativeExternalSorter.create(
+            new NativeExternalSorter.Options().setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testEmptyKeyValueElement() throws Exception {
     SorterTestUtils.testEmptyKeyValueElement(
-        ExternalSorter.create(
-            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
+        NativeExternalSorter.create(
+            new NativeExternalSorter.Options().setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testMultipleIterations() throws Exception {
     SorterTestUtils.testMultipleIterations(
-        ExternalSorter.create(
-            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
+        NativeExternalSorter.create(
+            new NativeExternalSorter.Options().setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testRandom() throws Exception {
     SorterTestUtils.testRandom(
         () ->
-            ExternalSorter.create(
-                new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
+            NativeExternalSorter.create(
+                new NativeExternalSorter.Options().setTempLocation(tmpLocation.toString())),
         1,
         1000000);
   }
@@ -105,7 +105,8 @@ public class ExternalSorterTest {
   @Test
   public void testAddAfterSort() throws Exception {
     SorterTestUtils.testAddAfterSort(
-        ExternalSorter.create(new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
+        NativeExternalSorter.create(
+            new NativeExternalSorter.Options().setTempLocation(tmpLocation.toString())),
         thrown);
     fail();
   }
@@ -113,7 +114,8 @@ public class ExternalSorterTest {
   @Test
   public void testSortTwice() throws Exception {
     SorterTestUtils.testSortTwice(
-        ExternalSorter.create(new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
+        NativeExternalSorter.create(
+            new NativeExternalSorter.Options().setTempLocation(tmpLocation.toString())),
         thrown);
     fail();
   }
@@ -122,7 +124,7 @@ public class ExternalSorterTest {
   public void testNegativeMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
-    ExternalSorter.Options options = new ExternalSorter.Options();
+    NativeExternalSorter.Options options = new NativeExternalSorter.Options();
     options.setMemoryMB(-1);
   }
 
@@ -130,7 +132,7 @@ public class ExternalSorterTest {
   public void testZeroMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
-    ExternalSorter.Options options = new ExternalSorter.Options();
+    NativeExternalSorter.Options options = new NativeExternalSorter.Options();
     options.setMemoryMB(0);
   }
 
@@ -138,7 +140,7 @@ public class ExternalSorterTest {
   public void testMemoryTooLarge() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be less than 2048");
-    ExternalSorter.Options options = new ExternalSorter.Options();
+    NativeExternalSorter.Options options = new NativeExternalSorter.Options();
     options.setMemoryMB(2048);
   }
 }
