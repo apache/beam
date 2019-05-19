@@ -31,6 +31,8 @@ dependencies {
   provided library.java.hadoop_common
   // Required by TableRow JSON
   provided project(":sdks:java:io:google-cloud-platform")
+  // Required by TensorFlow Example
+  provided library.java.tensorflow_proto
 
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":runners:direct-java")
