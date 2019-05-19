@@ -867,6 +867,8 @@ class PhasedCombineFnExecutor(object):
 class Latest(object):
   """Combiners for computing the latest element"""
 
+  @with_input_types(T)
+  @with_output_types(T)
   class Globally(ptransform.PTransform):
     """Compute the element with the latest timestamp from a
     PCollection."""
@@ -881,6 +883,8 @@ class Latest(object):
               .with_output_types(Tuple[T, TimestampType])
               | core.CombineGlobally(LatestCombineFn()))
 
+  @with_input_types(KV[K, V])
+  @with_output_types(KV[K, V])
   class PerKey(ptransform.PTransform):
     """Compute elements with the latest timestamp for each key
     from a keyed PCollection"""

@@ -417,7 +417,7 @@ class LatestTest(unittest.TestCase):
          window.GlobalWindows.windowed_value(('b', 3), 100),
          window.GlobalWindows.windowed_value(('a', 2), 200)]
     with TestPipeline() as p:
-      pc = p | Create(l)
+      pc = p | Create(l) | Map(lambda x: x)
       latest = pc | combine.Latest.PerKey()
       assert_that(latest, equal_to([('a', 1), ('b', 3)]))
 
