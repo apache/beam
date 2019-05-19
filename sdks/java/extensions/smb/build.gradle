@@ -16,56 +16,51 @@
  * limitations under the License.
  */
 
-import groovy.json.JsonOutput
-
 plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SMB"
 
 dependencies {
-    shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-    shadow project(path: ":beam-sdks-java-extensions-sorter", configuration: "shadow")
-    shadow project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:sorter", configuration: "shadow")
+  shadow project(path: ":runners:google-cloud-dataflow-java", configuration: "shadow")
 
-    // Required by sorter module
-    provided library.java.hadoop_mapreduce_client_core
-    provided library.java.hadoop_common
-    // Required by TableRow JSON
-    provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  // Required by sorter module
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.hadoop_common
+  // Required by TableRow JSON
+  provided project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
 
-    shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
-    shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
-    shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-    shadow library.java.vendored_guava_20_0
-    testCompile library.java.junit
-    testCompile library.java.hamcrest_core
-    testCompile library.java.hamcrest_library
-}
-
-test {
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(["--runner=DirectRunner"])
+  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
+  shadowTest project(path: ":sdks:java:testing:test-utils", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadow library.java.vendored_guava_20_0
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testRuntimeOnly project(path: ":runners:direct-java")
 }
 
 // TODO: These tasks are here for quick reference, can probably be removed before merge.
 task runBenchmarkMatchingBuckets(type: JavaExec) {
-    classpath = sourceSets.test.runtimeClasspath
-    main = "org.apache.beam.sdk.extensions.smb.benchmark.SmbIT"
-    args "--numKeys=10000",
-            "--maxRecordsPerKey=20",
-            "--avroNumBuckets=16",
-            "--avroNumShards=2",
-            "--jsonNumBuckets=16",
-            "--jsonNumShards=2"
+  classpath = sourceSets.test.runtimeClasspath
+  main = "org.apache.beam.sdk.extensions.smb.benchmark.SmbIT"
+  args "--numKeys=10000",
+       "--maxRecordsPerKey=20",
+       "--avroNumBuckets=16",
+       "--avroNumShards=2",
+       "--jsonNumBuckets=16",
+       "--jsonNumShards=2"
 }
 
 task runBenchmarkMixedBuckets(type: JavaExec) {
-    classpath = sourceSets.test.runtimeClasspath
-    main = "org.apache.beam.sdk.extensions.smb.benchmark.SmbIT"
-    args "--numKeys=10000",
-            "--maxRecordsPerKey=20",
-            "--avroNumBuckets=16",
-            "--avroNumShards=2",
-            "--jsonNumBuckets=16",
-            "--jsonNumShards=2"
+  classpath = sourceSets.test.runtimeClasspath
+  main = "org.apache.beam.sdk.extensions.smb.benchmark.SmbIT"
+  args "--numKeys=10000",
+       "--maxRecordsPerKey=20",
+       "--avroNumBuckets=16",
+       "--avroNumShards=2",
+       "--jsonNumBuckets=16",
+       "--jsonNumShards=2"
 }

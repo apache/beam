@@ -105,7 +105,9 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       } else {
         Preconditions.checkState(
             first.isCompatibleWith(current),
-            "Source %s is incompatible with source %s", sources.get(0), source);
+            "Source %s is incompatible with source %s",
+            sources.get(0),
+            source);
       }
 
       leastNumBuckets = Math.min(current.getNumBuckets(), leastNumBuckets);
