@@ -105,7 +105,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
       } else {
         Preconditions.checkState(
             first.isCompatibleWith(current),
-            String.format("Source %s is incompatible with source %s", sources.get(0), source));
+            "Source %s is incompatible with source %s", sources.get(0), source);
       }
 
       leastNumBuckets = Math.min(current.getNumBuckets(), leastNumBuckets);
@@ -122,7 +122,7 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
     }
 
     Preconditions.checkNotNull(
-        finalKeyCoder, "Could not infer coder for key class " + finalKeyClass);
+        finalKeyCoder, "Could not infer coder for key class %s", finalKeyClass);
 
     // Expand sources into one key-value pair per bucket
     @SuppressWarnings("unchecked")
