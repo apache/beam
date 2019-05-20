@@ -260,7 +260,7 @@ public class HadoopFormatIOIT {
    * Uses the input {@link TestRow} values as seeds to produce new {@link KV}s for {@link
    * HadoopFormatIO}.
    */
-  public static class ConstructDBOutputFormatRowFn
+  static class ConstructDBOutputFormatRowFn
       extends DoFn<TestRow, KV<TestRowDBWritable, NullWritable>> {
     @ProcessElement
     public void processElement(ProcessContext c) {

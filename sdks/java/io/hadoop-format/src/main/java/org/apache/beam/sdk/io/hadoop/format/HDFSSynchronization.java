@@ -180,7 +180,7 @@ public class HDFSSynchronization implements ExternalSynchronization {
    * @param <X> exception type
    */
   @FunctionalInterface
-  public interface ThrowingFunction<T1, T2, X extends Exception> extends Serializable {
+  interface ThrowingFunction<T1, T2, X extends Exception> extends Serializable {
     T2 apply(T1 value) throws X;
   }
 }
