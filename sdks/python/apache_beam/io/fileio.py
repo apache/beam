@@ -265,6 +265,7 @@ class FileSink(object):
     raise NotImplementedError
 
 
+@beam.typehints.with_input_types(str)
 class TextSink(FileSink):
   """A sink that encodes utf8 elements, and writes to file handlers.
 
@@ -545,8 +546,14 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
                                                      final_file_name)
 
       # TODO(pabloem): Batch rename requests?
-      filesystems.FileSystems.rename([r.file_name],
-                                     [final_full_path])
+      try:
+        filesystems.FileSystems.rename([r.file_name],
+                                       [final_full_path])
+      except BeamIOError:
+        # This error is not serious, because it may happen on a retry of the
+        # bundle. We simply log it.
+        logging.debug('File %s failed to be copied. This may be due to a bundle'
+                      ' being retried.', r.file_name)
 
       yield FileResult(final_file_name,
                        i,
@@ -554,6 +561,18 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
                        r.window,
                        r.pane,
                        destination)
+
+    logging.info('Cautiously removing temporary files for destination %s',
+                 destination)
+    self._remove_temporary_files([r.file_name for r in file_results])
+
+  @staticmethod
+  def _remove_temporary_files(files):
+    try:
+      filesystems.FileSystems.delete(files)
+    except BeamIOError as e:
+      # Exceptions *are* expected.
+      logging.debug('Exceptions when deleting files: %s', e)
 
 
 class _WriteShardedRecordsFn(beam.DoFn):
