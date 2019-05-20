@@ -87,10 +87,6 @@ class ApproximateUniqueGlobally(PTransform):
            >> (CombineGlobally(ApproximateUniqueCombineFn(self._sample_size,
                                                           coder)))
 
-  def display_data(self):
-    return {'sample_size': self._sample_size,
-            'max_estimation_error': self._max_est_err}
-
   @staticmethod
   def _get_sample_size_from_est_error(est_err):
     """
@@ -214,3 +210,6 @@ class ApproximateUniqueCombineFn(CombineFn):
   @staticmethod
   def extract_output(accumulator):
     return accumulator.get_estimate()
+
+  def display_data(self):
+    return {'sample_size': self._sample_size}
