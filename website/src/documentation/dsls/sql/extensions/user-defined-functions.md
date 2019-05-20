@@ -1,8 +1,9 @@
 ---
 layout: section
-title: "Beam SQL: User-defined functions"
+title: "Beam SQL extensions: User-defined functions"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/user-defined-functions/
+permalink: /documentation/dsls/sql/extensions/user-defined-functions/
+redirect_from: /documentation/dsls/sql/user-defined-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,17 +19,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL: User-defined functions
+# Beam SQL extensions: User-defined functions
 
 If Beam SQL does not have a scalar function or aggregate function to meet your
 needs, they can be authored in Java and invoked in your SQL query. These
 are commonly called UDF (for scalar functions) and UDAFs (for aggregate functions).
 
-## Create and specify User Defined Function (UDF)
+## Create and specify a User Defined Function (UDF)
 
-A UDF can be 1) any Java method that takes zero or more scalar fields and
-return one scalar value, or 2) a `SerializableFunction`. Below is an example of
-UDF and how to use it in DSL:
+A UDF can be the following:
+- Any Java method that takes zero or more scalar fields and
+  returns one scalar value.
+- A `SerializableFunction`.
+
+Below is an example of UDF and how to use it in DSL:
 
 ```java
 /**
@@ -69,7 +73,7 @@ PCollection<Row> result =
             .registerUdf("cubic2", new CubicIntegerFn())
 ```
 
-## Create and specify User Defined Aggregate Function (UDAF)
+## Create and specify a User Defined Aggregate Function (UDAF)
 
 Beam SQL can accept a `CombineFn` as UDAF. Registration is similar to the UDF
 example above:

@@ -2,7 +2,8 @@
 layout: section
 title: "Beam DSLs: SQL"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/windowing-and-triggering/
+permalink: /documentation/dsls/sql/extensions/windowing-and-triggering/
+redirect_from: /documentation/dsls/sql/windowing-and-triggering/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL: Windowing and triggering
+# Beam SQL extensions: Windowing and triggering
 
 You can use Beam's windowing semantics in two ways:
 
@@ -62,5 +63,5 @@ Supported windowing functions:
       SESSION(f_timestamp, INTERVAL '5' MINUTE)
 ```
 
-**Note:** when no windowing function is specified in the query, then windowing strategy of the input `PCollections` is unchanged by the SQL query. If windowing function is specified in the query, then the windowing function of the `PCollection` is updated accordingly, but trigger stays unchanged.
+**Note:** When no windowing function is specified in the query, then windowing strategy of the input `PCollections` is unchanged by the SQL query. If windowing function is specified in the query, then the windowing function of the `PCollection` is updated accordingly, but trigger stays unchanged.
 

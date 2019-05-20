@@ -1,8 +1,9 @@
 ---
 layout: section
-title: "Beam SQL: Scalar functions"
+title: "Beam SQL scalar functions in Calcite"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/scalar-functions/
+permalink: /documentation/dsls/sql/calcite/scalar-functions/
+redirect_from: /documentation/dsls/sql/scalar-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +19,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL: Scalar functions
+# Beam SQL scalar functions (Calcite)
 
-Beam SQL has implemented the following built-in functions See also [Calcite
+This page documents built-in functions supported by Beam SQL when using Apache Calcite.
+
+See also [Calcite
 SQL's operators and functions
-reference](http://calcite.apache.org/docs/reference.html#operators-and-functions)
+reference](http://calcite.apache.org/docs/reference.html#operators-and-functions).
 
 ## Comparison functions and operators
 
