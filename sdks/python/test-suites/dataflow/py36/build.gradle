@@ -18,6 +18,7 @@
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
+enablePythonPerformanceTest()
 
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.6'
