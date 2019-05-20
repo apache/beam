@@ -46,7 +46,6 @@ public class ContainsKvs implements
     return new ContainsKvs(ImmutableList.copyOf(kvs));
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public Void apply(Iterable<KV<String, Iterable<String>>> input) {
     List<Matcher<? super KV<String, Iterable<String>>>> matchers = new ArrayList<>();
@@ -54,7 +53,7 @@ public class ContainsKvs implements
       String[] values = toArray(expected.getValue(), String.class);
       matchers.add(isKv(equalTo(expected.getKey()), containsInAnyOrder(values)));
     }
-    assertThat(input, containsInAnyOrder(toArray(matchers, Matcher.class)));
+    assertThat(input, containsInAnyOrder(matchers));
     return null;
   }
 
