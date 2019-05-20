@@ -43,4 +43,28 @@ class Infrastructure {
       shell("docker push ${imageTag}")
     }
   }
+
+  static void prepareFlinkJobServer(def context, String repositoryRoot, String dockerTag) {
+    context.steps {
+      String image = "${repositoryRoot}/flink-job-server"
+      String imageTag = "${image}:${dockerTag}"
+
+      shell('echo "Building Flink job Server"')
+
+      gradle {
+        rootBuildScriptDir(common.checkoutDir)
+        common.setGradleSwitches(delegate)
+        tasks(":beam-runners-flink_2.11-job-server-container:docker")
+        switches("-Pdocker-repository-root=${repositoryRoot}")
+        switches("-Pdocker-tag=${dockerTag}")
+      }
+
+      shell("echo \" Tagging Flink Job Server's image\"...")
+      shell("docker tag ${image} ${imageTag}")
+      shell("echo \" Configure docker credentials\"...")
+      shell("docker-credential-gcr configure-docker")
+      shell("echo \" Pushing Flink Job Server's image\"...")
+      shell("docker push ${imageTag}")
+    }
+  }
 }
