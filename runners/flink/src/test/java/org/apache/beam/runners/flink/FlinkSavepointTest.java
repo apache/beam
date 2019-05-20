@@ -185,10 +185,7 @@ public class FlinkSavepointTest implements Serializable {
         .getOptions()
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
-    pipeline
-        .getOptions()
-        .as(FlinkPipelineOptions.class)
-        .setFlinkMaster(getFlinkMaster());
+    pipeline.getOptions().as(FlinkPipelineOptions.class).setFlinkMaster(getFlinkMaster());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
 
