@@ -818,7 +818,12 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
-          target project.fileTree(project.projectDir) {
+          def targetFiles = project.fileTree(project.projectDir)
+          // Explicitly add source sets because projects may have source located outside of the project directory
+          project.sourceSets.each { sourceSet ->
+            targetFiles += sourceSet.allJava
+          }
+          target targetFiles.matching {
             include '**/*.java'
             exclude '**/archetype-resources/src/**'
             exclude '**/build/generated/**'
