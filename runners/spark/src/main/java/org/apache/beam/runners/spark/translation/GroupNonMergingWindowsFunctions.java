@@ -25,6 +25,7 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -198,7 +199,8 @@ public class GroupNonMergingWindowsFunctions {
                   windowingStrategy
                       .getWindowFn()
                       .getOutputTime(windowedValue.getTimestamp(), window));
-      return WindowedValue.of(KV.of(key, value), timestamp, window, windowedValue.getPane());
+      return WindowedValue.of(
+          KV.of(key, value), timestamp, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
     }
   }
 
