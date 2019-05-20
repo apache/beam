@@ -40,7 +40,7 @@
           </option>
           <option name="stepikChangeStatus" value="Up to date" />
           <option name="type" value="pycharm11 JAVA" />
-          <option name="updateDate" value="1557823043000" />
+          <option name="updateDate" value="1558359749000" />
           <option name="items">
             <list>
               <Section>
@@ -50,8 +50,8 @@
                 <option name="index" value="1" />
                 <option name="name" value="Introduction" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557823047000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1557824488000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -60,7 +60,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Hello Beam" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557823051000" />
+                      <option name="updateDate" value="1557824488000" />
                       <option name="unitId" value="202031" />
                       <option name="items">
                         <list>
@@ -79,7 +79,7 @@
                             <option name="name" value="Hello Beam" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="src/Task.java">
@@ -132,7 +132,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557823053000" />
+                            <option name="updateDate" value="1558359731000" />
                           </EduTask>
                         </list>
                       </option>
@@ -147,8 +147,8 @@
                 <option name="index" value="2" />
                 <option name="name" value="Core Transforms" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557823054000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1558119706000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -157,7 +157,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Map" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823058000" />
+                      <option name="updateDate" value="1557824502000" />
                       <option name="unitId" value="202032" />
                       <option name="items">
                         <list>
@@ -450,7 +450,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="GroupByKey" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823071000" />
+                      <option name="updateDate" value="1557824519000" />
                       <option name="unitId" value="202033" />
                       <option name="items">
                         <list>
@@ -533,7 +533,7 @@
                       <option name="index" value="3" />
                       <option name="name" value="CoGroupByKey" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823076000" />
+                      <option name="updateDate" value="1557824522000" />
                       <option name="unitId" value="202034" />
                       <option name="items">
                         <list>
@@ -631,7 +631,7 @@
                       <option name="index" value="4" />
                       <option name="name" value="Combine" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823081000" />
+                      <option name="updateDate" value="1558119706000" />
                       <option name="unitId" value="202035" />
                       <option name="items">
                         <list>
@@ -790,7 +790,7 @@
                             <option name="name" value="BinaryCombineFn" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="src/Task.java">
@@ -843,7 +843,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557823088000" />
+                            <option name="updateDate" value="1558359736000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -860,7 +860,7 @@
                             <option name="name" value="Combine PerKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="src/Task.java">
@@ -930,7 +930,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557823090000" />
+                            <option name="updateDate" value="1558359740000" />
                           </EduTask>
                         </list>
                       </option>
@@ -941,7 +941,7 @@
                       <option name="index" value="5" />
                       <option name="name" value="Flatten" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823093000" />
+                      <option name="updateDate" value="1557824540000" />
                       <option name="unitId" value="202036" />
                       <option name="items">
                         <list>
@@ -1024,7 +1024,7 @@
                       <option name="index" value="6" />
                       <option name="name" value="Partition" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823098000" />
+                      <option name="updateDate" value="1557824556000" />
                       <option name="unitId" value="202037" />
                       <option name="items">
                         <list>
@@ -1112,7 +1112,7 @@
                 <option name="name" value="Common Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557823101000" />
+                <option name="updateDate" value="1557824583000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1121,7 +1121,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Filter" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823104000" />
+                      <option name="updateDate" value="1557824569000" />
                       <option name="unitId" value="202038" />
                       <option name="items">
                         <list>
@@ -1274,7 +1274,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="Aggregation" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823111000" />
+                      <option name="updateDate" value="1557824583000" />
                       <option name="unitId" value="202039" />
                       <option name="items">
                         <list>
@@ -1641,8 +1641,8 @@
                 <option name="index" value="4" />
                 <option name="name" value="Examples" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557823123000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1557824624000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1651,7 +1651,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Word Count" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557823126000" />
+                      <option name="updateDate" value="1557824624000" />
                       <option name="unitId" value="202040" />
                       <option name="items">
                         <list>

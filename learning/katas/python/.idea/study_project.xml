@@ -40,7 +40,7 @@
           </option>
           <option name="stepikChangeStatus" value="Up to date" />
           <option name="type" value="pycharm11 Python 2.7" />
-          <option name="updateDate" value="1557824500000" />
+          <option name="updateDate" value="1558359783000" />
           <option name="items">
             <list>
               <Section>
@@ -50,8 +50,8 @@
                 <option name="index" value="1" />
                 <option name="name" value="Introduction" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557824504000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1557826626000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -60,7 +60,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Hello Beam" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557824508000" />
+                      <option name="updateDate" value="1557826626000" />
                       <option name="unitId" value="202042" />
                       <option name="items">
                         <list>
@@ -79,7 +79,7 @@
                             <option name="name" value="Hello Beam" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -132,7 +132,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824510000" />
+                            <option name="updateDate" value="1558359747000" />
                           </EduTask>
                         </list>
                       </option>
@@ -147,8 +147,8 @@
                 <option name="index" value="2" />
                 <option name="name" value="Core Transforms" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557824511000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1557826711000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -157,7 +157,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Map" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824515000" />
+                      <option name="updateDate" value="1557826639000" />
                       <option name="unitId" value="202043" />
                       <option name="items">
                         <list>
@@ -176,7 +176,7 @@
                             <option name="name" value="ParDo" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -246,7 +246,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824517000" />
+                            <option name="updateDate" value="1558359751000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -263,7 +263,7 @@
                             <option name="name" value="ParDo OneToMany" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -333,7 +333,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824519000" />
+                            <option name="updateDate" value="1558359757000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -350,7 +350,7 @@
                             <option name="name" value="Map" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -403,7 +403,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824521000" />
+                            <option name="updateDate" value="1558359761000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -420,7 +420,7 @@
                             <option name="name" value="FlatMap" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -473,7 +473,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824523000" />
+                            <option name="updateDate" value="1558359764000" />
                           </EduTask>
                         </list>
                       </option>
@@ -484,7 +484,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="GroupByKey" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557824527000" />
+                      <option name="updateDate" value="1557826677000" />
                       <option name="unitId" value="202044" />
                       <option name="items">
                         <list>
@@ -503,7 +503,7 @@
                             <option name="name" value="GroupByKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -556,7 +556,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824529000" />
+                            <option name="updateDate" value="1558359767000" />
                           </EduTask>
                         </list>
                       </option>
@@ -567,7 +567,7 @@
                       <option name="index" value="3" />
                       <option name="name" value="CoGroupByKey" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557824533000" />
+                      <option name="updateDate" value="1557826685000" />
                       <option name="unitId" value="202045" />
                       <option name="items">
                         <list>
@@ -586,7 +586,7 @@
                             <option name="name" value="CoGroupByKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -639,7 +639,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824535000" />
+                            <option name="updateDate" value="1558359770000" />
                           </EduTask>
                         </list>
                       </option>
@@ -650,7 +650,7 @@
                       <option name="index" value="4" />
                       <option name="name" value="Combine" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824539000" />
+                      <option name="updateDate" value="1557826687000" />
                       <option name="unitId" value="202046" />
                       <option name="items">
                         <list>
@@ -907,7 +907,7 @@
                       <option name="index" value="5" />
                       <option name="name" value="Flatten" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824550000" />
+                      <option name="updateDate" value="1557826693000" />
                       <option name="unitId" value="202047" />
                       <option name="items">
                         <list>
@@ -990,7 +990,7 @@
                       <option name="index" value="6" />
                       <option name="name" value="Partition" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824556000" />
+                      <option name="updateDate" value="1557826711000" />
                       <option name="unitId" value="202048" />
                       <option name="items">
                         <list>
@@ -1095,7 +1095,7 @@
                 <option name="name" value="Common Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557824560000" />
+                <option name="updateDate" value="1557826716000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1104,7 +1104,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Filter" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824563000" />
+                      <option name="updateDate" value="1557826715000" />
                       <option name="unitId" value="202049" />
                       <option name="items">
                         <list>
@@ -1257,7 +1257,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="Aggregation" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824571000" />
+                      <option name="updateDate" value="1557826716000" />
                       <option name="unitId" value="202050" />
                       <option name="items">
                         <list>
@@ -1276,7 +1276,7 @@
                             <option name="name" value="Count" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -1329,7 +1329,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824574000" />
+                            <option name="updateDate" value="1558359773000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1346,7 +1346,7 @@
                             <option name="name" value="Sum" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Info and Content changed" />
+                            <option name="stepikChangeStatus" value="Up to date" />
                             <option name="files">
                               <map>
                                 <entry key="task.py">
@@ -1399,7 +1399,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824575000" />
+                            <option name="updateDate" value="1558359776000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1624,8 +1624,8 @@
                 <option name="index" value="4" />
                 <option name="name" value="Examples" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557824583000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1557826725000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1634,7 +1634,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Word Count" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824587000" />
+                      <option name="updateDate" value="1557826725000" />
                       <option name="unitId" value="202051" />
                       <option name="items">
                         <list>
