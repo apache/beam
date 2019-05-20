@@ -18,6 +18,7 @@
 package org.apache.beam.runners.jet;
 
 import com.hazelcast.jet.core.DAG;
+import java.util.function.Function;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -29,11 +30,15 @@ import org.apache.beam.sdk.values.PValue;
 class JetGraphVisitor extends Pipeline.PipelineVisitor.Defaults {
 
   private final JetTranslationContext translationContext;
+  private final Function<PTransform<?, ?>, JetTransformTranslator<?>> translatorProvider;
 
   private boolean finalized = false;
 
-  JetGraphVisitor(JetPipelineOptions options) {
+  JetGraphVisitor(
+      JetPipelineOptions options,
+      Function<PTransform<?, ?>, JetTransformTranslator<?>> translatorProvider) {
     this.translationContext = new JetTranslationContext(options);
+    this.translatorProvider = translatorProvider;
   }
 
   @Override
@@ -44,7 +49,7 @@ class JetGraphVisitor extends Pipeline.PipelineVisitor.Defaults {
 
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null) {
-      JetTransformTranslator<?> translator = JetTransformTranslators.getTranslator(transform);
+      JetTransformTranslator<?> translator = translatorProvider.apply(transform);
       if (translator != null) {
         translate(node, translator);
         return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
@@ -66,7 +71,7 @@ class JetGraphVisitor extends Pipeline.PipelineVisitor.Defaults {
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     PTransform<?, ?> transform = node.getTransform();
-    JetTransformTranslator<?> translator = JetTransformTranslators.getTranslator(transform);
+    JetTransformTranslator<?> translator = translatorProvider.apply(transform);
     if (translator == null) {
       String transformUrn = PTransformTranslation.urnForTransform(transform);
       throw new UnsupportedOperationException(

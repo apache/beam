@@ -27,9 +27,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -67,30 +69,35 @@ import org.joda.time.Instant;
  */
 public class WindowGroupP<K, V> extends AbstractProcessor {
 
-  private static final byte[] EMPTY_BYTES = new byte[0];
+  private static final int PROCESSING_TIME_MIN_INCREMENT = 100;
+
+  private static final Object COMPLETE_MARKER = new Object();
+  private static final Object TRY_PROCESS_MARKER = new Object();
+
   private final SerializablePipelineOptions pipelineOptions;
   private final Coder<V> inputValueValueCoder;
   private final Coder outputCoder;
   private final WindowingStrategy<V, BoundedWindow> windowingStrategy;
-  private final Map<K, KeyManager> keyManagers = new HashMap<>();
-  private final AppendableTraverser<byte[]> appendableTraverser =
+  private final Map<Utils.ByteArrayKey, KeyManager> keyManagers = new HashMap<>();
+  private final AppendableTraverser<Object> appendableTraverser =
       new AppendableTraverser<>(128); // todo: right capacity?
-  private final FlatMapper<byte[], byte[]> flatMapper;
+  private final FlatMapper<Object, Object> flatMapper;
 
   @SuppressWarnings({"FieldCanBeLocal", "unused"})
   private final String ownerId; // do not remove, useful for debugging
 
   private Instant latestWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private long lastProcessingTime = System.currentTimeMillis();
 
   private WindowGroupP(
       SerializablePipelineOptions pipelineOptions,
-      Coder inputCoder,
-      Coder inputValueCoder,
+      WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder,
       Coder outputCoder,
       WindowingStrategy<V, BoundedWindow> windowingStrategy,
       String ownerId) {
     this.pipelineOptions = pipelineOptions;
-    this.inputValueValueCoder = ((KvCoder<K, V>) inputValueCoder).getValueCoder();
+    KvCoder<K, V> inputValueCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
+    this.inputValueValueCoder = inputValueCoder.getValueCoder();
     this.outputCoder = outputCoder;
     this.windowingStrategy = windowingStrategy;
     this.ownerId = ownerId;
@@ -98,58 +105,83 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
     this.flatMapper =
         flatMapper(
             item -> {
-              if (item.length > 0) {
-                WindowedValue<KV<K, V>> windowedValue = Utils.decodeWindowedValue(item, inputCoder);
+              if (COMPLETE_MARKER == item) {
+                long millis = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
+                advanceWatermark(millis);
+              } else if (TRY_PROCESS_MARKER == item) {
+                Instant now = Instant.now();
+                if (now.getMillis() - lastProcessingTime > PROCESSING_TIME_MIN_INCREMENT) {
+                  lastProcessingTime = now.getMillis();
+                  advanceProcessingTime(now);
+                }
+              } else if (item instanceof Watermark) {
+                advanceWatermark(((Watermark) item).timestamp());
+                appendableTraverser.append(item);
+              } else {
+                WindowedValue<KV<K, V>> windowedValue =
+                    Utils.decodeWindowedValue((byte[]) item, inputCoder);
                 KV<K, V> kv = windowedValue.getValue();
                 K key = kv.getKey();
                 V value = kv.getValue();
+                Utils.ByteArrayKey keyBytes =
+                    new Utils.ByteArrayKey(Utils.encode(key, inputValueCoder.getKeyCoder()));
                 WindowedValue<V> updatedWindowedValue =
                     WindowedValue.of(
                         value,
                         windowedValue.getTimestamp(),
                         windowedValue.getWindows(),
                         windowedValue.getPane());
-                KeyManager keyManager =
-                    keyManagers.computeIfAbsent(key, k -> new KeyManager(k, latestWatermark));
-                keyManager.processElement(updatedWindowedValue);
+                keyManagers
+                    .computeIfAbsent(keyBytes, x -> new KeyManager(key))
+                    .processElement(updatedWindowedValue);
               }
               return appendableTraverser;
             });
   }
 
   @SuppressWarnings("unchecked")
-  public static SupplierEx<Processor> supplier(
+  public static <K, V> SupplierEx<Processor> supplier(
       SerializablePipelineOptions pipelineOptions,
-      Coder inputValueCoder,
-      Coder inputCoder,
+      WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder,
       Coder outputCoder,
       WindowingStrategy windowingStrategy,
       String ownerId) {
     return () ->
-        new WindowGroupP<>(
-            pipelineOptions, inputCoder, inputValueCoder, outputCoder, windowingStrategy, ownerId);
+        new WindowGroupP<>(pipelineOptions, inputCoder, outputCoder, windowingStrategy, ownerId);
+  }
+
+  @Override
+  public boolean tryProcess() {
+    return flatMapper.tryProcess(TRY_PROCESS_MARKER);
   }
 
   @Override
   protected boolean tryProcess(int ordinal, @Nonnull Object item) {
-    return flatMapper.tryProcess((byte[]) item);
+    return flatMapper.tryProcess(item);
   }
 
   @Override
   public boolean tryProcessWatermark(@Nonnull Watermark watermark) {
-    advanceWatermark(watermark.timestamp());
-    return flatMapper.tryProcess(EMPTY_BYTES);
+    return flatMapper.tryProcess(watermark);
   }
 
   @Override
   public boolean complete() {
-    advanceWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
-    return flatMapper.tryProcess(EMPTY_BYTES);
+    return flatMapper.tryProcess(COMPLETE_MARKER);
   }
 
   private void advanceWatermark(long millis) {
     this.latestWatermark = new Instant(millis);
-    this.keyManagers.values().forEach(m -> m.advanceWatermark(latestWatermark));
+    Instant now = Instant.now();
+    for (KeyManager m : keyManagers.values()) {
+      m.advanceWatermark(latestWatermark, now);
+    }
+  }
+
+  private void advanceProcessingTime(Instant now) {
+    for (KeyManager m : keyManagers.values()) {
+      m.advanceProcessingTime(now);
+    }
   }
 
   private static class InMemoryStateInternalsImpl extends InMemoryStateInternals {
@@ -172,14 +204,13 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
     }
   }
 
-  /** Helper class that holds all the per key based data structures needed. */
   private class KeyManager {
 
     private final InMemoryTimerInternals timerInternals;
     private final InMemoryStateInternalsImpl stateInternals;
     private final ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner;
 
-    KeyManager(K key, Instant currentWaterMark) {
+    KeyManager(K key) {
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new InMemoryStateInternalsImpl(key);
       this.reduceFnRunner =
@@ -200,7 +231,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                     PaneInfo pane) {
                   WindowedValue<KV<K, Iterable<V>>> windowedValue =
                       WindowedValue.of(output, timestamp, windows, pane);
-                  byte[] encodedValue = Utils.encodeWindowedValue(windowedValue, outputCoder);
+                  byte[] encodedValue = Utils.encode(windowedValue, outputCoder);
                   //noinspection ResultOfMethodCallIgnored
                   appendableTraverser.append(encodedValue);
                 }
@@ -218,12 +249,12 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
               NullSideInputReader.empty(),
               SystemReduceFn.buffering(inputValueValueCoder),
               pipelineOptions.get());
-      advanceWatermark(currentWaterMark);
+      advanceWatermark(latestWatermark, Instant.now());
     }
 
-    void advanceWatermark(Instant watermark) {
+    void advanceWatermark(Instant watermark, Instant now) {
       try {
-        timerInternals.advanceProcessingTime(Instant.now());
+        timerInternals.advanceProcessingTime(now);
         advanceInputWatermark(watermark);
         Instant hold = stateInternals.earliestWatermarkHold();
         if (hold == null) {
@@ -233,6 +264,15 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
           hold = timerInternals.currentInputWatermarkTime();
         }
         advanceOutputWatermark(hold);
+        reduceFnRunner.persist();
+      } catch (Exception e) {
+        throw ExceptionUtil.rethrow(e);
+      }
+    }
+
+    void advanceProcessingTime(Instant now) {
+      try {
+        timerInternals.advanceProcessingTime(now);
         reduceFnRunner.persist();
       } catch (Exception e) {
         throw ExceptionUtil.rethrow(e);
@@ -259,7 +299,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
       timerInternals.advanceOutputWatermark(watermark);
     }
 
-    void processElement(WindowedValue<V> windowedValue) {
+    public void processElement(WindowedValue<V> windowedValue) {
       Collection<? extends BoundedWindow> windows = dropLateWindows(windowedValue.getWindows());
       if (!windows.isEmpty()) {
         try {
@@ -275,17 +315,20 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
 
     private Collection<? extends BoundedWindow> dropLateWindows(
         Collection<? extends BoundedWindow> windows) {
-      List<BoundedWindow> filteredWindows =
-          new ArrayList<>(
-              windows
-                  .size()); // todo: reduce garbage, most of the time it will be one window only and
-      // there won't be expired windows
-      for (BoundedWindow window : windows) {
-        if (!isExpiredWindow(window)) {
-          filteredWindows.add(window);
+      boolean hasExpired = false;
+      for (Iterator<? extends BoundedWindow> iterator = windows.iterator();
+          !hasExpired && iterator.hasNext(); ) {
+        if (isExpiredWindow(iterator.next())) {
+          hasExpired = true;
         }
       }
-      return filteredWindows;
+      if (!hasExpired) {
+        return windows;
+      }
+      // if there are expired items, return a filtered collection
+      return windows.stream()
+          .filter(window -> !isExpiredWindow(window))
+          .collect(Collectors.toList());
     }
 
     private boolean isExpiredWindow(BoundedWindow window) {

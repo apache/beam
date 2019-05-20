@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.jet.processors;
+package org.apache.beam.runners.jet;
 
 import com.hazelcast.jet.Traverser;
 import com.hazelcast.jet.Traversers;
@@ -24,10 +24,10 @@ import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.ProcessorSupplier;
 import com.hazelcast.jet.core.Watermark;
 import com.hazelcast.jet.impl.util.ExceptionUtil;
+import com.hazelcast.jet.impl.util.ThrottleWrappedP;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.TestStream;
@@ -68,7 +68,7 @@ public class TestStreamP extends AbstractProcessor {
                                 tv ->
                                     WindowedValue.timestampedValueInGlobalWindow(
                                         tv.getValue(), tv.getTimestamp()))
-                            .map(wV -> Utils.encodeWindowedValue(wV, outputCoder));
+                            .map(wV -> Utils.encode(wV, outputCoder));
                       } else {
                         throw new UnsupportedOperationException(
                             "Event type not supported in TestStream: "
@@ -82,7 +82,8 @@ public class TestStreamP extends AbstractProcessor {
   public static <T> ProcessorMetaSupplier supplier(
       byte[] payload, TestStream.TestStreamCoder payloadCoder, Coder outputCoder) {
     return ProcessorMetaSupplier.forceTotalParallelismOne(
-        ProcessorSupplier.of(() -> new TestStreamP(payload, payloadCoder, outputCoder)));
+        ProcessorSupplier.of(
+            () -> new ThrottleWrappedP(new TestStreamP(payload, payloadCoder, outputCoder), 4)));
   }
 
   private static TestStream decodePayload(byte[] payload, TestStream.TestStreamCoder coder) {
@@ -95,8 +96,6 @@ public class TestStreamP extends AbstractProcessor {
 
   @Override
   public boolean complete() {
-    // todo: TestStream says it should cease emitting, but not stop after the items.
-    //   But I don't know how they end the job otherwise...
     return emitFromTraverser(traverser);
   }
 }

@@ -75,11 +75,12 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   private final Coder<InputT> inputValueCoder;
   private final Map<TupleTag<?>, Coder<?>> outputValueCoders;
   private final Map<Integer, PCollectionView<?>> ordinalToSideInput;
-  private final String ownerId; // do not remove, useful for debugging
+  private final String ownerId;
   private final String stepId;
 
   DoFnRunner<InputT, OutputT> doFnRunner;
   JetOutputManager outputManager;
+
   private DoFnInvoker<InputT, OutputT> doFnInvoker;
   private SideInputHandler sideInputHandler;
   private JetMetricsContainer metricsContainer;
@@ -129,9 +130,10 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   @Override
   public void init(@Nonnull Outbox outbox, @Nonnull Context context) {
     this.outbox = outbox;
-    metricsContainer = new JetMetricsContainer(stepId, context);
-    MetricsEnvironment.setCurrentContainer(
-        metricsContainer); // todo: this is correct only as long as the processor is non-cooperative
+    metricsContainer = new JetMetricsContainer(stepId, ownerId, context);
+    MetricsEnvironment.setCurrentContainer(metricsContainer);
+    assert !isCooperative(); // todo: previous line is correct only if the processor is
+    // non-cooperative
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();
@@ -314,8 +316,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> outputValue) {
       assert currentBucket == 0 && currentItem == 0 : "adding output while flushing";
-      Coder<?> coder = outputCoders.get(tag);
-      byte[] output = Utils.encodeWindowedValue(outputValue, coder);
+      Coder coder = outputCoders.get(tag);
+      byte[] output = Utils.encode(outputValue, coder);
       for (int ordinal : outputCollToOrdinals.get(tag)) {
         outputBuckets[ordinal].add(output);
       }
@@ -345,7 +347,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   abstract static class AbstractSupplier<InputT, OutputT>
       implements SupplierEx<Processor>, DAGBuilder.WiringListener {
 
-    final String ownerId;
+    protected final String ownerId;
     private final String stepId;
 
     private final SerializablePipelineOptions pipelineOptions;
@@ -465,7 +467,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   private static class SimpleInbox implements Inbox {
     private Deque<Object> items = new ArrayDeque<>();
 
-    public void add(Object item) {
+    void add(Object item) {
       items.add(item);
     }
 

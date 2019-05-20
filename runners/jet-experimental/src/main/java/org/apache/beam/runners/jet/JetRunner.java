@@ -23,10 +23,12 @@ import com.hazelcast.jet.Jet;
 import com.hazelcast.jet.JetInstance;
 import com.hazelcast.jet.Job;
 import com.hazelcast.jet.core.DAG;
-import java.util.Arrays;
+import com.hazelcast.jet.server.JetBootstrap;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,17 +46,13 @@ import org.slf4j.LoggerFactory;
 public class JetRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);
-  private final JetPipelineOptions options;
-  private final Function<ClientConfig, JetInstance> jetClientSupplier;
-
-  private JetRunner(
-      PipelineOptions options, Function<ClientConfig, JetInstance> jetClientSupplier) {
-    this.options = validate(options.as(JetPipelineOptions.class));
-    this.jetClientSupplier = jetClientSupplier;
-  }
 
   public static JetRunner fromOptions(PipelineOptions options) {
-    return fromOptions(options, Jet::newJetClient);
+    return fromOptions(
+        options,
+        options.as(JetPipelineOptions.class).getJetStartOwnCluster()
+            ? Jet::newJetClient
+            : config -> JetBootstrap.getInstance());
   }
 
   public static JetRunner fromOptions(
@@ -61,9 +60,109 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
     return new JetRunner(options, jetClientSupplier);
   }
 
+  private final JetPipelineOptions options;
+  private final Function<ClientConfig, JetInstance> jetClientSupplier;
+
+  private Function<PTransform<?, ?>, JetTransformTranslator<?>> translatorProvider;
+
+  private JetRunner(
+      PipelineOptions options, Function<ClientConfig, JetInstance> jetClientSupplier) {
+    this.options = validate(options.as(JetPipelineOptions.class));
+    this.jetClientSupplier = jetClientSupplier;
+    this.translatorProvider = JetTransformTranslators::getTranslator;
+  }
+
+  @Override
+  public PipelineResult run(Pipeline pipeline) {
+    try {
+      normalize(pipeline);
+      DAG dag = translate(pipeline);
+      return run(dag);
+    } catch (UnsupportedOperationException uoe) {
+      LOG.error("Failed running pipeline!", uoe);
+      return new FailedRunningPipelineResults(uoe);
+    }
+  }
+
+  void addExtraTranslators(
+      Function<PTransform<?, ?>, JetTransformTranslator<?>> extraTranslatorProvider) {
+    Function<PTransform<?, ?>, JetTransformTranslator<?>> initialTranslatorProvider =
+        this.translatorProvider;
+    this.translatorProvider =
+        transform -> {
+          JetTransformTranslator<?> translator = initialTranslatorProvider.apply(transform);
+          if (translator == null) {
+            translator = extraTranslatorProvider.apply(transform);
+          }
+          return translator;
+        };
+  }
+
+  private void normalize(Pipeline pipeline) {
+    pipeline.replaceAll(getDefaultOverrides());
+    UnconsumedReads.ensureAllReadsConsumed(pipeline);
+  }
+
+  private DAG translate(Pipeline pipeline) {
+    JetGraphVisitor graphVisitor = new JetGraphVisitor(options, translatorProvider);
+    pipeline.traverseTopologically(graphVisitor);
+    return graphVisitor.getDAG();
+  }
+
+  private JetPipelineResult run(DAG dag) {
+    startClusterIfNeeded(options);
+
+    JetInstance jet =
+        getJetInstance(
+            options); // todo: we use single client for each job, it might be better to have a
+    // shared client with refcount
+
+    Job job = jet.newJob(dag);
+    IMapJet<String, MetricUpdates> metricsAccumulator =
+        jet.getMap(JetMetricsContainer.getMetricsMapName(job.getId()));
+    JetPipelineResult pipelineResult = new JetPipelineResult(job, metricsAccumulator);
+    CompletableFuture<Void> completionFuture =
+        job.getFuture()
+            .whenCompleteAsync(
+                (r, f) -> {
+                  pipelineResult.freeze(f);
+                  metricsAccumulator.destroy();
+                  jet.shutdown();
+
+                  stopClusterIfNeeded(options);
+                });
+    pipelineResult.setCompletionFuture(completionFuture);
+
+    return pipelineResult;
+  }
+
+  private void startClusterIfNeeded(JetPipelineOptions options) {
+    if (options.getJetStartOwnCluster()) {
+      Collection<JetInstance> jetInstances = new ArrayList<>();
+      Integer noOfMembers = options.getJetClusterMemberCount();
+      for (int i = 0; i < noOfMembers; i++) {
+        jetInstances.add(Jet.newJetInstance());
+      }
+      LOG.info("Started " + jetInstances.size() + " Jet cluster members");
+    }
+  }
+
+  private void stopClusterIfNeeded(JetPipelineOptions options) {
+    if (options.getJetStartOwnCluster()) {
+      Jet.shutdownAll();
+      LOG.info("Stopped all Jet cluster members");
+    }
+  }
+
+  private JetInstance getJetInstance(JetPipelineOptions options) {
+    String jetGroupName = options.getJetGroupName();
+
+    ClientConfig clientConfig = new ClientConfig();
+    clientConfig.getGroupConfig().setName(jetGroupName);
+    return jetClientSupplier.apply(clientConfig);
+  }
+
   private static List<PTransformOverride> getDefaultOverrides() {
-    //        return Collections.singletonList(JavaReadViaImpulse.boundedOverride()); //todo: needed
-    // once we start using GreedyPipelineFuser
     return Collections.emptyList();
   }
 
@@ -80,73 +179,13 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
       throw new IllegalArgumentException("Jet node local parallelism must be >1 or -1");
     }
 
-    return options;
-  }
-
-  @Override
-  public PipelineResult run(Pipeline pipeline) {
-    Boolean startOwnCluster = options.getJetStartOwnCluster();
-    if (startOwnCluster) {
-      Collection<JetInstance> jetInstances =
-          Arrays.asList(Jet.newJetInstance(), Jet.newJetInstance());
-      LOG.info("Started " + jetInstances.size() + " Jet cluster members");
-    }
-    try {
-      return runInternal(pipeline);
-    } finally {
-      if (startOwnCluster) {
-        Jet.shutdownAll();
-        LOG.info("Stopped all Jet cluster members");
+    if (options.getJetStartOwnCluster()) {
+      Integer jetClusterMemberCount = options.getJetClusterMemberCount();
+      if (jetClusterMemberCount == null || jetClusterMemberCount < 1) {
+        throw new IllegalArgumentException("Can't start a cluster without members!");
       }
     }
-  }
 
-  private PipelineResult runInternal(Pipeline pipeline) {
-    try {
-      normalize(pipeline);
-      DAG dag = translate(pipeline);
-      return run(dag);
-    } catch (UnsupportedOperationException uoe) {
-      LOG.error("Failed running pipeline!", uoe);
-      return new FailedRunningPipelineResults(uoe);
-    }
-  }
-
-  private void normalize(Pipeline pipeline) {
-    pipeline.replaceAll(getDefaultOverrides());
-    UnconsumedReads.ensureAllReadsConsumed(pipeline);
-  }
-
-  private DAG translate(Pipeline pipeline) {
-    JetGraphVisitor graphVisitor = new JetGraphVisitor(options);
-    pipeline.traverseTopologically(graphVisitor);
-    return graphVisitor.getDAG();
-  }
-
-  private JetPipelineResult run(DAG dag) {
-    JetInstance jet = getJetInstance(options);
-
-    IMapJet<String, MetricUpdates> metricsAccumulator =
-        jet.getMap(JetMetricsContainer.METRICS_ACCUMULATOR_NAME);
-    metricsAccumulator.clear();
-    Job job = jet.newJob(dag);
-
-    JetPipelineResult result = new JetPipelineResult(metricsAccumulator);
-    result.setJob(job);
-
-    job.join();
-    result.setJob(null);
-    job.cancel();
-    jet.shutdown();
-
-    return result;
-  }
-
-  private JetInstance getJetInstance(JetPipelineOptions options) {
-    String jetGroupName = options.getJetGroupName();
-
-    ClientConfig clientConfig = new ClientConfig();
-    clientConfig.getGroupConfig().setName(jetGroupName);
-    return jetClientSupplier.apply(clientConfig);
+    return options;
   }
 }

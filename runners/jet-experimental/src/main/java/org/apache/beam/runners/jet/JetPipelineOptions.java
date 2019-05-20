@@ -38,15 +38,17 @@ public interface JetPipelineOptions extends PipelineOptions {
 
   void setJetLocalParallelism(Integer localParallelism);
 
-  @Description(
-      "Specifies if the Runner should start its own Jet cluster") // todo: this is a hack, we will
-  // need to use a real, stand-alone
-  // cluster and submit the runner
-  // code in a Jar to it + connect
-  // via network
+  @Description("Specifies if the Runner should start its own Jet cluster")
   @Validation.Required
   @Default.Boolean(true)
   Boolean getJetStartOwnCluster();
 
   void setJetStartOwnCluster(Boolean startOwnCluser);
+
+  @Description("Specifies how many cluster members should be started, if any")
+  @Validation.Required
+  @Default.Integer(2)
+  Integer getJetClusterMemberCount();
+
+  void setJetClusterMemberCount(Integer clusterMemberCount);
 }
