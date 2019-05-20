@@ -237,11 +237,7 @@ public class HadoopFormatIOElasticTest implements Serializable {
       }
       node.client().admin().indices().prepareRefresh(ELASTIC_INDEX_NAME).get();
     }
-    /**
-     * Shutdown the embedded instance.
-     *
-     * @throws IOException
-     */
+    /** Shutdown the embedded instance. */
     static void shutdown() throws IOException {
       DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().delete(indexRequest).actionGet();
