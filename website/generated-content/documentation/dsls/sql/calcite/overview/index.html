@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Managing Python Pipeline Dependencies</title>
+  <title>Beam SQL in Calcite: Overview</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/calcite/overview/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/sdks/python-pipeline-dependencies.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/calcite/overview.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -245,10 +245,10 @@
 
 
 <ul class="nav">
-  <li><a href="#pypi-dependencies">PyPI Dependencies</a></li>
-  <li><a href="#local-or-nonpypi">Local or non-PyPI Dependencies</a></li>
-  <li><a href="#multiple-file-dependencies">Multiple File Dependencies</a></li>
-  <li><a href="#nonpython">Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies</a></li>
+  <li><a href="#query-syntax">Query syntax</a></li>
+  <li><a href="#lexical-structure">Lexical structure</a></li>
+  <li><a href="#data-types">Data types</a></li>
+  <li><a href="#functions-and-operators">Functions and operators</a></li>
 </ul>
 
 
@@ -268,157 +268,62 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="managing-python-pipeline-dependencies">Managing Python Pipeline Dependencies</h1>
+<h1 id="calcite-support-overview">Calcite support overview</h1>
 
-<blockquote>
-  <p><strong>Note:</strong> This page is only applicable to runners that do remote execution.</p>
-</blockquote>
+<p><a href="http://calcite.apache.org">Apache Calcite</a> is a widespread SQL dialect used in
+big data processing with some streaming enhancements. Calcite provides the
+basic dialect underlying Beam SQL.</p>
 
-<p>When you run your pipeline locally, the packages that your pipeline depends on are available because they are installed on your local machine. However, when you want to run your pipeline remotely, you must make sure these dependencies are available on the remote machines. This tutorial shows you how to make your dependencies available to the remote workers. Each section below refers to a different source that your package may have been installed from.</p>
+<p>We have added additional extensions to
+make it easy to leverage Beam’s unified batch/streaming model and support
+for complex data types.</p>
 
-<p><strong>Note:</strong> Remote workers used for pipeline execution typically have a standard Python 2.7 distribution installation. If your code relies only on standard Python packages, then you probably don’t need to do anything on this page.</p>
+<h2 id="query-syntax">Query syntax</h2>
+<p>Query statements scan one or more tables or expressions and return the computed result rows.
+The <a href="/documentation/dsls/sql/calcite/query-syntax">Query syntax</a> page describes Beam SQL’s syntax for queries when using Apache Calcite.</p>
 
-<h2 id="pypi-dependencies">PyPI Dependencies</h2>
+<h2 id="lexical-structure">Lexical structure</h2>
+<p>A Beam SQL statement comprises a series of tokens. 
+The <a href="/documentation/dsls/sql/calcite/lexical">Lexical structure</a> page documents Beam SQL’s lexical structure when using Apache Calcite.</p>
 
-<p>If your pipeline uses public packages from the <a href="https://pypi.python.org/">Python Package Index</a>, make these packages available remotely by performing the following steps:</p>
+<h2 id="data-types">Data types</h2>
+<p>Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows.
+Read about supported <a href="/documentation/dsls/sql/calcite/data-types">data types</a> in Beam SQL when using Apache Calcite.</p>
 
-<p><strong>Note:</strong> If your PyPI package depends on a non-Python package (e.g. a package that requires installation on Linux using the <code class="highlighter-rouge">apt-get install</code> command), see the <a href="#nonpython">PyPI Dependencies with Non-Python Dependencies</a> section instead.</p>
+<h2 id="functions-and-operators">Functions and operators</h2>
+<p>The following table summarizes Apache Calcite operators and functions supported by Beam SQL.</p>
 
-<ol>
-  <li>
-    <p>Find out which packages are installed on your machine. Run the following command:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> pip freeze &gt; requirements.txt
-</code></pre>
-    </div>
-
-    <p>This command creates a <code class="highlighter-rouge">requirements.txt</code> file that lists all packages that are installed on your machine, regardless of where they were installed from.</p>
-  </li>
-  <li>
-    <p>Edit the <code class="highlighter-rouge">requirements.txt</code> file and leave only the packages that were installed from PyPI and are used in the workflow source. Delete all packages that are not relevant to your code.</p>
-  </li>
-  <li>
-    <p>Run your pipeline with the following command-line option:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> --requirements_file requirements.txt
-</code></pre>
-    </div>
-
-    <p>The runner will use the <code class="highlighter-rouge">requirements.txt</code> file to install your additional dependencies onto the remote workers.</p>
-  </li>
-</ol>
-
-<p><strong>Important:</strong> Remote workers will install all packages listed in the <code class="highlighter-rouge">requirements.txt</code> file. Because of this, it’s very important that you delete non-PyPI packages from the <code class="highlighter-rouge">requirements.txt</code> file, as stated in step 2. If you don’t remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.</p>
-
-<h2 id="local-or-nonpypi">Local or non-PyPI Dependencies</h2>
-
-<p>If your pipeline uses packages that are not available publicly (e.g. packages that you’ve downloaded from a GitHub repo), make these packages available remotely by performing the following steps:</p>
-
-<ol>
-  <li>
-    <p>Identify which packages are installed on your machine and are not public. Run the following command:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> pip freeze
-</code></pre>
-    </div>
-
-    <p>This command lists all packages that are installed on your machine, regardless of where they were installed from.</p>
-  </li>
-  <li>
-    <p>Run your pipeline with the following command-line option:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> --extra_package /path/to/package/package-name
-</code></pre>
-    </div>
-
-    <p>where package-name is the package’s tarball. If you have the <code class="highlighter-rouge">setup.py</code> for that
-package then you can build the tarball with the following command:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> python setup.py sdist
-</code></pre>
-    </div>
-
-    <p>See the <a href="https://docs.python.org/2/distutils/sourcedist.html">sdist documentation</a> for more details on this command.</p>
-  </li>
-</ol>
-
-<h2 id="multiple-file-dependencies">Multiple File Dependencies</h2>
-
-<p>Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:</p>
-
-<ol>
-  <li>
-    <p>Create a <a href="https://pythonhosted.org/an_example_pypi_project/setuptools.html">setup.py</a> file for your project. The following is a very basic <code class="highlighter-rouge">setup.py</code> file.</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> import setuptools
-
- setuptools.setup(
-    name='PACKAGE-NAME',
-    version='PACKAGE-VERSION',
-    install_requires=[],
-    packages=setuptools.find_packages(),
- )
-</code></pre>
-    </div>
-  </li>
-  <li>
-    <p>Structure your project so that the root directory contains the <code class="highlighter-rouge">setup.py</code> file, the main workflow file, and a directory with the rest of the files.</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> root_dir/
-   setup.py
-   main.py
-   other_files_dir/
-</code></pre>
-    </div>
-
-    <p>See <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset">Juliaset</a> for an example that follows this required project structure.</p>
-  </li>
-  <li>
-    <p>Run your pipeline with the following command-line option:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> --setup_file /path/to/setup.py
-</code></pre>
-    </div>
-  </li>
-</ol>
-
-<p><strong>Note:</strong> If you <a href="#pypi-dependencies">created a requirements.txt file</a> and your project spans multiple files, you can get rid of the <code class="highlighter-rouge">requirements.txt</code> file and instead, add all packages contained in <code class="highlighter-rouge">requirements.txt</code> to the <code class="highlighter-rouge">install_requires</code> field of the setup call (in step 1).</p>
-
-<h2 id="nonpython">Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies</h2>
-
-<p>If your pipeline uses non-Python packages (e.g. packages that require installation using the <code class="highlighter-rouge">apt-get install</code> command), or uses a PyPI package that depends on non-Python dependencies during package installation, you must perform the following steps.</p>
-
-<ol>
-  <li>
-    <p>Add the required installation commands (e.g. the <code class="highlighter-rouge">apt-get install</code> commands) for the non-Python dependencies to the list of <code class="highlighter-rouge">CUSTOM_COMMANDS</code> in your <code class="highlighter-rouge">setup.py</code> file. See the <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py">Juliaset setup.py</a> for an example.</p>
-
-    <p><strong>Note:</strong> You must make sure that these commands are runnable on the remote worker (e.g. if you use <code class="highlighter-rouge">apt-get</code>, the remote worker needs <code class="highlighter-rouge">apt-get</code> support).</p>
-  </li>
-  <li>
-    <p>If you are using a PyPI package that depends on non-Python dependencies, add <code class="highlighter-rouge">['pip', 'install', '&lt;your PyPI package&gt;']</code> to the list of <code class="highlighter-rouge">CUSTOM_COMMANDS</code> in your <code class="highlighter-rouge">setup.py</code> file.</p>
-  </li>
-  <li>
-    <p>Structure your project so that the root directory contains the <code class="highlighter-rouge">setup.py</code> file, the main workflow file, and a directory with the rest of the files.</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> root_dir/
-   setup.py
-   main.py
-   other_files_dir/
-</code></pre>
-    </div>
-
-    <p>See the <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset">Juliaset</a> project for an example that follows this required project structure.</p>
-  </li>
-  <li>
-    <p>Run your pipeline with the following command-line option:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> --setup_file /path/to/setup.py
-</code></pre>
-    </div>
-  </li>
-</ol>
-
-<p><strong>Note:</strong> Because custom commands execute after the dependencies for your workflow are installed (by <code class="highlighter-rouge">pip</code>), you should omit the PyPI package dependency from the pipeline’s <code class="highlighter-rouge">requirements.txt</code> file and from the <code class="highlighter-rouge">install_requires</code> parameter in the <code class="highlighter-rouge">setuptools.setup()</code> call of your <code class="highlighter-rouge">setup.py</code> file.</p>
+<table class="table-bordered table-striped">
+  <tr><th>Operators and functions</th><th>Beam SQL support status</th></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#operator-precedence">Operator precedence</a></td><td>Yes</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#comparison-operators">Comparison operators</a></td><td class="style1">See Beam SQL <a href="/documentation/dsls/sql/calcite/scalar-functions/#comparison-functions-and-operators">scalar functions</a></td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#logical-operators">Logical operators</a></td><td>See Beam SQL <a href="/documentation/dsls/sql/calcite/scalar-functions/#logical-functions-and-operators">scalar functions</a></td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#arithmetic-operators-and-functions">Arithmetic operators and functions</a></td><td>See Beam SQL <a href="/documentation/dsls/sql/calcite/scalar-functions/#arithmetic-expressions">scalar functions</a></td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#character-string-operators-and-functions">Character string operators and functions</a></td><td>See Beam SQL <a href="/documentation/dsls/sql/calcite/scalar-functions/#string-functions">scalar functions</a></td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#binary-string-operators-and-functions">Binary string operators and functions</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#datetime-functions">Date/time functions</a></td><td>See Beam SQL <a href="/documentation/dsls/sql/calcite/scalar-functions/#date-functions">scalar functions</a></td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#system-functions">System functions</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#conditional-functions-and-operators">Conditional functions and operators</a></td><td>See Beam SQL <a href="/documentation/dsls/sql/calcite/scalar-functions/#conditional-functions">scalar functions</a></td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#type-conversion">Type conversion</a></td><td>Yes</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#value-constructors">Value constructors</a></td><td>No, except array</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#collection-functions">Collection functions</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#period-predicates">Period predicates</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#jdbc-function-escape">JDBC function escape</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#aggregate-functions">Aggregate functions</a></td>
+<td>See Beam SQL extension <a href="/documentation/dsls/sql/calcite/aggregate-functions/">aggregate functions</a></td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#window-functions">Window functions</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#grouping-functions">Grouping functions</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#grouped-window-functions">Grouped window functions</a></td><td>See Beam SQL extension <a href="/documentation/dsls/sql/windowing-and-triggering/">windowing and triggering</a></td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#grouped-auxiliary-functions">Grouped auxiliary functions</a></td><td>Yes, except SESSION_END</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#spatial-functions">Spatial functions</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#geometry-creation-functions-3d">Geometry creation functions (3D)</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#geometry-predicates">Geometry predicates</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#json-functions">JSON functions</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#user-defined-functions">User-defined functions</a></td>
+<td>See Beam SQL extension <a href="/documentation/dsls/sql/user-defined-functions/">user-defined functions</a>. You cannot call functions with <a href="http://calcite.apache.org/docs/reference.html#calling-functions-with-named-and-optional-parameters">named and optional parameters</a>.</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#match_recognize">MATCH_RECOGNIZE</a></td><td>No</td></tr>
+<tr><td><a href="http://calcite.apache.org/docs/reference.html#ddl-extensions">DDL Extensions</a></td><td>See Beam SQL extension <a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></td></tr>
+</table>
 
       </div>
     </div>

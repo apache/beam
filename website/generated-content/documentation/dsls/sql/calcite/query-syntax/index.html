@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam SQL: SELECT Statement</title>
+  <title>Beam SQL query syntax for Calcite</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/select/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/calcite/query-syntax/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/select.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/calcite/query-syntax.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -200,19 +200,26 @@
     <li><a href="/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
     <li><a href="/documentation/dsls/sql/shell/">Shell</a></li>
     <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">SQL Reference</span>
+      <span class="section-nav-list-title">Apache Calcite dialect</span>
 
       <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/data-types/">Data types</a></li>
-        <li><a href="/documentation/dsls/sql/lexical/">Lexical structure</a></li>
-        <li><a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></li>
-        <li><a href="/documentation/dsls/sql/select/">SELECT</a></li>
-        <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
-        <li><a href="/documentation/dsls/sql/joins/">Joins</a></li>
-        <li><a href="/documentation/dsls/sql/scalar-functions/">Scalar functions</a></li>
-        <li><a href="/documentation/dsls/sql/aggregate-functions/">Aggregate functions</a></li>
-        <li><a href="/documentation/dsls/sql/user-defined-functions/">User-defined functions</a></li>
-        <li><a href="/documentation/dsls/sql/set/">SET Pipeline Options</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/overview/">Calcite support overview</a></li>  
+        <li><a href="/documentation/dsls/sql/calcite/query-syntax/">Query syntax</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/lexical/">Lexical structure</a></li>        
+        <li><a href="/documentation/dsls/sql/calcite/data-types/">Data types</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/scalar-functions/">Scalar functions</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/aggregate-functions/">Aggregate functions</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Beam SQL extensions</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/dsls/sql/extensions/create-external-table/">CREATE EXTERNAL TABLE</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/windowing-and-triggering/">Windowing & triggering</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/joins/">Joins</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/user-defined-functions/">User-defined functions</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/set/">SET pipeline options</a></li>
       </ul>
     </li>
   </ul>
@@ -325,23 +332,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="select">SELECT</h1>
+<h1 id="beam-sql-query-syntax-calcite">Beam SQL query syntax (Calcite)</h1>
 
-<p>The main functionality of Beam SQL is the <code class="highlighter-rouge">SELECT</code> statement. This is how you
-query and join data. The operations supported are a subset of
-<a href="http://calcite.apache.org/docs/reference.html#grammar">Apache Calcite SQL</a>.</p>
+<p>Query statements scan one or more tables or expressions and return the computed
+result rows. This page documents Beam SQL’s syntax for queries when using Apache Calcite.</p>
 
 <p>Generally, the semantics of queries is standard. Please see the following
 sections to learn about extensions for supporting Beam’s unified
 batch/streaming model:</p>
 
 <ul>
-  <li><a href="/documentation/dsls/sql/joins">Joins</a></li>
+  <li><a href="/documentation/dsls/sql/extensions/joins">Joins</a></li>
   <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing &amp; Triggering</a></li>
 </ul>
 
-<p>Query statements scan one or more tables or expressions and return the computed
-result rows. This topic describes the syntax for SQL queries in Beam.</p>
+<p>The main functionality of Beam SQL is the <code class="highlighter-rouge">SELECT</code> statement. This is how you
+query and join data. The operations supported are a subset of
+<a href="http://calcite.apache.org/docs/reference.html#grammar">Apache Calcite SQL</a>.</p>
 
 <h2 id="sql-syntax">SQL Syntax</h2>
 
@@ -525,7 +532,7 @@ SELECT * FROM beam.Roster;
 
 <h4 id="join">join</h4>
 
-<p>See <a href="#join-types">JOIN Types</a> below and <a href="/documentation/dsls/sql/joins">Joins</a>.</p>
+<p>See <a href="#join-types">JOIN Types</a> below and <a href="/documentation/dsls/sql/extensions/joins">Joins</a>.</p>
 
 <h4 id="select_1">select</h4>
 
@@ -594,7 +601,7 @@ FROM
 
 <h2 id="join-types">JOIN types</h2>
 
-<p>Also see <a href="/documentation/dsls/sql/joins">Joins</a>.</p>
+<p>Also see <a href="/documentation/dsls/sql/extensions/joins">Joins</a>.</p>
 
 <h3 id="syntax_1">Syntax</h3>
 
@@ -648,7 +655,7 @@ if there’s non-global window applied.</p>
 row in the other <code class="highlighter-rouge">from_item</code>, the row will return with NULLs for all columns
 from the other <code class="highlighter-rouge">from_item</code>.</p>
 
-<p>Also see <a href="/documentation/dsls/sql/joins">Joins</a>.</p>
+<p>Also see <a href="/documentation/dsls/sql/extensions/joins">Joins</a>.</p>
 
 <h3 id="left-outer-join">LEFT [OUTER] JOIN</h3>
 

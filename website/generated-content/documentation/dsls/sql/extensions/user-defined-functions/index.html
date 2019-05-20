@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Managing Python Pipeline Dependencies</title>
+  <title>Beam SQL extensions: User-defined functions</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/extensions/user-defined-functions/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/sdks/python-pipeline-dependencies.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/extensions/user-defined-functions.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -245,10 +245,8 @@
 
 
 <ul class="nav">
-  <li><a href="#pypi-dependencies">PyPI Dependencies</a></li>
-  <li><a href="#local-or-nonpypi">Local or non-PyPI Dependencies</a></li>
-  <li><a href="#multiple-file-dependencies">Multiple File Dependencies</a></li>
-  <li><a href="#nonpython">Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies</a></li>
+  <li><a href="#create-and-specify-a-user-defined-function-udf">Create and specify a User Defined Function (UDF)</a></li>
+  <li><a href="#create-and-specify-a-user-defined-aggregate-function-udaf">Create and specify a User Defined Aggregate Function (UDAF)</a></li>
 </ul>
 
 
@@ -268,157 +266,116 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="managing-python-pipeline-dependencies">Managing Python Pipeline Dependencies</h1>
 
-<blockquote>
-  <p><strong>Note:</strong> This page is only applicable to runners that do remote execution.</p>
-</blockquote>
+<h1 id="beam-sql-extensions-user-defined-functions">Beam SQL extensions: User-defined functions</h1>
 
-<p>When you run your pipeline locally, the packages that your pipeline depends on are available because they are installed on your local machine. However, when you want to run your pipeline remotely, you must make sure these dependencies are available on the remote machines. This tutorial shows you how to make your dependencies available to the remote workers. Each section below refers to a different source that your package may have been installed from.</p>
+<p>If Beam SQL does not have a scalar function or aggregate function to meet your
+needs, they can be authored in Java and invoked in your SQL query. These
+are commonly called UDF (for scalar functions) and UDAFs (for aggregate functions).</p>
 
-<p><strong>Note:</strong> Remote workers used for pipeline execution typically have a standard Python 2.7 distribution installation. If your code relies only on standard Python packages, then you probably don’t need to do anything on this page.</p>
+<h2 id="create-and-specify-a-user-defined-function-udf">Create and specify a User Defined Function (UDF)</h2>
 
-<h2 id="pypi-dependencies">PyPI Dependencies</h2>
+<p>A UDF can be the following:</p>
+<ul>
+  <li>Any Java method that takes zero or more scalar fields and
+returns one scalar value.</li>
+  <li>A <code class="highlighter-rouge">SerializableFunction</code>.</li>
+</ul>
 
-<p>If your pipeline uses public packages from the <a href="https://pypi.python.org/">Python Package Index</a>, make these packages available remotely by performing the following steps:</p>
+<p>Below is an example of UDF and how to use it in DSL:</p>
 
-<p><strong>Note:</strong> If your PyPI package depends on a non-Python package (e.g. a package that requires installation on Linux using the <code class="highlighter-rouge">apt-get install</code> command), see the <a href="#nonpython">PyPI Dependencies with Non-Python Dependencies</a> section instead.</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
+ * A example UDF for test.
+ */</span>
+<span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CubicInteger</span> <span class="kd">implements</span> <span class="n">BeamSqlUdf</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="kd">static</span> <span class="n">Integer</span> <span class="nf">eval</span><span class="o">(</span><span class="n">Integer</span> <span class="n">input</span><span class="o">){</span>
+    <span class="k">return</span> <span class="n">input</span> <span class="o">*</span> <span class="n">input</span> <span class="o">*</span> <span class="n">input</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
 
-<ol>
-  <li>
-    <p>Find out which packages are installed on your machine. Run the following command:</p>
+<span class="cm">/**
+ * Another example UDF with {@link SerializableFunction}.
+ */</span>
+<span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CubicIntegerFn</span> <span class="kd">implements</span> <span class="n">SerializableFunction</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">Integer</span> <span class="nf">apply</span><span class="o">(</span><span class="n">Integer</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="n">input</span> <span class="o">*</span> <span class="n">input</span> <span class="o">*</span> <span class="n">input</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> pip freeze &gt; requirements.txt
+<span class="c1">// Define a SQL query which calls the above UDFs</span>
+<span class="n">String</span> <span class="n">sql</span> <span class="o">=</span> 
+    <span class="s">"SELECT f_int, cubic1(f_int), cubic2(f_int)"</span>
+      <span class="o">+</span> <span class="s">"FROM PCOLLECTION "</span>
+      <span class="o">+</span> <span class="s">"WHERE f_int = 2"</span><span class="o">;</span>
+
+<span class="c1">// Create and apply the PTransform representing the query.</span>
+<span class="c1">// Register the UDFs used in the query by calling '.registerUdf()' with </span>
+<span class="c1">// either a class which implements BeamSqlUdf or with </span>
+<span class="c1">// an instance of the SerializableFunction;</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
+    <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="s">"udfExample"</span><span class="o">,</span>
+        <span class="n">SqlTransform</span>
+            <span class="o">.</span><span class="na">query</span><span class="o">(</span><span class="n">sql</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">registerUdf</span><span class="o">(</span><span class="s">"cubic1"</span><span class="o">,</span> <span class="n">CubicInteger</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">registerUdf</span><span class="o">(</span><span class="s">"cubic2"</span><span class="o">,</span> <span class="k">new</span> <span class="n">CubicIntegerFn</span><span class="o">())</span>
 </code></pre>
-    </div>
+</div>
 
-    <p>This command creates a <code class="highlighter-rouge">requirements.txt</code> file that lists all packages that are installed on your machine, regardless of where they were installed from.</p>
-  </li>
-  <li>
-    <p>Edit the <code class="highlighter-rouge">requirements.txt</code> file and leave only the packages that were installed from PyPI and are used in the workflow source. Delete all packages that are not relevant to your code.</p>
-  </li>
-  <li>
-    <p>Run your pipeline with the following command-line option:</p>
+<h2 id="create-and-specify-a-user-defined-aggregate-function-udaf">Create and specify a User Defined Aggregate Function (UDAF)</h2>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> --requirements_file requirements.txt
+<p>Beam SQL can accept a <code class="highlighter-rouge">CombineFn</code> as UDAF. Registration is similar to the UDF
+example above:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
+ * UDAF(CombineFn) for test, which returns the sum of square.
+ */</span>
+<span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">SquareSum</span> <span class="kd">extends</span> <span class="n">CombineFn</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Integer</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">Integer</span> <span class="nf">createAccumulator</span><span class="o">()</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">Integer</span> <span class="nf">addInput</span><span class="o">(</span><span class="n">Integer</span> <span class="n">accumulator</span><span class="o">,</span> <span class="n">Integer</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="n">accumulator</span> <span class="o">+</span> <span class="n">input</span> <span class="o">*</span> <span class="n">input</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">Integer</span> <span class="nf">mergeAccumulators</span><span class="o">(</span><span class="n">Iterable</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">accumulators</span><span class="o">)</span> <span class="o">{</span>
+    <span class="kt">int</span> <span class="n">v</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+    <span class="n">Iterator</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">ite</span> <span class="o">=</span> <span class="n">accumulators</span><span class="o">.</span><span class="na">iterator</span><span class="o">();</span>
+    <span class="k">while</span> <span class="o">(</span><span class="n">ite</span><span class="o">.</span><span class="na">hasNext</span><span class="o">())</span> <span class="o">{</span>
+      <span class="n">v</span> <span class="o">+=</span> <span class="n">ite</span><span class="o">.</span><span class="na">next</span><span class="o">();</span>
+    <span class="o">}</span>
+    <span class="k">return</span> <span class="n">v</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">Integer</span> <span class="nf">extractOutput</span><span class="o">(</span><span class="n">Integer</span> <span class="n">accumulator</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="n">accumulator</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="c1">// Define a SQL query which calls the above UDAF</span>
+<span class="n">String</span> <span class="n">sql</span> <span class="o">=</span> 
+    <span class="s">"SELECT f_int1, squaresum(f_int2) "</span>
+      <span class="o">+</span> <span class="s">"FROM PCOLLECTION "</span>
+      <span class="o">+</span> <span class="s">"GROUP BY f_int2"</span><span class="o">;</span>
+      
+<span class="c1">// Create and apply the PTransform representing the query.</span>
+<span class="c1">// Register the UDAFs used in the query by calling '.registerUdaf()' by </span>
+<span class="c1">// providing it an instance of the CombineFn</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
+    <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="s">"udafExample"</span><span class="o">,</span>
+        <span class="n">SqlTransform</span>
+            <span class="o">.</span><span class="na">query</span><span class="o">(</span><span class="n">sql</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">registerUdaf</span><span class="o">(</span><span class="s">"squaresum"</span><span class="o">,</span> <span class="k">new</span> <span class="n">SquareSum</span><span class="o">()));</span>
 </code></pre>
-    </div>
+</div>
 
-    <p>The runner will use the <code class="highlighter-rouge">requirements.txt</code> file to install your additional dependencies onto the remote workers.</p>
-  </li>
-</ol>
-
-<p><strong>Important:</strong> Remote workers will install all packages listed in the <code class="highlighter-rouge">requirements.txt</code> file. Because of this, it’s very important that you delete non-PyPI packages from the <code class="highlighter-rouge">requirements.txt</code> file, as stated in step 2. If you don’t remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.</p>
-
-<h2 id="local-or-nonpypi">Local or non-PyPI Dependencies</h2>
-
-<p>If your pipeline uses packages that are not available publicly (e.g. packages that you’ve downloaded from a GitHub repo), make these packages available remotely by performing the following steps:</p>
-
-<ol>
-  <li>
-    <p>Identify which packages are installed on your machine and are not public. Run the following command:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> pip freeze
-</code></pre>
-    </div>
-
-    <p>This command lists all packages that are installed on your machine, regardless of where they were installed from.</p>
-  </li>
-  <li>
-    <p>Run your pipeline with the following command-line option:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> --extra_package /path/to/package/package-name
-</code></pre>
-    </div>
-
-    <p>where package-name is the package’s tarball. If you have the <code class="highlighter-rouge">setup.py</code> for that
-package then you can build the tarball with the following command:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> python setup.py sdist
-</code></pre>
-    </div>
-
-    <p>See the <a href="https://docs.python.org/2/distutils/sourcedist.html">sdist documentation</a> for more details on this command.</p>
-  </li>
-</ol>
-
-<h2 id="multiple-file-dependencies">Multiple File Dependencies</h2>
-
-<p>Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:</p>
-
-<ol>
-  <li>
-    <p>Create a <a href="https://pythonhosted.org/an_example_pypi_project/setuptools.html">setup.py</a> file for your project. The following is a very basic <code class="highlighter-rouge">setup.py</code> file.</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> import setuptools
-
- setuptools.setup(
-    name='PACKAGE-NAME',
-    version='PACKAGE-VERSION',
-    install_requires=[],
-    packages=setuptools.find_packages(),
- )
-</code></pre>
-    </div>
-  </li>
-  <li>
-    <p>Structure your project so that the root directory contains the <code class="highlighter-rouge">setup.py</code> file, the main workflow file, and a directory with the rest of the files.</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> root_dir/
-   setup.py
-   main.py
-   other_files_dir/
-</code></pre>
-    </div>
-
-    <p>See <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset">Juliaset</a> for an example that follows this required project structure.</p>
-  </li>
-  <li>
-    <p>Run your pipeline with the following command-line option:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> --setup_file /path/to/setup.py
-</code></pre>
-    </div>
-  </li>
-</ol>
-
-<p><strong>Note:</strong> If you <a href="#pypi-dependencies">created a requirements.txt file</a> and your project spans multiple files, you can get rid of the <code class="highlighter-rouge">requirements.txt</code> file and instead, add all packages contained in <code class="highlighter-rouge">requirements.txt</code> to the <code class="highlighter-rouge">install_requires</code> field of the setup call (in step 1).</p>
-
-<h2 id="nonpython">Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies</h2>
-
-<p>If your pipeline uses non-Python packages (e.g. packages that require installation using the <code class="highlighter-rouge">apt-get install</code> command), or uses a PyPI package that depends on non-Python dependencies during package installation, you must perform the following steps.</p>
-
-<ol>
-  <li>
-    <p>Add the required installation commands (e.g. the <code class="highlighter-rouge">apt-get install</code> commands) for the non-Python dependencies to the list of <code class="highlighter-rouge">CUSTOM_COMMANDS</code> in your <code class="highlighter-rouge">setup.py</code> file. See the <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py">Juliaset setup.py</a> for an example.</p>
-
-    <p><strong>Note:</strong> You must make sure that these commands are runnable on the remote worker (e.g. if you use <code class="highlighter-rouge">apt-get</code>, the remote worker needs <code class="highlighter-rouge">apt-get</code> support).</p>
-  </li>
-  <li>
-    <p>If you are using a PyPI package that depends on non-Python dependencies, add <code class="highlighter-rouge">['pip', 'install', '&lt;your PyPI package&gt;']</code> to the list of <code class="highlighter-rouge">CUSTOM_COMMANDS</code> in your <code class="highlighter-rouge">setup.py</code> file.</p>
-  </li>
-  <li>
-    <p>Structure your project so that the root directory contains the <code class="highlighter-rouge">setup.py</code> file, the main workflow file, and a directory with the rest of the files.</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> root_dir/
-   setup.py
-   main.py
-   other_files_dir/
-</code></pre>
-    </div>
-
-    <p>See the <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset">Juliaset</a> project for an example that follows this required project structure.</p>
-  </li>
-  <li>
-    <p>Run your pipeline with the following command-line option:</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> --setup_file /path/to/setup.py
-</code></pre>
-    </div>
-  </li>
-</ol>
-
-<p><strong>Note:</strong> Because custom commands execute after the dependencies for your workflow are installed (by <code class="highlighter-rouge">pip</code>), you should omit the PyPI package dependency from the pipeline’s <code class="highlighter-rouge">requirements.txt</code> file and from the <code class="highlighter-rouge">install_requires</code> parameter in the <code class="highlighter-rouge">setuptools.setup()</code> call of your <code class="highlighter-rouge">setup.py</code> file.</p>
 
       </div>
     </div>

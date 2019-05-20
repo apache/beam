@@ -200,19 +200,26 @@
     <li><a href="/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
     <li><a href="/documentation/dsls/sql/shell/">Shell</a></li>
     <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">SQL Reference</span>
+      <span class="section-nav-list-title">Apache Calcite dialect</span>
 
       <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/data-types/">Data types</a></li>
-        <li><a href="/documentation/dsls/sql/lexical/">Lexical structure</a></li>
-        <li><a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></li>
-        <li><a href="/documentation/dsls/sql/select/">SELECT</a></li>
-        <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
-        <li><a href="/documentation/dsls/sql/joins/">Joins</a></li>
-        <li><a href="/documentation/dsls/sql/scalar-functions/">Scalar functions</a></li>
-        <li><a href="/documentation/dsls/sql/aggregate-functions/">Aggregate functions</a></li>
-        <li><a href="/documentation/dsls/sql/user-defined-functions/">User-defined functions</a></li>
-        <li><a href="/documentation/dsls/sql/set/">SET Pipeline Options</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/overview/">Calcite support overview</a></li>  
+        <li><a href="/documentation/dsls/sql/calcite/query-syntax/">Query syntax</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/lexical/">Lexical structure</a></li>        
+        <li><a href="/documentation/dsls/sql/calcite/data-types/">Data types</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/scalar-functions/">Scalar functions</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/aggregate-functions/">Aggregate functions</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Beam SQL extensions</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/dsls/sql/extensions/create-external-table/">CREATE EXTERNAL TABLE</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/windowing-and-triggering/">Windowing & triggering</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/joins/">Joins</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/user-defined-functions/">User-defined functions</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/set/">SET pipeline options</a></li>
       </ul>
     </li>
   </ul>
@@ -237,6 +244,12 @@
 
 
 
+<ul class="nav">
+  <li><a href="#walkthrough">Walkthrough</a></li>
+  <li><a href="#shell">Shell</a></li>
+  <li><a href="#apache-calcite-dialect">Apache Calcite dialect</a></li>
+  <li><a href="#beam-sql-extensions">Beam SQL extensions</a></li>
+</ul>
 
 
       </nav>
@@ -256,30 +269,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-sql-overview">Beam SQL: Overview</h1>
+<h1 id="beam-sql-overview">Beam SQL overview</h1>
 
 <p>Beam SQL allows a Beam user (currently only available in Beam Java) to query
 bounded and unbounded <code class="highlighter-rouge">PCollections</code> with SQL statements. Your SQL query
 is translated to a <code class="highlighter-rouge">PTransform</code>, an encapsulated segment of a Beam pipeline.
 You can freely mix SQL <code class="highlighter-rouge">PTransforms</code> and other <code class="highlighter-rouge">PTransforms</code> in your pipeline.</p>
 
-<p>There are three main things you will need to know to use SQL in your pipeline:</p>
+<p><a href="http://calcite.apache.org">Apache Calcite</a> is a widespread SQL dialect used in
+big data processing with some streaming enhancements. Calcite provides the
+basic dialect underlying Beam SQL.</p>
+
+<p>There are two additional concepts you need to know to use SQL in your pipeline:</p>
 
 <ul>
-  <li><a href="http://calcite.apache.org">Apache Calcite</a>: a widespread SQL dialect used in
-big data processing with some streaming enhancements. Calcite provides the
-basic dialect underlying Beam SQL. We have added additional extensions to
-make it easy to leverage Beam’s unified batch/streaming model and support
-for complex data types.</li>
-  <li><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html">SqlTransform</a>: 
-the interface for creating <code class="highlighter-rouge">PTransforms</code> from SQL queries.</li>
+  <li><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html">SqlTransform</a>: the interface for creating <code class="highlighter-rouge">PTransforms</code> from SQL queries.</li>
   <li><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/values/Row.html">Row</a>:
 the type of elements that Beam SQL operates on. A <code class="highlighter-rouge">PCollection&lt;Row&gt;</code> plays the role of a table.</li>
 </ul>
 
-<p>The <a href="/documentation/dsls/sql/walkthrough">SQL pipeline walkthrough</a> works through how you use
-these.</p>
+<h2 id="walkthrough">Walkthrough</h2>
+<p>The <a href="/documentation/dsls/sql/walkthrough">SQL pipeline walkthrough</a> works through how to use Beam SQL with example code.</p>
 
+<h2 id="shell">Shell</h2>
+<p>The Beam SQL shell allows you to write pipelines as SQL queries without using the Java SDK. 
+The <a href="/documentation/dsls/sql/shell">Shell page</a> describes how to work with the interactive Beam SQL shell.</p>
+
+<h2 id="apache-calcite-dialect">Apache Calcite dialect</h2>
+<p>The <a href="/documentation/dsls/sql/calcite/overview">Calcite overview</a> summarizes Apache Calcite operators,
+functions, syntax, and data types supported by Beam SQL.</p>
+
+<h2 id="beam-sql-extensions">Beam SQL extensions</h2>
+<p>Beam SQL has additional <a href="/documentation/dsls/sql/extensions/create-external-table">extensions</a> to
+make it easy to leverage Beam’s unified batch/streaming model and support
+for complex data types.</p>
 
       </div>
     </div>

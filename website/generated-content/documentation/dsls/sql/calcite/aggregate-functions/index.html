@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam SQL: Joins</title>
+  <title>Beam SQL aggregate functions for Calcite</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/joins/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/calcite/aggregate-functions/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/joins.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/calcite/aggregate-functions.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -200,19 +200,26 @@
     <li><a href="/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
     <li><a href="/documentation/dsls/sql/shell/">Shell</a></li>
     <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">SQL Reference</span>
+      <span class="section-nav-list-title">Apache Calcite dialect</span>
 
       <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/data-types/">Data types</a></li>
-        <li><a href="/documentation/dsls/sql/lexical/">Lexical structure</a></li>
-        <li><a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></li>
-        <li><a href="/documentation/dsls/sql/select/">SELECT</a></li>
-        <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
-        <li><a href="/documentation/dsls/sql/joins/">Joins</a></li>
-        <li><a href="/documentation/dsls/sql/scalar-functions/">Scalar functions</a></li>
-        <li><a href="/documentation/dsls/sql/aggregate-functions/">Aggregate functions</a></li>
-        <li><a href="/documentation/dsls/sql/user-defined-functions/">User-defined functions</a></li>
-        <li><a href="/documentation/dsls/sql/set/">SET Pipeline Options</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/overview/">Calcite support overview</a></li>  
+        <li><a href="/documentation/dsls/sql/calcite/query-syntax/">Query syntax</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/lexical/">Lexical structure</a></li>        
+        <li><a href="/documentation/dsls/sql/calcite/data-types/">Data types</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/scalar-functions/">Scalar functions</a></li>
+        <li><a href="/documentation/dsls/sql/calcite/aggregate-functions/">Aggregate functions</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Beam SQL extensions</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/dsls/sql/extensions/create-external-table/">CREATE EXTERNAL TABLE</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/windowing-and-triggering/">Windowing & triggering</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/joins/">Joins</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/user-defined-functions/">User-defined functions</a></li>
+        <li><a href="/documentation/dsls/sql/extensions/set/">SET pipeline options</a></li>
       </ul>
     </li>
   </ul>
@@ -237,11 +244,6 @@
 
 
 
-<ul class="nav">
-  <li><a href="#join-bounded-bounded">Bounded JOIN Bounded</a></li>
-  <li><a href="#join-unbounded-unbounded">Unbounded JOIN Unbounded</a></li>
-  <li><a href="#join-unbounded-bounded">Unbounded JOIN Bounded</a></li>
-</ul>
 
 
       </nav>
@@ -261,72 +263,44 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-sql-joins">Beam SQL: Joins</h1>
+<h1 id="beam-sql-aggregate-functions-calcite">Beam SQL aggregate functions (Calcite)</h1>
 
-<p>Supported <code class="highlighter-rouge">JOIN</code> types in Beam SQL:</p>
-<ul>
-  <li><code class="highlighter-rouge">INNER</code>, <code class="highlighter-rouge">LEFT OUTER</code>, <code class="highlighter-rouge">RIGHT OUTER</code></li>
-  <li>Only equijoins (where join condition is an equality check) are supported</li>
-</ul>
+<p>This page documents built-in functions supported by Beam SQL when using Apache Calcite.</p>
 
-<p>Unsupported <code class="highlighter-rouge">JOIN</code> types in Beam SQL:</p>
-<ul>
-  <li><code class="highlighter-rouge">CROSS JOIN</code> is not supported (full cartesian product with no <code class="highlighter-rouge">ON</code> clause)</li>
-  <li><code class="highlighter-rouge">FULL OUTER JOIN</code> is not supported (combination of <code class="highlighter-rouge">LEFT OUTER</code> and <code class="highlighter-rouge">RIGHT OUTER</code> joins)</li>
-</ul>
+<p>See also <a href="http://calcite.apache.org/docs/reference.html#operators-and-functions">Calcite
+SQL’s operators and functions
+reference</a>.</p>
 
-<p>The scenarios of join can be categorized into 3 cases:</p>
-
-<ol>
-  <li>Bounded input <code class="highlighter-rouge">JOIN</code> bounded input</li>
-  <li>Unbounded input <code class="highlighter-rouge">JOIN</code> unbounded input</li>
-  <li>Unbounded input <code class="highlighter-rouge">JOIN</code> bounded input</li>
-</ol>
-
-<h2 id="join-bounded-bounded">Bounded JOIN Bounded</h2>
-
-<p>Standard join implementation is used. All elements from one input are matched
-with all elements from another input. Due to the fact that both inputs are
-bounded, no windowing or triggering is involved.</p>
-
-<h2 id="join-unbounded-unbounded">Unbounded JOIN Unbounded</h2>
-
-<p>Standard join implementation is used. All elements from one input are matched
-with all elements from another input.</p>
-
-<p><strong>Windowing and Triggering</strong></p>
-
-<p>The following properties must be satisfied when joining unbounded inputs:</p>
-
-<ul>
-  <li>Inputs must have compatible windows, otherwise <code class="highlighter-rouge">IllegalArgumentException</code>
-will be thrown.</li>
-  <li>Triggers on each input should only fire once per window. Currently this
-means that the only supported trigger in this case is <code class="highlighter-rouge">DefaultTrigger</code> with
-zero allowed lateness. Using any other trigger will result in
-<code class="highlighter-rouge">UnsupportedOperationException</code> thrown.</li>
-</ul>
-
-<p>This means that inputs are joined per-window. That is, when the trigger fires
-(only once), then join is performed on all elements in the current window in
-both inputs. This allows to reason about what kind of output is going to be
-produced.</p>
-
-<p><strong>Note:</strong> similarly to <code class="highlighter-rouge">GroupByKeys</code> <code class="highlighter-rouge">JOIN</code> will update triggers using
-<code class="highlighter-rouge">Trigger.continuationTrigger()</code>. Other aspects of the inputs’ windowing
-strategies remain unchanged.</p>
-
-<h2 id="join-unbounded-bounded">Unbounded JOIN Bounded</h2>
-
-<p>For this type of <code class="highlighter-rouge">JOIN</code> bounded input is treated as a side-input by the
-implementation.</p>
-
-<p>This means that</p>
-
-<ul>
-  <li>window/trigger is inherented from upstreams, which should be consistent</li>
-</ul>
-
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>COUNT(*)</td>
+      <td>Returns the number of input rows</td>
+    </tr>
+    <tr>
+      <td>AVG(numeric)</td>
+      <td>Returns the average (arithmetic mean) of numeric across all input values</td>
+    </tr>
+    <tr>
+      <td>SUM(numeric)</td>
+      <td>Returns the sum of numeric across all input values</td>
+    </tr>
+    <tr>
+      <td>MAX(value)</td>
+      <td>Returns the maximum value of value across all input values</td>
+    </tr>
+    <tr>
+      <td>MIN(value)</td>
+      <td>Returns the minimum value of value across all input values</td>
+    </tr>
+  </tbody>
+</table>
 
       </div>
     </div>
