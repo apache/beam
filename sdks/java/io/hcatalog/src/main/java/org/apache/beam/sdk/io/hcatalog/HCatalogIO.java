@@ -312,7 +312,7 @@ public class HCatalogIO {
       private HCatRecord current;
       private Iterator<HCatRecord> hcatIterator;
 
-      public BoundedHCatalogReader(BoundedHCatalogSource source) {
+      BoundedHCatalogReader(BoundedHCatalogSource source) {
         this.source = source;
       }
 
@@ -432,7 +432,7 @@ public class HCatalogIO {
       private HCatWriter masterWriter;
       private List<HCatRecord> hCatRecordsBatch;
 
-      public WriteFn(Write spec) {
+      WriteFn(Write spec) {
         this.spec = spec;
       }
 
@@ -495,7 +495,7 @@ public class HCatalogIO {
       }
 
       @Teardown
-      public void tearDown() throws Exception {
+      public void tearDown() {
         if (slaveWriter != null) {
           slaveWriter = null;
         }
