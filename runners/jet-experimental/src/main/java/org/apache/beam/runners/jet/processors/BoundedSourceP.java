@@ -17,15 +17,13 @@
  */
 package org.apache.beam.runners.jet.processors;
 
-import static com.hazelcast.jet.Traversers.traverseIterable;
-import static com.hazelcast.jet.impl.util.ExceptionUtil.rethrow;
-import static org.apache.beam.runners.jet.Utils.roundRobinSubList;
-
 import com.hazelcast.jet.Traverser;
+import com.hazelcast.jet.Traversers;
 import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.ProcessorSupplier;
+import com.hazelcast.jet.impl.util.ExceptionUtil;
 import com.hazelcast.nio.Address;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -57,18 +55,10 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
 
   BoundedSourceP(
       List<BoundedSource<T>> shards, PipelineOptions options, Coder outputCoder, String ownerId) {
-    this.shardsTraverser = traverseIterable(shards);
+    this.shardsTraverser = Traversers.traverseIterable(shards);
     this.options = options;
     this.outputCoder = outputCoder;
     this.ownerId = ownerId;
-  }
-
-  public static <T> ProcessorMetaSupplier supplier(
-      BoundedSource<T> boundedSource,
-      SerializablePipelineOptions options,
-      Coder outputCoder,
-      String ownerId) {
-    return new BoundedSourceMetaProcessorSupplier<>(boundedSource, options, outputCoder, ownerId);
   }
 
   @Override
@@ -90,11 +80,11 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
       }
       return outputCoder == null
           ? res
-          : Utils.encodeWindowedValue(
+          : Utils.encode(
               res, outputCoder); // todo: this is not nice, have done this only as a quick fix for
       // BoundedSourcePTest
     } catch (IOException e) {
-      throw rethrow(e);
+      throw ExceptionUtil.rethrow(e);
     }
   }
 
@@ -136,6 +126,14 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
     }
   }
 
+  public static <T> ProcessorMetaSupplier supplier(
+      BoundedSource<T> boundedSource,
+      SerializablePipelineOptions options,
+      Coder outputCoder,
+      String ownerId) {
+    return new BoundedSourceMetaProcessorSupplier<>(boundedSource, options, outputCoder, ownerId);
+  }
+
   private static class BoundedSourceMetaProcessorSupplier<T> implements ProcessorMetaSupplier {
 
     private final BoundedSource<T> boundedSource;
@@ -171,7 +169,7 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
         @Nonnull List<Address> addresses) {
       return address ->
           new BoundedSourceProcessorSupplier(
-              roundRobinSubList(shards, addresses.indexOf(address), addresses.size()),
+              Utils.roundRobinSubList(shards, addresses.indexOf(address), addresses.size()),
               options,
               outputCoder,
               ownerId);
@@ -209,7 +207,7 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
       for (int i = 0; i < count; i++, indexBase++) {
         res.add(
             new BoundedSourceP<>(
-                roundRobinSubList(shards, i, count), options.get(), outputCoder, ownerId));
+                Utils.roundRobinSubList(shards, i, count), options.get(), outputCoder, ownerId));
       }
       return res;
     }

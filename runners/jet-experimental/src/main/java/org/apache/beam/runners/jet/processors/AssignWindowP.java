@@ -39,7 +39,7 @@ import org.joda.time.Instant;
  */
 public class AssignWindowP<T> extends AbstractProcessor {
 
-  @SuppressWarnings("FieldCanBeLocal")
+  @SuppressWarnings({"FieldCanBeLocal", "unused"})
   private final String ownerId; // do not remove, useful for debugging
 
   private final ResettableSingletonTraverser<byte[]> traverser =
@@ -73,19 +73,20 @@ public class AssignWindowP<T> extends AbstractProcessor {
                       inputValue.getTimestamp(),
                       windows,
                       inputValue.getPane());
-              traverser.accept(Utils.encodeWindowedValue(outputValue, outputCoder));
+              traverser.accept(Utils.encode(outputValue, outputCoder));
               return traverser;
             });
   }
 
-  public static <InputT> SupplierEx<Processor> supplier(
+  public static <T> SupplierEx<Processor> supplier(
       Coder inputCoder,
       Coder outputCoder,
-      WindowingStrategy<InputT, BoundedWindow> windowingStrategy,
+      WindowingStrategy<T, BoundedWindow> windowingStrategy,
       String ownerId) {
     return () -> new AssignWindowP<>(inputCoder, outputCoder, windowingStrategy, ownerId);
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   protected boolean tryProcess(int ordinal, @Nonnull Object item) {
     return flatMapper.tryProcess((byte[]) item);

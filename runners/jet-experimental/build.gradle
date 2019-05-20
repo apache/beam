@@ -77,9 +77,3 @@ task validatesRunner {
     description "Validates Jet runner"
     dependsOn validatesRunnerBatch
 }
-
-spotless {
-    java {
-        paddedCell()
-    }
-}

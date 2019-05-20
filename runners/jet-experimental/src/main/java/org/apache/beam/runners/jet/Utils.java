@@ -26,6 +26,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -33,10 +34,12 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -81,12 +84,12 @@ public class Utils {
     return node.getTransform() != null ? node.getTransform().getAdditionalInputs() : null;
   }
 
-  static PCollection getInput(AppliedPTransform<?, ?, ?> appliedTransform) {
+  @SuppressWarnings("unchecked")
+  static PValue getInput(AppliedPTransform<?, ?, ?> appliedTransform) {
     if (appliedTransform.getTransform() == null) {
       return null;
     }
-    return (PCollection)
-        Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(appliedTransform));
+    return Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(appliedTransform));
   }
 
   static Map<TupleTag<?>, PValue> getOutputs(AppliedPTransform<?, ?, ?> appliedTransform) {
@@ -106,17 +109,26 @@ public class Utils {
         .equals(PCollection.IsBounded.BOUNDED);
   }
 
-  static Coder getCoder(PCollection pCollection) {
-    if (pCollection == null) {
-      return null;
+  static boolean isKeyedValueCoder(Coder coder) {
+    if (coder instanceof KvCoder) {
+      return true;
+    } else if (coder instanceof WindowedValue.WindowedValueCoder) {
+      return ((WindowedValue.WindowedValueCoder) coder).getValueCoder() instanceof KvCoder;
     }
+    return false;
+  }
 
+  static Coder getCoder(PCollection pCollection) {
     if (pCollection.getWindowingStrategy() == null) {
       return pCollection.getCoder();
     } else {
-      return WindowedValue.FullWindowedValueCoder.of(
-          pCollection.getCoder(), pCollection.getWindowingStrategy().getWindowFn().windowCoder());
+      return getWindowedValueCoder(pCollection);
     }
+  }
+
+  static <T> WindowedValue.WindowedValueCoder<T> getWindowedValueCoder(PCollection<T> pCollection) {
+    return WindowedValue.FullWindowedValueCoder.of(
+        pCollection.getCoder(), pCollection.getWindowingStrategy().getWindowFn().windowCoder());
   }
 
   static <T> Map<T, Coder> getCoders(
@@ -199,7 +211,8 @@ public class Utils {
    *   2, 5
    * </pre>
    */
-  public static <T> List<T> roundRobinSubList(List<T> list, int index, int count) {
+  @Nonnull
+  public static <T> List<T> roundRobinSubList(@Nonnull List<T> list, int index, int count) {
     if (index < 0 || index >= count) {
       throw new IllegalArgumentException("index=" + index + ", count=" + count);
     }
@@ -225,9 +238,9 @@ public class Utils {
     }
   }
 
-  public static <T> byte[] encodeWindowedValue(WindowedValue<T> windowedValue, Coder coder) {
+  public static <T> byte[] encode(T value, Coder<T> coder) {
     try {
-      return CoderUtils.encodeToByteArray(coder, windowedValue);
+      return CoderUtils.encodeToByteArray(coder, value);
     } catch (IOException e) {
       throw rethrow(e);
     }
@@ -245,5 +258,35 @@ public class Utils {
       WindowedValue.FullWindowedValueCoder elementCoder) {
     return WindowedValue.FullWindowedValueCoder.of(
         ListCoder.of(elementCoder.getValueCoder()), elementCoder.getWindowCoder());
+  }
+
+  /** A wrapper of {@code byte[]} that can be used as a hash-map key. */
+  public static class ByteArrayKey {
+    private final byte[] value;
+    private int hash;
+
+    public ByteArrayKey(@Nonnull byte[] value) {
+      this.value = value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ByteArrayKey that = (ByteArrayKey) o;
+      return Arrays.equals(value, that.value);
+    }
+
+    @Override
+    public int hashCode() {
+      if (hash == 0) {
+        hash = Arrays.hashCode(value);
+      }
+      return hash;
+    }
   }
 }
