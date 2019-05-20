@@ -517,7 +517,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         yield ('timer1', int(ts), int(window.start), int(window.end))
 
     pipeline_options = PipelineOptions()
-    pipeline_options.view_as(StandardOptions).streaming = True
     with TestPipeline(options=pipeline_options) as p:
       test_stream = (TestStream()
                      .advance_watermark_to(10)

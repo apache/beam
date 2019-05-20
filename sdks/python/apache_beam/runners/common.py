@@ -179,14 +179,10 @@ class MethodWrapper(object):
       elif isinstance(v, core.DoFn.TimerParam):
         self.timer_args_to_replace[kw] = v.timer_spec
         self.has_userstate_arguments = True
-      elif isinstance(v, core._DoFnParam) and \
-              v.param_id == core.DoFn.TimestampParam.param_id:
+      elif v == core.DoFn.TimestampParam:
         self.timestamp_arg_name = kw
-        self.has_userstate_arguments = True
-      elif isinstance(v, core._DoFnParam) and \
-              v.param_id == core.DoFn.WindowParam.param_id:
+      elif v == core.DoFn.WindowParam:
         self.window_arg_name = kw
-        self.has_userstate_arguments = True
 
   def invoke_timer_callback(self,
                             user_state_context,
