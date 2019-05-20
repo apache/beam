@@ -1,8 +1,9 @@
 ---
 layout: section
-title: "Beam SQL: Joins"
+title: "Beam SQL extensions: Joins"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/joins/
+permalink: /documentation/dsls/sql/extensions/joins/
+redirect-from: /documentation/dsls/sql/joins/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL: Joins
+# Beam SQL extensions: Joins
 
 Supported `JOIN` types in Beam SQL:
 * `INNER`, `LEFT OUTER`, `RIGHT OUTER`
@@ -68,9 +69,5 @@ strategies remain unchanged.
 ## Unbounded JOIN Bounded {#join-unbounded-bounded}
 
 For this type of `JOIN` bounded input is treated as a side-input by the
-implementation.
-
-This means that 
-
- - window/trigger is inherented from upstreams, which should be consistent
+implementation. This means that window/trigger is inherented from upstreams.
 

@@ -1,8 +1,9 @@
 ---
 layout: section
-title: "Beam SQL: Lexical Structure"
+title: "Beam SQL lexical structure for Calcite"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/lexical/
+permalink: /documentation/dsls/sql/calcite/lexical/
+redirect_from: /documentation/dsls/sql/lexical/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +19,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL Lexical Structure
+# Beam SQL lexical structure (Calcite)
 
 A Beam SQL statement comprises a series of tokens. Tokens include
 *identifiers,* *quoted identifiers, literals*, *keywords*, *operators*,
 and *special characters*. Tokens can be separated by whitespace (space,
-backspace, tab, newline) or comments.
+backspace, tab, newline) or comments. This page documents Beam SQL's
+lexical structure when using Apache Calcite.
 
 Identifiers
 -----------

@@ -88,7 +88,7 @@ To read data from the local CSV file that you declared in the previous section, 
 +--------+
 ```
 
-_For more information about `SELECT` syntax, see the [SELECT reference page]({{ site.baseurl }}/documentation/dsls/sql/select/)._
+_For more information about `SELECT` syntax, see the [Query syntax page]({{ site.baseurl }}/documentation/dsls/sql/calcite/query-syntax/)._
 
 To write data to the CSV file, use the `INSERT INTO … SELECT ...` statement:
 
