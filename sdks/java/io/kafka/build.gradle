@@ -25,7 +25,8 @@ ext.summary = "Library to read Kafka topics."
 dependencies {
   shadow library.java.vendored_guava_20_0
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.kafka_clients
+  // Get back to "provided" since 2.14
+  provided library.java.kafka_clients
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.jackson_annotations
