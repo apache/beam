@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.hcatalog.test.EmbeddedMetastoreService;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -66,19 +65,19 @@ public class HCatalogBeamSchemaTest implements Serializable {
   }
 
   @Test
-  public void testHasDB() throws Exception {
+  public void testHasDB() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     assertTrue(hcatSchema.hasDatabase(TEST_DATABASE));
   }
 
   @Test
-  public void testDoesntHaveDB() throws Exception {
+  public void testDoesntHaveDB() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     assertFalse(hcatSchema.hasDatabase("non-existent-db"));
   }
 
   @Test
-  public void testGetTableSchema() throws Exception {
+  public void testGetTableSchema() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     Schema schema = hcatSchema.getTableSchema(TEST_DATABASE, TEST_TABLE).get();
 
@@ -92,7 +91,7 @@ public class HCatalogBeamSchemaTest implements Serializable {
   }
 
   @Test
-  public void testGetTableSchemaForPartitionedTable() throws Exception {
+  public void testGetTableSchemaForPartitionedTable() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     Schema schema = hcatSchema.getTableSchema(TEST_DATABASE, TEST_TABLE_PARTITIONED).get();
 
@@ -108,7 +107,7 @@ public class HCatalogBeamSchemaTest implements Serializable {
   }
 
   @Test
-  public void testDoesntHaveTable() throws Exception {
+  public void testDoesntHaveTable() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     assertFalse(hcatSchema.getTableSchema(TEST_DATABASE, "non-existent-table").isPresent());
   }
@@ -118,7 +117,7 @@ public class HCatalogBeamSchemaTest implements Serializable {
     insertTestData(service.getHiveConfAsMap());
   }
 
-  private void reCreateTestTable() throws CommandNeedRetryException {
+  private void reCreateTestTable() {
     service.executeQuery("drop table " + TEST_TABLE);
     service.executeQuery("drop table " + TEST_TABLE_PARTITIONED);
     service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 int)");
