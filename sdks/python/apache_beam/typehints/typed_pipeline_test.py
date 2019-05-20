@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-import os
 import sys
 import typing
 import unittest
@@ -48,10 +47,6 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(repeat, 3)
 
-  @unittest.skipIf(sys.version_info >= (3, 7, 0) and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.7. '
-                   'See BEAM-6988')
   def test_non_function(self):
     result = ['a', 'bb', 'c'] | beam.Map(str.upper)
     self.assertEqual(['A', 'BB', 'C'], sorted(result))
@@ -65,6 +60,11 @@ class MainInputTest(unittest.TestCase):
     result = ['1', '10', '100'] | beam.Map(int, 16)
     self.assertEqual([1, 16, 256], sorted(result))
 
+  @unittest.skipIf(
+      sys.version_info.major >= 3 and sys.version_info < (3, 7, 0),
+      'Function signatures for builtins are not available in Python 3 before '
+      'version 3.7.')
+  def test_non_function_fails(self):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(str.upper)
 
@@ -115,10 +115,6 @@ class MainInputTest(unittest.TestCase):
     self.assertEquals([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
 
 
-@unittest.skipIf(sys.version_info >= (3, 7, 0) and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3.7. '
-                 'See BEAM-6987')
 class NativeTypesTest(unittest.TestCase):
 
   def test_good_main_input(self):
@@ -197,7 +193,7 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str)
     def repeat(s, times=3):
       return s * times
-    # No type checking on dfault arg.
+    # No type checking on default arg.
     self._run_repeat_test_good(repeat)
 
   @OptionsContext(pipeline_type_check=True)

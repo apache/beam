@@ -86,6 +86,11 @@ def _safe_issubclass(derived, parent):
   try:
     return issubclass(derived, parent)
   except TypeError:
+    if hasattr(derived, '__origin__'):
+      try:
+        return issubclass(derived.__origin__, parent)
+      except TypeError:
+        pass
     return False
 
 
@@ -94,14 +99,32 @@ def _match_issubclass(match_against):
 
 
 def _match_same_type(match_against):
-  # For Union types. They can't be compared with isinstance either, so we
-  # have to compare their types directly.
+  # For types that can't be compared with isinstance or _safe_issubclass.
   return lambda user_type: type(user_type) == type(match_against)
 
 
 def _match_is_named_tuple(user_type):
   return (_safe_issubclass(user_type, typing.Tuple) and
           hasattr(user_type, '_field_types'))
+
+
+def _match_is_union(user_type):
+  # For non-subscripted unions (Python 2.7.14+ with typing 3.64)
+  if user_type is typing.Union:
+    return True
+
+  try:  # Python 3.5.2
+    if isinstance(user_type, typing.UnionMeta):
+      return True
+  except AttributeError:
+    pass
+
+  try:  # Python 3.5.4+, or Python 2.7.14+ with typing 3.64
+    return user_type.__origin__ is typing.Union
+  except AttributeError:
+    pass
+
+  return False
 
 
 def convert_to_beam_type(typ):
@@ -144,10 +167,7 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.Tuple),
           arity=-1,
           beam_type=typehints.Tuple),
-      _TypeMapEntry(
-          match=_match_same_type(typing.Union),
-          arity=-1,
-          beam_type=typehints.Union)
+      _TypeMapEntry(match=_match_is_union, arity=-1, beam_type=typehints.Union),
   ]
 
   # Find the first matching entry.
