@@ -53,7 +53,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
  *        public TableDestination getTable(String user) {
  *          return new TableDestination(tableForUser(user), "Table for user " + user);
  *        }
- *        public TableSchema getBeamSchema(String user) {
+ *        public TableSchema getSchema(String user) {
  *          return tableSchemaForUser(user);
  *        }
  *      })

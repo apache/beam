@@ -674,8 +674,8 @@ public class BigQueryIOReadTest implements Serializable {
         BigQueryQuerySourceDef.create(
                 fakeBqServices,
                 ValueProvider.StaticValueProvider.of(queryString),
-                true,
-                true,
+                true, /* flattenResults */
+                true, /* useLegacySql */
                 QueryPriority.BATCH,
                 null,
                 null)
