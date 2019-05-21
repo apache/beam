@@ -78,13 +78,16 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     options.setConfigOverride(config);
 
     if (listener != null) {
-      listener.onInit(config);
+      listener.onInit(config, options);
     }
 
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
+    final Map<String, MetricsReporterFactory> reporterFactories = getMetricsReporters();
     final StreamApplication app =
         appDescriptor -> {
-          appDescriptor.withApplicationContainerContextFactory(executionContext.new Factory());
+          appDescriptor
+              .withApplicationContainerContextFactory(executionContext.new Factory())
+              .withMetricsReporterFactories(reporterFactories);
           SamzaPortablePipelineTranslator.translate(
               pipeline, new PortableTranslationContext(appDescriptor, options));
         };
@@ -113,7 +116,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     options.setConfigOverride(config);
 
     if (listener != null) {
-      listener.onInit(config);
+      listener.onInit(config, options);
     }
 
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
@@ -152,7 +155,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     final ApplicationRunner runner = ApplicationRunners.getApplicationRunner(app, config);
     final SamzaPipelineResult result =
-        new SamzaPipelineResult(app, runner, executionContext, listener);
+        new SamzaPipelineResult(app, runner, executionContext, listener, config);
 
     ExternalContext externalContext = null;
     if (listener != null) {

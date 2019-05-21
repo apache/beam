@@ -26,6 +26,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.publish.maven.MavenPublication
@@ -36,6 +37,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
+
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -297,12 +299,16 @@ class BeamModulePlugin implements Plugin<Project> {
     return project.hasProperty('isRelease')
   }
 
+  def archivesBaseName(Project p) {
+    'beam' + p.path.replace(':', '-')
+  }
+
   void apply(Project project) {
 
     /** ***********************************************************************************************/
     // Apply common properties/repositories and tasks to all projects.
 
-    project.group = 'org.apache.beam'
+    project.ext.mavenGroupId = 'org.apache.beam'
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
@@ -310,6 +316,9 @@ class BeamModulePlugin implements Plugin<Project> {
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
+
+    project.apply plugin: 'base'
+    project.archivesBaseName = archivesBaseName(project)
 
     project.apply plugin: 'org.apache.beam.jenkins'
 
@@ -958,8 +967,8 @@ class BeamModulePlugin implements Plugin<Project> {
           doLast {
             new File("${pomPropertiesFile}").text =
                     """version=${project.version}
-                       groupId=${project.group}
-                       artifactId=${project.name}"""
+                       groupId=${project.mavenGroupId}
+                       artifactId=${project.archivesBaseName}"""
           }
         }
 
@@ -979,13 +988,13 @@ class BeamModulePlugin implements Plugin<Project> {
           }
 
           dependsOn 'generatePomFileForMavenJavaPublication'
-          into("META-INF/maven/${project.group}/${project.name}") {
+          into("META-INF/maven/${project.mavenGroupId}/${project.archivesBaseName}") {
             from "${pomFile}"
             rename('.*', 'pom.xml')
           }
 
           dependsOn project.generatePomPropertiesFileForMavenJavaPublication
-          into("META-INF/maven/${project.group}/${project.name}") { from "${pomPropertiesFile}" }
+          into("META-INF/maven/${project.mavenGroupId}/${project.archivesBaseName}") { from "${pomPropertiesFile}" }
         }
 
         // Only build artifacts for archives if we are publishing
@@ -1020,6 +1029,9 @@ class BeamModulePlugin implements Plugin<Project> {
               artifact project.sourcesJar
               artifact project.testSourcesJar
               artifact project.javadocJar
+
+              artifactId = project.archivesBaseName
+              groupId = project.mavenGroupId
 
               pom {
                 name = project.description
@@ -1084,11 +1096,18 @@ class BeamModulePlugin implements Plugin<Project> {
                 def generateDependenciesFromConfiguration = { param ->
                   project.configurations."${param.configuration}".allDependencies.each {
                     def dependencyNode = dependenciesNode.appendNode('dependency')
-                    dependencyNode.appendNode('groupId', it.group)
-                    dependencyNode.appendNode('artifactId', it.name)
-                    dependencyNode.appendNode('version', it.version)
 
-                    dependencyNode.appendNode('scope', param.scope)
+                    if (it instanceof ProjectDependency) {
+                      dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
+                      dependencyNode.appendNode('artifactId', archivesBaseName(it.getDependencyProject()))
+                      dependencyNode.appendNode('version', it.version)
+                      dependencyNode.appendNode('scope', param.scope)
+                    } else {
+                      dependencyNode.appendNode('groupId', it.group)
+                      dependencyNode.appendNode('artifactId', it.name)
+                      dependencyNode.appendNode('version', it.version)
+                      dependencyNode.appendNode('scope', param.scope)
+                    }
 
                     // Start with any exclusions that were added via configuration exclude rules.
                     // Then add all the exclusions that are specific to the dependency (if any
@@ -1198,10 +1217,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
         def pipelineOptionsString = configuration.integrationTestPipelineOptions
         if(pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
-          project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+          project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
           def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
 
           allOptionsList.addAll([
             '--workerHarnessContainerImage=',
@@ -1230,20 +1249,20 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testCompile it.project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
-          shadow it.project(path: ":beam-runners-google-cloud-dataflow-java-legacy-worker", configuration: 'shadow')
+          testCompile it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'shadowTest')
+          shadow it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
-          testCompile it.project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
+          testCompile it.project(path: ":runners:direct-java", configuration: 'shadowTest')
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testCompile it.project(path: ":beam-runners-flink_2.11", configuration: 'shadowTest')
+          testCompile it.project(path: ":runners:flink:1.5", configuration: 'shadowTest')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testCompile it.project(path: ":beam-runners-spark", configuration: 'shadowTest')
+          testCompile it.project(path: ":runners:spark", configuration: 'shadowTest')
           testCompile project.library.java.spark_core
           testCompile project.library.java.spark_streaming
 
@@ -1255,13 +1274,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testCompile it.project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
+          testCompile it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'shadowTest')
           shadowTest project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testCompile it.project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
+          testCompile it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'shadowTest')
         }
       }
 
@@ -1570,9 +1589,9 @@ class BeamModulePlugin implements Plugin<Project> {
        * the following projects are evaluated before we evaluate this project. This is because
        * we are attempting to reference the "sourceSets.test.output" directly.
        */
-      project.evaluationDependsOn(":beam-sdks-java-core")
-      project.evaluationDependsOn(":beam-runners-core-java")
-      project.evaluationDependsOn(":beam-runners-core-construction-java")
+      project.evaluationDependsOn(":sdks:java:core")
+      project.evaluationDependsOn(":runners:core-java")
+      project.evaluationDependsOn(":runners:core-construction-java")
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
       def name = config.name
       def beamTestPipelineOptions = [
@@ -1595,14 +1614,14 @@ class BeamModulePlugin implements Plugin<Project> {
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
         systemProperties config.systemProperties
         classpath = config.testClasspathConfiguration
-        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
+        testClassesDirs = project.files(project.project(":sdks:java:core").sourceSets.test.output.classesDirs, project.project(":runners:core-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
         // increase maxHeapSize as this is directly correlated to direct memory,
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
-          dependsOn ':beam-sdks-java-container:docker'
+          dependsOn ':sdks:java:container:docker'
         }
       }
     }
@@ -1620,20 +1639,19 @@ class BeamModulePlugin implements Plugin<Project> {
       project.task('test') {}
       project.check.dependsOn project.test
 
-      project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+      project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 
       // Due to Beam-4256, we need to limit the length of virtualenv path to make the
       // virtualenv activated properly. So instead of include project name in the path,
       // we use the hash value.
-      project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.name.hashCode()}"
+      project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}"
       def pythonRootDir = "${project.rootDir}/sdks/python"
 
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
-      if(!project.hasProperty('pythonVersion')) {
-        project.ext.pythonVersion = '2.7'
-      }
+      project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
+              project.pythonVersion : '2.7'
 
       project.task('setupVirtualenv')  {
         doLast {
@@ -1645,7 +1663,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.11.1 grpcio-tools==1.3.5"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a

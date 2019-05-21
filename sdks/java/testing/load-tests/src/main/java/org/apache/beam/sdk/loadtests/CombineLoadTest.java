@@ -54,7 +54,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --perKeyCombinerType=TOP_LARGEST
  *      --topCount=10
@@ -124,7 +124,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
                 ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")))
             .apply(
                 "Collect metrics",
-                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
+                ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")));
 
     input = applyWindowing(input);
 

@@ -17,9 +17,10 @@
 package ioutilx
 
 import (
-	"errors"
 	"io"
 	"unsafe"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // ReadN reads exactly N bytes from the reader. Fails otherwise.

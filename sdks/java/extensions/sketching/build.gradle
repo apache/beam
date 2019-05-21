@@ -26,15 +26,15 @@ def tdigest_version = "3.2"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow "com.clearspring.analytics:stream:$streamlib_version"
   shadow "com.tdunning:t-digest:$tdigest_version"
   shadow library.java.slf4j_api
   shadowTest library.java.avro
   shadowTest library.java.commons_lang3
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java")
 }

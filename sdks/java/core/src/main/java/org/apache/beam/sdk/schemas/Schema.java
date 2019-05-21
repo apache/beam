@@ -196,6 +196,10 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public int getLastFieldId() {
+      return fields.size() - 1;
+    }
+
     public Schema build() {
       return new Schema(fields);
     }

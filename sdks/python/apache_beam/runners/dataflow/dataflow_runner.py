@@ -304,11 +304,11 @@ class DataflowRunner(PipelineRunner):
               new_side_input.pvalue = beam.pvalue.PCollection(
                   pipeline,
                   element_type=typehints.KV[
-                      str, side_input.pvalue.element_type])
+                      bytes, side_input.pvalue.element_type])
               parent = transform_node.parent or pipeline._root_transform()
               map_to_void_key = beam.pipeline.AppliedPTransform(
                   pipeline,
-                  beam.Map(lambda x: ('', x)),
+                  beam.Map(lambda x: (b'', x)),
                   transform_node.full_label + '/MapToVoidKey%s' % ix,
                   (side_input.pvalue,))
               new_side_input.pvalue.producer = map_to_void_key
@@ -1194,7 +1194,7 @@ class _DataflowIterableSideInput(_DataflowSideInput):
     self._data = beam.pvalue.SideInputData(
         common_urns.side_inputs.MULTIMAP.urn,
         side_input_data.window_mapping_fn,
-        lambda multimap: iterable_view_fn(multimap['']))
+        lambda multimap: iterable_view_fn(multimap[b'']))
 
 
 class _DataflowMultimapSideInput(_DataflowSideInput):

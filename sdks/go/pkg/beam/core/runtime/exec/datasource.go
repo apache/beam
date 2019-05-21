@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -74,14 +75,14 @@ func (n *DataSource) Process(ctx context.Context) error {
 				if err == io.EOF {
 					return nil
 				}
-				return fmt.Errorf("source failed: %v", err)
+				return errors.Wrap(err, "source failed")
 			}
 
 			// Decode key
 
 			key, err := ck.Decode(r)
 			if err != nil {
-				return fmt.Errorf("source decode failed: %v", err)
+				return errors.Wrap(err, "source decode failed")
 			}
 			key.Timestamp = t
 			key.Windows = ws
@@ -94,7 +95,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 			size, err := coder.DecodeInt32(r)
 			if err != nil {
-				return fmt.Errorf("stream size decoding failed: %v", err)
+				return errors.Wrap(err, "stream size decoding failed")
 			}
 
 			if size > -1 {
@@ -106,7 +107,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				for i := int32(0); i < size; i++ {
 					value, err := cv.Decode(r)
 					if err != nil {
-						return fmt.Errorf("stream value decode failed: %v", err)
+						return errors.Wrap(err, "stream value decode failed")
 					}
 					buf = append(buf, *value)
 				}
@@ -116,7 +117,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				for {
 					chunk, err := coder.DecodeVarUint64(r)
 					if err != nil {
-						return fmt.Errorf("stream chunk size decoding failed: %v", err)
+						return errors.Wrap(err, "stream chunk size decoding failed")
 					}
 
 					// log.Printf("Chunk size=%v", chunk)
@@ -129,7 +130,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 					for i := uint64(0); i < chunk; i++ {
 						value, err := cv.Decode(r)
 						if err != nil {
-							return fmt.Errorf("stream value decode failed: %v", err)
+							return errors.Wrap(err, "stream value decode failed")
 						}
 						buf = append(buf, *value)
 					}
@@ -152,12 +153,12 @@ func (n *DataSource) Process(ctx context.Context) error {
 				if err == io.EOF {
 					return nil
 				}
-				return fmt.Errorf("source failed: %v", err)
+				return errors.Wrap(err, "source failed")
 			}
 
 			elm, err := ec.Decode(r)
 			if err != nil {
-				return fmt.Errorf("source decode failed: %v", err)
+				return errors.Wrap(err, "source decode failed")
 			}
 			elm.Timestamp = t
 			elm.Windows = ws

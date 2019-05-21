@@ -37,6 +37,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   private final AWSClientsProvider awsClientsProvider;
   private final String streamName;
   private final Duration upToDateThreshold;
+  private final WatermarkPolicyFactory watermarkPolicyFactory;
   private CheckpointGenerator initialCheckpointGenerator;
   private final Integer limit;
 
@@ -45,12 +46,14 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
       String streamName,
       StartingPoint startingPoint,
       Duration upToDateThreshold,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       Integer limit) {
     this(
         awsClientsProvider,
         new DynamicCheckpointGenerator(streamName, startingPoint),
         streamName,
         upToDateThreshold,
+        watermarkPolicyFactory,
         limit);
   }
 
@@ -59,11 +62,13 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
       CheckpointGenerator initialCheckpoint,
       String streamName,
       Duration upToDateThreshold,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       Integer limit) {
     this.awsClientsProvider = awsClientsProvider;
     this.initialCheckpointGenerator = initialCheckpoint;
     this.streamName = streamName;
     this.upToDateThreshold = upToDateThreshold;
+    this.watermarkPolicyFactory = watermarkPolicyFactory;
     this.limit = limit;
     validate();
   }
@@ -87,6 +92,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
               new StaticCheckpointGenerator(partition),
               streamName,
               upToDateThreshold,
+              watermarkPolicyFactory,
               limit));
     }
     return sources;
@@ -113,6 +119,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
         SimplifiedKinesisClient.from(awsClientsProvider, limit),
         checkpointGenerator,
         this,
+        watermarkPolicyFactory,
         upToDateThreshold);
   }
 

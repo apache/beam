@@ -86,6 +86,8 @@ defined, or before importing a module containing type-hinted functions.
 from __future__ import absolute_import
 
 import inspect
+import logging
+import sys
 import types
 from builtins import next
 from builtins import object
@@ -104,7 +106,6 @@ __all__ = [
     'WithTypeHints',
     'TypeCheckError',
 ]
-
 
 # This is missing in the builtin types module.  str.upper is arbitrary, any
 # method on a C-implemented type will do.
@@ -244,7 +245,7 @@ def _positional_arg_hints(arg, hints):
 def _unpack_positional_arg_hints(arg, hint):
   """Unpacks the given hint according to the nested structure of arg.
 
-  For example, if arg is [[a, b], c] and hint is Tuple[Any, int], than
+  For example, if arg is [[a, b], c] and hint is Tuple[Any, int], then
   this function would return ((Any, Any), int) so it can be used in conjunction
   with inspect.getcallargs.
   """
@@ -269,24 +270,25 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
                      for (arg, hint) in zip(argspec.args, typeargs)]
   packed_typeargs += list(typeargs[len(packed_typeargs):])
 
+  if sys.version_info.major < 3:
+    return getcallargs_forhints_impl_py2(func, argspec, packed_typeargs,
+                                         typekwargs)
+  else:
+    return getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs)
+
+
+def getcallargs_forhints_impl_py2(func, argspec, packed_typeargs, typekwargs):
   # Monkeypatch inspect.getfullargspec to allow passing non-function objects.
   # getfullargspec (getargspec on Python 2) are used by inspect.getcallargs.
   # TODO(BEAM-5490): Reimplement getcallargs and stop relying on monkeypatch.
-  if _use_full_argspec:
-    inspect.getfullargspec = getfullargspec
-  else:  # Python 2
-    inspect.getargspec = getfullargspec
-
+  inspect.getargspec = getfullargspec
   try:
     callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)
   except TypeError as e:
     raise TypeCheckError(e)
   finally:
     # Revert monkey-patch.
-    if _use_full_argspec:
-      inspect.getfullargspec = _original_getfullargspec
-    else:
-      inspect.getargspec = _original_getfullargspec
+    inspect.getargspec = _original_getfullargspec
 
   if argspec.defaults:
     # Declare any default arguments to be Any.
@@ -299,11 +301,8 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
   if argspec.varargs:
     callargs[argspec.varargs] = typekwargs.get(
         argspec.varargs, typehints.Tuple[typehints.Any, ...])
-  if _use_full_argspec:
-    varkw = argspec.varkw
-  else:  # Python 2
-    varkw = argspec.keywords
 
+  varkw = argspec.keywords
   if varkw:
     # TODO(robertwb): Consider taking the union of key and value types.
     callargs[varkw] = typekwargs.get(
@@ -314,10 +313,37 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
   return callargs
 
 
+def getcallargs_forhints_impl_py3(func, packed_typeargs, typekwargs):
+  try:
+    # TODO(udim): Function signature returned by getfullargspec (in
+    #  packed_typeargs) might differ from the one below. Migrate to use
+    #  inspect.signature in getfullargspec (for Py3).
+    signature = inspect.signature(func)
+  except ValueError as e:
+    logging.warning('Could not get signature for function: %s: %s', func, e)
+    return {}
+  try:
+    bindings = signature.bind(*packed_typeargs, **typekwargs)
+  except TypeError as e:
+    # Might be raised due to too few or too many arguments.
+    raise TypeCheckError(e)
+  bound_args = bindings.arguments
+  for param in signature.parameters.values():
+    if param.kind == inspect.Parameter.VAR_POSITIONAL:
+      bound_args[param.name] = typehints.Tuple[typehints.Any, ...]
+    elif param.kind == inspect.Parameter.VAR_KEYWORD:
+      bound_args[param.name] = typehints.Dict[typehints.Any, typehints.Any]
+    elif param.name not in bound_args and param.default is not param.empty:
+      # Declare unbound parameters with defaults to be Any.
+      bound_args[param.name] = typehints.Any
+
+  return dict(bound_args)
+
+
 def get_type_hints(fn):
   """Gets the type hint associated with an arbitrary object fn.
 
-  Always returns a valid IOTypeHints object, creating one if necissary.
+  Always returns a valid IOTypeHints object, creating one if necessary.
   """
   # pylint: disable=protected-access
   if not hasattr(fn, '_type_hints'):

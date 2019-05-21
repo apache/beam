@@ -16,10 +16,10 @@
 package coder
 
 import (
-	"errors"
 	"io"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // ErrVarIntTooLong indicates a data corruption issue that needs special

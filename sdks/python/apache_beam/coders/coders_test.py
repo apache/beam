@@ -84,6 +84,34 @@ class ProtoCoderTest(unittest.TestCase):
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
 
 
+class DeterministicProtoCoderTest(unittest.TestCase):
+
+  def test_deterministic_proto_coder(self):
+    ma = test_message.MessageA()
+    mb = ma.field2.add()
+    mb.field1 = True
+    ma.field1 = u'hello world'
+    expected_coder = coders.DeterministicProtoCoder(ma.__class__)
+    real_coder = (coders_registry.get_coder(ma.__class__)
+                  .as_deterministic_coder(step_label='unused'))
+    self.assertTrue(real_coder.is_deterministic())
+    self.assertEqual(expected_coder, real_coder)
+    self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
+    self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
+
+  def test_deterministic_proto_coder_determinism(self):
+    for _ in range(10):
+      keys = list(range(20))
+      mm_forward = test_message.MessageWithMap()
+      for key in keys:
+        mm_forward.field1[str(key)].field1 = str(key)
+      mm_reverse = test_message.MessageWithMap()
+      for key in reversed(keys):
+        mm_reverse.field1[str(key)].field1 = str(key)
+      coder = coders.DeterministicProtoCoder(mm_forward.__class__)
+      self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
+
+
 class DummyClass(object):
   """A class with no registered coder."""
   def __init__(self):

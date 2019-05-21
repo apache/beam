@@ -51,7 +51,6 @@
   <suppress checks="JavadocMethod" files=".*sdk.*extensions.*Audience\.java" lines="32"/>
   <suppress checks="JavadocMethod" files=".*sdk.*sql.*BeamSetOperatorsTransforms\.java" lines="59"/>
   <suppress checks="JavadocMethod" files=".*sdk.*nexmark.*GeneratorConfig\.java" lines="89"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*testing.*BigqueryClient\.java" lines="277,357,454"/>
   <suppress checks="JavadocMethod" files=".*sdk.*gcp.*BigQueryUtils\.java" lines="212"/>
   <suppress checks="JavadocMethod" files=".*sdk.*transforms.*DoFn\.java" lines="443"/>
 

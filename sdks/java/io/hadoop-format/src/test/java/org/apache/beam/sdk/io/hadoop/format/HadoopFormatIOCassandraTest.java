@@ -76,8 +76,6 @@ public class HadoopFormatIOCassandraTest implements Serializable {
   /**
    * Test to read data from embedded Cassandra instance and verify whether data is read
    * successfully.
-   *
-   * @throws Exception
    */
   @Test
   public void testHIFReadForCassandra() {
