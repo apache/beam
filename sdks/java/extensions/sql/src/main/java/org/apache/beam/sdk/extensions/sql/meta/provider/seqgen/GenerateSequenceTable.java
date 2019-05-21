@@ -25,7 +25,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -36,15 +35,13 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 class GenerateSequenceTable extends BaseBeamTable implements Serializable {
-  static public final Schema tableSchema = Schema.of(
-      Field.of("sequence", FieldType.INT64),
-      Field.of("timestamp", FieldType.DATETIME));
+  public static final Schema TABLE_SCHEMA =
+      Schema.of(Field.of("sequence", FieldType.INT64), Field.of("event_time", FieldType.DATETIME));
 
   Integer elementsPerSecond = 5;
 
-
   GenerateSequenceTable(Table table) {
-    super(tableSchema);
+    super(TABLE_SCHEMA);
     if (table.getProperties().containsKey("elementsPerSecond")) {
       elementsPerSecond = table.getProperties().getInteger("elementsPerSecond");
     }
@@ -59,9 +56,9 @@ class GenerateSequenceTable extends BaseBeamTable implements Serializable {
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
         .apply(GenerateSequence.from(0).withRate(elementsPerSecond, Duration.standardSeconds(1)))
-        .apply(MapElements
-            .into(TypeDescriptor.of(Row.class))
-            .via(elm -> Row.withSchema(tableSchema).addValues(elm, Instant.now()).build()))
+        .apply(
+            MapElements.into(TypeDescriptor.of(Row.class))
+                .via(elm -> Row.withSchema(TABLE_SCHEMA).addValues(elm, Instant.now()).build()))
         .setRowSchema(getSchema());
   }
 

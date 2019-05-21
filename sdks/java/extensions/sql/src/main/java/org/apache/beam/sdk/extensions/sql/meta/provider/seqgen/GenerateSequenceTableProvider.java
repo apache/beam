@@ -23,6 +23,19 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
+/**
+ * Sequence generator table provider.
+ *
+ * <p>A sample of text table is:
+ *
+ * <pre>{@code
+ * CREATE EXTERNAL TABLE MY_SEQUENCE(
+ *   SEQUENCE INT COMMENT 'this is the primary key',
+ *   EVENT_TIME TIMESTAMP COMMENT 'this is the element timestamp'
+ * )
+ * TYPE 'sequence';
+ * }</pre>
+ */
 @AutoService(TableProvider.class)
 public class GenerateSequenceTableProvider extends InMemoryMetaTableProvider {
 

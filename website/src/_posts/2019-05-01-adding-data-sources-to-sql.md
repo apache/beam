@@ -68,20 +68,26 @@ public class GenerateSequenceTableProvider extends InMemoryMetaTableProvider {
 }
 ```
 
+All it does is give a type to the table - and it implements the
+`buildBeamSqlTable` method, which simply returns a `BeamSqlTable` defined by
+our `GenerateSequenceTable` implementation.
+
 ### The GenerateSequenceTable
 
 We want a table implementation that supports streaming properly, so we will
-allow users to define the number of elements to be emitted per second.
+allow users to define the number of elements to be emitted per second. We will
+define a simple table that emits sequential integers in a streaming fashion.
+This looks like so:
 
 ```java
 class GenerateSequenceTable extends BaseBeamTable implements Serializable {
-  static public final Schema tableSchema = Schema.of(Field.of("sequence", FieldType.INT64));
+  public static final Schema TABLE_SCHEMA =
+      Schema.of(Field.of("sequence", FieldType.INT64), Field.of("event_time", FieldType.DATETIME));
 
   Integer elementsPerSecond = 5;
 
-
   GenerateSequenceTable(Table table) {
-    super(tableSchema);
+    super(TABLE_SCHEMA);
     if (table.getProperties().containsKey("elementsPerSecond")) {
       elementsPerSecond = table.getProperties().getInteger("elementsPerSecond");
     }
@@ -96,10 +102,9 @@ class GenerateSequenceTable extends BaseBeamTable implements Serializable {
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
         .apply(GenerateSequence.from(0).withRate(elementsPerSecond, Duration.standardSeconds(1)))
-        .apply(WithTimestamps.of(elm -> Instant.now().plus(elm)))
-        .apply(MapElements
-            .into(TypeDescriptor.of(Row.class))
-            .via(elm -> Row.withSchema(tableSchema).addValue(elm).build()))
+        .apply(
+            MapElements.into(TypeDescriptor.of(Row.class))
+                .via(elm -> Row.withSchema(TABLE_SCHEMA).addValues(elm, Instant.now()).build()))
         .setRowSchema(getSchema());
   }
 
@@ -109,3 +114,61 @@ class GenerateSequenceTable extends BaseBeamTable implements Serializable {
   }
 }
 ```
+
+
+
+## The real fun
+
+Now that we have implemented the two basic classes (a `BaseBeamTable`, and a
+`TableProvider`), we can start playing with them. After building the SQL CLI, we
+can now perform selections on the table:
+
+```
+0: BeamSQL> CREATE EXTERNAL TABLE MY_SEQUENCE(
+. . . . . >   SEQUENCE INT COMMENT 'this is the primary key',
+. . . . . >   EVENT_TIME TIMESTAMP COMMENT 'this is the element timestamp'
+. . . . . > )
+. . . . . > TYPE 'sequence';
+No rows affected (0.005 seconds)
+```
+
+And let's select a few rows:
+
+```
+0: BeamSQL> SELECT * FROM input_seq LIMIT 5;
++---------------------+------------+
+|      sequence       | event_time |
++---------------------+------------+
+| 0                   | 2019-05-21 00:36:33 |
+| 1                   | 2019-05-21 00:36:33 |
+| 2                   | 2019-05-21 00:36:33 |
+| 3                   | 2019-05-21 00:36:33 |
+| 4                   | 2019-05-21 00:36:33 |
++---------------------+------------+
+5 rows selected (1.138 seconds)
+```
+
+Now let's try something more interesting. Such as grouping. This will also let
+us make sure that we're providing the timestamp for each row properly:
+
+```
+0: BeamSQL> SELECT
+. . . . . >   COUNT(sequence),
+. . . . . >   TUMBLE_START(event_time, INTERVAL '2' SECOND)
+. . . . . > FROM input_seq
+. . . . . > GROUP BY TUMBLE(event_time, INTERVAL '2' SECOND) LIMIT 5;
++---------------------+--------+
+|       EXPR$0        | EXPR$1 |
++---------------------+--------+
+| 2                   | 2019-05-21 00:38:18 |
+| 10                  | 2019-05-21 00:38:20 |
+| 10                  | 2019-05-21 00:38:22 |
+| 10                  | 2019-05-21 00:38:24 |
+| 10                  | 2019-05-21 00:38:26 |
++---------------------+--------+
+5 rows selected (9.138 seconds)
+
+```
+
+And voilà! We can start playing with some interesting streaming queries to our
+sequence generator.
