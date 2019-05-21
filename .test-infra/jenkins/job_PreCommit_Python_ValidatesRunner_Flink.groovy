@@ -34,6 +34,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^runners/reference/.*$',
       '^sdks/python/.*$',
       '^release/.*$',
+      // Test regressions of cross-language KafkaIO test
+      '^sdks/java/io/kafka/.*$',
     ]
 )
 builder.build {
