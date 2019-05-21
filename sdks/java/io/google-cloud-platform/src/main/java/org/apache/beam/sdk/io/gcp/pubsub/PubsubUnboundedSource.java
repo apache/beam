@@ -982,17 +982,19 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     /**
      * In case of streams with low traffic, {@link MovingFunction} could never get enough samples in
-     * {@link PubsubUnboundedSource#SAMPLE_PERIOD} to move watermark. To prevent this situation, we need to
-     * check if watermark is stale (it was not updated during {@link
+     * {@link PubsubUnboundedSource#SAMPLE_PERIOD} to move watermark. To prevent this situation, we
+     * need to check if watermark is stale (it was not updated during {@link
      * PubsubUnboundedSource#UPDATE_THRESHOLD}) and force its update if it is.
      *
      * @param nowMsSinceEpoch - current timestamp
      * @return should the watermark be updated
      */
     private boolean shouldUpdate(long nowMsSinceEpoch) {
-      boolean hasEnoughSamples = minReadTimestampMsSinceEpoch.isSignificant()
-          || minUnreadTimestampMsSinceEpoch.isSignificant();
-      boolean isStale = lastWatermarkMsSinceEpoch < (nowMsSinceEpoch - UPDATE_THRESHOLD.getMillis());
+      boolean hasEnoughSamples =
+          minReadTimestampMsSinceEpoch.isSignificant()
+              || minUnreadTimestampMsSinceEpoch.isSignificant();
+      boolean isStale =
+          lastWatermarkMsSinceEpoch < (nowMsSinceEpoch - UPDATE_THRESHOLD.getMillis());
       return hasEnoughSamples || isStale;
     }
 
