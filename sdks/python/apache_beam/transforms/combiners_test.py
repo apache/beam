@@ -397,25 +397,31 @@ class CombineTest(unittest.TestCase):
 class LatestTest(unittest.TestCase):
 
   def test_globally(self):
-    l = [window.GlobalWindows.windowed_value(3, 100),
-         window.GlobalWindows.windowed_value(1, 200),
-         window.GlobalWindows.windowed_value(2, 300)]
+    l = [window.TimestampedValue(3, 100),
+         window.TimestampedValue(1, 200),
+         window.TimestampedValue(2, 300)]
     with TestPipeline() as p:
-      pc = p | Create(l)
+      # Map(lambda x: x) PTransform is added after Create here, because when
+      # a PCollection of TimestampedValues is created with Create PTransform,
+      # the timestamps are not assigned to it. Adding a Map forces the
+      # PCollection to go through a DoFn so that the PCollection consists of
+      # the elements with timestamps assigned to them instead of a PCollection
+      # of TimestampedValue(element, timestamp).
+      pc = p | Create(l) | Map(lambda x: x)
       latest = pc | combine.Latest.Globally()
       assert_that(latest, equal_to([2]))
 
   def test_globally_empty(self):
     l = []
     with TestPipeline() as p:
-      pc = p | Create(l)
+      pc = p | Create(l) | Map(lambda x: x)
       latest = pc | combine.Latest.Globally()
       assert_that(latest, equal_to([None]))
 
   def test_per_key(self):
-    l = [window.GlobalWindows.windowed_value(('a', 1), 300),
-         window.GlobalWindows.windowed_value(('b', 3), 100),
-         window.GlobalWindows.windowed_value(('a', 2), 200)]
+    l = [window.TimestampedValue(('a', 1), 300),
+         window.TimestampedValue(('b', 3), 100),
+         window.TimestampedValue(('a', 2), 200)]
     with TestPipeline() as p:
       pc = p | Create(l) | Map(lambda x: x)
       latest = pc | combine.Latest.PerKey()
@@ -424,7 +430,7 @@ class LatestTest(unittest.TestCase):
   def test_per_key_empty(self):
     l = []
     with TestPipeline() as p:
-      pc = p | Create(l)
+      pc = p | Create(l) | Map(lambda x: x)
       latest = pc | combine.Latest.PerKey()
       assert_that(latest, equal_to([]))
 
