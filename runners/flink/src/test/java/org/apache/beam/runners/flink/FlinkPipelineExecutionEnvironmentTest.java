@@ -45,6 +45,8 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -55,6 +57,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -215,6 +219,50 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
       assertThat(
           overridesList.size(), is(FlinkTransformOverrides.getDefaultOverrides(options).size()));
     }
+  }
+
+  @Test
+  public void shouldProvideParallelismToTransformOverrides() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setStreaming(true);
+    options.setRunner(FlinkRunner.class);
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+    Pipeline p = Pipeline.create(options);
+    // Create a transform applicable for PTransformMatchers.writeWithRunnerDeterminedSharding()
+    // which requires parallelism
+    p.apply(Create.of("test")).apply(TextIO.write().to("/tmp"));
+    p = Mockito.spy(p);
+
+    // If this succeeds we're ok
+    flinkEnv.translate(p);
+
+    // Verify we were using desired replacement transform
+    ArgumentCaptor<ImmutableList> captor = ArgumentCaptor.forClass(ImmutableList.class);
+    Mockito.verify(p).replaceAll(captor.capture());
+    ImmutableList<PTransformOverride> overridesList = captor.getValue();
+    assertThat(
+        overridesList,
+        hasItem(
+            new BaseMatcher<PTransformOverride>() {
+              @Override
+              public void describeTo(Description description) {}
+
+              @Override
+              public boolean matches(Object actual) {
+                if (actual instanceof PTransformOverride) {
+                  PTransformOverrideFactory overrideFactory =
+                      ((PTransformOverride) actual).getOverrideFactory();
+                  if (overrideFactory
+                      instanceof FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory) {
+                    FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory factory =
+                        (FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory)
+                            overrideFactory;
+                    return factory.options.getParallelism() > 0;
+                  }
+                }
+                return false;
+              }
+            }));
   }
 
   @Test

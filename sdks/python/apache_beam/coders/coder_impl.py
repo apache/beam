@@ -282,6 +282,13 @@ class ProtoCoderImpl(SimpleCoderImpl):
     return proto_message
 
 
+class DeterministicProtoCoderImpl(ProtoCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+
+  def encode(self, value):
+    return value.SerializeToString(deterministic=True)
+
+
 UNKNOWN_TYPE = 0xFF
 NONE_TYPE = 0
 INT_TYPE = 1
@@ -491,13 +498,29 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
 
 class TimestampCoderImpl(StreamCoderImpl):
-  """For internal use only; no backwards-compatibility guarantees."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  TODO: SDK agnostic encoding
+  For interoperability with Java SDK, encoding needs to match
+  that of the Java SDK InstantCoder.
+  https://github.com/apache/beam/blob/f5029b4f0dfff404310b2ef55e2632bbacc7b04f/sdks/java/core/src/main/java/org/apache/beam/sdk/coders/InstantCoder.java#L79
+  """
 
   def encode_to_stream(self, value, out, nested):
-    out.write_bigendian_int64(value.micros)
+    millis = value.micros // 1000
+    if millis >= 0:
+      millis = millis - _TIME_SHIFT
+    else:
+      millis = millis + _TIME_SHIFT
+    out.write_bigendian_int64(millis)
 
   def decode_from_stream(self, in_stream, nested):
-    return Timestamp(micros=in_stream.read_bigendian_int64())
+    millis = in_stream.read_bigendian_int64()
+    if millis < 0:
+      millis = millis + _TIME_SHIFT
+    else:
+      millis = millis - _TIME_SHIFT
+    return Timestamp(micros=millis * 1000)
 
   def estimate_size(self, unused_value, nested=False):
     # A Timestamp is encoded as a 64-bit integer in 8 bytes, regardless of

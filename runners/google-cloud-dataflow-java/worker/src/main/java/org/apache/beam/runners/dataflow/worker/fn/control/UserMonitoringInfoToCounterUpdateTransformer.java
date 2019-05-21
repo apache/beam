@@ -53,7 +53,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
     this.specValidator = specMonitoringInfoValidator;
   }
 
-  static final String BEAM_METRICS_USER_PREFIX = MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX;
+  static final String BEAM_METRICS_USER_URN = MonitoringInfoConstants.Urns.USER_COUNTER;
 
   private Optional<String> validate(MonitoringInfo monitoringInfo) {
     Optional<String> validatorResult = specValidator.validate(monitoringInfo);
@@ -62,11 +62,11 @@ class UserMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
+    if (!urn.equals(BEAM_METRICS_USER_URN)) {
       throw new RuntimeException(
           String.format(
-              "Received unexpected counter urn. Expected urn starting with: %s, received: %s",
-              BEAM_METRICS_USER_PREFIX, urn));
+              "Received unexpected counter urn. Expected urn: %s, received: %s",
+              BEAM_METRICS_USER_URN, urn));
     }
 
     final String ptransform =
@@ -90,25 +90,18 @@ class UserMonitoringInfoToCounterUpdateTransformer
   public CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
-      LOG.info(validationResult.get());
+      LOG.debug(validationResult.get());
       return null;
     }
 
     long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
-    String urn = monitoringInfo.getUrn();
 
-    final String ptransform =
-        monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
+    Map<String, String> miLabels = monitoringInfo.getLabelsMap();
+    final String ptransform = miLabels.get(MonitoringInfoConstants.Labels.PTRANSFORM);
+    final String counterName = miLabels.get(MonitoringInfoConstants.Labels.NAME);
+    final String counterNamespace = miLabels.get(MonitoringInfoConstants.Labels.NAMESPACE);
 
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
-
-    String nameWithNamespace = urn.substring(BEAM_METRICS_USER_PREFIX.length()).replace("^:", "");
-
-    final int lastColonIndex = nameWithNamespace.lastIndexOf(':');
-    String counterName = nameWithNamespace.substring(lastColonIndex + 1);
-    String counterNamespace =
-        lastColonIndex == -1 ? "" : nameWithNamespace.substring(0, lastColonIndex);
-
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
     name.setName(
             new CounterStructuredName()
@@ -126,6 +119,6 @@ class UserMonitoringInfoToCounterUpdateTransformer
 
   /** @return MonitoringInfo urns prefix that this transformer can convert to CounterUpdates. */
   public String getSupportedUrnPrefix() {
-    return BEAM_METRICS_USER_PREFIX;
+    return BEAM_METRICS_USER_URN;
   }
 }

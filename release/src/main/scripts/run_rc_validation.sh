@@ -113,7 +113,7 @@ if [[ $confirmation = "y" ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with DirectRunner"
   echo "*************************************************************"
-  ./gradlew :beam-runners-direct-java:runQuickstartJavaDirect \
+  ./gradlew :runners:direct-java:runQuickstartJavaDirect \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE}
 fi
@@ -125,7 +125,7 @@ if [[ $confirmation = "y" ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Apex local runner"
   echo "*************************************************************"
-  ./gradlew :beam-runners-apex:runQuickstartJavaApex \
+  ./gradlew :runners:apex:runQuickstartJavaApex \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE}
 fi
@@ -137,7 +137,7 @@ if [[ $confirmation = "y" ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Flink local runner"
   echo "*************************************************************"
-  ./gradlew :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.5:runQuickstartJavaFlinkLocal \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE}
 fi
@@ -149,7 +149,7 @@ if [[ $confirmation = "y" ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Spark local runner"
   echo "*************************************************************"
-  ./gradlew :beam-runners-spark:runQuickstartJavaSpark \
+  ./gradlew :runners:spark:runQuickstartJavaSpark \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE}
 fi
@@ -184,7 +184,7 @@ if [[ $confirmation = "y" ]]; then
   echo "*************************************************************"
   gcloud auth application-default login
   gcloud config set project ${USER_GCP_PROJECT}
-  ./gradlew :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow \
+  ./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE} \
   -PgcpProject=${USER_GCP_PROJECT} \
@@ -231,7 +231,7 @@ if [[ $confirmation = "y" ]]; then
     echo "**************************************************************************"
     echo "* Java mobile game validations: UserScore, HourlyTeamScore, Leaderboard"
     echo "**************************************************************************"
-    ./gradlew :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+    ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
     -Prepourl=${REPO_URL} \
     -Pver=${RELEASE} \
     -PgcpProject=${USER_GCP_PROJECT} \

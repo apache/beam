@@ -64,7 +64,7 @@ public class SelectHelpers {
    * <pre>{@code
    * class Location {
    *   double latitude;
-   *   double longtitude;
+   *   double longitude;
    * }
    * }</pre>
    *

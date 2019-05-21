@@ -26,18 +26,18 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
+import org.apache.spark.util.AccumulatorV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
+ * For resilience, {@link AccumulatorV2 Accumulators} are required to be wrapped in a Singleton.
  *
  * @see <a
- *     href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
+ *     href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/AccumulatorV2.html">accumulatorsV2</a>
  */
 public class MetricsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsAccumulator.class);
@@ -45,7 +45,7 @@ public class MetricsAccumulator {
   private static final String ACCUMULATOR_NAME = "Beam.Metrics";
   private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "metrics";
 
-  private static volatile Accumulator<MetricsContainerStepMap> instance = null;
+  private static volatile MetricsContainerStepMapAccumulator instance = null;
   private static volatile FileSystem fileSystem;
   private static volatile Path checkpointFilePath;
 
@@ -58,17 +58,16 @@ public class MetricsAccumulator {
               opts.isStreaming()
                   ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.absent();
-          Accumulator<MetricsContainerStepMap> accumulator =
-              jsc.sc()
-                  .accumulator(
-                      new SparkMetricsContainerStepMap(),
-                      ACCUMULATOR_NAME,
-                      new MetricsAccumulatorParam());
+          MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+          MetricsContainerStepMapAccumulator accumulator =
+              new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
+          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
+
           if (maybeCheckpointDir.isPresent()) {
             Optional<MetricsContainerStepMap> maybeRecoveredValue =
                 recoverValueFromCheckpoint(jsc, maybeCheckpointDir.get());
             if (maybeRecoveredValue.isPresent()) {
-              accumulator.setValue(maybeRecoveredValue.get());
+              accumulator = new MetricsContainerStepMapAccumulator(maybeRecoveredValue.get());
             }
           }
           instance = accumulator;
@@ -78,7 +77,7 @@ public class MetricsAccumulator {
     }
   }
 
-  public static Accumulator<MetricsContainerStepMap> getInstance() {
+  public static MetricsContainerStepMapAccumulator getInstance() {
     if (instance == null) {
       throw new IllegalStateException("Metrics accumulator has not been instantiated");
     } else {

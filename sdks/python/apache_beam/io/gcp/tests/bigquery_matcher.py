@@ -23,10 +23,11 @@ import logging
 
 from hamcrest.core.base_matcher import BaseMatcher
 
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.utils import retry
 
-__all__ = ['BigqueryMatcher']
+__all__ = ['BigqueryMatcher', 'BigQueryTableMatcher']
 
 
 # Protect against environments where bigquery library is not available.
@@ -162,3 +163,69 @@ class BigqueryFullResultMatcher(BaseMatcher):
     mismatch_description \
       .append_text("Actual data is ") \
       .append_text(self.actual_data)
+
+
+class BigQueryTableMatcher(BaseMatcher):
+  """Matcher that verifies the properties of a Table in BigQuery."""
+
+  def __init__(self, project, dataset, table, expected_properties):
+    if bigquery is None:
+      raise ImportError(
+          'Bigquery dependencies are not installed.')
+
+    self.project = project
+    self.dataset = dataset
+    self.table = table
+    self.expected_properties = expected_properties
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry_on_http_and_value_error)
+  def _get_table_with_retry(self, bigquery_wrapper):
+    return bigquery_wrapper.get_table(self.project, self.dataset, self.table)
+
+  def _matches(self, _):
+    logging.info('Start verify Bigquery table properties.')
+    # Run query
+    bigquery_wrapper = bigquery_tools.BigQueryWrapper()
+
+    self.actual_table = self._get_table_with_retry(bigquery_wrapper)
+
+    logging.info('Table proto is %s', self.actual_table)
+
+    return all(
+        self._match_property(v, self._get_or_none(self.actual_table, k))
+        for k, v in self.expected_properties.items())
+
+  @staticmethod
+  def _get_or_none(obj, attr):
+    try:
+      return obj.__getattribute__(attr)
+    except AttributeError:
+      try:
+        return obj.get(attr, None)
+      except TypeError:
+        return None
+
+  @staticmethod
+  def _match_property(expected, actual):
+    logging.info("Matching %s to %s", expected, actual)
+    if isinstance(expected, dict):
+      return all(
+          BigQueryTableMatcher._match_property(
+              v, BigQueryTableMatcher._get_or_none(actual, k))
+          for k, v in expected.items())
+    else:
+      return expected == actual
+
+  def describe_to(self, description):
+    description \
+      .append_text("Expected table attributes are ") \
+      .append_text(sorted((k, v)
+                          for k, v in self.expected_properties.items()))
+
+  def describe_mismatch(self, pipeline_result, mismatch_description):
+    mismatch_description \
+      .append_text("Actual table attributes are ") \
+      .append_text(sorted((k, self._get_or_none(self.actual_table, k))
+                          for k in self.expected_properties))

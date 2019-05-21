@@ -31,14 +31,14 @@ configurations {
 dependencies {
   shadow library.java.vendored_guava_20_0
   compile library.java.hamcrest_library
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-harness", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
+  shadow project(path: ":sdks:java:fn-execution", configuration: "shadow")
+  shadow project(path: ":sdks:java:harness", configuration: "shadow")
   shadow library.java.vendored_grpc_1_13_1
   shadow library.java.slf4j_api
-  shadowTest project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
+  shadowTest project(path: ":runners:core-construction-java", configuration: "shadowTest")
   shadowTest library.java.guava
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit

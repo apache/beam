@@ -54,6 +54,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -85,6 +86,7 @@ public class CommonCoderTest {
   private static final Map<String, Class<?>> coders =
       ImmutableMap.<String, Class<?>>builder()
           .put(getUrn(StandardCoders.Enum.BYTES), ByteCoder.class)
+          .put(getUrn(StandardCoders.Enum.STRING_UTF8), StringUtf8Coder.class)
           .put(getUrn(StandardCoders.Enum.KV), KvCoder.class)
           .put(getUrn(StandardCoders.Enum.VARINT), VarLongCoder.class)
           .put(getUrn(StandardCoders.Enum.INTERVAL_WINDOW), IntervalWindowCoder.class)
@@ -220,6 +222,8 @@ public class CommonCoderTest {
     String s = coderSpec.getUrn();
     if (s.equals(getUrn(StandardCoders.Enum.BYTES))) {
       return ((String) value).getBytes(StandardCharsets.ISO_8859_1);
+    } else if (s.equals(getUrn(StandardCoders.Enum.STRING_UTF8))) {
+      return value;
     } else if (s.equals(getUrn(StandardCoders.Enum.KV))) {
       Coder keyCoder = ((KvCoder) coder).getKeyCoder();
       Coder valueCoder = ((KvCoder) coder).getValueCoder();
@@ -287,6 +291,8 @@ public class CommonCoderTest {
     String s = coder.getUrn();
     if (s.equals(getUrn(StandardCoders.Enum.BYTES))) {
       return ByteArrayCoder.of();
+    } else if (s.equals(getUrn(StandardCoders.Enum.STRING_UTF8))) {
+      return StringUtf8Coder.of();
     } else if (s.equals(getUrn(StandardCoders.Enum.KV))) {
       return KvCoder.of(components.get(0), components.get(1));
     } else if (s.equals(getUrn(StandardCoders.Enum.VARINT))) {
@@ -328,7 +334,8 @@ public class CommonCoderTest {
     String s = coder.getUrn();
     if (s.equals(getUrn(StandardCoders.Enum.BYTES))) {
       assertThat(expectedValue, equalTo(actualValue));
-
+    } else if (s.equals(getUrn(StandardCoders.Enum.STRING_UTF8))) {
+      assertEquals(expectedValue, actualValue);
     } else if (s.equals(getUrn(StandardCoders.Enum.KV))) {
       assertThat(actualValue, instanceOf(KV.class));
       verifyDecodedValue(

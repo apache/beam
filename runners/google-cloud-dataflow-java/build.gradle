@@ -28,18 +28,18 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference parameters such as "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
-evaluationDependsOn(":beam-sdks-java-core")
-evaluationDependsOn(":beam-examples-java")
-evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
-evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
-evaluationDependsOn(":beam-sdks-java-container")
+evaluationDependsOn(":sdks:java:io:google-cloud-platform")
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":examples:java")
+evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
+evaluationDependsOn(":sdks:java:container")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20190410'
+    'dataflow.container_version' : 'beam-master-20190415'
   ]
 }
 
@@ -58,11 +58,11 @@ configurations {
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow library.java.vendored_grpc_1_13_1
   shadow library.java.google_api_client
   shadow library.java.google_http_client
@@ -81,25 +81,25 @@ dependencies {
   shadow library.java.slf4j_api
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
-  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadowTest")
   shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest library.java.google_cloud_dataflow_java_proto_library_all
   shadowTest library.java.datastore_v1_protos
   shadowTest library.java.jackson_dataformat_yaml
-  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner library.java.hamcrest_core
   validatesRunner library.java.hamcrest_library
   coreSDKJavaIntegrationTest project(path: project.path, configuration: "shadow")
-  coreSDKJavaIntegrationTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  coreSDKJavaIntegrationTest project(path: ":sdks:java:core", configuration: "shadowTest")
   examplesJavaIntegrationTest project(path: project.path, configuration: "shadow")
-  examplesJavaIntegrationTest project(path: ":beam-examples-java", configuration: "shadowTest")
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "shadowTest")
   googleCloudPlatformIntegrationTest project(path: project.path, configuration: "shadow")
-  googleCloudPlatformIntegrationTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadowTest")
 }
 
 test {
@@ -111,8 +111,8 @@ def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs:
 def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
-def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
-def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
@@ -156,7 +156,7 @@ def fnApiWorkerExcludeCategories = [
 // make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
 task validatesRunnerLegacyWorkerTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
@@ -170,7 +170,7 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   // to the number of CPU cores, but can be increased by setting --max-workers=N.
   maxParallelForks Integer.MAX_VALUE
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     commonExcludeCategories.each {
@@ -181,7 +181,7 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
 
 task validatesRunnerLegacyWorkerJava11Test(type: Test) {
     group = "Verification"
-    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
@@ -195,7 +195,7 @@ task validatesRunnerLegacyWorkerJava11Test(type: Test) {
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         commonExcludeCategories.each {
@@ -209,7 +209,7 @@ task validatesRunnerLegacyWorkerJava11Test(type: Test) {
 // task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 task buildAndPushDockerContainer() {
-  dependsOn ":beam-sdks-java-container:docker"
+  dependsOn ":sdks:java:container:docker"
   finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(name: "java")
   doLast {
@@ -235,7 +235,7 @@ task printFnApiPipelineOptions {
   group = "Help"
   description = "Prints to the console extra pipeline options needed to run a Dataflow pipeline using portability"
 
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn buildAndPushDockerContainer
 
   doLast {
@@ -246,7 +246,7 @@ task printFnApiPipelineOptions {
 
 task validatesRunnerFnApiWorkerTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn buildAndPushDockerContainer
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
@@ -258,7 +258,7 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
   // to the number of CPU cores, but can be increased by setting --max-workers=N.
   maxParallelForks Integer.MAX_VALUE
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     commonExcludeCategories.each {
@@ -273,7 +273,7 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
 task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
   group = "Verification"
   description "Validates Dataflow PortabilityApi runner"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn buildAndPushDockerContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
@@ -289,7 +289,7 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
   // to the number of CPU cores, but can be increased by setting --max-workers=N.
   maxParallelForks Integer.MAX_VALUE
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     commonExcludeCategories.each {
@@ -317,7 +317,7 @@ task validatesJava11Runner {
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
@@ -333,13 +333,13 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   exclude '**/*KmsKeyIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
-  testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 
 task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
@@ -353,13 +353,13 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   exclude '**/BigQueryKmsKeyIT.class'  // Only needs to run on direct runner.
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
-  testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 
 task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn buildAndPushDockerContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
@@ -384,7 +384,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
-  testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit {
     excludeCategories 'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported'
   }
@@ -392,7 +392,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
 
 task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
@@ -409,7 +409,7 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
   exclude '**/WindowedWordCountIT.class'
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 
@@ -417,7 +417,7 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
 // Should support more ITs in the future.
 task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn buildAndPushDockerContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
@@ -439,13 +439,13 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 
 task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
@@ -460,13 +460,13 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   exclude '**/RequiresStableInputIT.class'
   maxParallelForks 4
   classpath = configurations.coreSDKJavaIntegrationTest
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 
 task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn buildAndPushDockerContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
@@ -480,7 +480,7 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
   exclude '**/RequiresStableInputIT.class'
   maxParallelForks 4
   classpath = configurations.coreSDKJavaIntegrationTest
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 
@@ -519,13 +519,13 @@ def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-v
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
 
-// Generates :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow
+// Generates :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart',
   runner: 'Dataflow',
   gcpProject: gcpProject,
   gcsBucket: gcsBucket)
 
-// Generates :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow
+// Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow
 createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   runner: 'Dataflow',
   gcpProject: gcpProject,

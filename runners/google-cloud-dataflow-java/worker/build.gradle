@@ -18,6 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 
+archivesBaseName = 'beam-runners-google-cloud-dataflow-java-fn-api-worker'
+
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
@@ -64,17 +66,17 @@ dependencies {
   //
   // All main sourceset dependencies here should be listed as compile scope so that the dependencies
   // are all packaged into a single uber jar allowing the jar to serve as an application.
-  compile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  compile project(path: ":beam-model-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-model-pipeline", configuration: "shadow")
-  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  compile project(path: ":beam-runners-core-java", configuration: "shadow")
-  compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
+  compile project(path: ":runners:google-cloud-dataflow-java", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  compile project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":runners:core-construction-java", configuration: "shadow")
+  compile project(path: ":runners:core-java", configuration: "shadow")
+  compile project(path: ":runners:java-fn-execution", configuration: "shadow")
+  compile project(path: ":sdks:java:fn-execution", configuration: "shadow")
+  compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
   compile library.java.vendored_grpc_1_13_1
   compile google_api_services_dataflow
   compile library.java.avro
@@ -96,11 +98,11 @@ dependencies {
 
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.
-  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-harness", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadowTest")
+  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
   shadowTest library.java.guava_testlib
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library

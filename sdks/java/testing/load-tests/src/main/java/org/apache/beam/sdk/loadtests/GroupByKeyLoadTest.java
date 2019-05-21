@@ -46,7 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --iterations=1
  *      --sourceOptions={"numRecords":1000,...}
@@ -88,7 +88,7 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
             .apply("Collect start time metrics", ParDo.of(runtimeMonitor))
             .apply(
                 "Total bytes monitor",
-                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
+                ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")));
 
     input = applyWindowing(input);
 

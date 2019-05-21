@@ -23,7 +23,6 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -55,15 +55,18 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
+@RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
-  public static final int EXPECTED_ROW_COUNT = 1000;
-  public static final String BACKOFF_TABLE = "UT_WRITE_BACKOFF";
+  private static final int EXPECTED_ROW_COUNT = 1000;
+  private static final String BACKOFF_TABLE = "UT_WRITE_BACKOFF";
 
   private static NetworkServerControl derbyServer;
   private static ClientDataSource dataSource;
@@ -76,11 +79,8 @@ public class JdbcIOTest implements Serializable {
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(JdbcIO.class);
 
   @BeforeClass
-  public static void startDatabase() throws Exception {
-    ServerSocket socket = new ServerSocket(0);
-    port = socket.getLocalPort();
-    socket.close();
-
+  public static void beforeClass() throws Exception {
+    port = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting Derby database on {}", port);
 
     // by default, derby uses a lock timeout of 60 seconds. In order to speed up the test
@@ -126,7 +126,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @AfterClass
-  public static void shutDownDatabase() throws Exception {
+  public static void afterClass() throws Exception {
     try {
       DatabaseTestHelper.deleteTable(dataSource, readTableName);
     } finally {
@@ -145,16 +145,18 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testDataSourceConfigurationDataSourceWithoutPool() throws Exception {
-    JdbcIO.DataSourceConfiguration config =
-        JdbcIO.DataSourceConfiguration.create(dataSource, false);
-    assertTrue(config.buildDatasource() instanceof ClientDataSource);
+  public void testDataSourceConfigurationDataSourceWithoutPool() {
+    assertTrue(
+        JdbcIO.DataSourceConfiguration.create(dataSource).buildDatasource()
+            instanceof ClientDataSource);
   }
 
   @Test
-  public void testDataSourceConfigurationDataSourceWithPool() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource, true);
-    assertTrue(config.buildDatasource() instanceof PoolingDataSource);
+  public void testDataSourceConfigurationDataSourceWithPool() {
+    assertTrue(
+        JdbcIO.PoolableDataSourceProvider.of(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .apply(null)
+            instanceof PoolingDataSource);
   }
 
   @Test
@@ -231,7 +233,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testRead() throws Exception {
+  public void testRead() {
     PCollection<TestRow> rows =
         pipeline.apply(
             JdbcIO.<TestRow>read()
@@ -251,7 +253,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithSingleStringParameter() throws Exception {
+  public void testReadWithSingleStringParameter() {
     PCollection<TestRow> rows =
         pipeline.apply(
             JdbcIO.<TestRow>read()
@@ -421,7 +423,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteWithEmptyPCollection() throws Exception {
+  public void testWriteWithEmptyPCollection() {
     pipeline
         .apply(Create.empty(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
         .apply(

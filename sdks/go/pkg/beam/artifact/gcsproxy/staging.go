@@ -20,13 +20,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"hash"
 	"path"
 	"sync"
 
 	"cloud.google.com/go/storage"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/golang/protobuf/proto"
@@ -52,7 +51,7 @@ type staged struct {
 func NewStagingServer(manifest string) (*StagingServer, error) {
 	bucket, object, err := gcsx.ParseObject(manifest)
 	if err != nil {
-		return nil, fmt.Errorf("invalid manifest location: %v", err)
+		return nil, errors.Wrap(err, "invalid manifest location")
 	}
 	root := path.Join(path.Dir(object), "blobs")
 
@@ -78,15 +77,15 @@ func (s *StagingServer) CommitManifest(ctx context.Context, req *pb.CommitManife
 
 	data, err := proto.Marshal(&pb.ProxyManifest{Manifest: manifest, Location: loc})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal proxy manifest: %v", err)
+		return nil, errors.Wrap(err, "failed to marshal proxy manifest")
 	}
 
 	cl, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create GCS client: %v", err)
+		return nil, errors.Wrap(err, "failed to create GCS client")
 	}
 	if err := gcsx.WriteObject(ctx, cl, s.bucket, s.manifest, bytes.NewReader(data)); err != nil {
-		return nil, fmt.Errorf("failed to write manifest: %v", err)
+		return nil, errors.Wrap(err, "failed to write manifest")
 	}
 
 	// Commit returns the location of the manifest as the token, which can
@@ -104,13 +103,13 @@ func matchLocations(artifacts []*pb.ArtifactMetadata, blobs map[string]staged) (
 	for _, a := range artifacts {
 		info, ok := blobs[a.Name]
 		if !ok {
-			return nil, fmt.Errorf("artifact %v not staged", a.Name)
+			return nil, errors.Errorf("artifact %v not staged", a.Name)
 		}
 		if a.Sha256 == "" {
 			a.Sha256 = info.hash
 		}
 		if info.hash != a.Sha256 {
-			return nil, fmt.Errorf("staged artifact for %v has invalid SHA256: %v, want %v", a.Name, info.hash, a.Sha256)
+			return nil, errors.Errorf("staged artifact for %v has invalid SHA256: %v, want %v", a.Name, info.hash, a.Sha256)
 		}
 
 		loc = append(loc, &pb.ProxyManifest_Location{Name: a.Name, Uri: info.object})
@@ -124,11 +123,11 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 
 	header, err := ps.Recv()
 	if err != nil {
-		return fmt.Errorf("failed to receive header: %v", err)
+		return errors.Wrap(err, "failed to receive header")
 	}
 	md := header.GetMetadata().GetMetadata()
 	if md == nil {
-		return fmt.Errorf("expected header as first message: %v", header)
+		return errors.Errorf("expected header as first message: %v", header)
 	}
 	object := path.Join(s.root, md.Name)
 
@@ -138,16 +137,16 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 	ctx := ps.Context()
 	cl, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
-		return fmt.Errorf("failed to create GCS client: %v", err)
+		return errors.Wrap(err, "failed to create GCS client")
 	}
 
 	r := &reader{sha256W: sha256.New(), stream: ps}
 	if err := gcsx.WriteObject(ctx, cl, s.bucket, object, r); err != nil {
-		return fmt.Errorf("failed to stage artifact %v: %v", md.Name, err)
+		return errors.Wrapf(err, "failed to stage artifact %v", md.Name)
 	}
 	hash := r.SHA256()
 	if md.Sha256 != "" && md.Sha256 != hash {
-		return fmt.Errorf("invalid SHA256 for artifact %v: %v want %v", md.Name, hash, md.Sha256)
+		return errors.Errorf("invalid SHA256 for artifact %v: %v want %v", md.Name, hash, md.Sha256)
 	}
 
 	s.mu.Lock()

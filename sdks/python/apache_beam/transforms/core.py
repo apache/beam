@@ -85,6 +85,7 @@ __all__ = [
     'Flatten',
     'Create',
     'Impulse',
+    'RestrictionProvider'
     ]
 
 # Type variables
@@ -187,9 +188,9 @@ class ProcessContinuation(object):
 class RestrictionProvider(object):
   """Provides methods for generating and manipulating restrictions.
 
-  This class should be implemented to support Splittable ``DoFn``s in Python
+  This class should be implemented to support Splittable ``DoFn`` in Python
   SDK. See https://s.apache.org/splittable-do-fn for more details about
-  Splittable ``DoFn``s.
+  Splittable ``DoFn``.
 
   To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
   method of that class should have exactly one parameter whose default value is
@@ -297,6 +298,31 @@ def get_function_arguments(obj, func):
   return getfullargspec(f)
 
 
+class RunnerAPIPTransformHolder(PTransform):
+  """A `PTransform` that holds a runner API `PTransform` proto.
+
+  This is used for transforms, for which corresponding objects
+  cannot be initialized in Python SDK. For example, for `ParDo` transforms for
+  remote SDKs that may be available in Python SDK transform graph when expanding
+  a cross-language transform since a Python `ParDo` object cannot be generated
+  without a serialized Python `DoFn` object.
+  """
+
+  def __init__(self, proto):
+    self._proto = proto
+
+  def proto(self):
+    """Runner API payload for a `PTransform`"""
+    return self._proto
+
+  def to_runner_api(self, context, has_parts=False):
+    return self._proto
+
+  def get_restriction_coder(self):
+    # TODO(BEAM-7172): support external transforms that are SDFs.
+    return None
+
+
 class _DoFnParam(object):
   """DoFn parameter."""
 
@@ -317,6 +343,18 @@ class _DoFnParam(object):
 
   def __repr__(self):
     return self.param_id
+
+
+class _RestrictionDoFnParam(_DoFnParam):
+  """Restriction Provider DoFn parameter."""
+
+  def __init__(self, restriction_provider):
+    if not isinstance(restriction_provider, RestrictionProvider):
+      raise ValueError(
+          'DoFn.RestrictionParam expected RestrictionProvider object.')
+    self.restriction_provider = restriction_provider
+    self.param_id = ('RestrictionParam(%s)'
+                     % restriction_provider.__class__.__name__)
 
 
 class _StateDoFnParam(_DoFnParam):
@@ -395,6 +433,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
 
+  RestrictionParam = _RestrictionDoFnParam
+
   @staticmethod
   def from_callable(fn):
     return CallableWrapperDoFn(fn)
@@ -415,8 +455,13 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     ``DoFn.SideInputParam``: a side input that may be used when processing.
     ``DoFn.TimestampParam``: timestamp of the input element.
     ``DoFn.WindowParam``: ``Window`` the input element belongs to.
-    A ``RestrictionProvider`` instance: an ``iobase.RestrictionTracker`` will be
-    provided here to allow treatment as a Splittable `DoFn``.
+    ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the spec
+    of the parameter.
+    ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
+    of the parameter.
+    ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
+    provided here to allow treatment as a Splittable ``DoFn``. The restriction
+    tracker will be derived from the restriction provider in the parameter.
     ``DoFn.WatermarkReporterParam``: a function that can be used to report
     output watermark of Splittable ``DoFn`` implementations.
 
@@ -426,6 +471,15 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       **kwargs: other keyword arguments.
     """
     raise NotImplementedError
+
+  def setup(self):
+    """Called to prepare an instance for processing bundles of elements.
+
+    This is a good place to initialize transient in-memory resources, such as
+    network connections. The resources can then be disposed in
+    ``DoFn.teardown``.
+    """
+    pass
 
   def start_bundle(self):
     """Called before a bundle of elements is processed on a worker.
@@ -438,6 +492,24 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   def finish_bundle(self):
     """Called after a bundle of elements is processed on a worker.
+    """
+    pass
+
+  def teardown(self):
+    """Called to use to clean up this instance before it is discarded.
+
+    A runner will do its best to call this method on any given instance to
+    prevent leaks of transient resources, however, there may be situations where
+    this is impossible (e.g. process crash, hardware failure, etc.) or
+    unnecessary (e.g. the pipeline is shutting down and the process is about to
+    be killed anyway, so all transient resources will be released automatically
+    by the OS). In these cases, the call may not happen. It will also not be
+    retried, because in such situations the DoFn instance no longer exists, so
+    there's no instance to retry it on.
+
+    Thus, all work that depends on input elements, and all externally important
+    side effects, must be performed in ``DoFn.process`` or
+    ``DoFn.finish_bundle``.
     """
     pass
 
@@ -1131,6 +1203,16 @@ class ParDo(PTransformWithSideInputs):
 
   def runner_api_requires_keyed_input(self):
     return userstate.is_stateful_dofn(self.fn)
+
+  def get_restriction_coder(self):
+    """Returns `restriction coder if `DoFn` of this `ParDo` is a SDF.
+
+    Returns `None` otherwise.
+    """
+    from apache_beam.runners.common import DoFnSignature
+    signature = DoFnSignature(self.fn)
+    return (signature.get_restriction_provider().restriction_coder()
+            if signature.is_splittable_dofn() else None)
 
 
 class _MultiParDo(PTransform):

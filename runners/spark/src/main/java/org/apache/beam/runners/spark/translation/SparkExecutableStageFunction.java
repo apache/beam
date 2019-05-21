@@ -33,7 +33,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -46,11 +45,11 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.slf4j.Logger;
@@ -77,14 +76,14 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   // map from pCollection id to tuple of serialized bytes and coder to decode the bytes
   private final Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
       sideInputs;
-  private final Accumulator<MetricsContainerStepMap> metricsAccumulator;
+  private final MetricsContainerStepMapAccumulator metricsAccumulator;
 
   SparkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
-      Accumulator<MetricsContainerStepMap> metricsAccumulator) {
+      MetricsContainerStepMapAccumulator metricsAccumulator) {
     this(
         stagePayload,
         outputMap,
@@ -98,7 +97,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       Map<String, Integer> outputMap,
       JobBundleFactoryCreator jobBundleFactoryCreator,
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
-      Accumulator<MetricsContainerStepMap> metricsAccumulator) {
+      MetricsContainerStepMapAccumulator metricsAccumulator) {
     this.stagePayload = stagePayload;
     this.outputMap = outputMap;
     this.jobBundleFactoryCreator = jobBundleFactoryCreator;
@@ -108,43 +107,45 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   @Override
   public Iterator<RawUnionValue> call(Iterator<WindowedValue<InputT>> inputs) throws Exception {
-    JobBundleFactory jobBundleFactory = jobBundleFactoryCreator.create();
-    ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-    try (StageBundleFactory stageBundleFactory = jobBundleFactory.forStage(executableStage)) {
-      ConcurrentLinkedQueue<RawUnionValue> collector = new ConcurrentLinkedQueue<>();
-      ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
-      StateRequestHandler stateRequestHandler =
-          getStateRequestHandler(executableStage, stageBundleFactory.getProcessBundleDescriptor());
-      String stageName = stagePayload.getInput();
-      MetricsContainerImpl container = metricsAccumulator.localValue().getContainer(stageName);
-      BundleProgressHandler bundleProgressHandler =
-          new BundleProgressHandler() {
-            @Override
-            public void onProgress(ProcessBundleProgressResponse progress) {
-              container.update(progress.getMonitoringInfosList());
-            }
-
-            @Override
-            public void onCompleted(ProcessBundleResponse response) {
-              container.update(response.getMonitoringInfosList());
-            }
-          };
-      try (RemoteBundle bundle =
-          stageBundleFactory.getBundle(
-              receiverFactory, stateRequestHandler, bundleProgressHandler)) {
-        String inputPCollectionId = executableStage.getInputPCollection().getId();
-        FnDataReceiver<WindowedValue<?>> mainReceiver =
-            bundle.getInputReceivers().get(inputPCollectionId);
-        while (inputs.hasNext()) {
-          WindowedValue<InputT> input = inputs.next();
-          mainReceiver.accept(input);
+    try (JobBundleFactory jobBundleFactory = jobBundleFactoryCreator.create()) {
+      ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
+      try (StageBundleFactory stageBundleFactory = jobBundleFactory.forStage(executableStage)) {
+        ConcurrentLinkedQueue<RawUnionValue> collector = new ConcurrentLinkedQueue<>();
+        ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
+        StateRequestHandler stateRequestHandler =
+            getStateRequestHandler(
+                executableStage, stageBundleFactory.getProcessBundleDescriptor());
+        BundleProgressHandler bundleProgressHandler = getBundleProgressHandler();
+        try (RemoteBundle bundle =
+            stageBundleFactory.getBundle(
+                receiverFactory, stateRequestHandler, bundleProgressHandler)) {
+          String inputPCollectionId = executableStage.getInputPCollection().getId();
+          FnDataReceiver<WindowedValue<?>> mainReceiver =
+              bundle.getInputReceivers().get(inputPCollectionId);
+          while (inputs.hasNext()) {
+            WindowedValue<InputT> input = inputs.next();
+            mainReceiver.accept(input);
+          }
         }
+        return collector.iterator();
       }
-      return collector.iterator();
-    } catch (Exception e) {
-      LOG.error("Spark executable stage fn terminated with exception: ", e);
-      throw e;
     }
+  }
+
+  private BundleProgressHandler getBundleProgressHandler() {
+    String stageName = stagePayload.getInput();
+    MetricsContainerImpl container = metricsAccumulator.value().getContainer(stageName);
+    return new BundleProgressHandler() {
+      @Override
+      public void onProgress(ProcessBundleProgressResponse progress) {
+        container.update(progress.getMonitoringInfosList());
+      }
+
+      @Override
+      public void onCompleted(ProcessBundleResponse response) {
+        container.update(response.getMonitoringInfosList());
+      }
+    };
   }
 
   private StateRequestHandler getStateRequestHandler(

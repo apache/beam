@@ -48,7 +48,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 // Run a specific test using:
-//   ./gradlew :beam-sdks-java-io-google-cloud-platform:integrationTest --tests
+//   ./gradlew :sdks:java:io:google-cloud-platform:integrationTest --tests
 // GcsKmsKeyIT.testGcsWriteWithKmsKey --info
 
 /** Integration test for GCS CMEK support. */

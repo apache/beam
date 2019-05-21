@@ -23,9 +23,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.TestUtils.KvMatcher;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -34,6 +32,7 @@ import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -48,8 +47,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link CoGroup}. */
+@RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class CoGroupTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -397,30 +400,6 @@ public class CoGroupTest {
     pipeline.run();
   }
 
-  private List<Row> innerJoin(
-      List<Row> inputs1,
-      List<Row> inputs2,
-      List<Row> inputs3,
-      String[] keys1,
-      String[] keys2,
-      String[] keys3,
-      Schema expectedSchema) {
-    List<Row> joined = Lists.newArrayList();
-    for (Row row1 : inputs1) {
-      for (Row row2 : inputs2) {
-        for (Row row3 : inputs3) {
-          List key1 = Arrays.stream(keys1).map(row1::getValue).collect(Collectors.toList());
-          List key2 = Arrays.stream(keys2).map(row2::getValue).collect(Collectors.toList());
-          List key3 = Arrays.stream(keys3).map(row3::getValue).collect(Collectors.toList());
-          if (key1.equals(key2) && key2.equals(key3)) {
-            joined.add(Row.withSchema(expectedSchema).addValues(row1, row2, row3).build());
-          }
-        }
-      }
-    }
-    return joined;
-  }
-
   @Test
   @Category(NeedsRunner.class)
   public void testInnerJoin() {
@@ -477,7 +456,7 @@ public class CoGroupTest {
     assertEquals(expectedSchema, joined.getSchema());
 
     List<Row> expectedJoinedRows =
-        innerJoin(
+        JoinTestUtils.innerJoin(
             pc1Rows,
             pc2Rows,
             pc3Rows,
@@ -545,14 +524,14 @@ public class CoGroupTest {
         PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
             .apply(
                 "CoGroup",
-                CoGroup.join("pc1", By.fieldNames("user", "country").withOuterJoinParticipation())
-                    .join("pc2", By.fieldNames("user2", "country2").withOuterJoinParticipation())
-                    .join("pc3", By.fieldNames("user3", "country3").withOuterJoinParticipation())
+                CoGroup.join("pc1", By.fieldNames("user", "country").withOptionalParticipation())
+                    .join("pc2", By.fieldNames("user2", "country2").withOptionalParticipation())
+                    .join("pc3", By.fieldNames("user3", "country3").withOptionalParticipation())
                     .crossProductJoin());
     assertEquals(expectedSchema, joined.getSchema());
 
     List<Row> expectedJoinedRows =
-        innerJoin(
+        JoinTestUtils.innerJoin(
             pc1Rows,
             pc2Rows,
             pc3Rows,
@@ -633,13 +612,13 @@ public class CoGroupTest {
             .apply(
                 "CoGroup",
                 CoGroup.join("pc1", By.fieldNames("user", "country"))
-                    .join("pc2", By.fieldNames("user2", "country2").withOuterJoinParticipation())
+                    .join("pc2", By.fieldNames("user2", "country2").withOptionalParticipation())
                     .join("pc3", By.fieldNames("user3", "country3"))
                     .crossProductJoin());
     assertEquals(expectedSchema, joined.getSchema());
 
     List<Row> expectedJoinedRows =
-        innerJoin(
+        JoinTestUtils.innerJoin(
             pc1Rows,
             pc2Rows,
             pc3Rows,

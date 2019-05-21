@@ -95,4 +95,9 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   public boolean consistentWithEquals() {
     return rowCoder.consistentWithEquals();
   }
+
+  @Override
+  public String toString() {
+    return "SchemaCoder: " + rowCoder.toString();
+  }
 }

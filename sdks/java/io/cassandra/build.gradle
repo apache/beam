@@ -47,19 +47,19 @@ def achilles_version = "6.0.2"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.cassandra_driver_core
   shadow library.java.cassandra_driver_mapping
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core
 
   // for embedded cassandra
   testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
   testCompile library.java.jackson_jaxb_annotations
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java")
 }

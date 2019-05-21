@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness;
 
 import java.util.EnumMap;
 import java.util.List;
+import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
@@ -35,6 +36,7 @@ import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,33 +73,52 @@ public class FnHarness {
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
-  private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String env)
+  private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor)
       throws TextFormat.ParseException {
     Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptorBuilder =
         Endpoints.ApiServiceDescriptor.newBuilder();
-    TextFormat.merge(System.getenv(env), apiServiceDescriptorBuilder);
+    TextFormat.merge(descriptor, apiServiceDescriptorBuilder);
     return apiServiceDescriptorBuilder.build();
   }
 
   public static void main(String[] args) throws Exception {
-    System.out.format("SDK Fn Harness started%n");
-    System.out.format("Harness ID %s%n", System.getenv(HARNESS_ID));
-    System.out.format("Logging location %s%n", System.getenv(LOGGING_API_SERVICE_DESCRIPTOR));
-    System.out.format("Control location %s%n", System.getenv(CONTROL_API_SERVICE_DESCRIPTOR));
-    System.out.format("Pipeline options %s%n", System.getenv(PIPELINE_OPTIONS));
+    main(System::getenv);
+  }
 
-    String id = System.getenv(HARNESS_ID);
-    PipelineOptions options = PipelineOptionsTranslation.fromJson(System.getenv(PIPELINE_OPTIONS));
+  @VisibleForTesting
+  public static void main(Function<String, String> environmentVarGetter) throws Exception {
+    JvmInitializers.runOnStartup();
+    System.out.format("SDK Fn Harness started%n");
+    System.out.format("Harness ID %s%n", environmentVarGetter.apply(HARNESS_ID));
+    System.out.format(
+        "Logging location %s%n", environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));
+    System.out.format(
+        "Control location %s%n", environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
+    System.out.format("Pipeline options %s%n", environmentVarGetter.apply(PIPELINE_OPTIONS));
+
+    String id = environmentVarGetter.apply(HARNESS_ID);
+    PipelineOptions options =
+        PipelineOptionsTranslation.fromJson(environmentVarGetter.apply(PIPELINE_OPTIONS));
 
     Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
-        getApiServiceDescriptor(LOGGING_API_SERVICE_DESCRIPTOR);
+        getApiServiceDescriptor(environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));
 
     Endpoints.ApiServiceDescriptor controlApiServiceDescriptor =
-        getApiServiceDescriptor(CONTROL_API_SERVICE_DESCRIPTOR);
+        getApiServiceDescriptor(environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
 
     main(id, options, loggingApiServiceDescriptor, controlApiServiceDescriptor);
   }
 
+  /**
+   * Run a FnHarness with the given id and options that attaches to the specified logging and
+   * control API service descriptors.
+   *
+   * @param id Harness ID
+   * @param options The options for this pipeline
+   * @param loggingApiServiceDescriptor
+   * @param controlApiServiceDescriptor
+   * @throws Exception
+   */
   public static void main(
       String id,
       PipelineOptions options,
@@ -123,6 +145,18 @@ public class FnHarness {
         outboundObserverFactory);
   }
 
+  /**
+   * Run a FnHarness with the given id and options that attaches to the specified logging and
+   * control API service descriptors using the given channel factory and outbound observer factory.
+   *
+   * @param id Harness ID
+   * @param options The options for this pipeline
+   * @param loggingApiServiceDescriptor
+   * @param controlApiServiceDescriptor
+   * @param channelFactory
+   * @param outboundObserverFactory
+   * @throws Exception
+   */
   public static void main(
       String id,
       PipelineOptions options,
@@ -165,6 +199,8 @@ public class FnHarness {
       BeamFnControlClient control =
           new BeamFnControlClient(
               id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);
+
+      JvmInitializers.runBeforeProcessing(options);
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());

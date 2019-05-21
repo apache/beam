@@ -51,7 +51,6 @@
   <suppress checks="JavadocMethod" files=".*sdk.*extensions.*Audience\.java" lines="32"/>
   <suppress checks="JavadocMethod" files=".*sdk.*sql.*BeamSetOperatorsTransforms\.java" lines="59"/>
   <suppress checks="JavadocMethod" files=".*sdk.*nexmark.*GeneratorConfig\.java" lines="89"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*testing.*BigqueryClient\.java" lines="277,357,454"/>
   <suppress checks="JavadocMethod" files=".*sdk.*gcp.*BigQueryUtils\.java" lines="212"/>
   <suppress checks="JavadocMethod" files=".*sdk.*transforms.*DoFn\.java" lines="443"/>
 
@@ -84,4 +83,10 @@
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
+
+  <!-- Flink -->
+  <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
+  <suppress checks="JavadocPackage" files=".*runners.flink.*CoderTypeSerializer\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*EncodedTypeSerializer\.java"/>
+
 </suppressions>

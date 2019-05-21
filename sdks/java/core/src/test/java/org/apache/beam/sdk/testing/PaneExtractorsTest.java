@@ -144,6 +144,39 @@ public class PaneExtractorsTest {
   }
 
   @Test
+  public void lateAndEarlyPaneTest() {
+    Iterable<ValueInSingleWindow<Integer>> panes =
+        ImmutableList.of(
+            ValueInSingleWindow.of(
+                8,
+                new Instant(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.createPane(false, false, Timing.LATE, 2L, 1L)),
+            ValueInSingleWindow.of(
+                4,
+                new Instant(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
+            ValueInSingleWindow.of(
+                1,
+                new Instant(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.createPane(true, false, Timing.EARLY)));
+
+    {
+      SerializableFunction<Iterable<ValueInSingleWindow<Integer>>, Iterable<Integer>> extractor =
+          PaneExtractors.latePanes();
+      assertThat(extractor.apply(panes), containsInAnyOrder(8));
+    }
+
+    {
+      SerializableFunction<Iterable<ValueInSingleWindow<Integer>>, Iterable<Integer>> extractor =
+          PaneExtractors.earlyPanes();
+      assertThat(extractor.apply(panes), containsInAnyOrder(1));
+    }
+  }
+
+  @Test
   public void finalPane() {
     SerializableFunction<Iterable<ValueInSingleWindow<Integer>>, Iterable<Integer>> extractor =
         PaneExtractors.finalPane();

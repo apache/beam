@@ -44,6 +44,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.RunnerPCollectionView;
+import org.apache.beam.runners.core.construction.TestStreamTranslation;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -61,15 +62,19 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOp
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.StreamingImpulseSource;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestStreamSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
@@ -210,6 +215,9 @@ public class FlinkStreamingPortablePipelineTranslator
     translatorMap.put(STREAMING_IMPULSE_TRANSFORM_URN, this::translateStreamingImpulse);
     // Remove once Reads can be wrapped in SDFs
     translatorMap.put(PTransformTranslation.READ_TRANSFORM_URN, this::translateRead);
+
+    // For testing only
+    translatorMap.put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, this::translateTestStream);
 
     this.urnToTransformTranslator = translatorMap.build();
   }
@@ -729,6 +737,11 @@ public class FlinkStreamingPortablePipelineTranslator
                 valueCoder.getClass().getSimpleName()));
       }
       keyCoder = ((KvCoder) valueCoder).getKeyCoder();
+      if (keyCoder instanceof LengthPrefixCoder) {
+        // Remove any unnecessary length prefixes which add more payload
+        // but also are not expected for state requests inside the operator.
+        keyCoder = ((LengthPrefixCoder) keyCoder).getValueCoder();
+      }
       keySelector = new KvToByteBufferKeySelector(keyCoder);
       inputDataStream = inputDataStream.keyBy(keySelector);
     }
@@ -808,6 +821,41 @@ public class FlinkStreamingPortablePipelineTranslator
           outputs.get(tupleTag.getId()),
           outputStream.getSideOutput(tagsToOutputTags.get(tupleTag)));
     }
+  }
+
+  private <T> void translateTestStream(
+      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
+    RunnerApi.Components components = pipeline.getComponents();
+
+    SerializableFunction<byte[], TestStream<T>> testStreamDecoder =
+        bytes -> {
+          try {
+            RunnerApi.TestStreamPayload testStreamPayload =
+                RunnerApi.TestStreamPayload.parseFrom(bytes);
+            @SuppressWarnings("unchecked")
+            TestStream<T> testStream =
+                (TestStream<T>)
+                    TestStreamTranslation.testStreamFromProtoPayload(
+                        testStreamPayload, RehydratedComponents.forComponents(components));
+            return testStream;
+          } catch (Exception e) {
+            throw new RuntimeException("Can't decode TestStream payload.", e);
+          }
+        };
+
+    RunnerApi.PTransform transform = components.getTransformsOrThrow(id);
+    String outputPCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
+    Coder<WindowedValue<T>> coder = instantiateCoder(outputPCollectionId, components);
+
+    DataStream<WindowedValue<T>> source =
+        context
+            .getExecutionEnvironment()
+            .addSource(
+                new TestStreamSource<>(
+                    testStreamDecoder, transform.getSpec().getPayload().toByteArray()),
+                new CoderTypeInformation<>(coder));
+
+    context.addDataStream(outputPCollectionId, source);
   }
 
   private static LinkedHashMap<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>

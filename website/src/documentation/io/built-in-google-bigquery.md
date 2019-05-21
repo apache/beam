@@ -593,7 +593,7 @@ for the list of the available methods and their restrictions.
 
 {:.language-java}
 ***Note:*** If you use batch loads in a streaming pipeline, you must use
-`withTriggeringFrequency` to specify a triggering frequency.
+`withTriggeringFrequency` to specify a triggering frequency and `withNumFileShards` to specify number of file shards written.
 
 
 ### Writing to a table
@@ -727,8 +727,8 @@ To use BigQuery time partitioning, use one of these two methods:
 This example generates one partition per day.
 
 ```java
-// Java snippet not yet available and tracked in JIRA: BEAM-5503
-```
+{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:BigQueryTimePartitioning
+%}```
 ```py
 # The Beam SDK for Python does not currently support time partitioning.
 ```

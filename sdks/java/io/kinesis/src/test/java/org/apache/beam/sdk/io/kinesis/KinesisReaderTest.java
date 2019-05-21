@@ -22,8 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -34,7 +33,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.runners.MockitoJUnitRunner;
 
 /** Tests {@link KinesisReader}. */
@@ -47,7 +45,6 @@ public class KinesisReaderTest {
   @Mock private KinesisRecord a, b, c, d;
   @Mock private KinesisSource kinesisSource;
   @Mock private ShardReadersPool shardReadersPool;
-  @Spy private KinesisWatermark watermark = new KinesisWatermark();
 
   private KinesisReader reader;
 
@@ -61,12 +58,17 @@ public class KinesisReaderTest {
     when(c.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
     when(d.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
 
-    reader = createReader(Duration.ZERO);
+    reader = spy(createReader(Duration.ZERO));
   }
 
   private KinesisReader createReader(Duration backlogBytesCheckThreshold) {
     return new KinesisReader(
-        kinesis, generator, kinesisSource, watermark, Duration.ZERO, backlogBytesCheckThreshold) {
+        kinesis,
+        generator,
+        kinesisSource,
+        WatermarkPolicyFactory.withArrivalTimePolicy(),
+        Duration.ZERO,
+        backlogBytesCheckThreshold) {
       @Override
       ShardReadersPool createShardReadersPool() {
         return shardReadersPool;
@@ -119,28 +121,9 @@ public class KinesisReaderTest {
   }
 
   @Test
-  public void doesNotUpdateWatermarkWhenRecordsNotAvailable() throws IOException {
-    boolean advanced = reader.start();
-
-    assertThat(advanced).isFalse();
-    verify(watermark, never()).update(any());
-  }
-
-  @Test
-  public void updatesWatermarkWhenRecordsAvailable() throws IOException {
-    when(shardReadersPool.nextRecord())
-        .thenReturn(CustomOptional.of(c))
-        .thenReturn(CustomOptional.absent());
-    boolean advanced = reader.start();
-
-    assertThat(advanced).isTrue();
-    verify(watermark).update(c.getApproximateArrivalTimestamp());
-  }
-
-  @Test
   public void returnsCurrentWatermark() throws IOException {
     Instant expectedWatermark = new Instant(123456L);
-    doReturn(expectedWatermark).when(watermark).getCurrent(any());
+    when(shardReadersPool.getWatermark()).thenReturn(expectedWatermark);
 
     reader.start();
     Instant currentWatermark = reader.getWatermark();
@@ -153,6 +136,7 @@ public class KinesisReaderTest {
       throws TransientKinesisException, IOException {
     reader.start();
     when(kinesisSource.getStreamName()).thenReturn("stream1");
+    doReturn(Instant.now().minus(Duration.standardMinutes(1))).when(reader).getWatermark();
     when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
         .thenReturn(10L)
         .thenThrow(TransientKinesisException.class)
@@ -166,8 +150,11 @@ public class KinesisReaderTest {
   @Test
   public void getTotalBacklogBytesShouldReturnLastSeenValueWhenCalledFrequently()
       throws TransientKinesisException, IOException {
-    KinesisReader backlogCachingReader = createReader(Duration.standardSeconds(30));
+    KinesisReader backlogCachingReader = spy(createReader(Duration.standardSeconds(30)));
     backlogCachingReader.start();
+    doReturn(Instant.now().minus(Duration.standardMinutes(1)))
+        .when(backlogCachingReader)
+        .getWatermark();
     when(kinesisSource.getStreamName()).thenReturn("stream1");
     when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
         .thenReturn(10L)

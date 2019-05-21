@@ -780,7 +780,9 @@ class SetupOptions(PipelineOptions):
 
 
 class PortableOptions(PipelineOptions):
-
+  """Portable options are common options expected to be understood by most of
+  the portable runners.
+  """
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--job_endpoint',
@@ -801,28 +803,15 @@ class PortableOptions(PipelineOptions):
               '"<ENV_VAL>"} }. All fields in the json are optional except '
               'command.'))
     parser.add_argument(
-        '--sdk_worker_parallelism', default=None,
+        '--sdk_worker_parallelism', default=0,
         help=('Sets the number of sdk worker processes that will run on each '
-              'worker node. Default is 1. If 0, it will be automatically set '
+              'worker node. Default is 0. If 0, it will be automatically set '
               'by the runner by looking at different parameters (e.g. number '
-              'of CPU cores on the worker machine).'))
+              'of CPU cores on the worker machine or configuration).'))
     parser.add_argument(
         '--environment_cache_millis', default=0,
         help=('Duration in milliseconds for environment cache within a job. '
               '0 means no caching.'))
-
-
-class RunnerOptions(PipelineOptions):
-  """Runner options are provided by the job service.
-
-  The SDK has no a priori knowledge of runner options.
-  It should be able to work with any portable runner.
-  Runner specific options are discovered from the job service endpoint.
-  """
-  @classmethod
-  def _add_argparse_args(cls, parser):
-    # TODO: help option to display discovered options
-    pass
 
 
 class TestOptions(PipelineOptions):

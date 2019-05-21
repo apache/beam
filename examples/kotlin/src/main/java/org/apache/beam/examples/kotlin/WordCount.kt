@@ -103,7 +103,7 @@ public object WordCount {
 
             // Output each word encountered into the output PCollection.
             for (word in words) {
-                if (!word.isEmpty()) {
+                if (word.isNotEmpty()) {
                     receiver.output(word)
                 }
             }
@@ -112,9 +112,7 @@ public object WordCount {
 
     /** A SimpleFunction that converts a Word and Count into a printable string.  */
     public class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
-        override fun apply(input: KV<String, Long>): String {
-            return "${input.key} : ${input.value}"
-        }
+        override fun apply(input: KV<String, Long>) = "${input.key} : ${input.value}"
     }
 
     /**
