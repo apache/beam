@@ -877,6 +877,13 @@ def _use_unified_worker(pipeline_options):
       'use_unified_worker' in debug_options.experiments)
 
 
+def _use_sdf_bounded_source(pipeline_options):
+  debug_options = pipeline_options.view_as(DebugOptions)
+  return _use_fnapi(pipeline_options) and (
+      debug_options.experiments and
+      'use_sdf_bounded_source' in debug_options.experiments)
+
+
 def get_default_container_image_for_current_sdk(job_type):
   """For internal use only; no backwards-compatibility guarantees.
 

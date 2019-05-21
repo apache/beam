@@ -32,6 +32,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+__all__ = ['RangeSource']
+
 
 class RangeSource(iobase.BoundedSource):
 
@@ -61,7 +63,7 @@ class RangeSource(iobase.BoundedSource):
       yield iobase.SourceBundle(
           sub_end - sub_start,
           RangeSource(sub_start, sub_end, self._split_freq),
-          None, None)
+          sub_start, sub_end)
 
   def get_range_tracker(self, start_position, end_position):
     start, end = self._normalize(start_position, end_position)
