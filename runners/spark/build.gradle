@@ -28,8 +28,8 @@ description = "Apache Beam :: Runners :: Spark"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-sdks-java-core")
-evaluationDependsOn(":beam-sdks-java-io-hadoop-format")
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":sdks:java:io:hadoop-format")
 
 configurations {
   validatesRunner
@@ -54,11 +54,11 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
   shadow library.java.guava
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
@@ -79,20 +79,20 @@ dependencies {
   provided "org.apache.zookeeper:zookeeper:3.4.11"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  shadowTest project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  shadowTest project(":beam-sdks-java-harness")
+  shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
+  shadowTest project(":sdks:java:harness")
   shadowTest library.java.avro
   shadowTest library.java.kafka_clients
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest "org.apache.kafka:kafka_2.11:0.11.0.1"
-  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesRunner project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadowTest")
-  validatesRunner project(path: ":beam-examples-java", configuration: "shadowTest")
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":sdks:java:io:hadoop-format", configuration: "shadowTest")
+  validatesRunner project(path: ":examples:java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "provided")
@@ -120,21 +120,27 @@ task validatesRunnerBatch(type: Test) {
   systemProperty "spark.ui.enabled", "false"
   systemProperty "spark.ui.showConsoleProgress", "false"
 
-
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project(":beam-sdks-java-io-hadoop-format").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    // Unbounded
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    // Metrics
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    // Portability
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
   }
 }
 
@@ -148,7 +154,8 @@ task validatesRunnerStreaming(type: Test) {
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
@@ -164,5 +171,5 @@ task validatesRunner {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :beam-runners-spark:runQuickstartJavaSpark
+// Generates :runners:spark:runQuickstartJavaSpark
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')

@@ -52,6 +52,7 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMatchers;
@@ -290,9 +291,9 @@ public class RemoteExecutionTest implements Serializable {
       assertThat(
           windowedValues,
           containsInAnyOrder(
-              WindowedValue.valueInGlobalWindow(kvBytes("foo", 4)),
-              WindowedValue.valueInGlobalWindow(kvBytes("foo", 3)),
-              WindowedValue.valueInGlobalWindow(kvBytes("foo", 3))));
+              WindowedValue.valueInGlobalWindow(byteValueOf("foo", 4)),
+              WindowedValue.valueInGlobalWindow(byteValueOf("foo", 3)),
+              WindowedValue.valueInGlobalWindow(byteValueOf("foo", 3))));
     }
   }
 
@@ -376,8 +377,8 @@ public class RemoteExecutionTest implements Serializable {
       assertThat(
           windowedValues,
           containsInAnyOrder(
-              WindowedValue.valueInGlobalWindow(kvBytes("Y", "Y")),
-              WindowedValue.valueInGlobalWindow(kvBytes("Z", "Z"))));
+              WindowedValue.valueInGlobalWindow(KV.of("Y", "Y")),
+              WindowedValue.valueInGlobalWindow(KV.of("Z", "Z"))));
     }
   }
 
@@ -448,11 +449,7 @@ public class RemoteExecutionTest implements Serializable {
           RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
     }
 
-    Iterable<byte[]> sideInputData =
-        Arrays.asList(
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
+    Iterable<String> sideInputData = Arrays.asList("A", "B", "C");
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forSideInputHandlerFactory(
             descriptor.getSideInputSpecs(),
@@ -482,24 +479,20 @@ public class RemoteExecutionTest implements Serializable {
     try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(
-              WindowedValue.valueInGlobalWindow(
-                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+          .accept(WindowedValue.valueInGlobalWindow("X"));
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(
-              WindowedValue.valueInGlobalWindow(
-                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+          .accept(WindowedValue.valueInGlobalWindow("Y"));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
           containsInAnyOrder(
-              WindowedValue.valueInGlobalWindow(kvBytes("X", "A")),
-              WindowedValue.valueInGlobalWindow(kvBytes("X", "B")),
-              WindowedValue.valueInGlobalWindow(kvBytes("X", "C")),
-              WindowedValue.valueInGlobalWindow(kvBytes("Y", "A")),
-              WindowedValue.valueInGlobalWindow(kvBytes("Y", "B")),
-              WindowedValue.valueInGlobalWindow(kvBytes("Y", "C"))));
+              WindowedValue.valueInGlobalWindow(KV.of("X", "A")),
+              WindowedValue.valueInGlobalWindow(KV.of("X", "B")),
+              WindowedValue.valueInGlobalWindow(KV.of("X", "C")),
+              WindowedValue.valueInGlobalWindow(KV.of("Y", "A")),
+              WindowedValue.valueInGlobalWindow(KV.of("Y", "B")),
+              WindowedValue.valueInGlobalWindow(KV.of("Y", "C"))));
     }
   }
 
@@ -508,6 +501,9 @@ public class RemoteExecutionTest implements Serializable {
     final String processUserCounterName = "processUserCounter";
     final String startUserCounterName = "startUserCounter";
     final String finishUserCounterName = "finishUserCounter";
+    final String processUserDistributionName = "processUserDistribution";
+    final String startUserDistributionName = "startUserDistribution";
+    final String finishUserDistributionName = "finishUserDistribution";
     Pipeline p = Pipeline.create();
     // TODO(BEAM-6597): Remove sleeps in this test after collecting MonitoringInfos in
     // ProcessBundleProgressResponses. Use CountDownLatches to wait in start, finish and process
@@ -526,6 +522,8 @@ public class RemoteExecutionTest implements Serializable {
                       public void startBundle() throws InterruptedException {
                         Thread.sleep(1000);
                         startCounter.inc(10);
+                        Metrics.distribution(RemoteExecutionTest.class, startUserDistributionName)
+                            .update(10);
                       }
 
                       @SuppressWarnings("unused")
@@ -539,6 +537,9 @@ public class RemoteExecutionTest implements Serializable {
                           ctxt.output("two");
                           Thread.sleep(1000);
                           Metrics.counter(RemoteExecutionTest.class, processUserCounterName).inc();
+                          Metrics.distribution(
+                                  RemoteExecutionTest.class, processUserDistributionName)
+                              .update(1);
                         }
                         emitted = true;
                       }
@@ -547,6 +548,8 @@ public class RemoteExecutionTest implements Serializable {
                       public void finishBundle() throws InterruptedException {
                         Thread.sleep(1000);
                         Metrics.counter(RemoteExecutionTest.class, finishUserCounterName).inc(100);
+                        Metrics.distribution(RemoteExecutionTest.class, finishUserDistributionName)
+                            .update(100);
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
@@ -595,11 +598,7 @@ public class RemoteExecutionTest implements Serializable {
           RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
     }
 
-    Iterable<byte[]> sideInputData =
-        Arrays.asList(
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
+    Iterable<String> sideInputData = Arrays.asList("A", "B", "C");
 
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forSideInputHandlerFactory(
@@ -636,6 +635,7 @@ public class RemoteExecutionTest implements Serializable {
           public void onCompleted(ProcessBundleResponse response) {
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
 
+            // User Counters.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder
                 .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
@@ -667,6 +667,39 @@ public class RemoteExecutionTest implements Serializable {
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
             builder.setInt64Value(100);
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            // User Distributions.
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, processUserDistributionName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder.setInt64DistributionValue(DistributionData.create(1, 1, 1, 1));
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, startUserDistributionName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder.setInt64DistributionValue(DistributionData.create(10, 1, 10, 10));
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserDistributionName);
+            builder.setLabel(
+                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+            builder.setInt64DistributionValue(DistributionData.create(100, 1, 100, 100));
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // The element counter should be counted only once for the pcollection.
@@ -879,15 +912,15 @@ public class RemoteExecutionTest implements Serializable {
         processor.newBundle(
             outputReceivers, stateRequestHandler, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(WindowedValue.valueInGlobalWindow(kvBytes("X", "Y")));
+          .accept(WindowedValue.valueInGlobalWindow(KV.of("X", "Y")));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
           containsInAnyOrder(
-              WindowedValue.valueInGlobalWindow(kvBytes("X", "A")),
-              WindowedValue.valueInGlobalWindow(kvBytes("X", "B")),
-              WindowedValue.valueInGlobalWindow(kvBytes("X", "C"))));
+              WindowedValue.valueInGlobalWindow(KV.of("X", "A")),
+              WindowedValue.valueInGlobalWindow(KV.of("X", "B")),
+              WindowedValue.valueInGlobalWindow(KV.of("X", "C"))));
     }
     assertThat(
         userStateData.get(stateId),
@@ -1025,7 +1058,7 @@ public class RemoteExecutionTest implements Serializable {
       bundle
           .getInputReceivers()
           .get(stage.getInputPCollection().getId())
-          .accept(WindowedValue.valueInGlobalWindow(kvBytes("X", "X")));
+          .accept(WindowedValue.valueInGlobalWindow(KV.of("X", "X")));
       bundle
           .getInputReceivers()
           .get(eventTimeInputPCollectionId)
@@ -1043,9 +1076,9 @@ public class RemoteExecutionTest implements Serializable {
     assertThat(
         outputValues.get(mainOutputTarget),
         containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(kvBytes("mainX", "")),
-            WindowedValue.valueInGlobalWindow(kvBytes("event", "")),
-            WindowedValue.valueInGlobalWindow(kvBytes("processing", ""))));
+            WindowedValue.valueInGlobalWindow(KV.of("mainX", "")),
+            WindowedValue.valueInGlobalWindow(KV.of("event", "")),
+            WindowedValue.valueInGlobalWindow(KV.of("processing", ""))));
     assertThat(
         timerStructuralValues(outputValues.get(eventTimeOutputTarget)),
         containsInAnyOrder(
@@ -1154,26 +1187,18 @@ public class RemoteExecutionTest implements Serializable {
     assertThat(
         outputValues,
         containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(kvBytes("stream1X", "")),
-            WindowedValue.valueInGlobalWindow(kvBytes("stream2X", ""))));
+            WindowedValue.valueInGlobalWindow(KV.of("stream1X", "")),
+            WindowedValue.valueInGlobalWindow(KV.of("stream2X", ""))));
   }
 
-  private KV<byte[], byte[]> kvBytes(String key, long value) throws CoderException {
-    return KV.of(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
-        CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
+  private KV<String, byte[]> byteValueOf(String key, long value) throws CoderException {
+    return KV.of(key, CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
   }
 
-  private KV<byte[], byte[]> kvBytes(String key, String value) throws CoderException {
-    return KV.of(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), value));
-  }
-
-  private KV<byte[], org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
+  private KV<String, org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
       String key, long timestampOffset) throws CoderException {
     return KV.of(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
+        key,
         org.apache.beam.runners.core.construction.Timer.of(
             BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
             CoderUtils.encodeToByteArray(VoidCoder.of(), null, Coder.Context.NESTED)));
@@ -1182,7 +1207,7 @@ public class RemoteExecutionTest implements Serializable {
   private Object timerStructuralValue(Object timer) {
     return WindowedValue.FullWindowedValueCoder.of(
             KvCoder.of(
-                ByteArrayCoder.of(),
+                StringUtf8Coder.of(),
                 org.apache.beam.runners.core.construction.Timer.Coder.of(ByteArrayCoder.of())),
             GlobalWindow.Coder.INSTANCE)
         .structuralValue(timer);

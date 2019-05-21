@@ -26,19 +26,19 @@ ext.summary = "IO to read and write on JDBC datasource."
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow "org.apache.commons:commons-dbcp2:2.6.0"
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:testing:test-utils", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.postgres
   testCompile group: "org.apache.derby", name: "derby", version:"10.14.2.0"
   testCompile group: "org.apache.derby", name: "derbyclient", version:"10.14.2.0"
   testCompile group: "org.apache.derby", name: "derbynet", version:"10.14.2.0"
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java")
 }

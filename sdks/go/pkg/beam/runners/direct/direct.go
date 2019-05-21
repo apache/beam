@@ -19,7 +19,6 @@ package direct
 
 import (
 	"context"
-	"fmt"
 	"path"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -27,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -47,11 +47,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	edges, _, err := p.Build()
 	if err != nil {
-		return fmt.Errorf("invalid pipeline: %v", err)
+		return errors.Wrap(err, "invalid pipeline")
 	}
 	plan, err := Compile(edges)
 	if err != nil {
-		return fmt.Errorf("translation failed: %v", err)
+		return errors.Wrap(err, "translation failed")
 	}
 	log.Info(ctx, plan)
 
@@ -294,7 +294,7 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		u = &exec.WindowInto{UID: b.idgen.New(), Fn: edge.WindowFn, Out: out[0]}
 
 	default:
-		return nil, fmt.Errorf("unexpected edge: %v", edge)
+		return nil, errors.Errorf("unexpected edge: %v", edge)
 	}
 
 	b.links[id] = u

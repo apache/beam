@@ -298,10 +298,7 @@ public class HadoopFormatIOSequenceFileTest {
   private Map<String, Long> loadWrittenDataAsMap(String outputDirPath) {
     return loadWrittenData(outputDirPath).stream()
         .collect(
-            Collectors.toMap(
-                kv -> kv.getKey().toString(),
-                kv -> kv.getValue().get(),
-                (first, second) -> first + second));
+            Collectors.toMap(kv -> kv.getKey().toString(), kv -> kv.getValue().get(), Long::sum));
   }
 
   private <T> TimestampedValue<T> event(T eventValue, Long timestamp) {
@@ -311,7 +308,7 @@ public class HadoopFormatIOSequenceFileTest {
 
   private static class ConvertToHadoopFormatFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
 
-    private SerializableFunction<InputT, OutputT> transformFn;
+    private final SerializableFunction<InputT, OutputT> transformFn;
 
     ConvertToHadoopFormatFn(SerializableFunction<InputT, OutputT> transformFn) {
       this.transformFn = transformFn;
@@ -328,19 +325,14 @@ public class HadoopFormatIOSequenceFileTest {
     public void processElement(@DoFn.Element String element, OutputReceiver<String> receiver) {
       receiver.output(element.toLowerCase());
     }
-
-    @Override
-    public TypeDescriptor<String> getOutputTypeDescriptor() {
-      return super.getOutputTypeDescriptor();
-    }
   }
 
   private static class ConfigTransform<KeyT, ValueT>
       extends PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>> {
 
-    private String outputDirPath;
-    private Class<?> keyClass;
-    private Class<?> valueClass;
+    private final String outputDirPath;
+    private final Class<?> keyClass;
+    private final Class<?> valueClass;
     private int windowNum = 0;
 
     private ConfigTransform(String outputDirPath, Class<?> keyClass, Class<?> valueClass) {

@@ -17,7 +17,6 @@ package dataflowlib
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"golang.org/x/oauth2/google"
@@ -85,7 +85,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 
 	images := pipelinex.ContainerImages(p)
 	if len(images) != 1 {
-		return nil, fmt.Errorf("Dataflow supports one container image only: %v", images)
+		return nil, errors.Errorf("Dataflow supports one container image only: %v", images)
 	}
 
 	packages := []*df.Package{{
@@ -177,7 +177,7 @@ func WaitForCompletion(ctx context.Context, client *df.Service, project, region,
 	for {
 		j, err := client.Projects.Locations.Jobs.Get(project, region, jobID).Do()
 		if err != nil {
-			return fmt.Errorf("failed to get job: %v", err)
+			return errors.Wrap(err, "failed to get job")
 		}
 
 		switch j.CurrentState {
@@ -190,7 +190,7 @@ func WaitForCompletion(ctx context.Context, client *df.Service, project, region,
 			return nil
 
 		case "JOB_STATE_FAILED":
-			return fmt.Errorf("job %s failed", jobID)
+			return errors.Errorf("job %s failed", jobID)
 
 		case "JOB_STATE_RUNNING":
 			log.Info(ctx, "Job still running ...")

@@ -20,8 +20,6 @@
 from __future__ import absolute_import
 
 import logging
-import os
-import sys
 import time
 import unittest
 
@@ -41,40 +39,45 @@ class WordCountIT(unittest.TestCase):
   _multiprocess_can_split_ = True
 
   # The default checksum is a SHA-1 hash generated from a sorted list of
-  # lines read from expected output.
+  # lines read from expected output. This value corresponds to the default
+  # input of WordCount example.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
   @attr('IT')
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
-  @unittest.skipIf(sys.version[0:3] == '3.6' and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6 '
-                   'TODO: BEAM-7183')
   @attr('IT', 'ValidatesContainer')
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
 
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
+    extra_opts = {}
 
     # Set extra options to the pipeline for test purpose
-    output = '/'.join([test_pipeline.get_option('output'),
-                       str(int(time.time() * 1000)),
-                       'results'])
+    test_output = '/'.join([test_pipeline.get_option('output'),
+                            str(int(time.time() * 1000)),
+                            'results'])
+    extra_opts['output'] = test_output
+
+    test_input = test_pipeline.get_option('input')
+    if test_input:
+      extra_opts['input'] = test_input
+
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')
     sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
+    expect_checksum = (test_pipeline.get_option('expect_checksum') or
+                       self.DEFAULT_CHECKSUM)
     pipeline_verifiers = [PipelineStateMatcher(),
-                          FileChecksumMatcher(output + '*-of-*',
-                                              self.DEFAULT_CHECKSUM,
+                          FileChecksumMatcher(test_output + '*-of-*',
+                                              expect_checksum,
                                               sleep_secs)]
-    extra_opts = {'output': output,
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
+    extra_opts['on_success_matcher'] = all_of(*pipeline_verifiers)
     extra_opts.update(opts)
 
     # Register clean up before pipeline execution
-    self.addCleanup(delete_files, [output + '*'])
+    self.addCleanup(delete_files, [test_output + '*'])
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.

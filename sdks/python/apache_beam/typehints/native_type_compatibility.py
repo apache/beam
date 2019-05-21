@@ -93,20 +93,16 @@ def _safe_issubclass(derived, parent):
       out = issubclass(derived, parent)
     return out
   except TypeError:
+    if hasattr(derived, '__origin__'):
+      try:
+        return issubclass(derived.__origin__, parent)
+      except TypeError:
+        pass
     return False
 
 
 def _match_issubclass(match_against):
   return lambda user_type: _safe_issubclass(user_type, match_against)
-
-
-def _match_union_type(match_against):
-  def matcher(derived, parent):
-    try:
-      return derived.__origin__ is parent
-    except AttributeError:
-      return type(derived) == type(parent)
-  return lambda user_type: matcher(user_type, match_against)
 
 
 def _match_any_type(match_against):
@@ -115,9 +111,33 @@ def _match_any_type(match_against):
   return lambda user_type: matcher(user_type, match_against)
 
 
+def _match_same_type(match_against):
+  # For types that can't be compared with isinstance or _safe_issubclass.
+  return lambda user_type: type(user_type) == type(match_against)
+
+
 def _match_is_named_tuple(user_type):
   return (_safe_issubclass(user_type, typing.Tuple) and
           hasattr(user_type, '_field_types'))
+
+
+def _match_is_union(user_type):
+  # For non-subscripted unions (Python 2.7.14+ with typing 3.64)
+  if user_type is typing.Union:
+    return True
+
+  try:  # Python 3.5.2
+    if isinstance(user_type, typing.UnionMeta):
+      return True
+  except AttributeError:
+    pass
+
+  try:  # Python 3.5.4+, or Python 2.7.14+ with typing 3.64
+    return user_type.__origin__ is typing.Union
+  except AttributeError:
+    pass
+
+  return False
 
 
 def convert_to_beam_type(typ):
@@ -160,12 +180,10 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.Tuple),
           arity=-1,
           beam_type=typehints.Tuple),
-      # For Union types. They can't be compared with isinstance either, so we
-      # have to compare their types directly.
       _TypeMapEntry(
-          match=_match_union_type(typing.Union),
-          arity=-1,
-          beam_type=typehints.Union)
+          match=_match_is_union, 
+          arity=-1, 
+          beam_type=typehints.Union),
   ]
 
   # Find the first matching entry.

@@ -116,7 +116,7 @@ import org.slf4j.LoggerFactory;
  *
  *      // you can further customize KafkaConsumer used to read the records by adding more
  *      // settings for ConsumerConfig. e.g :
- *      .updateConsumerProperties(ImmutableMap.of("group.id", "my_beam_app_1"))
+ *      .withConsumerConfigUpdates(ImmutableMap.of("group.id", "my_beam_app_1"))
  *
  *      // set event times and watermark based on 'LogAppendTime'. To provide a custom
  *      // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
@@ -157,7 +157,7 @@ import org.slf4j.LoggerFactory;
  * <p>When the pipeline starts for the first time, or without any checkpoint, the source starts
  * consuming from the <em>latest</em> offsets. You can override this behavior to consume from the
  * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through {@link
- * Read#updateConsumerProperties(Map)}. You can also enable offset auto_commit in Kafka to resume
+ * Read#withConsumerConfigUpdates(Map)}. You can also enable offset auto_commit in Kafka to resume
  * from last committed.
  *
  * <p>In summary, KafkaIO.read follows below sequence to set initial offset:<br>
@@ -185,7 +185,7 @@ import org.slf4j.LoggerFactory;
  *
  *      // You can further customize KafkaProducer used to write the records by adding more
  *      // settings for ProducerConfig. e.g, to enable compression :
- *      .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
+ *      .withProducerConfigUpdates(ImmutableMap.of("compression.type", "gzip"))
  *
  *      // You set publish timestamp for the Kafka records.
  *      .withInputTimestamp() // element timestamp is used while publishing to Kafka
@@ -503,7 +503,7 @@ public class KafkaIO {
 
     /** Sets the bootstrap servers for the Kafka consumer. */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
-      return updateConsumerProperties(
+      return withConsumerConfigUpdates(
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
@@ -598,7 +598,12 @@ public class KafkaIO {
       return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
     }
 
-    /** Update consumer configuration with new properties. */
+    /**
+     * Update consumer configuration with new properties.
+     *
+     * @deprecated as of version 2.13. Use {@link #withConsumerConfigUpdates(Map)} instead
+     */
+    @Deprecated
     public Read<K, V> updateConsumerProperties(Map<String, Object> configUpdates) {
       Map<String, Object> config =
           updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
@@ -759,7 +764,7 @@ public class KafkaIO {
      * read committed messages. See JavaDoc for {@link KafkaConsumer} for more description.
      */
     public Read<K, V> withReadCommitted() {
-      return updateConsumerProperties(ImmutableMap.of("isolation.level", "read_committed"));
+      return withConsumerConfigUpdates(ImmutableMap.of("isolation.level", "read_committed"));
     }
 
     /**
@@ -790,6 +795,24 @@ public class KafkaIO {
      */
     public Read<K, V> withOffsetConsumerConfigOverrides(Map<String, Object> offsetConsumerConfig) {
       return toBuilder().setOffsetConsumerConfig(offsetConsumerConfig).build();
+    }
+
+    /**
+     * Update configuration for the backend main consumer. Note that the default consumer properties
+     * will not be completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>In {@link KafkaIO#read()}, there're two consumers running in the backend actually:<br>
+     * 1. the main consumer, which reads data from kafka;<br>
+     * 2. the secondary offset consumer, which is used to estimate backlog, by fetching latest
+     * offset;<br>
+     *
+     * <p>By default, main consumer uses the configuration from {@link
+     * #DEFAULT_CONSUMER_PROPERTIES}.
+     */
+    public Read<K, V> withConsumerConfigUpdates(Map<String, Object> configUpdates) {
+      Map<String, Object> config =
+          updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
+      return toBuilder().setConsumerConfig(config).build();
     }
 
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
@@ -1097,7 +1120,7 @@ public class KafkaIO {
      * bootstrapServers}.
      */
     public WriteRecords<K, V> withBootstrapServers(String bootstrapServers) {
-      return updateProducerProperties(
+      return withProducerConfigUpdates(
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
@@ -1126,8 +1149,23 @@ public class KafkaIO {
 
     /**
      * Adds the given producer properties, overriding old values of properties with the same key.
+     *
+     * @deprecated as of version 2.13. Use {@link #withProducerConfigUpdates(Map)} instead.
      */
+    @Deprecated
     public WriteRecords<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
+      Map<String, Object> config =
+          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
+      return toBuilder().setProducerConfig(config).build();
+    }
+
+    /**
+     * Update configuration for the producer. Note that the default producer properties will not be
+     * completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>By default, the producer uses the configuration from {@link #DEFAULT_PRODUCER_PROPERTIES}.
+     */
+    public WriteRecords<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
       Map<String, Object> config =
           updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
       return toBuilder().setProducerConfig(config).build();
@@ -1338,7 +1376,7 @@ public class KafkaIO {
 
         WriteRecords<K, V> writeRecords =
             KafkaIO.<K, V>writeRecords()
-                .updateProducerProperties(producerConfig)
+                .withProducerConfigUpdates(producerConfig)
                 .withKeySerializer(keySerializer)
                 .withValueSerializer(valSerializer)
                 .withTopic(topic);
@@ -1482,10 +1520,25 @@ public class KafkaIO {
 
     /**
      * Adds the given producer properties, overriding old values of properties with the same key.
+     *
+     * @deprecated as of version 2.13. Use {@link #withProducerConfigUpdates(Map)} instead.
      */
+    @Deprecated
     public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
       return withWriteRecordsTransform(
           getWriteRecordsTransform().updateProducerProperties(configUpdates));
+    }
+
+    /**
+     * Update configuration for the producer. Note that the default producer properties will not be
+     * completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>By default, the producer uses the configuration from {@link
+     * WriteRecords#DEFAULT_PRODUCER_PROPERTIES}.
+     */
+    public Write<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withProducerConfigUpdates(configUpdates));
     }
 
     @Override

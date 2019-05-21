@@ -24,7 +24,7 @@ ext.summary = "Beam Runners Extensions Metrics provides implementations of runne
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.jackson_datatype_joda
   shadowTest library.java.joda_time

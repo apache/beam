@@ -79,6 +79,7 @@ This is a collection of documents that may or may not be up to date.
 - Composite PInputs, POutputs, and the Runner API [[doc](https://s.apache.org/beam-runner-composites)]
 - Side Input Architecture for Apache Beam [[doc](https://s.apache.org/beam-side-inputs-1-pager)]
 - Runner supported features plugin [[doc](https://s.apache.org/k79W)]
+- Structured streaming Spark Runner [[doc](https://s.apache.org/spark-structured-streaming-runner)]
 
 ### SQL / Schema
 - Streams and Tables [[doc](https://s.apache.org/beam-streams-tables)]
@@ -94,6 +95,7 @@ This is a collection of documents that may or may not be up to date.
 - Integrating runners & IO [[doc](https://docs.google.com/document/d/1ZFVlnldrIYhUgOfxIT2JcmTFFSWTl4HwAnQsnwiNL1g)]
 - Beam SQL Pipeline Options [[doc](https://docs.google.com/document/d/1UTsSBuruJRfGnVOS9eXbQI6NauCD4WnSAPgA_Y0zjdk)]
 - Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
+- Portable Beam Schemas [[doc](https://s.apache.org/beam-schemas)]
 
 ### Portability
 - Fn API
@@ -119,6 +121,7 @@ This is a collection of documents that may or may not be up to date.
 - Portability API: How to Finalize Bundles [[doc](https://s.apache.org/beam-finalizing-bundles)]
 - Side Input in Universal Reference Runner [[doc](https://docs.google.com/document/d/13N0OJ7QJm81wcgu13pi9GuN29UUxN2iIFn_H8lKpDks)]
 - Spark Portable Runner Overview [[doc](https://docs.google.com/document/d/1j8GERTiHUuc6CzzCXZHc38rBn41uWfATBh2-5JN8hro)]
+- Cross-Language Pipelines & Legacy IO [[doc](https://s.apache.org/beam-cross-language-io)]
 
 ### Build / Testing
 - More Expressive PAsserts [[doc](https://docs.google.com/document/d/1fZUUbG2LxBtqCVabQshldXIhkMcXepsbv2vuuny8Ix4)]

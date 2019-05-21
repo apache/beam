@@ -173,7 +173,6 @@ public class TFRecordIOTest {
   public void testReadInvalidRecord() throws Exception {
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Not a valid TFRecord. Fewer than 12 bytes.");
-    System.out.println("abr".getBytes(Charsets.UTF_8).length);
     runTestRead("bar".getBytes(Charsets.UTF_8), new String[0]);
   }
 

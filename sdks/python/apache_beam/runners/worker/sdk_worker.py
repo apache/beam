@@ -311,12 +311,21 @@ class BundleProcessorCache(object):
     return self.active_bundle_processors.get(instruction_id, (None, None))[-1]
 
   def discard(self, instruction_id):
+    self.active_bundle_processors[instruction_id][1].shutdown()
     del self.active_bundle_processors[instruction_id]
 
   def release(self, instruction_id):
     descriptor_id, processor = self.active_bundle_processors.pop(instruction_id)
     processor.reset()
     self.cached_bundle_processors[descriptor_id].append(processor)
+
+  def shutdown(self):
+    for instruction_id in self.active_bundle_processors:
+      self.active_bundle_processors[instruction_id][1].shutdown()
+      del self.active_bundle_processors[instruction_id]
+    for cached_bundle_processors in self.cached_bundle_processors.values():
+      while len(cached_bundle_processors) > 0:
+        cached_bundle_processors.pop().shutdown()
 
 
 class SdkWorker(object):
@@ -412,6 +421,9 @@ class SdkWorker(object):
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           error='Instruction not running: %s' % instruction_id)
+
+  def stop(self):
+    self.bundle_processor_cache.shutdown()
 
   @contextlib.contextmanager
   def maybe_profile(self, instruction_id):

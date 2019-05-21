@@ -114,18 +114,18 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
 
     @Override
     protected OutputT computeNext() {
-      // Process each element from the (input) iterator, which produces, zero, one or more
-      // output elements (of type V) in the output iterator. Note that the output
-      // collection (and iterator) is reset between each call to processElement, so the
-      // collection only holds the output values for each call to processElement, rather
-      // than for the whole partition (which would use too much memory).
-      if (!isBundleStarted) {
-        isBundleStarted = true;
-        // call startBundle() before beginning to process the partition.
-        doFnRunner.startBundle();
-      }
-
       try {
+        // Process each element from the (input) iterator, which produces, zero, one or more
+        // output elements (of type V) in the output iterator. Note that the output
+        // collection (and iterator) is reset between each call to processElement, so the
+        // collection only holds the output values for each call to processElement, rather
+        // than for the whole partition (which would use too much memory).
+        if (!isBundleStarted) {
+          isBundleStarted = true;
+          // call startBundle() before beginning to process the partition.
+          doFnRunner.startBundle();
+        }
+
         while (true) {
           if (outputIterator.hasNext()) {
             return outputIterator.next();

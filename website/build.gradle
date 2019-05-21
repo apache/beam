@@ -341,7 +341,7 @@ publishWebsite.dependsOn commitWebsite
 /*
  * Stages a pull request on GCS
  * For example:
- *   ./gradlew :beam-website:stageWebsite -PwebsiteBucket=foo
+ *   ./gradlew :website:stageWebsite -PwebsiteBucket=foo
  */
 task stageWebsite {
   doLast {

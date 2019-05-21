@@ -282,6 +282,13 @@ class ProtoCoderImpl(SimpleCoderImpl):
     return proto_message
 
 
+class DeterministicProtoCoderImpl(ProtoCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+
+  def encode(self, value):
+    return value.SerializeToString(deterministic=True)
+
+
 UNKNOWN_TYPE = 0xFF
 NONE_TYPE = 0
 INT_TYPE = 1

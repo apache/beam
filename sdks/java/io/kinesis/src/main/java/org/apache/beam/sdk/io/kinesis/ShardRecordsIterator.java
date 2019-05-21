@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,16 +46,21 @@ class ShardRecordsIterator {
   private AtomicReference<ShardCheckpoint> checkpoint;
   private String shardIterator;
   private AtomicLong millisBehindLatest = new AtomicLong(Long.MAX_VALUE);
+  private AtomicReference<WatermarkPolicy> watermarkPolicy;
+  private WatermarkPolicyFactory watermarkPolicyFactory;
 
   ShardRecordsIterator(
-      final ShardCheckpoint initialCheckpoint, SimplifiedKinesisClient simplifiedKinesisClient)
+      final ShardCheckpoint initialCheckpoint,
+      SimplifiedKinesisClient simplifiedKinesisClient,
+      WatermarkPolicyFactory watermarkPolicyFactory)
       throws TransientKinesisException {
-    this(initialCheckpoint, simplifiedKinesisClient, new RecordFilter());
+    this(initialCheckpoint, simplifiedKinesisClient, watermarkPolicyFactory, new RecordFilter());
   }
 
   ShardRecordsIterator(
       final ShardCheckpoint initialCheckpoint,
       SimplifiedKinesisClient simplifiedKinesisClient,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       RecordFilter filter)
       throws TransientKinesisException {
     this.checkpoint = new AtomicReference<>(checkNotNull(initialCheckpoint, "initialCheckpoint"));
@@ -63,6 +69,8 @@ class ShardRecordsIterator {
     this.streamName = initialCheckpoint.getStreamName();
     this.shardId = initialCheckpoint.getShardId();
     this.shardIterator = initialCheckpoint.getShardIterator(kinesis);
+    this.watermarkPolicy = new AtomicReference<>(watermarkPolicyFactory.createWatermarkPolicy());
+    this.watermarkPolicyFactory = watermarkPolicyFactory;
   }
 
   List<KinesisRecord> readNextBatch()
@@ -97,12 +105,13 @@ class ShardRecordsIterator {
     return checkpoint.get();
   }
 
-  boolean isUpToDate() {
-    return millisBehindLatest.get() == 0L;
-  }
-
   void ackRecord(KinesisRecord record) {
     checkpoint.set(checkpoint.get().moveAfter(record));
+    watermarkPolicy.get().update(record);
+  }
+
+  Instant getShardWatermark() {
+    return watermarkPolicy.get().getWatermark();
   }
 
   String getShardId() {
@@ -119,7 +128,8 @@ class ShardRecordsIterator {
                 streamName,
                 shard.getShardId(),
                 new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
-        successiveShardRecordIterators.add(new ShardRecordsIterator(shardCheckpoint, kinesis));
+        successiveShardRecordIterators.add(
+            new ShardRecordsIterator(shardCheckpoint, kinesis, watermarkPolicyFactory));
       }
     }
     return successiveShardRecordIterators;

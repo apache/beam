@@ -65,6 +65,7 @@ import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -488,6 +489,7 @@ class FlinkStreamingTransformTranslators {
       } else if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
         // we know that it is keyed on byte[]
         keyCoder = ByteArrayCoder.of();
+        keySelector = new WorkItemKeySelector<>(keyCoder);
         stateful = true;
       }
 
@@ -1307,6 +1309,16 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException("Could not encode TestStream.", e);
       }
 
+      SerializableFunction<byte[], TestStream<T>> testStreamDecoder =
+          bytes -> {
+            try {
+              return CoderUtils.decodeFromByteArray(
+                  TestStream.TestStreamCoder.of(valueCoder), bytes);
+            } catch (CoderException e) {
+              throw new RuntimeException("Can't decode TestStream payload.", e);
+            }
+          };
+
       WindowedValue.FullWindowedValueCoder<T> elementCoder =
           WindowedValue.getFullCoder(valueCoder, GlobalWindow.Coder.INSTANCE);
 
@@ -1314,7 +1326,7 @@ class FlinkStreamingTransformTranslators {
           context
               .getExecutionEnvironment()
               .addSource(
-                  new TestStreamSource<>(testStreamCoder, payload),
+                  new TestStreamSource<>(testStreamDecoder, payload),
                   new CoderTypeInformation<>(elementCoder));
 
       context.setOutputDataStream(context.getOutput(testStream), source);

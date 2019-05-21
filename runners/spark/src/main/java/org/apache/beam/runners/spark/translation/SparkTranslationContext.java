@@ -36,6 +36,7 @@ public class SparkTranslationContext {
   private final Map<String, Dataset> datasets = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
   final SerializablePipelineOptions serializablePipelineOptions;
+  private int sinkId = 0;
 
   public SparkTranslationContext(JavaSparkContext jsc, PipelineOptions options, JobInfo jobInfo) {
     this.jsc = jsc;
@@ -67,5 +68,10 @@ public class SparkTranslationContext {
     for (Dataset dataset : leaves) {
       dataset.action(); // force computation.
     }
+  }
+
+  /** Generate a unique pCollection id number to identify runner-generated sinks. */
+  public int nextSinkId() {
+    return sinkId++;
   }
 }

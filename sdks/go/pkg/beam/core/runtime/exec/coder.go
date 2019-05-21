@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
@@ -119,7 +120,7 @@ func (*bytesEncoder) Encode(val *FullValue, w io.Writer) error {
 	var data []byte
 	data, ok := val.Elm.([]byte)
 	if !ok {
-		return fmt.Errorf("received unknown value type: want []byte, got %T", val.Elm)
+		return errors.Errorf("received unknown value type: want []byte, got %T", val.Elm)
 	}
 	size := len(data)
 

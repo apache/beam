@@ -27,7 +27,7 @@ applyJavaNature(
 dependencies {
   shadow library.java.grpc_google_cloud_datacatalog_v1beta1
   shadow library.java.proto_google_cloud_datacatalog_v1beta1
-  provided project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
+  provided project(path: ":sdks:java:extensions:sql", configuration: "shadow")
 
   // For Data Catalog GRPC client
   provided library.java.grpc_all
@@ -36,10 +36,10 @@ dependencies {
   provided library.java.netty_tcnative_boringssl_static
 
   // Dependencies for the example
-  provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  provided project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   provided library.java.vendored_guava_20_0
   provided library.java.slf4j_api
-  provided library.java.slf4j_simple
+  shadowTestRuntimeClasspath library.java.slf4j_simple
 }
 
 task runDataCatalogExample(type: JavaExec) {

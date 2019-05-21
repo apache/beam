@@ -38,6 +38,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -177,7 +178,7 @@ public class DistinctTest {
   @Rule public TestPipeline triggeredDistinctPipeline = TestPipeline.create();
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinct() {
     Instant base = new Instant(0);
     TestStream<String> values =
@@ -213,7 +214,7 @@ public class DistinctTest {
   @Rule public TestPipeline triggeredDistinctRepresentativePipeline = TestPipeline.create();
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinctRepresentativeValues() {
     Instant base = new Instant(0);
     TestStream<KV<Integer, String>> values =
@@ -254,7 +255,7 @@ public class DistinctTest {
    * the on-time firing occurred.
    */
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinctRepresentativeValuesEmpty() {
     Instant base = new Instant(0);
     TestStream<KV<Integer, String>> values =

@@ -210,6 +210,8 @@ class DoFnSignature(object):
     self.process_method = MethodWrapper(do_fn, 'process')
     self.start_bundle_method = MethodWrapper(do_fn, 'start_bundle')
     self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
+    self.setup_lifecycle_method = MethodWrapper(do_fn, 'setup')
+    self.teardown_lifecycle_method = MethodWrapper(do_fn, 'teardown')
 
     restriction_provider = self.get_restriction_provider()
     self.initial_restriction_method = (
@@ -239,8 +241,8 @@ class DoFnSignature(object):
 
   def get_restriction_provider(self):
     result = _find_param_with_default(self.process_method,
-                                      default_as_type=RestrictionProvider)
-    return result[1] if result else None
+                                      default_as_type=DoFn.RestrictionParam)
+    return result[1].restriction_provider if result else None
 
   def _validate(self):
     self._validate_process()
@@ -271,7 +273,7 @@ class DoFnSignature(object):
     userstate.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
-    return any([isinstance(default, RestrictionProvider) for default in
+    return any([isinstance(default, DoFn.RestrictionParam) for default in
                 self.process_method.defaults])
 
   def is_stateful_dofn(self):
@@ -356,6 +358,11 @@ class DoFnInvoker(object):
     """
     raise NotImplementedError
 
+  def invoke_setup(self):
+    """Invokes the DoFn.setup() method
+    """
+    self.signature.setup_lifecycle_method.method_value()
+
   def invoke_start_bundle(self):
     """Invokes the DoFn.start_bundle() method.
     """
@@ -367,6 +374,11 @@ class DoFnInvoker(object):
     """
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
+
+  def invoke_teardown(self):
+    """Invokes the DoFn.teardown() method
+    """
+    self.signature.teardown_lifecycle_method.method_value()
 
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
     self.output_processor.process_outputs(
@@ -538,7 +550,7 @@ class PerWindowInvoker(DoFnInvoker):
             'SDFs in multiply-windowed values with windowed arguments.')
       restriction_tracker_param = _find_param_with_default(
           self.signature.process_method,
-          default_as_type=core.RestrictionProvider)[0]
+          default_as_type=DoFn.RestrictionParam)[0]
       if not restriction_tracker_param:
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
@@ -778,11 +790,24 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
+  def _invoke_lifecycle_method(self, lifecycle_method):
+    try:
+      self.context.set_element(None)
+      lifecycle_method()
+    except BaseException as exn:
+      self._reraise_augmented(exn)
+
+  def setup(self):
+    self._invoke_lifecycle_method(self.do_fn_invoker.invoke_setup)
+
   def start(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_start_bundle)
 
   def finish(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
+
+  def teardown(self):
+    self._invoke_lifecycle_method(self.do_fn_invoker.invoke_teardown)
 
   def finalize(self):
     self.bundle_finalizer_param.finalize_bundle()

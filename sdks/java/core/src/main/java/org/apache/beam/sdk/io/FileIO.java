@@ -568,6 +568,15 @@ public class FileIO {
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply("Via MatchAll", matchAll().withConfiguration(getConfiguration()));
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+          .include("configuration", getConfiguration());
+    }
   }
 
   /** Implementation of {@link #matchAll}. */
@@ -623,6 +632,12 @@ public class FileIO {
                 .apply(Values.create());
       }
       return res.apply(Reshuffle.viaRandomKey());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.include("configuration", getConfiguration());
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {

@@ -21,7 +21,7 @@
 # This script is useful to run single or a set of Python integration tests
 # manually or through Gradle. Note, this script doesn't setup python
 # environment which is required before running tests. Use Gradle task
-# `beam-sdks-python:integrationTests` to do both together.
+# `:sdks:python:integrationTests` to do both together.
 #
 # In order to run test with customer options, use following commandline flags:
 #

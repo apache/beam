@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
@@ -58,7 +59,14 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     // Don't let the fuser fuse any subcomponents of native transforms.
     Pipeline trimmedPipeline = PipelineTrimmer.trim(pipeline, translator.knownUrns());
-    Pipeline fusedPipeline = GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
+
+    // Fused pipeline proto.
+    // TODO: Consider supporting partially-fused graphs.
+    RunnerApi.Pipeline fusedPipeline =
+        trimmedPipeline.getComponents().getTransformsMap().values().stream()
+                .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
+            ? trimmedPipeline
+            : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
     if (pipelineOptions.getFilesToStage() == null) {
       pipelineOptions.setFilesToStage(

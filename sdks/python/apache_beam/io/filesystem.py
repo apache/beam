@@ -660,7 +660,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
     See Also:
       :meth:`translate_pattern`
 
-    Patterns ending with '/' will be appended with '*'.
+    Patterns ending with '/' or '\\' will be appended with '*'.
 
     Args:
       patterns: list of string for the file path pattern to match against
@@ -679,7 +679,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
     def _match(pattern, limit):
       """Find all matching paths to the pattern provided."""
-      if pattern.endswith('/'):
+      if pattern.endswith('/') or pattern.endswith('\\'):
         pattern += '*'
       # Get the part of the pattern before the first globbing character.
       # For example scheme://path/foo* will become scheme://path/foo for

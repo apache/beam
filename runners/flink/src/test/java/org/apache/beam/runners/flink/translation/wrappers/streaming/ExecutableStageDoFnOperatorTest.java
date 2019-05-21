@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
@@ -44,11 +45,13 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
@@ -65,6 +68,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -130,6 +134,32 @@ public class ExecutableStageDoFnOperatorTest {
                   .putPcollections("input", PCollection.getDefaultInstance())
                   .build())
           .build();
+
+  private final String stateId = "userState";
+  private final ExecutableStagePayload stagePayloadWithUserState =
+      stagePayload
+          .toBuilder()
+          .setComponents(
+              stagePayload
+                  .getComponents()
+                  .toBuilder()
+                  .putTransforms(
+                      "transform",
+                      RunnerApi.PTransform.newBuilder()
+                          .setSpec(
+                              RunnerApi.FunctionSpec.newBuilder()
+                                  .setUrn(PAR_DO_TRANSFORM_URN)
+                                  .build())
+                          .putInputs("input", "input")
+                          .build())
+                  .build())
+          .addUserStates(
+              ExecutableStagePayload.UserStateId.newBuilder()
+                  .setLocalName(stateId)
+                  .setTransformId("transform")
+                  .build())
+          .build();
+
   private final JobInfo jobInfo =
       JobInfo.create("job-id", "job-name", "retrieval-token", Struct.getDefaultInstance());
 
@@ -384,7 +414,8 @@ public class ExecutableStageDoFnOperatorTest {
             Collections.emptyList(),
             outputManagerFactory,
             WindowingStrategy.globalDefault(),
-            keyCoder);
+            keyCoder,
+            WindowedValue.getFullCoder(keyCoder, GlobalWindow.Coder.INSTANCE));
 
     KeyedOneInputStreamOperatorTestHarness<Integer, WindowedValue<Integer>, WindowedValue<Integer>>
         testHarness =
@@ -430,7 +461,7 @@ public class ExecutableStageDoFnOperatorTest {
     cleanupTimer.setForWindow(KV.of("key", "string"), window);
 
     Mockito.verify(stateBackendLock).lock();
-    ByteBuffer key = FlinkKeyUtils.encodeKey("key", keyCoder, Coder.Context.NESTED);
+    ByteBuffer key = FlinkKeyUtils.encodeKey("key", keyCoder);
     Mockito.verify(keyedStateBackend).setCurrentKey(key);
     assertThat(
         inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME),
@@ -476,6 +507,12 @@ public class ExecutableStageDoFnOperatorTest {
 
   @Test
   public void testEnsureDeferredStateCleanupTimerFiring() throws Exception {
+    testEnsureDeferredStateCleanupTimerFiring(false);
+    testEnsureDeferredStateCleanupTimerFiring(true);
+  }
+
+  private void testEnsureDeferredStateCleanupTimerFiring(boolean withCheckpointing)
+      throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
@@ -484,9 +521,15 @@ public class ExecutableStageDoFnOperatorTest {
     WindowingStrategy windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(1000)));
 
+    KvCoder<String, Integer> kvCoder = KvCoder.of(keyCoder, VarIntCoder.of());
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(
-            mainOutput, Collections.emptyList(), outputManagerFactory, windowingStrategy, keyCoder);
+            mainOutput,
+            Collections.emptyList(),
+            outputManagerFactory,
+            windowingStrategy,
+            keyCoder,
+            WindowedValue.getFullCoder(kvCoder, windowingStrategy.getWindowFn().windowCoder()));
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
@@ -525,8 +568,7 @@ public class ExecutableStageDoFnOperatorTest {
     stateBackendLock.lock();
 
     KeyedStateBackend<ByteBuffer> keyedStateBackend = operator.getKeyedStateBackend();
-    ByteBuffer key =
-        FlinkKeyUtils.encodeKey(one.getValue().getKey(), keyCoder, Coder.Context.NESTED);
+    ByteBuffer key = FlinkKeyUtils.encodeKey(one.getValue().getKey(), keyCoder);
     keyedStateBackend.setCurrentKey(key);
 
     DoFnOperator.FlinkTimerInternals timerInternals =
@@ -538,13 +580,19 @@ public class ExecutableStageDoFnOperatorTest {
     Collection<?> cleanupTimers =
         (Collection) Whitebox.getInternalState(stateCleaner, "cleanupQueue");
 
+    // create some state which can be cleaned up
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+    StateNamespace stateNamespace = StateNamespaces.window(windowCoder, window);
+    BagState<String> state =
+        operator.keyedStateInternals.state(
+            stateNamespace, StateTags.bag(stateId, StringUtf8Coder.of()));
+    state.add("testUserState");
+    assertThat(testHarness.numKeyedStateEntries(), is(1));
+
     // user timer that fires after the end of the window and after state cleanup
     TimerInternals.TimerData userTimer =
         TimerInternals.TimerData.of(
-            timerInputId,
-            StateNamespaces.window(windowCoder, window),
-            window.maxTimestamp().plus(1),
-            TimeDomain.EVENT_TIME);
+            timerInputId, stateNamespace, window.maxTimestamp().plus(1), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(userTimer);
 
     // start of bundle
@@ -558,20 +606,34 @@ public class ExecutableStageDoFnOperatorTest {
     assertFalse("Watermark must be held back until bundle is complete.", timerInputReceived.get());
     assertThat(cleanupTimers, hasSize(0));
 
-    // upon finish bundle, watermark advances and timers can fire
-    // Note that this will finish the current bundle, but will also start a new one
-    // when timers fire as part of advancing the watermark
-    operator.invokeFinishBundle();
+    if (withCheckpointing) {
+      // Upon checkpointing, the bundle is finished and the watermark advances;
+      // timers can fire. Note: The bundle is ensured to be finished.
+      testHarness.snapshot(0, 0);
 
-    // the user timer was scheduled to fire after cleanup, but executes first
-    assertTrue("Timer should have been triggered.", timerInputReceived.get());
-    // cleanup will be executed after the bundle is complete
-    assertThat(cleanupTimers, hasSize(1));
+      // The user timer was scheduled to fire after cleanup, but executes first
+      assertTrue("Timer should have been triggered.", timerInputReceived.get());
+      // Cleanup will be executed after the bundle is complete
+      assertThat(cleanupTimers, hasSize(0));
+      verifyNoMoreInteractions(receiver);
+    } else {
+      // Upon finishing a bundle, the watermark advances; timers can fire.
+      // Note that this will finish the current bundle, but will also start a new one
+      // when timers fire as part of advancing the watermark
+      operator.invokeFinishBundle();
 
-    verifyNoMoreInteractions(receiver);
+      // The user timer was scheduled to fire after cleanup, but executes first
+      assertTrue("Timer should have been triggered.", timerInputReceived.get());
+      // Cleanup will be executed after the bundle is complete
+      assertThat(cleanupTimers, hasSize(1));
+      verifyNoMoreInteractions(receiver);
 
-    operator.invokeFinishBundle();
-    assertThat(cleanupTimers, hasSize(0));
+      // Finish bundle which has been started by finishing the bundle
+      operator.invokeFinishBundle();
+      assertThat(cleanupTimers, hasSize(0));
+    }
+
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
 
     testHarness.close();
   }
@@ -646,7 +708,8 @@ public class ExecutableStageDoFnOperatorTest {
         additionalOutputs,
         outputManagerFactory,
         WindowingStrategy.globalDefault(),
-        null);
+        null,
+        WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
   }
 
   private ExecutableStageDoFnOperator<Integer, Integer> getOperator(
@@ -654,16 +717,24 @@ public class ExecutableStageDoFnOperatorTest {
       List<TupleTag<?>> additionalOutputs,
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory,
       WindowingStrategy windowingStrategy,
-      @Nullable Coder keyCoder) {
+      @Nullable Coder keyCoder,
+      @Nullable Coder windowedInputCoder) {
 
     FlinkExecutableStageContext.Factory contextFactory =
         Mockito.mock(FlinkExecutableStageContext.Factory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
 
+    final ExecutableStagePayload stagePayload;
+    if (keyCoder != null) {
+      stagePayload = this.stagePayloadWithUserState;
+    } else {
+      stagePayload = this.stagePayload;
+    }
+
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(
             "transform",
-            null,
+            windowedInputCoder,
             null,
             Collections.emptyMap(),
             mainOutput,
@@ -679,7 +750,7 @@ public class ExecutableStageDoFnOperatorTest {
             createOutputMap(mainOutput, additionalOutputs),
             windowingStrategy,
             keyCoder,
-            null);
+            keyCoder != null ? new KvToByteBufferKeySelector<>(keyCoder) : null);
 
     Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
     return operator;

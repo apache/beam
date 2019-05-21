@@ -118,8 +118,8 @@ public class MultiDoFnFunction<InputT, OutputT>
   @Override
   public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
       throws Exception {
-    if (!wasSetupCalled) {
-      DoFnInvokers.invokerFor(doFn).invokeSetup();
+    if (!wasSetupCalled && iter.hasNext()) {
+      DoFnInvokers.tryInvokeSetupFor(doFn);
       wasSetupCalled = true;
     }
 

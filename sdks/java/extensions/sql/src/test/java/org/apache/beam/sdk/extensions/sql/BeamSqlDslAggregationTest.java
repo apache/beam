@@ -609,6 +609,17 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   @Test
+  public void testUnsupportedDistinct2() throws Exception {
+    exceptions.expect(IllegalArgumentException.class);
+    exceptions.expectMessage(containsString("COUNT DISTINCT"));
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT f_int2, COUNT(DISTINCT f_long)" + "FROM PCOLLECTION GROUP BY f_int2";
+    boundedInput1.apply("testUnsupportedDistinct", SqlTransform.query(sql));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testUnsupportedGlobalWindowWithDefaultTrigger() {
     exceptions.expect(UnsupportedOperationException.class);
 

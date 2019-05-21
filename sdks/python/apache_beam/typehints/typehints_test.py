@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import functools
 import inspect
-import os
 import sys
 import unittest
 from builtins import next
@@ -711,10 +710,6 @@ class IterableHintTestCase(TypeHintTestCase):
     self.assertIsNone(hint.type_check(l))
 
 
-@unittest.skipIf(sys.version_info >= (3, 7, 0) and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3.7. '
-                 'See BEAM-6986')
 class TestGeneratorWrapper(TypeHintTestCase):
 
   def test_functions_as_regular_generator(self):
@@ -1072,6 +1067,38 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertEquals(
         {'a': int, 'b_c': Tuple[str, Any], 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[int, Tuple[str, Any]]))
+
+  def test_getcallargs_forhints_builtins(self):
+    if sys.version_info.major < 3:
+      self.assertEquals(
+          {'_': str,
+           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(str.upper, str))
+      self.assertEquals(
+          {'_': str,
+           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(str.strip, str, str))
+      self.assertEquals(
+          {'_': str,
+           '__unknown__varargs': Tuple[Any, ...],
+           '__unknown__keywords': typehints.Dict[Any, Any]},
+          getcallargs_forhints(str.join, str, list))
+    elif sys.version_info.minor < 7:
+      # Signatures for builtins are not supported in 3.5 and 3.6.
+      self.assertEquals({}, getcallargs_forhints(str.upper, str))
+      self.assertEquals({}, getcallargs_forhints(str.strip, str, str))
+      self.assertEquals({}, getcallargs_forhints(str.join, str, list))
+    else:
+      self.assertEquals(
+          {'self': str},
+          getcallargs_forhints(str.upper, str))
+      # str.strip has an optional second argument.
+      self.assertEquals({'self': str, 'chars': Any},
+                        getcallargs_forhints(str.strip, str))
+      self.assertEquals({'self': str, 'iterable': list},
+                        getcallargs_forhints(str.join, str, list))
 
 
 if __name__ == '__main__':

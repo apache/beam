@@ -26,7 +26,7 @@ def parquet_version = "1.10.0"
 
 dependencies {
   shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow "org.apache.parquet:parquet-avro:$parquet_version"
   shadow "org.apache.parquet:parquet-common:$parquet_version"
@@ -34,10 +34,10 @@ dependencies {
   shadow library.java.avro
   shadow library.java.hadoop_client
   shadow library.java.hadoop_common
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":beam-runners-direct-java")
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java")
 }

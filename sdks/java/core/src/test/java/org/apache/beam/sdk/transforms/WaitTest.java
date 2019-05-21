@@ -29,7 +29,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -137,7 +137,7 @@ public class WaitTest implements Serializable {
       new AtomicReference<>();
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testWaitWithSameFixedWindows() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
@@ -149,7 +149,7 @@ public class WaitTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testWaitWithDifferentFixedWindows() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
@@ -161,7 +161,7 @@ public class WaitTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testWaitWithSignalInSlidingWindows() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
@@ -173,7 +173,7 @@ public class WaitTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testWaitInGlobalWindow() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
@@ -185,7 +185,7 @@ public class WaitTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testWaitBoundedInDefaultWindow() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
@@ -197,7 +197,7 @@ public class WaitTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testWaitWithSomeSignalWindowsEmpty() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
