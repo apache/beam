@@ -86,7 +86,8 @@ dependencies {
   compile library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
   // For resolving external transform requests
-  compile project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  runtime project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  runtime library.java.kafka_clients
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
