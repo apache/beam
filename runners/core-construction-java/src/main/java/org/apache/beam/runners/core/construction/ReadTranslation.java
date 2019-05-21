@@ -48,8 +48,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * PTransformTranslation} into {@link ReadPayload} protos.
  */
 public class ReadTranslation {
-  private static final String JAVA_SERIALIZED_BOUNDED_SOURCE = "urn:beam:java:boundedsource:v1";
-  private static final String JAVA_SERIALIZED_UNBOUNDED_SOURCE = "urn:beam:java:unboundedsource:v1";
+  private static final String JAVA_SERIALIZED_BOUNDED_SOURCE = "beam:java:boundedsource:v1";
+  private static final String JAVA_SERIALIZED_UNBOUNDED_SOURCE = "beam:java:unboundedsource:v1";
 
   public static ReadPayload toProto(Read.Bounded<?> read, SdkComponents components) {
     return ReadPayload.newBuilder()

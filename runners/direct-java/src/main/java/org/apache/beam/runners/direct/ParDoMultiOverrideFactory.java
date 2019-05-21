@@ -207,7 +207,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
   }
 
   static final String DIRECT_STATEFUL_PAR_DO_URN =
-      "urn:beam:directrunner:transforms:stateful_pardo:v1";
+      "beam:directrunner:transforms:stateful_pardo:v1";
 
   static class StatefulParDo<K, InputT, OutputT>
       extends PTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {

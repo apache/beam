@@ -51,7 +51,7 @@ public class RegisterHandlerTest {
                                       RunnerApi.SdkFunctionSpec.newBuilder()
                                           .setSpec(
                                               RunnerApi.FunctionSpec.newBuilder()
-                                                  .setUrn("urn:10L")
+                                                  .setUrn("testUrn1")
                                                   .build())
                                           .build())
                                   .build())
@@ -66,7 +66,7 @@ public class RegisterHandlerTest {
                                       RunnerApi.SdkFunctionSpec.newBuilder()
                                           .setSpec(
                                               RunnerApi.FunctionSpec.newBuilder()
-                                                  .setUrn("urn:20L")
+                                                  .setUrn("testUrn2")
                                                   .build())
                                           .build())
                                   .build())

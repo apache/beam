@@ -59,7 +59,7 @@ public class WriteFilesTranslation {
 
   /** The URN for an unknown Java {@link FileBasedSink}. */
   public static final String CUSTOM_JAVA_FILE_BASED_SINK_URN =
-      "urn:beam:file_based_sink:javasdk:0.1";
+      "beam:file_based_sink:javasdk:0.1";
 
   @VisibleForTesting
   static WriteFilesPayload payloadForWriteFiles(

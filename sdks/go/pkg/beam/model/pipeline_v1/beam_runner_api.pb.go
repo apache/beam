@@ -1039,7 +1039,7 @@ type PTransform struct {
 	// For some special composite transforms, the payload is also officially
 	// defined:
 	//
-	//  - when the URN is "urn:beam:transforms:combine" it is a CombinePayload
+	//  - when the URN is "beam:transforms:combine" it is a CombinePayload
 	//
 	Spec *FunctionSpec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
 	// (Optional) if this node is a composite, a list of the ids of
@@ -4637,7 +4637,7 @@ type SideInput struct {
 	// interface for accessing a side input.
 	//
 	// The only access pattern intended for Beam, because of its superior
-	// performance possibilities, is "urn:beam:sideinput:multimap" (or some such
+	// performance possibilities, is "beam:sideinput:multimap" (or some such
 	// URN)
 	AccessPattern *FunctionSpec `protobuf:"bytes,1,opt,name=access_pattern,json=accessPattern,proto3" json:"access_pattern,omitempty"`
 	// (Required) The SdkFunctionSpec of the UDF that adapts a particular
@@ -4998,12 +4998,12 @@ func (m *SdkFunctionSpec) GetEnvironmentId() string {
 // one should bear in mind:
 //
 // 1. The runner understands the URN. For example, it might be
-//    a well-known URN like "urn:beam:transform:Top" or
-//    "urn:beam:windowfn:FixedWindows" with
+//    a well-known URN like "beam:transform:Top" or
+//    "beam:windowfn:FixedWindows" with
 //    an agreed-upon payload (e.g. a number or duration,
 //    respectively).
 // 2. The runner does not understand the URN. It might be an
-//    SDK specific URN such as "urn:beam:dofn:javasdk:1.0"
+//    SDK specific URN such as "beam:dofn:javasdk:1.0"
 //    that indicates to the SDK what the payload is,
 //    such as a serialized Java DoFn from a particular
 //    version of the Beam Java SDK. The payload will often
