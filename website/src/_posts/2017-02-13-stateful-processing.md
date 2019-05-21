@@ -28,6 +28,9 @@ efficiencies. In this post, I will guide you through stateful processing in
 Beam: how it works, how it fits in with the other features of the Beam model,
 what you might use it for, and what it looks like in code.
 
+**Note: This post has been updated in May of 2019, to include Python
+snippets!**
+
 <!--more-->
 
 > **Warning: new features ahead!**: This is a very new aspect of the Beam
@@ -570,18 +573,18 @@ class ModelStatefulFn(beam.DoFn):
 Let's walk through it,
 
  - You have two state cells declared,
-   `@StateId("model")/StateParam(MODEL_STATE)` to hold the current
+   `@StateId("model")` / `StateParam(MODEL_STATE)` to hold the current
    state of the model for a user and
    `@StateId("previousPrediction")/StateParam(PREVIOUS_PREDICTION)` to hold
    the prediction output previously.
  - Access to the two state cells by annotation in the `@ProcessElement` method
    is as before, and in Python by using an argument placeholder.
- - You read the current model via `modelState.read()/model_state.read()`.
+ - You read the current model via `modelState.read()` / `model_state.read()`.
    Because state is also per-key-and-window, this is a model just for the
    UserId of the Event currently being processed.
  - You derive a new prediction `model.prediction(event)` and compare it against
    the last one you output, accessed via
-   `previousPredicationState.read() / previous_pred_state.read()`.
+   `previousPredicationState.read()` / `previous_pred_state.read()`.
  - You then update the model `model.update()` and write it via
    `modelState.write(...)`, or via `model_state.clear()` and
    `model_state.add(model)` in Python. It is perfectly fine to mutate the value

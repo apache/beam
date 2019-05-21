@@ -96,9 +96,8 @@ class _ValueStateTag(_StateTag):
 class _CombiningValueStateTag(_StateTag):
   """StateTag pointing to an element, accumulated with a combiner.
 
-  The given tag must be unique for this stage.  If CombineFn is None then
-  all elements will be returned as a list, otherwise the given CombineFn
-  will be applied (possibly incrementally and eagerly) when adding elements."""
+  The given tag must be unique for this step. The given CombineFn will be
+  applied (possibly incrementally and eagerly) when adding elements."""
 
   # TODO(robertwb): Also store the coder (perhaps extracted from the combine_fn)
   def __init__(self, tag, combine_fn):
