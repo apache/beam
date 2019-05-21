@@ -382,46 +382,6 @@ public class JdbcIO {
     }
   }
 
-  /** Wraps a {@link DataSourceConfiguration} to provide a {@link PoolingDataSource}. */
-  public static class PoolableDataSourceProvider extends BaseDataSourceProvider {
-    private static SerializableFunction<Void, DataSource> instance = null;
-
-    private PoolableDataSourceProvider(
-        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
-      super(dataSourceProviderFn);
-    }
-
-    public static SerializableFunction<Void, DataSource> of(DataSourceConfiguration config) {
-      if (instance == null) {
-        instance =
-            MemoizedDataSourceProvider.of(
-                new PoolableDataSourceProvider(
-                    DataSourceProviderFromDataSourceConfiguration.of(config)));
-      }
-      return instance;
-    }
-
-    @Override
-    public DataSource apply(Void input) {
-      DataSource current = super.dataSourceProviderFn.apply(input);
-      // wrapping the datasource as a pooling datasource
-      DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
-      PoolableConnectionFactory poolableConnectionFactory =
-          new PoolableConnectionFactory(connectionFactory, null);
-      GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-      poolConfig.setMaxTotal(1);
-      poolConfig.setMinIdle(0);
-      poolConfig.setMinEvictableIdleTimeMillis(10000);
-      poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
-      GenericObjectPool connectionPool =
-          new GenericObjectPool(poolableConnectionFactory, poolConfig);
-      poolableConnectionFactory.setPool(connectionPool);
-      poolableConnectionFactory.setDefaultAutoCommit(false);
-      poolableConnectionFactory.setDefaultReadOnly(false);
-      return new PoolingDataSource(connectionPool);
-    }
-  }
-
   /**
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
@@ -1100,6 +1060,60 @@ public class JdbcIO {
     }
   }
 
+  /** Wraps a {@link DataSourceConfiguration} to provide a {@link PoolingDataSource}. */
+  public static class PoolableDataSourceProvider
+      implements SerializableFunction<Void, DataSource>, HasDisplayData {
+    private static PoolableDataSourceProvider instance;
+    private static transient DataSource source;
+    private static SerializableFunction<Void, DataSource> dataSourceProviderFn;
+
+    private PoolableDataSourceProvider(DataSourceConfiguration config) {
+      dataSourceProviderFn = DataSourceProviderFromDataSourceConfiguration.of(config);
+    }
+
+    public static synchronized SerializableFunction<Void, DataSource> of(
+        DataSourceConfiguration config) {
+      if (instance == null) {
+        instance = new PoolableDataSourceProvider(config);
+      }
+      return instance;
+    }
+
+    @Override
+    public DataSource apply(Void input) {
+      return buildDataSource(input);
+    }
+
+    static synchronized DataSource buildDataSource(Void input) {
+      if (source == null) {
+        DataSource basicSource = dataSourceProviderFn.apply(input);
+        DataSourceConnectionFactory connectionFactory =
+            new DataSourceConnectionFactory(basicSource);
+        PoolableConnectionFactory poolableConnectionFactory =
+            new PoolableConnectionFactory(connectionFactory, null);
+        GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+        poolConfig.setMaxTotal(1);
+        poolConfig.setMinIdle(0);
+        poolConfig.setMinEvictableIdleTimeMillis(10000);
+        poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
+        GenericObjectPool connectionPool =
+            new GenericObjectPool(poolableConnectionFactory, poolConfig);
+        poolableConnectionFactory.setPool(connectionPool);
+        poolableConnectionFactory.setDefaultAutoCommit(false);
+        poolableConnectionFactory.setDefaultReadOnly(false);
+        source = new PoolingDataSource(connectionPool);
+      }
+      return source;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      if (dataSourceProviderFn instanceof HasDisplayData) {
+        ((HasDisplayData) dataSourceProviderFn).populateDisplayData(builder);
+      }
+    }
+  }
+
   private static class DataSourceProviderFromDataSourceConfiguration
       implements SerializableFunction<Void, DataSource>, HasDisplayData {
     private final DataSourceConfiguration config;
@@ -1124,48 +1138,6 @@ public class JdbcIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       config.populateDisplayData(builder);
-    }
-  }
-
-  private abstract static class BaseDataSourceProvider
-      implements SerializableFunction<Void, DataSource>, HasDisplayData {
-    private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
-
-    BaseDataSourceProvider(SerializableFunction<Void, DataSource> dataSourceProviderFn) {
-      this.dataSourceProviderFn = dataSourceProviderFn;
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      if (dataSourceProviderFn instanceof HasDisplayData) {
-        ((HasDisplayData) dataSourceProviderFn).populateDisplayData(builder);
-      }
-    }
-  }
-
-  private static class MemoizedDataSourceProvider extends BaseDataSourceProvider {
-    private static MemoizedDataSourceProvider instance = null;
-    @Nullable private static DataSource datasource = null;
-
-    private MemoizedDataSourceProvider(
-        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
-      super(dataSourceProviderFn);
-    }
-
-    public static MemoizedDataSourceProvider of(
-        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
-      if (instance == null) {
-        instance = new MemoizedDataSourceProvider(dataSourceProviderFn);
-      }
-      return instance;
-    }
-
-    @Override
-    public DataSource apply(Void input) {
-      if (datasource == null) {
-        datasource = super.dataSourceProviderFn.apply(null);
-      }
-      return datasource;
     }
   }
 }
