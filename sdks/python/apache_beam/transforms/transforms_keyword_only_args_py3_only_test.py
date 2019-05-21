@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import logging
-import sys
 import unittest
 
 import apache_beam as beam
@@ -29,8 +28,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
-@unittest.skipIf(sys.version_info[0] == 2,
-                 'Keyword-Only Arguments are not supported in python 2')
 @unittest.skip('TODO BEAM-5878: support kwonly args in python 3')
 class KeywordOnlyArgsTests(unittest.TestCase):
   # Enable nose tests running in parallel
@@ -68,8 +65,6 @@ class KeywordOnlyArgsTests(unittest.TestCase):
   def test_combine_keyword_only_args(self):
     pipeline = TestPipeline()
 
-    # Keyword-only arguments are not available on Python 2
-    # pylint: disable=syntax-error
     def bounded_sum(values, *s, bound=500):
       return min(sum(values) + sum(s), bound)
 
@@ -77,12 +72,12 @@ class KeywordOnlyArgsTests(unittest.TestCase):
     result1 = pcoll | 'sum1' >> beam.CombineGlobally(bounded_sum, 5, 8, bound=20)
     result2 = pcoll | 'sum2' >> beam.CombineGlobally(bounded_sum, 5, 8)
     result3 = pcoll | 'sum3' >> beam.CombineGlobally(bounded_sum)
-    result4 = pcoll | 'sum4' >> beam.CombineGlobally(bounded_sum, bound=12)
+    result4 = pcoll | 'sum4' >> beam.CombineGlobally(bounded_sum, bound=5)
 
     assert_that(result1, equal_to([20]), label='assert1')
     assert_that(result2, equal_to([23]), label='assert2')
     assert_that(result3, equal_to([10]), label='assert3')
-    assert_that(result4, equal_to([10]), label='assert4')
+    assert_that(result4, equal_to([5]), label='assert4')
 
     pipeline.run()
 
@@ -97,12 +92,12 @@ class KeywordOnlyArgsTests(unittest.TestCase):
     result1 = pcoll | 'sum1' >> beam.ParDo(MyDoFn(), 5, 8, bound=15)
     result2 = pcoll | 'sum2' >> beam.ParDo(MyDoFn(), 5, 8)
     result3 = pcoll | 'sum3' >> beam.ParDo(MyDoFn())
-    result4 = pcoll | 'sum4' >> beam.ParDo(MyDoFn(), bound=10)
+    result4 = pcoll | 'sum4' >> beam.ParDo(MyDoFn(), bound=5)
 
     assert_that(result1, equal_to([15,15,14]), label='assert1')
     assert_that(result2, equal_to([19,16,14]), label='assert2')
     assert_that(result3, equal_to([6,3,1]), label='assert3')
-    assert_that(result4, equal_to([6,3,1]), label='assert4')
+    assert_that(result4, equal_to([5,3,1]), label='assert4')
     pipeline.run()
 
 

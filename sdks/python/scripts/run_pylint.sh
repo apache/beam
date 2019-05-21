@@ -60,9 +60,10 @@ EXCLUDED_GENERATED_FILES=(
 apache_beam/portability/api/*pb2*.py
 )
 
+# TODO(BEAM-7372): Remove this list once Python 2 is no longer supported and drop _py3_only_test suffix.
 # Following files contain python 3 syntax and are excluded from pylint in python 2
 EXCLUDED_PYTHON3_FILES=(
-"apache_beam/transforms/transforms_keyword_only_args_py3_test.py"
+.*_py3_only_test.py
 )
 
 EXCLUDED_FILES=( "${EXCLUDED_GENERATED_FILES[@]}" "${EXCLUDED_PYTHON3_FILES[@]}" )
@@ -74,7 +75,7 @@ for file in "${EXCLUDED_FILES[@]}"; do
     else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
   fi
 done
-echo "Skipping lint for generated files: $FILES_TO_IGNORE"
+echo "Skipping lint for generated and python 3 files: $FILES_TO_IGNORE"
 
 echo "Running pylint for module $MODULE:"
 pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
@@ -82,6 +83,8 @@ echo "Running pycodestyle for module $MODULE:"
 pycodestyle ${MODULE} --exclude="$FILES_TO_IGNORE"
 echo "Running flake8 for module $MODULE:"
 # TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
+# flake8 exclusions are not the same syntax as pylint
+FILES_TO_IGNORE=${FILES_TO_IGNORE//\.\*/*}
 flake8 ${MODULE} --count --select=E9,F822,F823 --show-source --statistics --exclude="$FILES_TO_IGNORE"
 
 echo "Running isort for module $MODULE:"
