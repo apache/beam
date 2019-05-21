@@ -344,7 +344,13 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
         rehydratedComponents.getSdkComponents().withNewIdPrefix(request.getNamespace());
-    sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+    final RunnerApi.Environment environment;
+    if (request.hasEnvironment()) {
+      environment = request.getEnvironment();
+    } else {
+      environment = Environments.JAVA_SDK_HARNESS_ENVIRONMENT;
+    }
+    sdkComponents.registerEnvironment(environment);
     pipeline.replaceAll(ImmutableList.of(JavaReadViaImpulse.boundedOverride()));
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents);
     String expandedTransformId =

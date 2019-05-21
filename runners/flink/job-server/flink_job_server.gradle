@@ -88,6 +88,8 @@ dependencies {
   // For resolving external transform requests
   runtime project(path: ":sdks:java:io:kafka", configuration: "shadow")
   runtime library.java.kafka_clients
+  // For executing external transforms inside the job server
+  runtime project(path: ":sdks:java:harness", configuration: "shadow")
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run

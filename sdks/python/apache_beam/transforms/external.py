@@ -49,13 +49,15 @@ class ExternalTransform(ptransform.PTransform):
   _EXPANDED_TRANSFORM_UNIQUE_NAME = 'root'
   _IMPULSE_PREFIX = 'impulse'
 
-  def __init__(self, urn, payload, endpoint):
+  def __init__(self, urn, payload, endpoint, env_type=None, env_config=None):
     if grpc is None and isinstance(endpoint, str):
       raise NotImplementedError('Grpc required for external transforms.')
     # TODO: Start an endpoint given an environment?
     self._urn = urn
     self._payload = payload
     self._endpoint = endpoint
+    self._env_type = env_type
+    self._env_config = env_config
     self._namespace = self._fresh_namespace()
 
   def default_label(self):
@@ -108,10 +110,19 @@ class ExternalTransform(ptransform.PTransform):
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
     components = context.to_runner_api()
+    if self._env_type:
+      from apache_beam.runners.portability.portable_runner \
+          import PortableRunner
+      environment = PortableRunner._resolve_environment(
+          self._env_type, self._env_config)
+    else:
+      # This will select a default environment in the Expansion Service
+      environment = None
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
         namespace=self._namespace,
-        transform=transform_proto)
+        transform=transform_proto,
+        environment=environment)
 
     if isinstance(self._endpoint, str):
       with grpc.insecure_channel(self._endpoint) as channel:

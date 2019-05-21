@@ -66,7 +66,9 @@ class ReadFromKafka(ptransform.PTransform):
                topics,
                key_deserializer=byte_array_deserializer,
                value_deserializer=byte_array_deserializer,
-               expansion_service='localhost:8097'):
+               expansion_service='localhost:8097',
+               environment_type=None,
+               environment_config=None):
     """
     Initializes a read operation from Kafka.
 
@@ -93,6 +95,8 @@ class ReadFromKafka(ptransform.PTransform):
     self.key_deserializer = key_deserializer
     self.value_deserializer = value_deserializer
     self.expansion_service = expansion_service
+    self.environment_type = environment_type
+    self.environment_config = environment_config
 
   def expand(self, pbegin):
     if not isinstance(pbegin, pvalue.PBegin):
@@ -114,7 +118,9 @@ class ReadFromKafka(ptransform.PTransform):
         ExternalTransform(
             self._urn,
             payload.SerializeToString(),
-            self.expansion_service))
+            self.expansion_service,
+            self.environment_type,
+            self.environment_config))
 
 
 class WriteToKafka(ptransform.PTransform):

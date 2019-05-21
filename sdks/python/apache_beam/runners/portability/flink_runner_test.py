@@ -77,7 +77,7 @@ if __name__ == '__main__':
     _use_subprocesses = True
 
     conf_dir = None
-    expansion_port = None
+    expansion_service = None
 
     @classmethod
     def tearDownClass(cls):
@@ -116,7 +116,8 @@ if __name__ == '__main__':
       tmp_dir = mkdtemp(prefix='flinktest')
 
       cls._create_conf_dir()
-      cls.expansion_port = expansion_port
+      # TODO Move expansion address into PipelineOptions
+      cls._expansion_service = 'localhost:' + str(expansion_port)
 
       try:
         return [
@@ -161,15 +162,15 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-4781")
 
     def test_external_transforms(self):
-      # TODO Move expansion address resides into PipelineOptions
-      def get_expansion_service():
-        return "localhost:" + str(self.expansion_port)
 
       with self.create_pipeline() as p:
         res = (
             p
             | GenerateSequence(start=1, stop=10,
-                               expansion_service=get_expansion_service()))
+                               expansion_service=
+                               FlinkRunnerTest._expansion_service,
+                               environment_type="EMBEDDED",
+                               environment_config=""))
 
         assert_that(res, equal_to([i for i in range(1, 10)]))
 
@@ -189,7 +190,8 @@ if __name__ == '__main__':
                            value_deserializer='org.apache.kafka.'
                                               'common.serialization.'
                                               'LongDeserializer',
-                           expansion_service=get_expansion_service()))
+                           expansion_service=
+                           FlinkRunnerTest._expansion_service))
       self.assertTrue('No resolvable bootstrap urls given in bootstrap.servers'
                       in str(ctx.exception),
                       'Expected to fail due to invalid bootstrap.servers, but '
@@ -209,7 +211,8 @@ if __name__ == '__main__':
                       value_serializer='org.apache.kafka.'
                                        'common.serialization.'
                                        'ByteArraySerializer',
-                      expansion_service=get_expansion_service()))
+                      expansion_service=
+                      FlinkRunnerTest._expansion_service))
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding

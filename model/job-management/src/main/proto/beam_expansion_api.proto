@@ -46,6 +46,9 @@ message ExpansionRequest {
   // A namespace (prefix) to use for the id of any newly created
   // components.
   string namespace = 3;
+
+  // The type of environment to use for the expanded transform.
+  org.apache.beam.model.pipeline.v1.Environment environment = 4;
 }
 
 message ExpansionResponse {

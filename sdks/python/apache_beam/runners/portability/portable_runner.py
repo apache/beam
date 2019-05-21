@@ -95,31 +95,40 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def _create_environment(options):
     portable_options = options.view_as(PortableOptions)
+    return PortableRunner._resolve_environment(
+        portable_options.environment_type,
+        portable_options.environment_config)
+
+  @staticmethod
+  def _resolve_environment(environment_type, environment_config):
     environment_urn = common_urns.environments.DOCKER.urn
-    if portable_options.environment_type == 'DOCKER':
+    if environment_type == 'DOCKER':
       environment_urn = common_urns.environments.DOCKER.urn
-    elif portable_options.environment_type == 'PROCESS':
+    elif environment_type == 'PROCESS':
       environment_urn = common_urns.environments.PROCESS.urn
-    elif portable_options.environment_type in ('EXTERNAL', 'LOOPBACK'):
+    elif environment_type in ('EXTERNAL', 'LOOPBACK'):
       environment_urn = common_urns.environments.EXTERNAL.urn
-    elif portable_options.environment_type:
-      if portable_options.environment_type.startswith('beam:env:'):
-        environment_urn = portable_options.environment_type
+    elif environment_type == 'EMBEDDED':
+      environment_urn = environment_type
+    elif environment_type:
+      # Allow embedded environment for testing
+      if environment_type.startswith('beam:env:') or \
+            environment_type == 'EMBEDDED':
+        environment_urn = environment_type
       else:
         raise ValueError(
-            'Unknown environment type: %s' % portable_options.environment_type)
+            'Unknown environment type: %s' % environment_type)
 
     if environment_urn == common_urns.environments.DOCKER.urn:
       docker_image = (
-          portable_options.environment_config
-          or PortableRunner.default_docker_image())
+          environment_config or PortableRunner.default_docker_image())
       return beam_runner_api_pb2.Environment(
           urn=common_urns.environments.DOCKER.urn,
           payload=beam_runner_api_pb2.DockerPayload(
               container_image=docker_image
           ).SerializeToString())
     elif environment_urn == common_urns.environments.PROCESS.urn:
-      config = json.loads(portable_options.environment_config)
+      config = json.loads(environment_config)
       return beam_runner_api_pb2.Environment(
           urn=common_urns.environments.PROCESS.urn,
           payload=beam_runner_api_pb2.ProcessPayload(
@@ -133,13 +142,13 @@ class PortableRunner(runner.PipelineRunner):
           urn=common_urns.environments.EXTERNAL.urn,
           payload=beam_runner_api_pb2.ExternalPayload(
               endpoint=endpoints_pb2.ApiServiceDescriptor(
-                  url=portable_options.environment_config)
+                  url=environment_config)
           ).SerializeToString())
     else:
       return beam_runner_api_pb2.Environment(
           urn=environment_urn,
-          payload=(portable_options.environment_config.encode('ascii')
-                   if portable_options.environment_config else None))
+          payload=(environment_config.encode('ascii')
+                   if environment_config else None))
 
   def init_dockerized_job_server(self):
     # TODO Provide a way to specify a container Docker URL

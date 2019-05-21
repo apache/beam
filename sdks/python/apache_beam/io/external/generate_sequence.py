@@ -50,7 +50,9 @@ class GenerateSequence(ptransform.PTransform):
 
   def __init__(self, start, stop=None,
                elements_per_period=None, max_read_time=None,
-               expansion_service='localhost:8097'):
+               expansion_service='localhost:8097',
+               environment_type=None,
+               environment_config=None):
     super(GenerateSequence, self).__init__()
     self._urn = 'beam:external:java:generate_sequence:v1'
     self.start = start
@@ -58,6 +60,8 @@ class GenerateSequence(ptransform.PTransform):
     self.elements_per_period = elements_per_period
     self.max_read_time = max_read_time
     self.expansion_service = expansion_service
+    self.environment_type = environment_type
+    self.environment_config = environment_config
 
   def expand(self, pbegin):
     if not isinstance(pbegin, pvalue.PBegin):
@@ -89,4 +93,6 @@ class GenerateSequence(ptransform.PTransform):
         ExternalTransform(
             self._urn,
             payload.SerializeToString(),
-            self.expansion_service))
+            self.expansion_service,
+            self.environment_type,
+            self.environment_config))
