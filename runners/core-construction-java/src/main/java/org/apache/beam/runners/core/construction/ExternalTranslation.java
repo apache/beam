@@ -33,7 +33,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
 
 /** Translating External transforms to proto. */
 public class ExternalTranslation {
-  public static final String EXTERNAL_TRANSFORM_URN = "urn:beam:transform:external:v1";
+  public static final String EXTERNAL_TRANSFORM_URN = "beam:transform:external:v1";
 
   /** Translator for ExpandableTransform. */
   public static class ExternalTranslator

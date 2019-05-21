@@ -125,5 +125,5 @@ class ViewOverrideFactory<ElemT, ViewT>
   }
 
   public static final String DIRECT_WRITE_VIEW_URN =
-      "urn:beam:directrunner:transforms:write_view:v1";
+      "beam:directrunner:transforms:write_view:v1";
 }
