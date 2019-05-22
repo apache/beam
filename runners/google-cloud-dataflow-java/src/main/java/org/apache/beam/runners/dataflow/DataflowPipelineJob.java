@@ -244,12 +244,14 @@ public class DataflowPipelineJob implements PipelineResult {
         duration, messageHandler, sleeper, nanoClock, new MonitoringUtil(dataflowClient));
   }
 
-  BackOff getBackoff(Duration duration, FluentBackoff factory) {
-    if (duration.equals(Duration.ZERO) || duration.isLongerThan(Duration.ZERO)) {
-      return BackOffAdapter.toGcpBackOff(factory.withMaxCumulativeBackoff(duration).backoff());
-    } else {
-      return BackOffAdapter.toGcpBackOff(factory.backoff());
+  private static BackOff getMessagesBackoff(Duration duration) {
+    FluentBackoff fac = MESSAGES_BACKOFF_FACTORY;
+
+    if (!duration.isShorterThan(Duration.ZERO)) {
+      fac =  fac.withMaxCumulativeBackoff(duration);
     }
+
+    return BackOffAdapter.toGcpBackOff(fac.backoff());
   }
 
   /**
@@ -275,7 +277,7 @@ public class DataflowPipelineJob implements PipelineResult {
       MonitoringUtil monitor)
       throws IOException, InterruptedException {
 
-    BackOff backoff = getBackoff(duration, MESSAGES_BACKOFF_FACTORY);
+    BackOff backoff = getMessagesBackoff(duration);
 
     // This function tracks the cumulative time from the *first request* to enforce the wall-clock
     // limit. Any backoff instance could, at best, track the the time since the first attempt at a
@@ -308,27 +310,11 @@ public class DataflowPipelineJob implements PipelineResult {
 
       // We can stop if the job is done.
       if (state.isTerminal()) {
-        switch (state) {
-          case DONE:
-          case CANCELLED:
-            LOG.info("Job {} finished with status {}.", getJobId(), state);
-            break;
-          case UPDATED:
-            LOG.info(
-                "Job {} has been updated and is running as the new job with id {}. "
-                    + "To access the updated job on the Dataflow monitoring console, "
-                    + "please navigate to {}",
-                getJobId(),
-                getReplacedByJob().getJobId(),
-                MonitoringUtil.getJobMonitoringPageURL(
-                    getReplacedByJob().getProjectId(), getRegion(), getReplacedByJob().getJobId()));
-            break;
-          default:
-            LOG.info("Job {} failed with status {}.", getJobId(), state);
-        }
+        logTerminalState(state);
         return state;
       }
 
+      // Reset attempts count and update cumulative wait time.
       backoff = resetBackoff(duration, nanoClock, startNanos);
     } while (BackOffUtils.next(sleeper, backoff));
 
@@ -345,6 +331,27 @@ public class DataflowPipelineJob implements PipelineResult {
     return null;
   }
 
+  private void logTerminalState(State state) {
+    switch (state) {
+      case DONE:
+      case CANCELLED:
+        LOG.info("Job {} finished with status {}.", getJobId(), state);
+        break;
+      case UPDATED:
+        LOG.info(
+            "Job {} has been updated and is running as the new job with id {}. "
+                + "To access the updated job on the Dataflow monitoring console, "
+                + "please navigate to {}",
+            getJobId(),
+            getReplacedByJob().getJobId(),
+            MonitoringUtil.getJobMonitoringPageURL(
+                getReplacedByJob().getProjectId(), getRegion(), getReplacedByJob().getJobId()));
+        break;
+      default:
+        LOG.info("Job {} failed with status {}.", getJobId(), state);
+    }
+  }
+
   /**
    * Reset backoff. If duration is limited, calculate time remaining, otherwise just reset retry
    * count.
@@ -352,19 +359,19 @@ public class DataflowPipelineJob implements PipelineResult {
    * <p>If a total duration for all backoff has been set, update the new cumulative sleep time to be
    * the remaining total backoff duration, stopping if we have already exceeded the allotted time.
    */
-  private BackOff resetBackoff(Duration duration, NanoClock nanoClock, long startNanos) {
+  private static BackOff resetBackoff(Duration duration, NanoClock nanoClock, long startNanos) {
     BackOff backoff;
     if (duration.isLongerThan(Duration.ZERO)) {
       long nanosConsumed = nanoClock.nanoTime() - startNanos;
       Duration consumed = Duration.millis((nanosConsumed + 999999) / 1000000);
       Duration remaining = duration.minus(consumed);
       if (remaining.isLongerThan(Duration.ZERO)) {
-        backoff = getBackoff(remaining, MESSAGES_BACKOFF_FACTORY);
+        backoff = getMessagesBackoff(remaining);
       } else {
         backoff = BackOff.STOP_BACKOFF;
       }
     } else {
-      backoff = getBackoff(duration, MESSAGES_BACKOFF_FACTORY);
+      backoff = getMessagesBackoff(duration);
     }
     return backoff;
   }
@@ -413,10 +420,11 @@ public class DataflowPipelineJob implements PipelineResult {
             () -> {
               Job content = new Job();
               content.setProjectId(getProjectId());
-              content.setId(jobId);
+              String currentJobId = getJobId();
+              content.setId(currentJobId);
               content.setRequestedState("JOB_STATE_CANCELLED");
               try {
-                Job job = dataflowClient.updateJob(getJobId(), content);
+                Job job = dataflowClient.updateJob(currentJobId, content);
                 return MonitoringUtil.toState(job.getCurrentState());
               } catch (IOException e) {
                 State state = getState();
