@@ -359,7 +359,7 @@ class AvroBase(object):
       source_test_utils.assert_split_at_fraction_exhaustive(splits[0].source)
 
     if self.use_fastavro:
-      file_name = self._write_data(count=200, sync_interval=2)
+      file_name = self._write_data(count=5, sync_interval=2)
       compare_split_points(file_name)
     else:
       old_sync_interval = avro.datafile.SYNC_INTERVAL
