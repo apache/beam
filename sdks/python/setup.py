@@ -111,7 +111,7 @@ REQUIRED_PACKAGES = [
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<=0.12.0',
+    'httplib2>=0.8,<0.13.0',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
