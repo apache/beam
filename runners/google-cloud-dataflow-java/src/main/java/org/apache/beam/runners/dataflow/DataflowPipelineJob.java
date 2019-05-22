@@ -248,7 +248,7 @@ public class DataflowPipelineJob implements PipelineResult {
     FluentBackoff fac = MESSAGES_BACKOFF_FACTORY;
 
     if (!duration.isShorterThan(Duration.ZERO)) {
-      fac =  fac.withMaxCumulativeBackoff(duration);
+      fac = fac.withMaxCumulativeBackoff(duration);
     }
 
     return BackOffAdapter.toGcpBackOff(fac.backoff());
