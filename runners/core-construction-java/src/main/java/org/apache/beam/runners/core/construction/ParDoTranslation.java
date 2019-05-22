@@ -88,8 +88,7 @@ public class ParDoTranslation {
   /** The URN for an unknown Java {@link ViewFn}. */
   public static final String CUSTOM_JAVA_VIEW_FN_URN = "beam:viewfn:javasdk:0.1";
   /** The URN for an unknown Java {@link WindowMappingFn}. */
-  public static final String CUSTOM_JAVA_WINDOW_MAPPING_FN_URN =
-      "beam:windowmappingfn:javasdk:0.1";
+  public static final String CUSTOM_JAVA_WINDOW_MAPPING_FN_URN = "beam:windowmappingfn:javasdk:0.1";
 
   /** A {@link TransformPayloadTranslator} for {@link ParDo}. */
   public static class ParDoTranslator implements TransformTranslator<MultiOutput<?, ?>> {
