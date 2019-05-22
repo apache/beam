@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import com.sun.istack.Nullable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -38,6 +39,7 @@ public class SparkTranslationContext {
   final JobInfo jobInfo;
   // Map pCollection IDs to the number of times they are consumed as inputs.
   private final Map<String, Integer> consumptionCount = new HashMap<>();
+  private final Map<String, Coder> coderMap = new HashMap<>();
   private final Map<String, Dataset> datasets = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
   final SerializablePipelineOptions serializablePipelineOptions;
@@ -54,12 +56,13 @@ public class SparkTranslationContext {
   }
 
   /** Add output of transform to context. */
-  public void pushDataset(String pCollectionId, Dataset dataset, Coder coder) {
+  public void pushDataset(String pCollectionId, Dataset dataset) {
     dataset.setName(pCollectionId);
     SparkPipelineOptions sparkOptions =
         serializablePipelineOptions.get().as(SparkPipelineOptions.class);
     if (!sparkOptions.isCacheDisabled() && consumptionCount.getOrDefault(pCollectionId, 0) > 1) {
       String storageLevel = sparkOptions.getStorageLevel();
+      @Nullable Coder coder = coderMap.get(pCollectionId);
       dataset.cache(storageLevel, coder);
     }
     datasets.put(pCollectionId, dataset);
@@ -80,9 +83,13 @@ public class SparkTranslationContext {
     }
   }
 
-  public void incrementConsumptionCount(String pCollectionId) {
+  void incrementConsumptionCountBy(String pCollectionId, int addend) {
     int count = consumptionCount.getOrDefault(pCollectionId, 0);
-    consumptionCount.put(pCollectionId, count + 1);
+    consumptionCount.put(pCollectionId, count + addend);
+  }
+
+  void putCoder(String pCollectionId, Coder coder) {
+    coderMap.put(pCollectionId, coder);
   }
 
   /** Generate a unique pCollection id number to identify runner-generated sinks. */
