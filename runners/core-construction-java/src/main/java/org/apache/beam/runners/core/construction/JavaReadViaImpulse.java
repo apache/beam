@@ -132,11 +132,12 @@ public class JavaReadViaImpulse {
   @VisibleForTesting
   static class ReadFromBoundedSourceFn<T> extends DoFn<BoundedSource<T>, T> {
     @ProcessElement
-    public void readSoruce(ProcessContext ctxt) throws IOException {
-      BoundedSource.BoundedReader<T> reader =
-          ctxt.element().createReader(ctxt.getPipelineOptions());
-      for (boolean more = reader.start(); more; more = reader.advance()) {
-        ctxt.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
+    public void readSource(ProcessContext ctxt) throws IOException {
+      try (BoundedSource.BoundedReader<T> reader =
+          ctxt.element().createReader(ctxt.getPipelineOptions())) {
+        for (boolean more = reader.start(); more; more = reader.advance()) {
+          ctxt.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
+        }
       }
     }
   }
