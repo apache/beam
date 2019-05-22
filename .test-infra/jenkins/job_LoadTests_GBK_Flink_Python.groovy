@@ -53,20 +53,28 @@ def testConfiguration =
                 ]
         ]
 
+def loadTest = { scope, triggeringContext ->
+  scope.description('Runs Java GBK load tests on Flink runner in batch mode')
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+
+  infra.prepareSDKHarness(scope, testConfiguration.sdk, dockerRegistryRoot, 'latest')
+  infra.prepareFlinkJobServer(scope, dockerRegistryRoot, 'latest')
+  infra.setupFlinkCluster(scope, jenkinsJobName, numWorkers, pythonHarnessImageTag, jobServerImageTag)
+
+  loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+
+  infra.teardownDataproc(scope, jenkinsJobName)
+}
+
 PhraseTriggeringPostCommitBuilder.postCommitJob(
         'beam_LoadTests_Python_GBK_Flink_Batch',
         'Run Load Tests Python GBK Flink Batch',
         'Load Tests Python GBK Flink Batch suite',
         this
 ) {
-  description('Runs Java GBK load tests on Flink runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+  loadTest(delegate, CommonTestProperties.TriggeringContext.PR)
+}
 
-  infra.prepareSDKHarness(delegate, testConfiguration.sdk, dockerRegistryRoot, 'latest')
-  infra.prepareFlinkJobServer(delegate, dockerRegistryRoot, 'latest')
-  infra.setupFlinkCluster(delegate, jenkinsJobName, numWorkers, pythonHarnessImageTag, jobServerImageTag)
-
-  loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
-
-  infra.teardownDataproc(delegate, jenkinsJobName)
+CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Flink_Batch', 'H 12 * * *', this) {
+  loadTest(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
