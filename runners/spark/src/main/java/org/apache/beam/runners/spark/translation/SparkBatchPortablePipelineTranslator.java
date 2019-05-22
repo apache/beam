@@ -112,11 +112,22 @@ public class SparkBatchPortablePipelineTranslator {
     QueryablePipeline p =
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
-    // Pre-scan pipeline to count which pCollections are consumed as inputs more than once so their
-    // corresponding RDDs can later be cached.
     for (PipelineNode.PTransformNode transformNode : p.getTopologicallyOrderedTransforms()) {
+      // Pre-scan pipeline to count which pCollections are consumed as inputs more than once so
+      // their corresponding RDDs can later be cached.
       for (String inputId : transformNode.getTransform().getInputsMap().values()) {
-        context.incrementConsumptionCount(inputId);
+        context.incrementConsumptionCountBy(inputId, 1);
+      }
+      // Executable stage consists of two parts: computation and extraction. This means the result
+      // of computation is an intermediate RDD, which we might also need to cache.
+      if (transformNode.getTransform().getSpec().getUrn().equals(ExecutableStage.URN)) {
+        context.incrementConsumptionCountBy(
+            getExecutableStageIntermediateId(transformNode),
+            transformNode.getTransform().getOutputsMap().size());
+      }
+      for (String outputId : transformNode.getTransform().getOutputsMap().values()) {
+        WindowedValueCoder outputCoder = getWindowedValueCoder(outputId, pipeline.getComponents());
+        context.putCoder(outputId, outputCoder);
       }
     }
     for (PipelineNode.PTransformNode transformNode : p.getTopologicallyOrderedTransforms()) {
@@ -138,11 +149,10 @@ public class SparkBatchPortablePipelineTranslator {
 
   private static void translateImpulse(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    Coder<byte[]> coder = ByteArrayCoder.of();
     BoundedDataset<byte[]> output =
         new BoundedDataset<>(
-            Collections.singletonList(new byte[0]), context.getSparkContext(), coder);
-    context.pushDataset(getOutputId(transformNode), output, coder);
+            Collections.singletonList(new byte[0]), context.getSparkContext(), ByteArrayCoder.of());
+    context.pushDataset(getOutputId(transformNode), output);
   }
 
   private static <K, V> void translateGroupByKey(
@@ -182,15 +192,12 @@ public class SparkBatchPortablePipelineTranslator {
                   context.serializablePipelineOptions,
                   AggregatorsAccumulator.getInstance()));
     }
-    String outputId = getOutputId(transformNode);
-    WindowedValueCoder<KV<K, V>> outputCoder = getWindowedValueCoder(outputId, components);
-    context.pushDataset(outputId, new BoundedDataset<>(groupedByKeyAndWindow), outputCoder);
+    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(groupedByKeyAndWindow));
   }
 
   private static <InputT, OutputT, SideInputT> void translateExecutableStage(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
 
-    RunnerApi.Components pipelineComponents = pipeline.getComponents();
     RunnerApi.ExecutableStagePayload stagePayload;
     try {
       stagePayload =
@@ -203,7 +210,7 @@ public class SparkBatchPortablePipelineTranslator {
     Dataset inputDataset = context.popDataset(inputPCollectionId);
     JavaRDD<WindowedValue<InputT>> inputRdd = ((BoundedDataset<InputT>) inputDataset).getRDD();
     Map<String, String> outputs = transformNode.getTransform().getOutputsMap();
-    BiMap<String, Integer> outputMap = createOutputMap(outputs.values());
+    BiMap<String, Integer> outputExtractionMap = createOutputMap(outputs.values());
 
     ImmutableMap.Builder<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
         broadcastVariablesBuilder = ImmutableMap.builder();
@@ -222,24 +229,39 @@ public class SparkBatchPortablePipelineTranslator {
         new SparkExecutableStageFunction<>(
             stagePayload,
             context.jobInfo,
-            outputMap,
+            outputExtractionMap,
             broadcastVariablesBuilder.build(),
             MetricsAccumulator.getInstance());
     JavaRDD<RawUnionValue> staged = inputRdd.mapPartitions(function);
+    String intermediateId = getExecutableStageIntermediateId(transformNode);
+    context.pushDataset(
+        intermediateId,
+        new Dataset() {
+          @Override
+          public void cache(String storageLevel, Coder<?> coder) {
+            StorageLevel level = StorageLevel.fromString(storageLevel);
+            staged.persist(level);
+          }
 
-    // Prevent potentially expensive re-computation of executable stage
-    SparkPipelineOptions sparkOptions =
-        context.serializablePipelineOptions.get().as(SparkPipelineOptions.class);
-    if (!sparkOptions.isCacheDisabled() && outputs.size() > 1) {
-      StorageLevel storageLevel = StorageLevel.fromString(sparkOptions.getStorageLevel());
-      staged.persist(storageLevel);
-    }
+          @Override
+          public void action() {
+            // Empty function to force computation of RDD.
+            staged.foreach(TranslationUtils.emptyVoidFunction());
+          }
+
+          @Override
+          public void setName(String name) {
+            staged.setName(name);
+          }
+        });
+    // pop dataset to mark RDD as used
+    context.popDataset(intermediateId);
 
     for (String outputId : outputs.values()) {
       JavaRDD<WindowedValue<OutputT>> outputRdd =
-          staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
-      WindowedValueCoder<OutputT> outputCoder = getWindowedValueCoder(outputId, pipelineComponents);
-      context.pushDataset(outputId, new BoundedDataset<>(outputRdd), outputCoder);
+          staged.flatMap(
+              new SparkExecutableStageExtractionFunction<>(outputExtractionMap.get(outputId)));
+      context.pushDataset(outputId, new BoundedDataset<>(outputRdd));
     }
     if (outputs.isEmpty()) {
       // After pipeline translation, we traverse the set of unconsumed PCollections and add a
@@ -250,8 +272,7 @@ public class SparkBatchPortablePipelineTranslator {
           staged.flatMap((rawUnionValue) -> Collections.emptyIterator());
       context.pushDataset(
           String.format("EmptyOutputSink_%d", context.nextSinkId()),
-          new BoundedDataset<>(outputRdd),
-          null);
+          new BoundedDataset<>(outputRdd));
     }
   }
 
@@ -287,10 +308,7 @@ public class SparkBatchPortablePipelineTranslator {
       }
       unionRDD = context.getSparkContext().union(rdds);
     }
-    RunnerApi.Components components = pipeline.getComponents();
-    String outputId = getOutputId(transformNode);
-    WindowedValueCoder<T> outputCoder = getWindowedValueCoder(outputId, components);
-    context.pushDataset(outputId, new BoundedDataset<>(unionRDD), outputCoder);
+    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(unionRDD));
   }
 
   private static <T> void translateRead(
@@ -313,10 +331,7 @@ public class SparkBatchPortablePipelineTranslator {
                 jsc.sc(), boundedSource, context.serializablePipelineOptions, stepName)
             .toJavaRDD();
 
-    RunnerApi.Components components = pipeline.getComponents();
-    String outputId = getOutputId(transformNode);
-    WindowedValueCoder<T> outputCoder = getWindowedValueCoder(outputId, components);
-    context.pushDataset(outputId, new BoundedDataset<>(input), outputCoder);
+    context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(input));
   }
 
   @Nullable
@@ -348,5 +363,9 @@ public class SparkBatchPortablePipelineTranslator {
       throw new RuntimeException(e);
     }
     return coder;
+  }
+
+  private static String getExecutableStageIntermediateId(PTransformNode transformNode) {
+    return transformNode.getId();
   }
 }

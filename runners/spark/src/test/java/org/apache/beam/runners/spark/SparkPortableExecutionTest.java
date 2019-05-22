@@ -185,51 +185,12 @@ public class SparkPortableExecutionTest implements Serializable {
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
     Pipeline pipeline = Pipeline.create(options);
-    String path =
-        FileSystems.getDefault()
-            .getPath(temporaryFolder.getRoot().getAbsolutePath(), UUID.randomUUID().toString())
-            .toString();
-    File file = new File(path);
-    PCollection<String> a =
+    PCollection<KV<String, String>> a =
         pipeline
             .apply("impulse", Impulse.create())
-            .apply(
-                "A",
-                ParDo.of(
-                    new DoFn<byte[], String>() {
-                      @ProcessElement
-                      public void process(ProcessContext context) throws Exception {
-                        context.output("A");
-                        // ParDos A, B, and C will all be fused together into the same executable
-                        // stage. This check verifies that stage is not run more than once by
-                        // enacting a side effect via the local file system.
-                        Assert.assertTrue(
-                            String.format(
-                                "Create file %s failed (ParDo A should only have been run once).",
-                                path),
-                            file.createNewFile());
-                      }
-                    }));
-    PCollection<KV<String, String>> b =
-        a.apply(
-            "B",
-            ParDo.of(
-                new DoFn<String, KV<String, String>>() {
-                  @ProcessElement
-                  public void process(ProcessContext context) {
-                    context.output(KV.of(context.element(), "B"));
-                  }
-                }));
-    PCollection<KV<String, String>> c =
-        a.apply(
-            "C",
-            ParDo.of(
-                new DoFn<String, KV<String, String>>() {
-                  @ProcessElement
-                  public void process(ProcessContext context) {
-                    context.output(KV.of(context.element(), "C"));
-                  }
-                }));
+            .apply("A", ParDo.of(new DoFnWithSideEffect<>("A")));
+    PCollection<KV<String, String>> b = a.apply("B", ParDo.of(new DoFnWithSideEffect<>("B")));
+    PCollection<KV<String, String>> c = a.apply("C", ParDo.of(new DoFnWithSideEffect<>("C")));
     // Use GBKs to force re-computation of executable stage unless cached.
     b.apply(GroupByKey.create());
     c.apply(GroupByKey.create());
@@ -243,7 +204,6 @@ public class SparkPortableExecutionTest implements Serializable {
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
     Assert.assertEquals(Enum.DONE, jobInvocation.getState());
-    Assert.assertTrue(file.exists());
   }
 
   /**
@@ -253,9 +213,9 @@ public class SparkPortableExecutionTest implements Serializable {
    * the executable stage has side effects (BEAM-7131).
    *
    * <pre>
-   *           |-> B
-   * A -> GBK -|
-   *           |-> C
+   *           |-> G
+   * F -> GBK -|
+   *           |-> H
    * </pre>
    */
   @Test(timeout = 120_000)
@@ -266,52 +226,14 @@ public class SparkPortableExecutionTest implements Serializable {
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
     Pipeline pipeline = Pipeline.create(options);
-    String path =
-        FileSystems.getDefault()
-            .getPath(temporaryFolder.getRoot().getAbsolutePath(), UUID.randomUUID().toString())
-            .toString();
-    File file = new File(path);
-    PCollection<KV<String, Integer>> a =
+    PCollection<KV<String, Iterable<String>>> f =
         pipeline
             .apply("impulse", Impulse.create())
-            .apply(
-                "A",
-                ParDo.of(
-                    new DoFn<byte[], KV<String, Integer>>() {
-                      @ProcessElement
-                      public void process(ProcessContext context) throws Exception {
-                        context.output(KV.of("A", 1));
-                        // ParDo A has multiple downstream consumers (B and C, which are in separate
-                        // executable stages because of the intermediate GBK). This check verifies
-                        // that A is not run more than once by enacting a side effect via the local
-                        // file system.
-                        Assert.assertTrue(
-                            String.format(
-                                "Create file %s failed (ParDo A should only have been run once).",
-                                path),
-                            file.createNewFile());
-                      }
-                    }));
-    // use GBK to prevent fusion of A, B, and C
-    a.apply(GroupByKey.create());
-    a.apply(
-        "B",
-        ParDo.of(
-            new DoFn<KV<String, Integer>, KV<String, String>>() {
-              @ProcessElement
-              public void process(ProcessContext context) {
-                context.output(KV.of(context.element().getKey(), "B"));
-              }
-            }));
-    a.apply(
-        "C",
-        ParDo.of(
-            new DoFn<KV<String, Integer>, KV<String, String>>() {
-              @ProcessElement
-              public void process(ProcessContext context) {
-                context.output(KV.of(context.element().getKey(), "C"));
-              }
-            }));
+            .apply("F", ParDo.of(new DoFnWithSideEffect<>("F")))
+            // use GBK to prevent fusion of F, G, and H
+            .apply(GroupByKey.create());
+    f.apply("G", ParDo.of(new DoFnWithSideEffect<>("G")));
+    f.apply("H", ParDo.of(new DoFnWithSideEffect<>("H")));
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
     JobInvocation jobInvocation =
         SparkJobInvoker.createJobInvocation(
@@ -322,6 +244,35 @@ public class SparkPortableExecutionTest implements Serializable {
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
     Assert.assertEquals(Enum.DONE, jobInvocation.getState());
-    Assert.assertTrue(file.exists());
+  }
+
+  /** A non-idempotent DoFn that cannot be run more than once without error. */
+  private class DoFnWithSideEffect<InputT> extends DoFn<InputT, KV<String, String>> {
+
+    private final String name;
+    private final File file;
+
+    DoFnWithSideEffect(String name) {
+      this.name = name;
+      String path =
+          FileSystems.getDefault()
+              .getPath(
+                  temporaryFolder.getRoot().getAbsolutePath(),
+                  String.format("%s-%s", this.name, UUID.randomUUID().toString()))
+              .toString();
+      file = new File(path);
+    }
+
+    @ProcessElement
+    public void process(ProcessContext context) throws Exception {
+      context.output(KV.of(name, name));
+      // Verify this DoFn has not run more than once by enacting a side effect via the local file
+      // system.
+      Assert.assertTrue(
+          String.format(
+              "Create file %s failed (DoFn %s should only have been run once).",
+              file.getAbsolutePath(), name),
+          file.createNewFile());
+    }
   }
 }
