@@ -181,8 +181,8 @@ def convert_to_beam_type(typ):
           arity=-1,
           beam_type=typehints.Tuple),
       _TypeMapEntry(
-          match=_match_is_union, 
-          arity=-1, 
+          match=_match_is_union,
+          arity=-1,
           beam_type=typehints.Union),
   ]
 
