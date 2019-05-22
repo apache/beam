@@ -22,7 +22,6 @@ import logging
 import os
 import random
 import shutil
-import sys
 import tempfile
 import threading
 import time
@@ -240,16 +239,25 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': [1]})]))
 
-  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.'
-                   'See BEAM-6878')
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
       side = (p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
               # TODO(BEAM-4782): Obviate the need for this map.
               | beam.Map(lambda kv: (kv[0], kv[1])))
+      assert_that(
+          main | beam.Map(lambda k, d: (k, sorted(d[k])),
+                          beam.pvalue.AsMultiMap(side)),
+          equal_to([('a', [1, 3]), ('b', [2])]))
+
+  def test_multimap_side_input_type_coercion(self):
+    with self.create_pipeline() as p:
+      main = p | 'main' >> beam.Create(['a', 'b'])
+      # The type of this side-input is forced to Any (overriding type
+      # inference). Without type coercion to KV[Any, Any], the usage of this
+      # side-input in AsMultiMap() below should fail.
+      side = (p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
+              .with_output_types(beam.typehints.Any))
       assert_that(
           main | beam.Map(lambda k, d: (k, sorted(d[k])),
                           beam.pvalue.AsMultiMap(side)),
