@@ -277,13 +277,9 @@ class AvroBase(object):
 
   def test_split_points(self):
     num_records = 12000
-    if self.use_fastavro:
-      sync_interval = 16000
-      file_name = self._write_data(count=num_records,
-                                   sync_interval=sync_interval)
-    else:
-      sync_interval = avro.datafile.SYNC_INTERVAL
-      file_name = self._write_data(count=num_records)
+    sync_interval = 16000
+    file_name = self._write_data(count=num_records,
+                                 sync_interval=sync_interval)
 
     source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
 
@@ -348,8 +344,6 @@ class AvroBase(object):
     self._run_avro_test(pattern, 100, True, expected_result)
 
   def test_dynamic_work_rebalancing_exhaustive(self):
-    # Adjusting block size so that we can perform a exhaustive dynamic
-    # work rebalancing test that completes within an acceptable amount of time.
     def compare_split_points(file_name):
       source = _create_avro_source(file_name,
                                    use_fastavro=self.use_fastavro)
@@ -358,17 +352,11 @@ class AvroBase(object):
       assert len(splits) == 1
       source_test_utils.assert_split_at_fraction_exhaustive(splits[0].source)
 
-    if self.use_fastavro:
-      file_name = self._write_data(count=200, sync_interval=2)
-      compare_split_points(file_name)
-    else:
-      old_sync_interval = avro.datafile.SYNC_INTERVAL
-      try:
-        avro.datafile.SYNC_INTERVAL = 2
-        file_name = self._write_data(count=5)
-        compare_split_points(file_name)
-      finally:
-        avro.datafile.SYNC_INTERVAL = old_sync_interval
+    # Adjusting block size so that we can perform a exhaustive dynamic
+    # work rebalancing test that completes within an acceptable amount of time.
+    file_name = self._write_data(count=5, sync_interval=2)
+
+    compare_split_points(file_name)
 
   def test_corrupted_file(self):
     file_name = self._write_data()
@@ -490,17 +478,23 @@ class TestAvro(AvroBase, unittest.TestCase):
                   directory=None,
                   prefix=tempfile.template,
                   codec='null',
-                  count=len(RECORDS)):
-    with tempfile.NamedTemporaryFile(delete=False,
-                                     dir=directory,
-                                     prefix=prefix) as f:
-      writer = DataFileWriter(f, DatumWriter(), self.SCHEMA, codec=codec)
-      len_records = len(self.RECORDS)
-      for i in range(count):
-        writer.append(self.RECORDS[i % len_records])
-      writer.close()
-      self._temp_files.append(f.name)
-      return f.name
+                  count=len(RECORDS),
+                  sync_interval=avro.datafile.SYNC_INTERVAL):
+    old_sync_interval = avro.datafile.SYNC_INTERVAL
+    try:
+      avro.datafile.SYNC_INTERVAL = sync_interval
+      with tempfile.NamedTemporaryFile(delete=False,
+                                       dir=directory,
+                                       prefix=prefix) as f:
+        writer = DataFileWriter(f, DatumWriter(), self.SCHEMA, codec=codec)
+        len_records = len(self.RECORDS)
+        for i in range(count):
+          writer.append(self.RECORDS[i % len_records])
+        writer.close()
+        self._temp_files.append(f.name)
+        return f.name
+    finally:
+      avro.datafile.SYNC_INTERVAL = old_sync_interval
 
 
 class TestFastAvro(AvroBase, unittest.TestCase):
