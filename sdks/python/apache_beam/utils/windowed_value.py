@@ -202,10 +202,10 @@ class WindowedValue(object):
     return not self == other
 
   def __hash__(self):
-    return (hash(self.value) +
-            3 * self.timestamp_micros +
-            7 * hash(self.windows) +
-            11 * hash(self.pane_info))
+    return ((hash(self.value) & 0xFFFFFFFFFFFFFFF) +
+            3 * (self.timestamp_micros & 0xFFFFFFFFFFFFFF) +
+            7 * (hash(self.windows) & 0xFFFFFFFFFFFFF) +
+            11 * (hash(self.pane_info) & 0xFFFFFFFFFFFFF))
 
   def with_value(self, new_value):
     """Creates a new WindowedValue with the same timestamps and windows as this.
