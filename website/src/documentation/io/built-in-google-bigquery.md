@@ -278,10 +278,10 @@ release of the BigQuery Storage API as an [experimental feature](https://beam.ap
 Beam's support for the BigQuery Storage API has the following limitations:
 
 * The SDK for Python does not support the BigQuery Storage API.
-* You must read from a table. Reading with a query string is not currently
-  supported.
 * Dynamic work re-balancing is not currently supported. As a result, reads might
   be less efficient in the presence of stragglers.
+* SDK versions 2.11.0 and 2.12.0 do not support reading with a query string; you
+  can only read from a table.
 
 Because this is currently a Beam experimental feature, export based reads are
 recommended for production jobs.
@@ -302,7 +302,7 @@ Use the following methods when you read from a table:
   you must also specify a [TableReadOptions](https://googleapis.github.io/google-cloud-java/google-api-grpc/apidocs/index.html?com/google/cloud/bigquery/storage/v1beta1/ReadOptions.TableReadOptions.html)
   proto using the [withReadOptions](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withReadOptions-com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions-) method.
 
-The following code snippet is from the [BigQueryTornadoes
+The following code snippet reads from a table. This example is from the [BigQueryTornadoes
 example](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
 When the example's read method option is set to `DIRECT_READ`, the pipeline uses
 the BigQuery Storage API and column projection to read public samples of weather
@@ -326,6 +326,14 @@ GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/o
 # The SDK for Python does not support the BigQuery Storage API.
 ```
 
+The following code snippet reads with a query string.
+
+```java
+// Snippet not yet available (BEAM-7034).
+```
+```py
+# The SDK for Python does not support the BigQuery Storage API.
+```
 
 ## Writing to BigQuery
 
