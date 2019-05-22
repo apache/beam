@@ -34,7 +34,6 @@ from builtins import object
 
 from past.builtins import unicode
 
-from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
@@ -322,11 +321,6 @@ class AsSideInput(object):
         self._window_mapping_fn,
         lambda iterable: from_runtime_iterable(iterable, view_options))
 
-  def _input_element_coder(self):
-    return coders.WindowedValueCoder(
-        coders.registry.get_coder(self.pvalue.element_type),
-        window_coder=self.pvalue.windowing.windowfn.get_window_coder())
-
   def to_runner_api(self, context):
     return self._side_input_data().to_runner_api(context)
 
@@ -334,6 +328,9 @@ class AsSideInput(object):
   def from_runner_api(proto, context):
     return _UnpickledSideInput(
         SideInputData.from_runner_api(proto, context))
+
+  def requires_keyed_input(self):
+    return False
 
 
 class _UnpickledSideInput(AsSideInput):
@@ -400,9 +397,9 @@ class AsSingleton(AsSideInput):
 
   Wrapping a PCollection side input argument to a PTransform in this container
   (e.g., data.apply('label', MyPTransform(), AsSingleton(my_side_input) )
-  selects the latter behavor.
+  selects the latter behavior.
 
-  The input PCollection must contain exactly one  value per window, unless a
+  The input PCollection must contain exactly one value per window, unless a
   default is given, in which case it may be empty.
   """
   _NO_DEFAULT = object()
@@ -546,6 +543,9 @@ class AsMultiMap(AsSideInput):
         common_urns.side_inputs.MULTIMAP.urn,
         self._window_mapping_fn,
         lambda x: x)
+
+  def requires_keyed_input(self):
+    return True
 
 
 class EmptySideInput(object):
