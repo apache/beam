@@ -80,7 +80,8 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
 
-  def __init__(self, downloader, read_buffer_size=io.DEFAULT_BUFFER_SIZE, mode='rb'):
+  def __init__(self, downloader, read_buffer_size=io.DEFAULT_BUFFER_SIZE,
+   mode='rb'):
     """Initializes the stream.
 
     Args:
@@ -160,18 +161,14 @@ class DownloaderStream(io.RawIOBase):
     return True
 
   def readall(self):
-      """Read until EOF, using multiple read() call."""
-      res = bytearray()
-      while True:
-          data = self.read(self._reader_buffer_size)
-          if not data:
-              break
-          res += data
-      if res:
-          return bytes(res)
-      else:
-          return data
-
+    """Read until EOF, using multiple read() call."""
+    res = []
+    while True:
+      data = self.read(self._reader_buffer_size)
+      if not data:
+        break
+      res.append(data)
+    return b''.join(res)
 
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
