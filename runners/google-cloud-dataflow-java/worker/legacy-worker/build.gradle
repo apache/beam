@@ -91,6 +91,8 @@ applyJavaNature(
             "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
             // TODO(BEAM-6136): Enable relocation for conscrypt
             "org/conscrypt/**",
+            // Allow slf4j implementation worker for logging during pipeline execution
+            "org/slf4j/impl/**"
         ],
         shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     // Each included dependency must also include all of its necessary transitive dependencies
@@ -102,6 +104,10 @@ applyJavaNature(
     //
     // Each included dependency should have a matching relocation rule below that ensures
     // that the shaded jar is correctly built.
+
+    dependencies {
+      include(dependency(library.java.slf4j_jdk14))
+    }
 
     dependencies {
         include(project(path: ":model:fn-execution", configuration: "shadow"))
@@ -218,6 +224,25 @@ dependencies {
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
 }
+
+project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
+    ext.outFile = project.file("${project.reportsDir}/${name}.out")
+    inputs.files project.configurations.shadow.artifacts.files
+    outputs.files outFile
+    doLast {
+        project.configurations.shadow.artifacts.files.each {
+            FileTree slf4jImpl = project.zipTree(it).matching {
+                include "org/slf4j/impl/JDK14LoggerAdapter.class"
+            }
+            outFile.text = slf4jImpl.files
+            if (slf4jImpl.files.isEmpty()) {
+                throw new GradleException("Did not find slf4j-jdk14 in Dataflow Worker uber jar")
+            }
+        }
+    }
+}
+
+tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
 
 //TODO(BEAM-5657): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
