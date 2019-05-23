@@ -33,7 +33,9 @@ import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -54,6 +56,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -183,6 +186,15 @@ public class JdbcIO {
    */
   public static <T> Read<T> read() {
     return new AutoValue_JdbcIO_Read.Builder<T>()
+        .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setOutputParallelization(true)
+        .build();
+  }
+
+  /** Read Beam {@link Row}s from a JDBC data source. */
+  @Experimental(Experimental.Kind.SCHEMAS)
+  public static ReadRows readRows() {
+    return new AutoValue_JdbcIO_ReadRows.Builder()
         .setFetchSize(DEFAULT_FETCH_SIZE)
         .setOutputParallelization(true)
         .build();
@@ -389,6 +401,123 @@ public class JdbcIO {
   @FunctionalInterface
   public interface StatementPreparator extends Serializable {
     void setParameters(PreparedStatement preparedStatement) throws Exception;
+  }
+
+  /** Implementation of {@link #readRows()}. */
+  @AutoValue
+  @Experimental(Experimental.Kind.SCHEMAS)
+  public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+    @Nullable
+    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    @Nullable
+    abstract ValueProvider<String> getQuery();
+
+    @Nullable
+    abstract StatementPreparator getStatementPreparator();
+
+    abstract int getFetchSize();
+
+    abstract boolean getOutputParallelization();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder setQuery(ValueProvider<String> query);
+
+      abstract Builder setStatementPreparator(StatementPreparator statementPreparator);
+
+      abstract Builder setFetchSize(int fetchSize);
+
+      abstract Builder setOutputParallelization(boolean outputParallelization);
+
+      abstract ReadRows build();
+    }
+
+    public ReadRows withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
+    }
+
+    public ReadRows withQuery(String query) {
+      checkArgument(query != null, "query can not be null");
+      return withQuery(ValueProvider.StaticValueProvider.of(query));
+    }
+
+    public ReadRows withQuery(ValueProvider<String> query) {
+      checkArgument(query != null, "query can not be null");
+      return toBuilder().setQuery(query).build();
+    }
+
+    public ReadRows withStatementPreparator(StatementPreparator statementPreparator) {
+      checkArgument(statementPreparator != null, "statementPreparator can not be null");
+      return toBuilder().setStatementPreparator(statementPreparator).build();
+    }
+
+    /**
+     * This method is used to set the size of the data that is going to be fetched and loaded in
+     * memory per every database call. Please refer to: {@link java.sql.Statement#setFetchSize(int)}
+     * It should ONLY be used if the default value throws memory errors.
+     */
+    public ReadRows withFetchSize(int fetchSize) {
+      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      return toBuilder().setFetchSize(fetchSize).build();
+    }
+
+    /**
+     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+     * default is to parallelize and should only be changed if this is known to be unnecessary.
+     */
+    public ReadRows withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      checkArgument(getQuery() != null, "withQuery() is required");
+      checkArgument(
+          (getDataSourceProviderFn() != null),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+
+      Schema schema = inferBeamSchema();
+      PCollection<Row> rows =
+          input.apply(
+              JdbcIO.<Row>read()
+                  .withDataSourceProviderFn(getDataSourceProviderFn())
+                  .withQuery(getQuery())
+                  .withCoder(RowCoder.of(schema))
+                  .withRowMapper(SchemaUtil.BeamRowMapper.of(schema))
+                  .withFetchSize(getFetchSize())
+                  .withOutputParallelization(getOutputParallelization())
+                  .withStatementPreparator(getStatementPreparator()));
+      rows.setRowSchema(schema);
+      return rows;
+    }
+
+    private Schema inferBeamSchema() {
+      DataSource ds = getDataSourceProviderFn().apply(null);
+      try (Connection conn = ds.getConnection();
+          PreparedStatement statement =
+              conn.prepareStatement(
+                  getQuery().get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+        return SchemaUtil.toBeamSchema(statement.getMetaData());
+      } catch (SQLException e) {
+        throw new BeamSchemaInferenceException("Failed to infer Beam schema", e);
+      }
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("query", getQuery()));
+      if (getDataSourceProviderFn() instanceof HasDisplayData) {
+        ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
+      }
+    }
   }
 
   /** Implementation of {@link #read}. */

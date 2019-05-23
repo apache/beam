@@ -38,14 +38,19 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
@@ -268,6 +273,31 @@ public class JdbcIOTest implements Serializable {
 
     Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
     PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRows() {
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceProviderFn(dataSourceProvider)
+                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("NAME", "ID"));
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of("NAME", Schema.FieldType.STRING),
+            Schema.Field.of("ID", Schema.FieldType.INT32));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
 
     pipeline.run();
   }
