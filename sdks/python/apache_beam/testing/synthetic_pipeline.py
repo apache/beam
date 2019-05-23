@@ -250,7 +250,7 @@ class SyntheticSource(iobase.BoundedSource):
       # Generate hot key.
       # An integer is randomly selected from the range [0, numHotKeys-1]
       # with equal probability.
-      r_hot = np.random.RandomState(self._num_hot_keys)
+      r_hot = np.random.RandomState(index % self._num_hot_keys)
       return r_hot.bytes(self._key_size), r.bytes(self._value_size)
     else:
       return r.bytes(self._key_size), r.bytes(self._value_size)
