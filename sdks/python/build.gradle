@@ -345,20 +345,6 @@ task flinkValidatesRunner() {
   dependsOn 'flinkCompatibilityMatrixLoopback'
 }
 
-// Run Python ValidatesRunner tests using the Java ReferenceRunner as a job server and Docker as
-// the SDK environment.
-task javaReferenceRunnerValidatesRunner() {
-  dependsOn 'setupVirtualenv'
-  dependsOn ':runners:reference:job-server:shadowJar'
-  dependsOn ':sdks:python:container:docker'
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.java_reference_runner_test --job_server_jar=${project(":runners:reference:job-server:").shadowJar.archivePath} --environment_type=DOCKER"
-    }
-  }
-}
-
 task postCommit() {
   dependsOn "crossLanguageTests"
   dependsOn "directRunnerIT"
