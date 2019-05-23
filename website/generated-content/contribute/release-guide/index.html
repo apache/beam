@@ -611,8 +611,8 @@ Automation Reliability</a>.</p>
   </li>
   <li>Usage
     <div class="highlighter-rouge"><pre class="highlight"><code># Cut a release branch
-./beam/release/src/main/scripts/cut_release_branch.sh 
---release= ${RELEASE_VERSION}
+./beam/release/src/main/scripts/cut_release_branch.sh \
+--release=${RELEASE_VERSION} \
 --next_release=${NEXT_VERSION}
   
 # Show help page
@@ -1382,7 +1382,7 @@ Thanks everyone!
     <p>Dataflow Runner</p>
     <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
--Pver= ${RELEASE_VERSION}\
+-Pver=${RELEASE_VERSION} \
 -PgcpProject=${YOUR_GCP_PROJECT} \
 -PgcsBucket=${YOUR_GCP_BUCKET}
 </code></pre>
@@ -1416,7 +1416,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON}
         <p>Run</p>
         <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \ 
- -Pver= ${RELEASE_VERSION}\
+ -Pver=${RELEASE_VERSION} \
  -PgcpProject=${YOUR_GCP_PROJECT} \
  -PgcsBucket=${YOUR_GCP_BUCKET} \
  -PbqDataset=${YOUR_DATASET} -PpubsubTopic=${YOUR_PROJECT_PUBSUB_TOPIC}
