@@ -313,7 +313,7 @@ d-----        7/19/2018  11:00 PM                subprocess
 
 <h2 id="run-wordcount">Run WordCount</h2>
 
-<p>A single Beam pipeline can run on multiple Beam <a href="/documentation#runners">runners</a>, including the <a href="/documentation/runners/apex">ApexRunner</a>, <a href="/documentation/runners/flink">FlinkRunner</a>, <a href="/documentation/runners/spark">SparkRunner</a>, <a href="/documentation/runners/nemo">NemoRunner</a>, or <a href="/documentation/runners/dataflow">DataflowRunner</a>. The <a href="/documentation/runners/direct">DirectRunner</a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup.</p>
+<p>A single Beam pipeline can run on multiple Beam <a href="/documentation#runners">runners</a>, including the <a href="/documentation/runners/apex">ApexRunner</a>, <a href="/documentation/runners/flink">FlinkRunner</a>, <a href="/documentation/runners/spark">SparkRunner</a>, <a href="/documentation/runners/nemo">NemoRunner</a>, <a href="/documentation/runners/jet">JetRunner</a>, or <a href="/documentation/runners/dataflow">DataflowRunner</a>. The <a href="/documentation/runners/direct">DirectRunner</a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup.</p>
 
 <p>After you’ve chosen which runner you’d like to use:</p>
 
@@ -379,6 +379,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 </code></pre>
 </div>
 
+<div class="runner-jet highlighter-rouge"><pre class="highlight"><code>$ mvn package -Pjet-runner -DskipTests
+$ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+     --runner=JetRunner --jetGroupName=jet --inputFile=`pwd`/pom.xml --output=counts 
+</code></pre>
+</div>
+
 <p>For Windows PowerShell:</p>
 
 <div class="runner-direct highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
@@ -430,6 +436,12 @@ PS&gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.
 </code></pre>
 </div>
 
+<div class="runner-jet highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn package -P jet-runner -DskipTests
+PS&gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+      --runner=JetRunner --jetGroupName=jet --inputFile=`pwd`/pom.xml --output=counts
+</code></pre>
+</div>
+
 <h2 id="inspect-the-results">Inspect the results</h2>
 
 <p>Once the pipeline has completed, you can view the output. You’ll notice that there may be multiple output files prefixed by <code class="highlighter-rouge">count</code>. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.</p>
@@ -463,6 +475,10 @@ PS&gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.
 </div>
 
 <div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>$ ls counts*
+</code></pre>
+</div>
+
+<div class="runner-jet highlighter-rouge"><pre class="highlight"><code>$ ls counts*
 </code></pre>
 </div>
 
@@ -561,6 +577,21 @@ finalName: 2
 Adds: 2
 java: 7
 xml: 1
+...
+</code></pre>
+</div>
+
+<div class="runner-jet highlighter-rouge"><pre class="highlight"><code>$ more counts*
+FlinkRunner: 1
+cleanupDaemonThreads: 2
+sdks: 4
+unit: 1
+Apache: 3
+IO: 2
+copyright: 1
+governing: 1
+overrides: 1
+YARN: 1
 ...
 </code></pre>
 </div>

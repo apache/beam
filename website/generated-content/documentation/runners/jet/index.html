@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Direct Runner</title>
+  <title>Hazelcast Jet Runner</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/runners/direct/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/runners/jet/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runners/direct.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runners/jet.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -182,18 +182,10 @@
 
 
 <ul class="nav">
-  <li><a href="#direct-runner-prerequisites-and-setup">Direct Runner prerequisites and setup</a>
-    <ul>
-      <li><a href="#specify-your-dependency">Specify your dependency</a></li>
-    </ul>
-  </li>
-  <li><a href="#pipeline-options-for-the-direct-runner">Pipeline options for the Direct Runner</a></li>
-  <li><a href="#additional-information-and-caveats">Additional information and caveats</a>
-    <ul>
-      <li><a href="#memory-considerations">Memory considerations</a></li>
-      <li><a href="#streaming-execution">Streaming execution</a></li>
-    </ul>
-  </li>
+  <li><a href="#generating-the-beam-examples-project-from-snapshot-versions-of-beam">Generating the Beam examples project from SNAPSHOT versions of Beam</a></li>
+  <li><a href="#generating-the-beam-examples-project-from-released-versions-of-beam">Generating the Beam examples project from RELEASED versions of Beam</a></li>
+  <li><a href="#running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</a></li>
+  <li><a href="#running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</a></li>
 </ul>
 
 
@@ -213,72 +205,134 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="using-the-direct-runner">Using the Direct Runner</h1>
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
+<h1 id="overview">Overview</h1>
 
-<p>The Direct Runner executes pipelines on your machine and is designed to validate that pipelines adhere to the Apache Beam model as closely as possible. Instead of focusing on efficient pipeline execution, the Direct Runner performs additional checks to ensure that users do not rely on semantics that are not guaranteed by the model. Some of these checks include:</p>
+<p>The Hazelcast Jet Runner can be used to execute Beam pipelines using <a href="https://jet.hazelcast.org/">Hazelcat
+Jet</a>.</p>
 
+<p>The Jet Runner and Jet are suitable for large scale continuous jobs and provide:</p>
 <ul>
-  <li>enforcing immutability of elements</li>
-  <li>enforcing encodability of elements</li>
-  <li>elements are processed in an arbitrary order at all points</li>
-  <li>serialization of user functions (<code class="highlighter-rouge">DoFn</code>, <code class="highlighter-rouge">CombineFn</code>, etc.)</li>
+  <li>Support for both batch (bounded) and streaming (unbounded) data sets</li>
+  <li>A runtime that supports very high throughput and low event latency at the same time</li>
+  <li>Natural back-pressure in streaming programs</li>
+  <li>Distributed massively parallel data processing engine with in memory storage</li>
 </ul>
 
-<p>Using the Direct Runner for testing and development helps ensure that pipelines are robust across different Beam runners. In addition, debugging failed runs can be a non-trivial task when a pipeline executes on a remote cluster. Instead, it is often faster and simpler to perform local unit testing on your pipeline code. Unit testing your pipeline locally also allows you to use your preferred local debugging tools.</p>
-
-<p>Here are some resources with information about how to test your pipelines.</p>
+<p>It’s important to note that the Jet Runner is currently in an <em>EXPERIMENTAL</em> state and can not make use of many of
+the capabilities present in Jet:</p>
 <ul>
-  <!-- Java specific links -->
-  <li class="language-java"><a href="/blog/2016/10/20/test-stream.html">Testing Unbounded Pipelines in Apache Beam</a> talks about the use of Java classes <a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a> and <a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/testing/TestStream.html">TestStream</a> to test your pipelines.</li>
-  <li class="language-java">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a>.</li>
-
-  <!-- Python specific links -->
-  <li class="language-py">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.testing.util.html#apache_beam.testing.util.assert_that">assert_that</a>.</li>
+  <li>Jet has full Fault Tolerance support, the Jet Runner does not; if a job fails it must be restarted</li>
+  <li>Internal performance of Jet is extremely high. 
+The Runner can’t match it as of now because Beam pipeline optimization/surgery has not been fully implemented.</li>
 </ul>
 
-<h2 id="direct-runner-prerequisites-and-setup">Direct Runner prerequisites and setup</h2>
+<p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the
+supported capabilities of the Jet Runner.</p>
 
-<h3 id="specify-your-dependency">Specify your dependency</h3>
+<h1 id="running-wordcount-with-the-hazelcast-jet-runner">Running WordCount with the Hazelcast Jet Runner</h1>
 
-<p><span class="language-java">When using Java, you must specify your dependency on the Direct Runner in your <code class="highlighter-rouge">pom.xml</code>.</span></p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
-   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
-   <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">direct</span><span class="o">-</span><span class="n">java</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
-   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.12</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
-   <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
-<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+<h2 id="generating-the-beam-examples-project-from-snapshot-versions-of-beam">Generating the Beam examples project from SNAPSHOT versions of Beam</h2>
+<p>Make sure that your maven config (~/.m2/settings.xml) is set up to have access to the Apache Snapshot Repository. It 
+should contain this:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>    &lt;repositories&gt;
+      &lt;repository&gt;
+        &lt;id&gt;apache.snapshots&lt;/id&gt;
+        &lt;name&gt;Apache Development Snapshot Repository&lt;/name&gt;
+        &lt;url&gt;https://repository.apache.org/content/repositories/snapshots/&lt;/url&gt;
+        &lt;releases&gt;
+          &lt;enabled&gt;true&lt;/enabled&gt;
+        &lt;/releases&gt;
+        &lt;snapshots&gt;
+          &lt;enabled&gt;true&lt;/enabled&gt;
+        &lt;/snapshots&gt;
+      &lt;/repository&gt;
+    &lt;/repositories&gt;
 </code></pre>
 </div>
 
-<p><span class="language-py">This section is not applicable to the Beam SDK for Python.</span></p>
+<p>Generate the Examples Maven Project just like when the archetype is local:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>    $ cd ../../../../..
+    $ mvn archetype:generate \
+        -DarchetypeGroupId=org.apache.beam \
+        -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+        -DarchetypeVersion=2.14.0-SNAPSHOT \
+        -DgroupId=org.example \
+        -DartifactId=word-count-beam \
+        -Dversion="0.1" \
+        -Dpackage=org.apache.beam.examples \
+        -DinteractiveMode=false
+</code></pre>
+</div>
 
-<h2 id="pipeline-options-for-the-direct-runner">Pipeline options for the Direct Runner</h2>
+<h2 id="generating-the-beam-examples-project-from-released-versions-of-beam">Generating the Beam examples project from RELEASED versions of Beam</h2>
 
-<p>When executing your pipeline from the command-line, set <code class="highlighter-rouge">runner</code> to <code class="highlighter-rouge">direct</code> or <code class="highlighter-rouge">DirectRunner</code>. The default values for the other pipeline options are generally sufficient.</p>
+<p>Caution: The released Beam versions don’t contain the Jet Runner yet. The SNAPSHOT version has to be used until Jet is released.</p>
 
-<p>See the reference documentation for the
-<span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/runners/direct/DirectOptions.html"><code class="highlighter-rouge">DirectOptions</code></a></span>
-<span class="language-py"><a href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.DirectOptions"><code class="highlighter-rouge">DirectOptions</code></a></span>
-interface for defaults and additional pipeline configuration options.</p>
+<h2 id="running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</h2>
+<p>Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>    $ mvn package exec:java \
+        -DskipTests \
+        -Dexec.mainClass=org.apache.beam.examples.WordCount \
+        -Dexec.args="\
+            --runner=JetRunner \
+            --jetGroupName=jet \
+            --jetLocalMode=3
+            --inputFile=pom.xml \
+            --output=counts" \
+        -Pjet-runner
+</code></pre>
+</div>
 
-<h2 id="additional-information-and-caveats">Additional information and caveats</h2>
+<h2 id="running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</h2>
+<p>Download latest stable Hazelcast Jet code from <a href="https://jet.hazelcast.org/download/">Hazelcast Website</a> and 
+start Jet cluster. 
+The simplest way is to start Jet cluster member using the <code class="highlighter-rouge">jet-start</code> script that comes with Jet distribution.
+The members use the <a href="https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters">auto discovery feature</a> to form a cluster.</p>
 
-<h3 id="memory-considerations">Memory considerations</h3>
+<div class="highlighter-rouge"><pre class="highlight"><code>    $ cd hazelcast-jet/bin/
+    $ ./jet-start.sh &amp;
+    $ ./jet-start.sh &amp;
+</code></pre>
+</div>
 
-<p>Local execution is limited by the memory available in your local environment. It is highly recommended that you run your pipeline with data sets small enough to fit in local memory. You can create a small in-memory data set using a <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/transforms/Create.html"><code class="highlighter-rouge">Create</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Create</code></a></span> transform, or you can use a <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.12.0/index.html?org/apache/beam/sdk/io/Read.html"><code class="highlighter-rouge">Read</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py"><code class="highlighter-rouge">Read</code></a></span> transform to work with small local or remote files.</p>
+<p>Check the cluster is up and running:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>    $ ./jet.sh cluster
+</code></pre>
+</div>
 
-<h3 id="streaming-execution">Streaming execution</h3>
+<p>You should see something like:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>State: ACTIVE
+Version: 3.0
+Size: 2
 
-<p>If your pipeline uses an unbounded data source or sink, you must set the <code class="highlighter-rouge">streaming</code> option to <code class="highlighter-rouge">true</code>.</p>
+ADDRESS                  UUID               
+[192.168.0.117]:5701     76bea7ba-f032-4c25-ad04-bdef6782f481
+[192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86
+</code></pre>
+</div>
 
+<p>Download <a href="https://docs.hazelcast.org/docs/jet-management-center/3.0/manual/">Jet Management Center</a>
+from the same location and use it to monitor your cluster and later executions.</p>
+
+<p>Change directory to the Beam Examples project and issue following command to submit and execute your 
+Pipeline on the remote Jet cluster.
+Make sure to distribute the input file (file with the words to be counted) to all machines where the
+cluster runs. The word count job won’t be able to read the data otherwise.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>    $ mvn package exec:java \
+        -DskipTests \
+        -Dexec.mainClass=org.apache.beam.examples.WordCount \
+        -Dexec.args="\
+            --runner=JetRunner \
+            --jetGroupName=jet \
+            --jetServers=192.168.0.117:5701,192.168.0.117:5702 \
+            --codeJarPathname=target/word-count-beam-bundled-0.1.jar \
+            --inputFile=~/hazelcast-jet-3.0/license/apache-v2-license.txt \
+            --output=/tmp/counts" \
+        -Pjet-runner
+</code></pre>
+</div>
 
       </div>
     </div>
