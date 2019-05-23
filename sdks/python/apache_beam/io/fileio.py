@@ -502,12 +502,13 @@ class WriteToFiles(beam.PTransform):
     file_results = (files_by_destination_pc
                     | beam.ParDo(
                         _MoveTempFilesIntoFinalDestinationFn(
-                            self.path, self.file_naming_fn)))
+                            self.path, self.file_naming_fn,
+                            self._temp_directory)))
 
     return file_results
 
 
-def _create_writer(base_path, file_name):
+def _create_writer(base_path, writer_key):
   # TODO(pabloem) Is this a good place to create a temporary directory?
 
   try:
@@ -516,17 +517,23 @@ def _create_writer(base_path, file_name):
     # Directory already exists.
     pass
 
+  # The file name has a prefix determined by destination+window, along with
+  # a random string. This allows us to retrieve orphaned files later on.
+  file_name = '%s_%s' % (abs(hash(writer_key)), uuid.uuid4())
   full_file_name = filesystems.FileSystems.join(base_path, file_name)
   return full_file_name, filesystems.FileSystems.create(full_file_name)
 
 
 class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
-  def __init__(self, path, file_naming_fn):
+  def __init__(self, path, file_naming_fn, temp_dir):
     self.path = path
     self.file_naming_fn = file_naming_fn
+    self.temporary_directory = temp_dir
 
-  def process(self, element):
+  def process(self,
+              element,
+              w=beam.DoFn.WindowParam):
     destination = element[0]
     file_results = list(element[1])
 
@@ -562,16 +569,21 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
                        r.pane,
                        destination)
 
-    logging.info('Cautiously removing temporary files for destination %s',
-                 destination)
-    self._remove_temporary_files([r.file_name for r in file_results])
+    logging.info('Cautiously removing temporary files for'
+                 ' destination %s and window %s', destination, w)
+    writer_key = (destination, w)
+    self._remove_temporary_files(writer_key)
 
-  @staticmethod
-  def _remove_temporary_files(files):
+  def _remove_temporary_files(self, writer_key):
     try:
-      filesystems.FileSystems.delete(files)
+      prefix = filesystems.FileSystems.join(
+          self.temporary_directory.get(), str(abs(hash(writer_key))))
+      match_result = filesystems.FileSystems.match(['%s*' % prefix])
+      orphaned_files = [m.path for m in match_result[0].metadata_list]
+
+      logging.debug('Deleting orphaned files: %s', orphaned_files)
+      filesystems.FileSystems.delete(orphaned_files)
     except BeamIOError as e:
-      # Exceptions *are* expected.
       logging.debug('Exceptions when deleting files: %s', e)
 
 
@@ -592,7 +604,7 @@ class _WriteShardedRecordsFn(beam.DoFn):
     records = element[1]
 
     full_file_name, writer = _create_writer(base_path=self.base_path.get(),
-                                            file_name=str(uuid.uuid4()))
+                                            writer_key=(destination, w))
     sink = self.sink_fn(destination)
     sink.open(writer)
 
@@ -680,7 +692,7 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
     else:
       # The writer does not exist, but we can still create a new one.
       full_file_name, writer = _create_writer(base_path=self.base_path.get(),
-                                              file_name=str(uuid.uuid4()))
+                                              writer_key=writer_key)
       sink = self.sink_fn(destination)
 
       sink.open(writer)

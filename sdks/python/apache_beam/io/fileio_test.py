@@ -26,6 +26,7 @@ import logging
 import os
 import sys
 import unittest
+import uuid
 
 from hamcrest.library.text import stringmatches
 from nose.plugins.attrib import attr
@@ -44,6 +45,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import matches_all
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import GlobalWindow
 
 
 def _get_file_reader(readable_file):
@@ -339,6 +341,43 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                             for row in self.SIMPLE_COLLECTION
                             if row['foundation'] == 'apache']),
                   label='verifyApache')
+
+  def test_find_orphaned_files(self):
+    dir = self._new_tempdir()
+
+    write_transform = beam.io.fileio.WriteToFiles(path=dir)
+
+    def write_orphaned_file(temp_dir, writer_key):
+      temp_dir_path = FileSystems.join(dir, temp_dir)
+
+      file_prefix_dir = FileSystems.join(
+          temp_dir_path,
+          str(abs(hash(writer_key))))
+
+      file_name = '%s_%s' % (file_prefix_dir, uuid.uuid4())
+      with FileSystems.create(file_name) as f:
+        f.write(b'Hello y\'all')
+
+      return file_name
+
+    with TestPipeline() as p:
+      _ = (p
+           | beam.Create(WriteFilesTest.SIMPLE_COLLECTION)
+           | "Serialize" >> beam.Map(json.dumps)
+           | write_transform)
+
+      # Pre-create the temp directory.
+      temp_dir_path = FileSystems.mkdirs(FileSystems.join(
+          dir, write_transform._temp_directory.get()))
+      write_orphaned_file(write_transform._temp_directory.get(),
+                          (None, GlobalWindow()))
+      f2 = write_orphaned_file(write_transform._temp_directory.get(),
+                               ('other-dest', GlobalWindow()))
+
+    temp_dir_path = FileSystems.join(dir, write_transform._temp_directory.get())
+    leftovers = FileSystems.match(['%s%s*' % (temp_dir_path, os.sep)])
+    found_files = [m.path for m in leftovers[0].metadata_list]
+    self.assertListEqual(found_files, [f2])
 
   def test_write_to_different_file_types(self):
 
