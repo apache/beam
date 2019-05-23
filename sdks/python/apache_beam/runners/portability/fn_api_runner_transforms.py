@@ -1013,8 +1013,8 @@ def greedily_fuse(stages, pipeline_context):
       for output in transform.outputs.values():
         producers_by_pcoll[output] = stage
 
-  logging.debug('consumers\n%s', consumers_by_pcoll)
-  logging.debug('producers\n%s', producers_by_pcoll)
+  #logging.debug('consumers\n%s', consumers_by_pcoll)
+  #logging.debug('producers\n%s', producers_by_pcoll)
 
   # Now try to fuse away all pcollections.
   for pcoll, producer in producers_by_pcoll.items():
@@ -1315,4 +1315,5 @@ def create_buffer_id(name, kind='materialize'):
 
 
 def split_buffer_id(buffer_id):
+  """A buffer id is "kind:pcollection_id". Split into (kind, pcoll_id). """
   return buffer_id.decode('utf-8').split(':', 1)

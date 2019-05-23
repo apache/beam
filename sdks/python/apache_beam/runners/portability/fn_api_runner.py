@@ -83,6 +83,7 @@ ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
+  """TODO"""
 
   UNSTARTED_STATE = 'unstarted'
   STARTED_STATE = 'started'
@@ -352,6 +353,12 @@ class FnApiRunner(runner.PipelineRunner):
         use_state_iterables=self._use_state_iterables)
 
   def run_stages(self, stage_context, stages):
+    """TODO
+
+    Args:
+      stage_context (fn_api_runner_transforms.TransformContext)
+      stages (list[fn_api_runner_transforms.Stage])
+    """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
     metrics_by_stage = {}
@@ -361,7 +368,7 @@ class FnApiRunner(runner.PipelineRunner):
       with self.maybe_profile():
         pcoll_buffers = collections.defaultdict(list)
         for stage in stages:
-          stage_results = self.run_stage(
+          stage_results = self._run_stage(
               worker_handler_manager.get_worker_handler,
               stage_context.components,
               stage,
@@ -375,21 +382,23 @@ class FnApiRunner(runner.PipelineRunner):
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
-  def run_stage(self,
-                worker_handler_factory,
-                pipeline_components,
-                stage,
-                pcoll_buffers,
-                safe_coders):
+  def _run_stage(self,
+                 worker_handler_factory,
+                 pipeline_components,
+                 stage,
+                 pcoll_buffers,
+                 safe_coders):
     """Run an individual stage.
 
     Args:
       worker_handler_factory: A ``callable`` that takes in an environment, and
         returns a ``WorkerHandler`` class.
-      pipeline_components: TODO
-      stage: TODO
-      pcoll_buffers: TODO
-      safe_coders: TODO
+      pipeline_components (beam_runner_api_pb2.Components): TODO
+      stage (fn_api_runner_transforms.Stage)
+      pcoll_buffers (collections.defaultdict of str: list): Mapping of
+        PCollection IDs to list that functions as buffer for the
+        ``beam.PCollection``.
+      safe_coders (dict): TODO
     """
 
     def iterable_state_write(values, element_coder_impl):
@@ -408,46 +417,11 @@ class FnApiRunner(runner.PipelineRunner):
         pipeline_components, iterable_state_write=iterable_state_write)
     data_api_service_descriptor = controller.data_api_service_descriptor()
 
-    def extract_endpoints(stage):
-      # Returns maps of transform names to PCollection identifiers.
-      # Also mutates IO stages to point to the data ApiServiceDescriptor.
-      data_input = {}
-      data_side_input = {}
-      data_output = {}
-      for transform in stage.transforms:
-        if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
-                                  bundle_processor.DATA_OUTPUT_URN):
-          pcoll_id = transform.spec.payload
-          if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-            if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
-              data_input[transform.unique_name] = [ENCODED_IMPULSE_VALUE]
-            else:
-              data_input[transform.unique_name] = pcoll_buffers[pcoll_id]
-            coder_id = pipeline_components.pcollections[
-                only_element(transform.outputs.values())].coder_id
-          elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
-            data_output[transform.unique_name] = pcoll_id
-            coder_id = pipeline_components.pcollections[
-                only_element(transform.inputs.values())].coder_id
-          else:
-            raise NotImplementedError
-          data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
-          if data_api_service_descriptor:
-            data_spec.api_service_descriptor.url = (
-                data_api_service_descriptor.url)
-          transform.spec.payload = data_spec.SerializeToString()
-        elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
-          payload = proto_utils.parse_Bytes(
-              transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-          for tag, si in payload.side_inputs.items():
-            data_side_input[transform.unique_name, tag] = (
-                create_buffer_id(transform.inputs[tag]), si.access_pattern)
-      return data_input, data_side_input, data_output
-
     logging.info('Running %s', stage.name)
-    logging.debug('       %s', stage)
-    data_input, data_side_input, data_output = extract_endpoints(stage)
+    data_input, data_side_input, data_output = self._extract_endpoints(
+        stage, pipeline_components, data_api_service_descriptor, pcoll_buffers)
 
+    # TODO(pabloem) Describe what is a process bundle descriptor
     process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self._next_uid(),
         transforms={transform.unique_name: transform
@@ -480,11 +454,16 @@ class FnApiRunner(runner.PipelineRunner):
         controller.state.blocking_append(state_key, elements_data)
 
     def get_buffer(buffer_id):
+      """Returns the buffer for a given (operation_type, PCollection ID).
+
+      For grouping-typed operations, we produce a ``_GroupingBuffer``. For
+      others, we just use a list.
+      """
       kind, name = split_buffer_id(buffer_id)
       if kind in ('materialize', 'timers'):
-        if buffer_id not in pcoll_buffers:
-          # Just store the data chunks for replay.
-          pcoll_buffers[buffer_id] = list()
+        # If `buffer_id` is not a key in `pcoll_buffers`, it will be added by
+        # the `defaultdict`.
+        return pcoll_buffers[buffer_id]
       elif kind == 'group':
         # This is a grouping write, create a grouping buffer if needed.
         if buffer_id not in pcoll_buffers:
@@ -641,6 +620,63 @@ class FnApiRunner(runner.PipelineRunner):
 
     return result
 
+  @staticmethod
+  def _extract_endpoints(stage,
+      pipeline_components,
+      data_api_service_descriptor,
+      pcoll_buffers):
+    """Returns maps of transform names to PCollection identifiers.
+
+
+    Also mutates IO stages to point to the data ApiServiceDescriptor.
+
+    Args:
+      stage (fn_api_runner_transforms.Stage):
+      pipeline_components (beam_runner_api_pb2.Components):
+      data_api_service_descriptor ()
+      pcoll_buffers (dict): A dictionary containing buffers for PCollection
+        elements.
+    Returns:
+      A tuple of (data_input, data_side_input, data_output) dictionaries.
+        `data_input` is a dictionary mapping (transform_name, output_name) to a
+        PCollection buffer; `data_output` is a dictionary mapping
+        (transform_name, output_name) to a PCollection ID.
+    """
+    data_input = {}
+    data_side_input = {}
+    data_output = {}
+    for transform in stage.transforms:
+      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
+                                bundle_processor.DATA_OUTPUT_URN):
+        pcoll_id = transform.spec.payload
+        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
+          target = transform.unique_name, only_element(transform.outputs)
+          if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
+            data_input[target] = [ENCODED_IMPULSE_VALUE]
+          else:
+            data_input[target] = pcoll_buffers[pcoll_id]
+          coder_id = pipeline_components.pcollections[
+            only_element(transform.outputs.values())].coder_id
+        elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
+          target = transform.unique_name, only_element(transform.inputs)
+          data_output[target] = pcoll_id
+          coder_id = pipeline_components.pcollections[
+            only_element(transform.inputs.values())].coder_id
+        else:
+          raise NotImplementedError
+        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
+        if data_api_service_descriptor:
+          data_spec.api_service_descriptor.url = (
+              data_api_service_descriptor.url)
+        transform.spec.payload = data_spec.SerializeToString()
+      elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for tag, si in payload.side_inputs.items():
+          data_side_input[transform.unique_name, tag] = (
+              create_buffer_id(transform.inputs[tag]), si.access_pattern)
+    return data_input, data_side_input, data_output
+
   # These classes are used to interact with the worker.
 
   class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
@@ -784,11 +820,25 @@ class FnApiRunner(runner.PipelineRunner):
 
 
 class WorkerHandler(object):
+  """Controller for a worker.
+
+  It provides utilities to start / stop the worker, provision any resources for
+  it, as well as provide descriptors for the data, state and logging APIs for
+  it.
+  """
 
   _registered_environments = {}
 
   def __init__(
       self, control_handler, data_plane_handler, state, provision_info):
+    """Initialize a WorkerHandler.
+
+    Args:
+      control_handler:
+      data_plane_handler (data_plane.DataChannel):
+      state:
+      provision_info:
+    """
     self.control_handler = control_handler
     self.data_plane_handler = data_plane_handler
     self.state = state
@@ -847,9 +897,9 @@ class EmbeddedWorkerHandler(WorkerHandler):
     if not request.instruction_id:
       self._uid_counter += 1
       request.instruction_id = 'control_%s' % self._uid_counter
-    logging.debug('CONTROL REQUEST %s', request)
+    logging.debug('CONTROL REQUEST ID %s', request.instruction_id)
     response = self.worker.do_instruction(request)
-    logging.debug('CONTROL RESPONSE %s', response)
+    logging.debug('CONTROL RESPONSE ID %s', response.instruction_id)
     return ControlFuture(request.instruction_id, response)
 
   def start_worker(self):
@@ -1181,6 +1231,16 @@ class BundleManager(object):
   def __init__(
       self, controller, get_buffer, get_input_coder_impl, bundle_descriptor,
       progress_frequency=None, skip_registration=False):
+    """Set up a bundle manager.
+
+    Args:
+      controller (WorkerHandler)
+      get_buffer (Callable[[str], list])
+      get_input_coder_impl (Callable[[str], Coder])
+      bundle_descriptor (beam_fn_api_pb2.ProcessBundleDescriptor)
+      progress_frequency
+      skip_registration
+    """
     self._controller = controller
     self._get_buffer = get_buffer
     self._get_input_coder_impl = get_input_coder_impl
@@ -1189,6 +1249,14 @@ class BundleManager(object):
     self._progress_frequency = progress_frequency
 
   def process_bundle(self, inputs, expected_outputs):
+    """Submit a bundle for processing by the SDK.
+
+    Args:
+      inputs (dict): A map from PCollection id (expressed as a tuple
+        (PTransform, output), to a buffer with elements in the PCollection.
+      expected_outputs (dict): A map from PCollection id (expressed as a tuple
+        (PTransform, output), to TODO: What does this map to?
+    """
     # Unique id for the instruction processing this bundle.
     BundleManager._uid_counter += 1
     process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
@@ -1228,11 +1296,14 @@ class BundleManager(object):
     # Actually start the bundle.
     if registration_future and registration_future.get().error:
       raise RuntimeError(registration_future.get().error)
-    process_bundle = beam_fn_api_pb2.InstructionRequest(
+
+    # Runner requests the SDK to fulfill the following instruction:
+    process_bundle_request = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
             process_bundle_descriptor_reference=self._bundle_descriptor.id))
-    result_future = self._controller.control_handler.push(process_bundle)
+    result_future = self._controller.control_handler.push(
+        process_bundle_request)
 
     with ProgressRequester(
         self._controller, process_bundle_id, self._progress_frequency):
