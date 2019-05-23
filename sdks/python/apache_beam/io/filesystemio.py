@@ -80,8 +80,10 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
 
-  def __init__(self, downloader, read_buffer_size=io.DEFAULT_BUFFER_SIZE,
-   mode='rb'):
+  def __init__(self, 
+               downloader,
+               read_buffer_size=io.DEFAULT_BUFFER_SIZE,
+               mode='rb'):
     """Initializes the stream.
 
     Args:
