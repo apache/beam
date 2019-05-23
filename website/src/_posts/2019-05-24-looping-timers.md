@@ -5,7 +5,8 @@ date:   2019-05-24 00:00:01 -0800
 excerpt_separator: <!--more-->
 categories: blog
 authors:
-  -
+  - Reza Rokni
+  - Kenneth Knowles
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -334,3 +335,5 @@ feature sets. You can experiment with this pattern today using the
 DirectRunner. For other runners, please look out for their release notes on
 support for dealing with this use case in production.
 
+Runner specific notes:
+Google Cloud Dataflow Runners Drain feature does not support looping timers (Link to matrix)
