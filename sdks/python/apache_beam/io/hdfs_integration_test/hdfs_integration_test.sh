@@ -48,6 +48,10 @@ cd ${CONTEXT_DIR}
 # https://github.com/docker/compose/issues/5745#issuecomment-370031631
 docker network prune --force
 
+# [BEAM-7405] The gcloud docker credential helper overwrites the docker's config file, which will
+# prevent the docker build with corrent credentials.
+rm -f /home/jenkins/.docker/config.json
+
 function finally {
   time docker-compose ${COMPOSE_OPT} down
 }
