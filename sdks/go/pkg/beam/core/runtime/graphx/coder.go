@@ -321,10 +321,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 		ref, err := encodeCustomCoder(c.Custom)
 		if err != nil {
 			typeName := c.Custom.Name
-			panic(fmt.Sprintf("Failed to encode custom coder for type %s. "+
+			panic(errors.SetTopLevelMsgf(err, "Failed to encode custom coder for type %s. "+
 				"Make sure the type was registered before calling beam.Init. For example: "+
-				"beam.RegisterType(reflect.TypeOf((*TypeName)(nil)).Elem())\n\n"+
-				"Full error: %v", typeName, err))
+				"beam.RegisterType(reflect.TypeOf((*TypeName)(nil)).Elem())", typeName))
 		}
 		data, err := protox.EncodeBase64(ref)
 		if err != nil {
