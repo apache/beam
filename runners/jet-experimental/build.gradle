@@ -55,11 +55,7 @@ dependencies {
 
 task validatesRunnerBatch(type: Test) {
     group = "Verification"
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestJetRunner",
-            "--jetGroupName=jet",
-            "--jetLocalParallelism=2"
-    ])
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(["--runner=TestJetRunner"])
 
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)

@@ -187,7 +187,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
       throw new IllegalArgumentException("Jet group name not set in options");
     }
 
-    Integer localParallelism = options.getJetLocalParallelism();
+    Integer localParallelism = options.getJetDefaultParallelism();
     if (localParallelism == null) {
       throw new IllegalArgumentException("Jet node local parallelism must be specified");
     }

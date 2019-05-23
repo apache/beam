@@ -79,7 +79,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   private final Map<Integer, PCollectionView<?>> ordinalToSideInput;
   private final String ownerId;
   private final String stepId;
-  private final long metricsFlushPeriod = TimeUnit.SECONDS.toMillis(1) + ThreadLocalRandom.current().nextLong(500);
+  private final long metricsFlushPeriod =
+      TimeUnit.SECONDS.toMillis(1) + ThreadLocalRandom.current().nextLong(500);
 
   DoFnRunner<InputT, OutputT> doFnRunner;
   JetOutputManager outputManager;
