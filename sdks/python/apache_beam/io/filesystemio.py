@@ -172,6 +172,7 @@ class DownloaderStream(io.RawIOBase):
       res.append(data)
     return b''.join(res)
 
+
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
 
