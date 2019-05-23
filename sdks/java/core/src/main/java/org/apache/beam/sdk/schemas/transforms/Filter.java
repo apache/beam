@@ -94,9 +94,9 @@ public class Filter {
       abstract SerializableFunction<FieldT, Boolean> getPredicate();
 
       @Nullable
-      abstract Schema getOutputSchema();
+      abstract Schema getSelectedSchema();
 
-      abstract boolean getUnbox();
+      abstract boolean getSelectsSingleField();
 
       abstract Builder<FieldT> toBuilder();
 
@@ -107,9 +107,9 @@ public class Filter {
 
         abstract Builder<FieldT> setPredicate(SerializableFunction<FieldT, Boolean> predicate);
 
-        abstract Builder<FieldT> setOutputSchema(@Nullable Schema outputSchema);
+        abstract Builder<FieldT> setSelectedSchema(@Nullable Schema selectedSchema);
 
-        abstract Builder<FieldT> setUnbox(boolean unbox);
+        abstract Builder<FieldT> setSelectsSingleField(boolean unbox);
 
         abstract FilterDescription<FieldT> build();
       }
@@ -124,7 +124,7 @@ public class Filter {
           new AutoValue_Filter_Inner_FilterDescription.Builder<FieldT>()
               .setFieldAccessDescriptor(FieldAccessDescriptor.withFieldNames(fieldName))
               .setPredicate(predicate)
-              .setUnbox(true)
+              .setSelectsSingleField(true)
               .build());
       return this;
     }
@@ -136,7 +136,7 @@ public class Filter {
           new AutoValue_Filter_Inner_FilterDescription.Builder<FieldT>()
               .setFieldAccessDescriptor(FieldAccessDescriptor.withFieldIds(fieldId))
               .setPredicate(predicate)
-              .setUnbox(true)
+              .setSelectsSingleField(true)
               .build());
       return this;
     }
@@ -148,7 +148,7 @@ public class Filter {
           new AutoValue_Filter_Inner_FilterDescription.Builder<Row>()
               .setFieldAccessDescriptor(FieldAccessDescriptor.withFieldNames(fieldNames))
               .setPredicate(predicate)
-              .setUnbox(false)
+              .setSelectsSingleField(false)
               .build());
       return this;
     }
@@ -160,7 +160,7 @@ public class Filter {
           new AutoValue_Filter_Inner_FilterDescription.Builder<Row>()
               .setFieldAccessDescriptor(FieldAccessDescriptor.withFieldIds(fieldIds))
               .setPredicate(predicate)
-              .setUnbox(false)
+              .setSelectsSingleField(false)
               .build());
       return this;
     }
@@ -179,7 +179,7 @@ public class Filter {
               .map(
                   f ->
                       f.toBuilder()
-                          .setOutputSchema(
+                          .setSelectedSchema(
                               SelectHelpers.getOutputSchema(
                                   inputSchema, f.getFieldAccessDescriptor()))
                           .build())
@@ -196,8 +196,8 @@ public class Filter {
                             row,
                             filter.getFieldAccessDescriptor(),
                             inputSchema,
-                            filter.getOutputSchema());
-                    if (filter.getUnbox()) {
+                            filter.getSelectedSchema());
+                    if (filter.getSelectsSingleField()) {
                       SerializableFunction<Object, Boolean> predicate =
                           (SerializableFunction<Object, Boolean>) filter.getPredicate();
                       if (!predicate.apply(selected.getValue(0))) {
