@@ -22,9 +22,10 @@ import com.hazelcast.jet.IMapJet;
 import com.hazelcast.jet.Jet;
 import com.hazelcast.jet.JetInstance;
 import com.hazelcast.jet.Job;
+import com.hazelcast.jet.config.JobConfig;
 import com.hazelcast.jet.core.DAG;
-import com.hazelcast.jet.server.JetBootstrap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -48,11 +49,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);
 
   public static JetRunner fromOptions(PipelineOptions options) {
-    return fromOptions(
-        options,
-        options.as(JetPipelineOptions.class).getJetStartOwnCluster()
-            ? Jet::newJetClient
-            : config -> JetBootstrap.getInstance());
+    return fromOptions(options, Jet::newJetClient);
   }
 
   public static JetRunner fromOptions(
@@ -117,7 +114,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
             options); // todo: we use single client for each job, it might be better to have a
     // shared client with refcount
 
-    Job job = jet.newJob(dag);
+    Job job = jet.newJob(dag, getJobConfig(options));
     IMapJet<String, MetricUpdates> metricsAccumulator =
         jet.getMap(JetMetricsContainer.getMetricsMapName(job.getId()));
     JetPipelineResult pipelineResult = new JetPipelineResult(job, metricsAccumulator);
@@ -137,10 +134,10 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   }
 
   private void startClusterIfNeeded(JetPipelineOptions options) {
-    if (options.getJetStartOwnCluster()) {
+    Integer noOfLocalMembers = options.getJetLocalMode();
+    if (noOfLocalMembers > 0) {
       Collection<JetInstance> jetInstances = new ArrayList<>();
-      Integer noOfMembers = options.getJetClusterMemberCount();
-      for (int i = 0; i < noOfMembers; i++) {
+      for (int i = 0; i < noOfLocalMembers; i++) {
         jetInstances.add(Jet.newJetInstance());
       }
       LOG.info("Started " + jetInstances.size() + " Jet cluster members");
@@ -148,10 +145,23 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   }
 
   private void stopClusterIfNeeded(JetPipelineOptions options) {
-    if (options.getJetStartOwnCluster()) {
+    Integer noOfLocalMembers = options.getJetLocalMode();
+    if (noOfLocalMembers > 0) {
       Jet.shutdownAll();
       LOG.info("Stopped all Jet cluster members");
     }
+  }
+
+  private JobConfig getJobConfig(JetPipelineOptions options) {
+    JobConfig jobConfig = new JobConfig();
+    boolean hasNoLocalMembers = options.getJetLocalMode() <= 0;
+    if (hasNoLocalMembers) {
+      String codeJarPathname = options.getCodeJarPathname();
+      if (codeJarPathname != null && !codeJarPathname.isEmpty()) {
+        jobConfig.addJar(codeJarPathname);
+      }
+    }
+    return jobConfig;
   }
 
   private JetInstance getJetInstance(JetPipelineOptions options) {
@@ -159,6 +169,12 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
 
     ClientConfig clientConfig = new ClientConfig();
     clientConfig.getGroupConfig().setName(jetGroupName);
+    boolean hasNoLocalMembers = options.getJetLocalMode() <= 0;
+    if (hasNoLocalMembers) {
+      clientConfig
+          .getNetworkConfig()
+          .setAddresses(Arrays.asList(options.getJetServers().split(",")));
+    }
     return jetClientSupplier.apply(clientConfig);
   }
 
@@ -177,13 +193,6 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
     }
     if (localParallelism != -1 && localParallelism < 1) {
       throw new IllegalArgumentException("Jet node local parallelism must be >1 or -1");
-    }
-
-    if (options.getJetStartOwnCluster()) {
-      Integer jetClusterMemberCount = options.getJetClusterMemberCount();
-      if (jetClusterMemberCount == null || jetClusterMemberCount < 1) {
-        throw new IllegalArgumentException("Can't start a cluster without members!");
-      }
     }
 
     return options;
