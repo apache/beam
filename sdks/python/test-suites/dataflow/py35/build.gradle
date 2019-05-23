@@ -40,14 +40,18 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
     def testOpts = basicTestOpts + ["--attr=IT"]
 
-     def cmdArgs = project.mapToArgString([
+    def argMap = [
         "test_opts": testOpts,
         "sdk_location": "${project.buildDir}/apache-beam.tar.gz",
-        "worker_jar": dataflowWorkerJar
-    ])
+    ]
+
+    project.addDataflowJarIfNotRelease(argMap, dataflowWorkerJar)
+
+    def cmdArgs = project.mapToArgString(argMap)
+
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${project.ext.envdir}/bin/activate && echo ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }

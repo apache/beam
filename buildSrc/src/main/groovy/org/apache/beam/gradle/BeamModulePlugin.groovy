@@ -1762,6 +1762,12 @@ class BeamModulePlugin implements Plugin<Project> {
         return argList.join(' ')
       }
 
+      project.ext.addDataflowJarForNonRC = { argMap, jar ->
+        if (!isRelease(project)) {
+          argMap.put("worker", jar)
+        }
+      }
+
       project.ext.toxTask = { name, tox_env ->
         project.tasks.create(name) {
           dependsOn = ['sdist']
