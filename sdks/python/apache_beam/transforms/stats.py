@@ -28,29 +28,33 @@ from builtins import round
 import mmh3
 
 from apache_beam import coders
+from apache_beam import typehints
 from apache_beam.transforms.core import *
 from apache_beam.transforms.ptransform import PTransform
 
 __all__ = [
-    'ApproximateUniqueGlobally',
-    'ApproximateUniquePerKey',
+    'ApproximateUnique',
 ]
 
+# Type variables
+T = typehints.TypeVariable('T')
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
 
-class ApproximateUniqueGlobally(PTransform):
+
+class ApproximateUnique(object):
   """
   Hashes input elements and uses those to extrapolate the size of the entire
   set of hash values by assuming the rest of the hash values are as densely
   distributed as the sample space.
-
   Args:
-    **kwargs: Accepts a single named argument "size" or "error".
-    size: an int not smaller than 16, which we would use to estimate
-      number of unique values.
-    error: max estimation error, which is a float between 0.01
-      and 0.50. If error is given, size will be calculated from error with
-      _get_sample_size_from_est_error function.
-  """
+   **kwargs: Accepts a single named argument "size" or "error".
+   size: an int not smaller than 16, which we would use to estimate
+     number of unique values.
+   error: max estimation error, which is a float between 0.01
+     and 0.50. If error is given, size will be calculated from error with
+     _get_sample_size_from_est_error function.
+ """
 
   _NO_VALUE_ERR_MSG = 'Either size or error should be set. Received {}.'
   _MULTI_VALUE_ERR_MSG = 'Either size or error should be set. ' \
@@ -61,31 +65,27 @@ class ApproximateUniqueGlobally(PTransform):
   _INPUT_ERROR_ERR_MSG = 'ApproximateUnique needs an estimation error ' \
                          'between 0.01 and 0.50. Received {error = %s}.'
 
-  def __init__(self, size=None, error=None):
+  @staticmethod
+  def get_input_params(size=None, error=None):
+    """
+    :return: sample size
 
+    Check if input params are valid and return sample size.
+    """
     if None not in (size, error):
-      raise ValueError(self._MULTI_VALUE_ERR_MSG % (size, error))
+      raise ValueError(ApproximateUnique._MULTI_VALUE_ERR_MSG % (size, error))
     elif size is None and error is None:
-      raise ValueError(self._NO_VALUE_ERR_MSG)
+      raise ValueError(ApproximateUnique._NO_VALUE_ERR_MSG)
     elif size is not None:
       if not isinstance(size, int) or size < 16:
-        raise ValueError(self._INPUT_SIZE_ERR_MSG % (size))
+        raise ValueError(ApproximateUnique._INPUT_SIZE_ERR_MSG % (size))
       else:
-        self._sample_size = size
-        self._max_est_err = None
+        return size
     else:
       if error < 0.01 or error > 0.5:
-        raise ValueError(self._INPUT_ERROR_ERR_MSG % (error))
+        raise ValueError(ApproximateUnique._INPUT_ERROR_ERR_MSG % (error))
       else:
-        self._sample_size = self._get_sample_size_from_est_error(error)
-        self._max_est_err = error
-
-  def expand(self, pcoll):
-    coder = coders.registry.get_coder(pcoll)
-    return pcoll \
-           | 'CountGlobalUniqueValues' \
-           >> (CombineGlobally(ApproximateUniqueCombineFn(self._sample_size,
-                                                          coder)))
+        return ApproximateUnique._get_sample_size_from_est_error(error)
 
   @staticmethod
   def _get_sample_size_from_est_error(est_err):
@@ -94,18 +94,38 @@ class ApproximateUniqueGlobally(PTransform):
 
     Calculate sample size from estimation error
     """
-    # math.ceil in python 2.7 returns float, while it returns int in python 3.
+    # math.ceil in python 2.7 returns a float, while it returns an int in python 3.
     return int(math.ceil(4.0 / math.pow(est_err, 2.0)))
 
+  @typehints.with_input_types(T)
+  @typehints.with_output_types(T)
+  class Globally(PTransform):
+    """ Approximate.Globally approximate number of unique values"""
 
-class ApproximateUniquePerKey(ApproximateUniqueGlobally):
+    def __init__(self, size=None, error=None):
+      self._sample_size = ApproximateUnique.get_input_params(size, error)
 
-  def expand(self, pcoll):
-    coder = coders.registry.get_coder(pcoll)
-    return pcoll \
-           | 'CountPerKeyUniqueValues' \
-           >> (CombinePerKey(ApproximateUniqueCombineFn(self._sample_size,
-                                                        coder)))
+    def expand(self, pcoll):
+      coder = coders.registry.get_coder(pcoll)
+      return pcoll \
+             | 'CountGlobalUniqueValues' \
+             >> (CombineGlobally(ApproximateUniqueCombineFn(self._sample_size,
+                                                            coder)))
+
+  @typehints.with_input_types(typehints.KV[K, V])
+  @typehints.with_output_types(typehints.KV[K, V])
+  class PerKey(PTransform):
+    """ Approximate.PerKey approximate number of unique values per key"""
+
+    def __init__(self, size=None, error=None):
+      self._sample_size = ApproximateUnique.get_input_params(size, error)
+
+    def expand(self, pcoll):
+      coder = coders.registry.get_coder(pcoll)
+      return pcoll \
+             | 'CountPerKeyUniqueValues' \
+             >> (CombinePerKey(ApproximateUniqueCombineFn(self._sample_size,
+                                                          coder)))
 
 
 class _LargestUnique(object):

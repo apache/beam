@@ -33,7 +33,7 @@ from apache_beam.testing.util import equal_to
 
 
 class ApproximateUniqueTest(unittest.TestCase):
-  """Unit tests for ApproximateUniqueGlobally and ApproximateUniquePerKey."""
+  """Unit tests for ApproximateUnique.Globally and ApproximateUnique.PerKey."""
 
   def test_approximate_unique_global_by_invalid_size(self):
     # test if the transformation throws an error as expected with an invalid
@@ -47,11 +47,10 @@ class ApproximateUniqueTest(unittest.TestCase):
            | 'create'
            >> beam.Create(test_input)
            | 'get_estimate'
-           >> beam.ApproximateUniqueGlobally(size=sample_size))
+           >> beam.ApproximateUnique.Globally(size=sample_size))
       pipeline.run()
 
-    expected_msg = beam.ApproximateUniqueGlobally._INPUT_SIZE_ERR_MSG % (
-        sample_size)
+    expected_msg = beam.ApproximateUnique._INPUT_SIZE_ERR_MSG % (sample_size)
 
     assert e.exception.args[0] == expected_msg
 
@@ -66,11 +65,10 @@ class ApproximateUniqueTest(unittest.TestCase):
       _ = (pipeline
            | 'create' >> beam.Create(test_input)
            | 'get_estimate'
-           >> beam.ApproximateUniqueGlobally(size=sample_size))
+           >> beam.ApproximateUnique.Globally(size=sample_size))
       pipeline.run()
 
-    expected_msg = beam.ApproximateUniqueGlobally._INPUT_SIZE_ERR_MSG % (
-        sample_size)
+    expected_msg = beam.ApproximateUnique._INPUT_SIZE_ERR_MSG % (sample_size)
 
     assert e.exception.args[0] == expected_msg
 
@@ -85,11 +83,10 @@ class ApproximateUniqueTest(unittest.TestCase):
       _ = (pipeline
            | 'create' >> beam.Create(test_input)
            | 'get_estimate'
-           >> beam.ApproximateUniqueGlobally(error=est_err))
+           >> beam.ApproximateUnique.Globally(error=est_err))
       pipeline.run()
 
-    expected_msg = beam.ApproximateUniqueGlobally._INPUT_ERROR_ERR_MSG % (
-        est_err)
+    expected_msg = beam.ApproximateUnique._INPUT_ERROR_ERR_MSG % (est_err)
 
     assert e.exception.args[0] == expected_msg
 
@@ -104,11 +101,10 @@ class ApproximateUniqueTest(unittest.TestCase):
       _ = (pipeline
            | 'create' >> beam.Create(test_input)
            | 'get_estimate'
-           >> beam.ApproximateUniqueGlobally(error=est_err))
+           >> beam.ApproximateUnique.Globally(error=est_err))
       pipeline.run()
 
-    expected_msg = beam.ApproximateUniqueGlobally._INPUT_ERROR_ERR_MSG % (
-        est_err)
+    expected_msg = beam.ApproximateUnique._INPUT_ERROR_ERR_MSG % (est_err)
 
     assert e.exception.args[0] == expected_msg
 
@@ -121,10 +117,10 @@ class ApproximateUniqueTest(unittest.TestCase):
       _ = (pipeline
            | 'create' >> beam.Create(test_input)
            | 'get_estimate'
-           >> beam.ApproximateUniqueGlobally())
+           >> beam.ApproximateUnique.Globally())
       pipeline.run()
 
-    expected_msg = beam.ApproximateUniqueGlobally._NO_VALUE_ERR_MSG
+    expected_msg = beam.ApproximateUnique._NO_VALUE_ERR_MSG
     assert e.exception.args[0] == expected_msg
 
   def test_approximate_unique_global_by_invalid_both_input(self):
@@ -138,28 +134,22 @@ class ApproximateUniqueTest(unittest.TestCase):
       _ = (pipeline
            | 'create' >> beam.Create(test_input)
            | 'get_estimate'
-           >> beam.ApproximateUniqueGlobally(size=sample_size, error=est_err))
+           >> beam.ApproximateUnique.Globally(size=sample_size, error=est_err))
       pipeline.run()
 
-    expected_msg = beam.ApproximateUniqueGlobally._MULTI_VALUE_ERR_MSG % (
+    expected_msg = beam.ApproximateUnique._MULTI_VALUE_ERR_MSG % (
         sample_size, est_err)
 
     assert e.exception.args[0] == expected_msg
 
   def test_get_sample_size_from_est_error(self):
     # test if get correct sample size from input error.
-    assert beam.ApproximateUniqueGlobally.\
-      _get_sample_size_from_est_error(0.5) == 16
-    assert beam.ApproximateUniqueGlobally.\
-      _get_sample_size_from_est_error(0.4) == 25
-    assert beam.ApproximateUniqueGlobally.\
-      _get_sample_size_from_est_error(0.2) == 100
-    assert beam.ApproximateUniqueGlobally.\
-      _get_sample_size_from_est_error(0.1) == 400
-    assert beam.ApproximateUniqueGlobally.\
-      _get_sample_size_from_est_error(0.05) == 1600
-    assert beam.ApproximateUniqueGlobally.\
-      _get_sample_size_from_est_error(0.01) == 40000
+    assert beam.ApproximateUnique._get_sample_size_from_est_error(0.5) == 16
+    assert beam.ApproximateUnique._get_sample_size_from_est_error(0.4) == 25
+    assert beam.ApproximateUnique._get_sample_size_from_est_error(0.2) == 100
+    assert beam.ApproximateUnique._get_sample_size_from_est_error(0.1) == 400
+    assert beam.ApproximateUnique._get_sample_size_from_est_error(0.05) == 1600
+    assert beam.ApproximateUnique._get_sample_size_from_est_error(0.01) == 40000
 
   def test_approximate_unique_global_by_sample_size(self):
     # test if estimation error with a given sample size is not greater than
@@ -173,7 +163,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniqueGlobally(size=sample_size)
+              >> beam.ApproximateUnique.Globally(size=sample_size)
               | 'compare'
               >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
                                          / actual_count <= max_err]))
@@ -194,7 +184,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniqueGlobally(size=sample_size)
+              >> beam.ApproximateUnique.Globally(size=sample_size)
               | 'compare'
               >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
                                          / actual_count <= max_err]))
@@ -214,7 +204,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniqueGlobally(size=sample_size))
+              >> beam.ApproximateUnique.Globally(size=sample_size))
 
     assert_that(result, equal_to([actual_count]),
                 label='assert:global_by_sample_size_with_small_population')
@@ -232,7 +222,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniqueGlobally(size=sample_size)
+              >> beam.ApproximateUnique.Globally(size=sample_size)
               | 'compare'
               >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
                                          / actual_count <= max_err]))
@@ -251,7 +241,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniqueGlobally(error=est_err)
+              >> beam.ApproximateUnique.Globally(error=est_err)
               | 'compare'
               >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
                                          / actual_count <= est_err]))
@@ -273,7 +263,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniqueGlobally(error=est_err))
+              >> beam.ApproximateUnique.Globally(error=est_err))
 
     assert_that(result, equal_to([actual_count]),
                 label='assert:global_by_error_with_samll_population')
@@ -290,7 +280,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniqueGlobally(error=est_err)
+              >> beam.ApproximateUnique.Globally(error=est_err)
               | 'compare'
               >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
                                          / actual_count <= est_err]))
@@ -314,7 +304,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniquePerKey(size=sample_size)
+              >> beam.ApproximateUnique.PerKey(size=sample_size)
               | 'compare'
               >> beam.FlatMap(lambda x: [abs(x[1]
                                              - len(actual_count_dict[x[0]]))
@@ -339,7 +329,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniquePerKey(error=est_err)
+              >> beam.ApproximateUnique.PerKey(error=est_err)
               | 'compare'
               >> beam.FlatMap(lambda x: [abs(x[1]
                                              - len(actual_count_dict[x[0]]))
@@ -372,7 +362,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = (pipeline
               | 'create' >> beam.Create(test_input)
               | 'get_estimate'
-              >> beam.ApproximateUniqueGlobally(error=est_err)
+              >> beam.ApproximateUnique.Globally(error=est_err)
               | 'compare'
               >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
                                          / actual_count <= est_err]))
