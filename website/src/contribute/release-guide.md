@@ -214,8 +214,8 @@ There are 2 ways to cut a release branch: either running automation script(recom
 * Usage
   ```
   # Cut a release branch
-  ./beam/release/src/main/scripts/cut_release_branch.sh 
-  --release= ${RELEASE_VERSION}
+  ./beam/release/src/main/scripts/cut_release_branch.sh \
+  --release=${RELEASE_VERSION} \
   --next_release=${NEXT_VERSION}
   
   # Show help page
@@ -805,7 +805,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   ```
   ./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
-  -Pver= ${RELEASE_VERSION}\
+  -Pver=${RELEASE_VERSION} \
   -PgcpProject=${YOUR_GCP_PROJECT} \
   -PgcsBucket=${YOUR_GCP_BUCKET}
   ```
@@ -833,7 +833,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   ```
   ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
    -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \ 
-   -Pver= ${RELEASE_VERSION}\
+   -Pver=${RELEASE_VERSION} \
    -PgcpProject=${YOUR_GCP_PROJECT} \
    -PgcsBucket=${YOUR_GCP_BUCKET} \
    -PbqDataset=${YOUR_DATASET} -PpubsubTopic=${YOUR_PROJECT_PUBSUB_TOPIC}
