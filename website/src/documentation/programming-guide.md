@@ -514,12 +514,14 @@ that you can apply multiple transforms to the same input `PCollection` to create
 a branching pipeline, like so:
 
 ```java
-[Output PCollection 1] = [Input PCollection].apply([Transform 1])
-[Output PCollection 2] = [Input PCollection].apply([Transform 2])
+[PCollection of database table rows] = [Database Table Reader].apply([Read Transform])
+[PCollection of 'A' names] = [PCollection of database table rows].apply([Transform A])
+[PCollection of 'B' names] = [PCollection of database table rows].apply([Transform B])
 ```
 ```py
-[Output PCollection 1] = [Input PCollection] | [Transform 1]
-[Output PCollection 2] = [Input PCollection] | [Transform 2]
+[PCollection of database table rows] = [Database Table Reader] | [Read Transform]
+[PCollection of 'A' names] = [PCollection of database table rows] | [Transform A]
+[PCollection of 'B' names] = [PCollection of database table rows] | [Transform B]
 ```
 
 The resulting workflow graph from the branching pipeline above looks like this.
