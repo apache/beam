@@ -33,6 +33,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -77,6 +79,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   private final Map<Integer, PCollectionView<?>> ordinalToSideInput;
   private final String ownerId;
   private final String stepId;
+  private final long metricsFlushPeriod = TimeUnit.SECONDS.toMillis(1) + ThreadLocalRandom.current().nextLong(500);
 
   DoFnRunner<InputT, OutputT> doFnRunner;
   JetOutputManager outputManager;
@@ -88,6 +91,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   private Set<Integer> completedSideInputs = new HashSet<>();
   private SideInputReader sideInputReader;
   private Outbox outbox;
+  private long lastMetricsFlushTime = System.currentTimeMillis();
 
   AbstractParDoP(
       DoFn<InputT, OutputT> doFn,
@@ -247,7 +251,12 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
 
   @Override
   public boolean tryProcess() {
-    return outputManager.tryFlush();
+    boolean successful = outputManager.tryFlush();
+    if (successful && System.currentTimeMillis() > lastMetricsFlushTime + metricsFlushPeriod) {
+      metricsContainer.flush(true);
+      lastMetricsFlushTime = System.currentTimeMillis();
+    }
+    return successful;
   }
 
   @Override
@@ -277,7 +286,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   public boolean complete() {
     boolean successful = outputManager.tryFlush();
     if (successful) {
-      metricsContainer.flush();
+      metricsContainer.flush(false);
       MetricsEnvironment.setCurrentContainer(
           null); // todo: this is correct only as long as the processor is non-cooperative
     }
