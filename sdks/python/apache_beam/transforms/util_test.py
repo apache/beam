@@ -414,6 +414,24 @@ class ReshuffleTest(unittest.TestCase):
     pipeline.run()
 
 
+class WithKeysTest(unittest.TestCase):
+
+  def setUp(self):
+    self.l = [1, 2, 3]
+
+  def test_constant_k(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      with_keys = pc | util.WithKeys('k')
+    assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
+
+  def test_callable_k(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      with_keys = pc | util.WithKeys(lambda x: x*x)
+    assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
