@@ -475,7 +475,7 @@ public class DataflowPipelineJob implements PipelineResult {
       return terminalState;
     }
 
-    return getStateWithRetriesNoThrow(
+    return getStateWithRetriesOrUnknownOnException(
         BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()), Sleeper.DEFAULT);
   }
 
@@ -488,7 +488,7 @@ public class DataflowPipelineJob implements PipelineResult {
    * @return The state of the job or State.UNKNOWN in case of failure.
    */
   @VisibleForTesting
-  State getStateWithRetriesNoThrow(BackOff attempts, Sleeper sleeper) {
+  State getStateWithRetriesOrUnknownOnException(BackOff attempts, Sleeper sleeper) {
     try {
       return getStateWithRetries(attempts, sleeper);
     } catch (IOException exn) {
