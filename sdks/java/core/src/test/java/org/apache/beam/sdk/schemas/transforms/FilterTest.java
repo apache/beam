@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import java.util.Objects;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -41,48 +41,29 @@ public class FilterTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  /** POJO used to test schemas. * */
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class POJO {
-    public String field1;
-    public int field2;
-    public int field3;
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Simple {
+    abstract String getField1();
 
-    public POJO(String field1, int field2, int field3) {
-      this.field1 = field1;
-      this.field2 = field2;
-      this.field3 = field3;
-    }
+    abstract int getField2();
 
-    public POJO() {}
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      POJO pojo = (POJO) o;
-      return Objects.equals(field1, pojo.field1)
-          && Objects.equals(field2, pojo.field2)
-          && Objects.equals(field3, pojo.field3);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2, field3);
-    }
+    abstract int getField3();
   };
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Nested {
+    abstract Simple getNested();
+  }
 
   @Test
   @Category(NeedsRunner.class)
   public void testMissingFieldName() {
     thrown.expect(IllegalArgumentException.class);
     pipeline
-        .apply(Create.of(new POJO("pass", 52, 2)))
-        .apply(Filter.<POJO>create().whereFieldName("missing", f -> true));
+        .apply(Create.of(new AutoValue_FilterTest_Simple("pass", 52, 2)))
+        .apply(Filter.<AutoValue_FilterTest_Simple>create().whereFieldName("missing", f -> true));
     pipeline.run();
   }
 
@@ -91,8 +72,8 @@ public class FilterTest {
   public void testMissingFieldIndex() {
     thrown.expect(IllegalArgumentException.class);
     pipeline
-        .apply(Create.of(new POJO("pass", 52, 2)))
-        .apply(Filter.<POJO>create().whereFieldId(23, f -> true));
+        .apply(Create.of(new AutoValue_FilterTest_Simple("pass", 52, 2)))
+        .apply(Filter.<AutoValue_FilterTest_Simple>create().whereFieldId(23, f -> true));
     pipeline.run();
   }
 
@@ -100,16 +81,40 @@ public class FilterTest {
   @Category(NeedsRunner.class)
   public void testFilterFieldsByName() {
     // Pass only elements where field1 == "pass && field2 > 50.
-    PCollection<POJO> filtered =
+    PCollection<AutoValue_FilterTest_Simple> filtered =
         pipeline
             .apply(
                 Create.of(
-                    new POJO("pass", 52, 2), new POJO("pass", 2, 2), new POJO("fail", 100, 100)))
+                    new AutoValue_FilterTest_Simple("pass", 52, 2),
+                    new AutoValue_FilterTest_Simple("pass", 2, 2),
+                    new AutoValue_FilterTest_Simple("fail", 100, 100)))
             .apply(
-                Filter.<POJO>create()
+                Filter.<AutoValue_FilterTest_Simple>create()
                     .whereFieldName("field1", s -> "pass".equals(s))
-                    .whereFieldName("field2", i -> (Integer) i > 50));
-    PAssert.that(filtered).containsInAnyOrder(new POJO("pass", 52, 2));
+                    .whereFieldName("field2", (Integer i) -> i > 50));
+    PAssert.that(filtered).containsInAnyOrder(new AutoValue_FilterTest_Simple("pass", 52, 2));
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFilterOnNestedField() {
+    // Pass only elements where field1 == "pass && field2 > 50.
+    PCollection<AutoValue_FilterTest_Nested> filtered =
+        pipeline
+            .apply(
+                Create.of(
+                    new AutoValue_FilterTest_Nested(new AutoValue_FilterTest_Simple("pass", 52, 2)),
+                    new AutoValue_FilterTest_Nested(new AutoValue_FilterTest_Simple("pass", 2, 2)),
+                    new AutoValue_FilterTest_Nested(
+                        new AutoValue_FilterTest_Simple("fail", 100, 100))))
+            .apply(
+                Filter.<AutoValue_FilterTest_Nested>create()
+                    .whereFieldName("nested.field1", s -> "pass".equals(s))
+                    .whereFieldName("nested.field2", (Integer i) -> i > 50));
+    PAssert.that(filtered)
+        .containsInAnyOrder(
+            new AutoValue_FilterTest_Nested(new AutoValue_FilterTest_Simple("pass", 52, 2)));
     pipeline.run();
   }
 
@@ -117,15 +122,22 @@ public class FilterTest {
   @Category(NeedsRunner.class)
   public void testFilterMultipleFields() {
     // Pass only elements where field1 + field2 >= 100.
-    PCollection<POJO> filtered =
+    PCollection<AutoValue_FilterTest_Simple> filtered =
         pipeline
-            .apply(Create.of(new POJO("", 52, 48), new POJO("", 52, 2), new POJO("", 70, 33)))
             .apply(
-                Filter.<POJO>create()
+                Create.of(
+                    new AutoValue_FilterTest_Simple("", 52, 48),
+                    new AutoValue_FilterTest_Simple("", 52, 2),
+                    new AutoValue_FilterTest_Simple("", 70, 33)))
+            .apply(
+                Filter.<AutoValue_FilterTest_Simple>create()
                     .whereFieldNames(
                         Lists.newArrayList("field2", "field3"),
                         r -> r.getInt32("field2") + r.getInt32("field3") >= 100));
-    PAssert.that(filtered).containsInAnyOrder(new POJO("", 52, 48), new POJO("", 70, 33));
+    PAssert.that(filtered)
+        .containsInAnyOrder(
+            new AutoValue_FilterTest_Simple("", 52, 48),
+            new AutoValue_FilterTest_Simple("", 70, 33));
     pipeline.run();
   }
 }
