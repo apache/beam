@@ -245,13 +245,13 @@ public class DataflowPipelineJob implements PipelineResult {
   }
 
   private static BackOff getMessagesBackoff(Duration duration) {
-    FluentBackoff fac = MESSAGES_BACKOFF_FACTORY;
+    FluentBackoff factory = MESSAGES_BACKOFF_FACTORY;
 
     if (!duration.isShorterThan(Duration.ZERO)) {
-      fac = fac.withMaxCumulativeBackoff(duration);
+      factory = factory.withMaxCumulativeBackoff(duration);
     }
 
-    return BackOffAdapter.toGcpBackOff(fac.backoff());
+    return BackOffAdapter.toGcpBackOff(factory.backoff());
   }
 
   /**
