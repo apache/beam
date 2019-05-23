@@ -311,7 +311,7 @@ public static void main(String[] args) {
 
     // Create the PCollection 'lines' by applying a 'Read' transform.
     PCollection<String> lines = p.apply(
-      "ReadMyFile", TextIO.read().from("protocol://path/to/some/inputData.txt"));
+      "ReadMyFile", TextIO.read().from("gs://some/inputData.txt"));
 }
 ```
 ```py
@@ -319,7 +319,7 @@ public static void main(String[] args) {
 %}
 ```
 ```go
-lines := textio.Read(s, "protocol://path/to/some/inputData.txt")
+lines := textio.Read(s, "gs://some/inputData.txt")
 ```
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
