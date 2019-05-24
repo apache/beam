@@ -27,14 +27,13 @@ import unittest
 
 from apache_beam import coders
 from apache_beam.io import filesystems
-from apache_beam.io import tfrecordio
 from apache_beam.runners.interactive import cache_manager as cache
 
 
-class FileBasedCacheManagerTest(unittest.TestCase):
+class FileBasedCacheManagerTest(object):
   """Unit test for FileBasedCacheManager.
 
-  Note that this set of tests focuses only the the methods that interacts with
+  Note that this set of tests focuses only the methods that interacts with
   the LOCAL file system. The idea is that once FileBasedCacheManager works well
   with the local file system, it should work with any file system with
   `apache_beam.io.filesystem` interface. Those tests that involve interactions
@@ -42,9 +41,12 @@ class FileBasedCacheManagerTest(unittest.TestCase):
   tested with InteractiveRunner as a part of integration tests instead.
   """
 
+  cache_format = None
+
   def setUp(self):
     self.test_dir = tempfile.mkdtemp()
-    self.cache_manager = cache.FileBasedCacheManager(self.test_dir)
+    self.cache_manager = cache.FileBasedCacheManager(
+        self.test_dir, cache_format=self.cache_format)
 
   def tearDown(self):
     # The test_dir might have already been removed by cache_manager.cleanup().
@@ -63,12 +65,16 @@ class FileBasedCacheManagerTest(unittest.TestCase):
     time.sleep(0.1)
 
     cache_file = cache_label + '-1-of-2'
+    labels = [prefix, cache_label]
 
-    pcoder = coders.coders.FastPrimitivesCoder()
-    self.cache_manager.save_pcoder(pcoder, prefix, cache_label)
+    # Usually, the pcoder will be inferred from `pcoll.element_type`
+    pcoder = coders.registry.get_coder(object)
+    self.cache_manager.save_pcoder(pcoder, *labels)
+    sink = self.cache_manager.sink(*labels)
+
     with open(self.cache_manager._path(prefix, cache_file), 'wb') as f:
       for line in pcoll_list:
-        tfrecordio._TFRecordUtil.write_record(f, pcoder.encode(line))
+        sink.write_record(f, line)
 
   def test_exists(self):
     """Test that CacheManager can correctly tell if the cache exists or not."""
@@ -165,6 +171,22 @@ class FileBasedCacheManagerTest(unittest.TestCase):
     self.assertEqual(version, 1)
     self.assertTrue(
         self.cache_manager.is_latest_version(version, prefix, cache_label))
+
+
+class TextFileBasedCacheManagerTest(
+    FileBasedCacheManagerTest,
+    unittest.TestCase,
+):
+
+  cache_format = 'text'
+
+
+class TFRecordBasedCacheManagerTest(
+    FileBasedCacheManagerTest,
+    unittest.TestCase,
+):
+
+  cache_format = 'tfrecord'
 
 
 if __name__ == '__main__':

@@ -22,15 +22,23 @@ from __future__ import print_function
 import collections
 import datetime
 import os
-import sys
 import tempfile
-import traceback
+import urllib
 
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import filesystems
+from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.transforms import combiners
+
+try:                    # Python 3
+  unquote_to_bytes = urllib.parse.unquote_to_bytes
+  quote = urllib.parse.quote
+except AttributeError:  # Python 2
+  # pylint: disable=deprecated-urllib-function
+  unquote_to_bytes = urllib.unquote
+  quote = urllib.quote
 
 
 class CacheManager(object):
@@ -55,6 +63,9 @@ class CacheManager(object):
 
   def read(self, *labels):
     """Return the PCollection as a list as well as the version number.
+
+    Args:
+      *labels: List of labels for PCollection instance.
 
     Returns:
       (List[PCollection])
@@ -86,8 +97,12 @@ class CacheManager(object):
 
     Args:
       pcoder: A PCoder to be used for reading and writing a PCollection.
-      labels: List of labels for PCollection instance.
+      *labels: List of labels for PCollection instance.
     """
+    raise NotImplementedError
+
+  def load_pcoder(self, *labels):
+    """Returns previously saved PCoder for reading and writing PCollection."""
     raise NotImplementedError
 
   def cleanup(self):
@@ -98,7 +113,12 @@ class CacheManager(object):
 class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
 
-  def __init__(self, cache_dir=None):
+  _available_formats = {
+      'text': (textio.ReadFromText, textio.WriteToText),
+      'tfrecord': (tfrecordio.ReadFromTFRecord, tfrecordio.WriteToTFRecord)
+  }
+
+  def __init__(self, cache_dir=None, cache_format='text'):
     if cache_dir:
       self._cache_dir = filesystems.FileSystems.join(
           cache_dir,
@@ -107,6 +127,13 @@ class FileBasedCacheManager(CacheManager):
       self._cache_dir = tempfile.mkdtemp(
           prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
+
+    if cache_format not in self._available_formats:
+      raise ValueError("Unsupported cache format: '%s'." % cache_format)
+    self._Reader, self._Writer = self._available_formats[cache_format]
+    self._default_pcoder = (
+        SafeFastPrimitivesCoder() if cache_format == 'text' else None)
+
     # List of saved pcoders keyed by PCollection path. It is OK to keep this
     # list in memory because once FileBasedCacheManager object is
     # destroyed/re-created it loses the access to previously written cache
@@ -133,41 +160,26 @@ class FileBasedCacheManager(CacheManager):
     self._saved_pcoders[self._path(*labels)] = pcoder
 
   def load_pcoder(self, *labels):
-    """Returns previously saved PCoder for reading and writing PCollection."""
-    return self._saved_pcoders[self._path(*labels)]
+    return (self._default_pcoder if self._default_pcoder is not None else
+            self._saved_pcoders[self._path(*labels)])
 
   def read(self, *labels):
     if not self.exists(*labels):
       return [], -1
 
-    pcoder = self.load_pcoder(*labels)
-
-    def _read_helper():
-      for path in self._match(*labels):
-        with filesystems.FileSystems.open(path, 'rb') as file_handle:
-          while True:
-            record = tfrecordio._TFRecordUtil.read_record(file_handle)
-            if record is None:
-              return  # Reached EOF
-            else:
-              try:
-                yield pcoder.decode(record)
-              except:
-                traceback.print_tb(sys.exc_info()[2])
-                raise ValueError(
-                    "Could not decode cache file {} with pcoder {} {}".format(
-                        path, str(pcoder), str(sys.exc_info())))
-
-    result, version = list(_read_helper()), self._latest_version(*labels)
+    source = self.source(*labels)
+    range_tracker = source.get_range_tracker(None, None)
+    result = list(source.read(range_tracker))
+    version = self._latest_version(*labels)
     return result, version
 
   def source(self, *labels):
-    return beam.io.ReadFromTFRecord(self._glob_path(*labels),
-                                    coder=self.load_pcoder(*labels))._source
+    return self._Reader(
+        self._glob_path(*labels), coder=self.load_pcoder(*labels))._source
 
   def sink(self, *labels):
-    return beam.io.WriteToTFRecord(self._path(*labels),
-                                   coder=self.load_pcoder(*labels))._sink
+    return self._Writer(
+        self._path(*labels), coder=self.load_pcoder(*labels))._sink
 
   def cleanup(self):
     if filesystems.FileSystems.exists(self._cache_dir):
@@ -244,3 +256,15 @@ class WriteCache(beam.PTransform):
     # pylint: disable=expression-not-assigned
     return pcoll | 'Write' >> beam.io.Write(
         self._cache_manager.sink(prefix, self._label))
+
+
+class SafeFastPrimitivesCoder(coders.Coder):
+  """This class add an quote/unquote step to escape special characters."""
+  # pylint: disable=deprecated-urllib-function
+
+  def encode(self, value):
+    return quote(coders.coders.FastPrimitivesCoder().encode(value)).encode(
+        'utf-8')
+
+  def decode(self, value):
+    return coders.coders.FastPrimitivesCoder().decode(unquote_to_bytes(value))
