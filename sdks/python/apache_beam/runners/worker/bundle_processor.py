@@ -60,12 +60,12 @@ from apache_beam.utils import windowed_value
 # This module is experimental. No backwards-compatibility guarantees.
 
 
-DATA_INPUT_URN = 'urn:org.apache.beam:source:runner:0.1'
-DATA_OUTPUT_URN = 'urn:org.apache.beam:sink:runner:0.1'
-IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
+DATA_INPUT_URN = 'beam:source:runner:0.1'
+DATA_OUTPUT_URN = 'beam:sink:runner:0.1'
+IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
-OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
-OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'beam:source:java:0.1'
 URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
                                  monitoring_infos.SAMPLED_BYTE_SIZE_URN])
 
