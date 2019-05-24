@@ -20,10 +20,12 @@ package org.apache.beam.sdk.extensions.smb;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 
 class TestBucketMetadata extends BucketMetadata<String, String> {
 
-  static TestBucketMetadata of(int numBuckets, int numShards) throws CannotProvideCoderException {
+  static TestBucketMetadata of(int numBuckets, int numShards)
+      throws CannotProvideCoderException, NonDeterministicException {
     return new TestBucketMetadata(numBuckets, numShards, HashType.MURMUR3_32);
   }
 
@@ -32,7 +34,7 @@ class TestBucketMetadata extends BucketMetadata<String, String> {
       @JsonProperty("numBuckets") int numBuckets,
       @JsonProperty("numShards") int numShards,
       @JsonProperty("hashType") HashType hashType)
-      throws CannotProvideCoderException {
+      throws CannotProvideCoderException, NonDeterministicException {
     super(numBuckets, numShards, String.class, hashType);
   }
 

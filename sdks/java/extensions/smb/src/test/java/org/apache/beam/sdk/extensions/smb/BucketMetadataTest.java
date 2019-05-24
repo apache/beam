@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.smb;
 
 import com.google.api.services.bigquery.model.TableRow;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.apache.beam.sdk.extensions.smb.avro.AvroBucketMetadata;
 import org.apache.beam.sdk.extensions.smb.json.JsonBucketMetadata;
@@ -38,6 +39,19 @@ public class BucketMetadataTest {
     Assert.assertEquals(metadata.getNumShards(), copy.getNumShards());
     Assert.assertEquals(metadata.getKeyClass(), copy.getKeyClass());
     Assert.assertEquals(metadata.getHashType(), copy.getHashType());
+  }
+
+  @Test
+  public void testDeterminism() throws Exception {
+    Assert.assertThrows(
+        NonDeterministicException.class,
+        () ->
+            new BucketMetadata(1, 1, Double.class, HashType.MURMUR3_32) {
+              @Override
+              public Object extractKey(Object value) {
+                return null;
+              }
+            });
   }
 
   @Test

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.smb.benchmark;
 
+import static org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -93,7 +95,8 @@ public class SinkBenchmark {
     void setJsonNumBuckets(int value);
   }
 
-  public static void main(String[] args) throws CannotProvideCoderException {
+  public static void main(String[] args)
+      throws CannotProvideCoderException, NonDeterministicException {
     final SinkOptions sinkOptions = PipelineOptionsFactory.fromArgs(args).as(SinkOptions.class);
     final Pipeline pipeline = Pipeline.create(sinkOptions);
 

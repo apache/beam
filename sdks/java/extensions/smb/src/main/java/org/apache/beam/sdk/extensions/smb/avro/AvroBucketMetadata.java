@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.smb.avro;
 
+import static org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -49,7 +51,7 @@ public class AvroBucketMetadata<K, V extends GenericRecord> extends BucketMetada
       @JsonProperty("keyClass") Class<K> keyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
       @JsonProperty("keyField") String keyField)
-      throws CannotProvideCoderException {
+      throws CannotProvideCoderException, NonDeterministicException {
     super(numBuckets, numShards, keyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");

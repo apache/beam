@@ -33,6 +33,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -119,6 +120,8 @@ public class SortedBucketSource<FinalKeyT, FinalResultT>
           finalKeyCoder = coder;
         } catch (CannotProvideCoderException e) {
           throw new RuntimeException("Could not provide coder for key class " + finalKeyClass, e);
+        } catch (NonDeterministicException e) {
+          throw new RuntimeException("Non-deterministic coder for key class " + finalKeyClass, e);
         }
       }
     }

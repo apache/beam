@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.smb.benchmark;
 
+import static org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,7 +26,8 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 
 /** Integration. */
 public class SmbIT {
-  public static void main(String[] args) throws CannotProvideCoderException, IOException {
+  public static void main(String[] args)
+      throws CannotProvideCoderException, IOException, NonDeterministicException {
     final Path temp = Files.createTempDirectory("smb-");
 
     String[] sinkArgs = new String[args.length + 3];

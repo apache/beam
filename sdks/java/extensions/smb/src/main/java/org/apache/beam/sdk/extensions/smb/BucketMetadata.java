@@ -32,6 +32,7 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -62,7 +63,7 @@ public abstract class BucketMetadata<K, V> implements Serializable {
   @JsonIgnore private final Coder<K> keyCoder;
 
   public BucketMetadata(int numBuckets, int numShards, Class<K> keyClass, HashType hashType)
-      throws CannotProvideCoderException {
+      throws CannotProvideCoderException, NonDeterministicException {
     Preconditions.checkArgument(
         numBuckets > 0 && ((numBuckets & (numBuckets - 1)) == 0),
         "numBuckets must be a power of 2");
@@ -77,15 +78,14 @@ public abstract class BucketMetadata<K, V> implements Serializable {
   }
 
   @JsonIgnore
-  Coder<K> getKeyCoder() throws CannotProvideCoderException {
+  Coder<K> getKeyCoder() throws CannotProvideCoderException, NonDeterministicException {
     @SuppressWarnings("unchecked")
-    final Coder<K> overriddenCoder = (Coder<K>) coderOverrides().get(getKeyClass());
-
-    if (overriddenCoder != null) {
-      return overriddenCoder;
-    } else {
-      return CoderRegistry.createDefault().getCoder(keyClass);
+    Coder<K> coder = (Coder<K>) coderOverrides().get(getKeyClass());
+    if (coder == null) {
+      coder = CoderRegistry.createDefault().getCoder(keyClass);
     }
+    coder.verifyDeterministic();
+    return coder;
   }
 
   @JsonIgnore
