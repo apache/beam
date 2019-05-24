@@ -23,32 +23,44 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class generates hash-based unique ids from String. The id is shorter to use in states and
- * repartition streams.
+ * This class generates hash-based unique ids from String. The id length is the hash length and the
+ * suffix length combined. Ids generated are guaranteed to be unique, such that same names will be
+ * hashed to different ids.
  */
 public class HashIdGenerator {
   private static final Logger LOG = LoggerFactory.getLogger(HashIdGenerator.class);
 
-  private static final int MAX_ID_LENGTH = 5;
+  private static final int DEFAULT_MAX_HASH_LENGTH = 5;
+  private final int maxHashLength;
   private final Set<String> usedIds = new HashSet<>();
+
+  public HashIdGenerator(int maxHashLength) {
+    this.maxHashLength = maxHashLength;
+  }
+
+  public HashIdGenerator() {
+    this(DEFAULT_MAX_HASH_LENGTH);
+  }
 
   public String getId(String name) {
     // Use the id directly if it is unique and the length is less than max
-    if (name.length() <= MAX_ID_LENGTH && !usedIds.contains(name)) {
+    if (name.length() <= maxHashLength && usedIds.add(name)) {
       return name;
     }
 
-    // Pick the last 4 bytes of hashcode and use hex format
-    final String origId = Integer.toHexString(name.hashCode() & 0xffff);
+    // Pick the last bytes of hashcode and use hex format
+    final String hexString = Integer.toHexString(name.hashCode());
+    final String origId =
+        hexString.length() <= maxHashLength
+            ? hexString
+            : hexString.substring(Math.max(0, hexString.length() - maxHashLength));
     String id = origId;
     int suffixNum = 2;
-    while (true) {
-      if (usedIds.add(id)) {
-        LOG.info("Name {} is mapped to id {}", name, id);
-        return id;
-      }
+    while (!usedIds.add(id)) {
       // A duplicate!  Retry.
       id = origId + "-" + suffixNum++;
     }
+    LOG.info("Name {} is mapped to id {}", name, id);
+    return id;
   }
 }
