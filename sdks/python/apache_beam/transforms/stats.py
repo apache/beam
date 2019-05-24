@@ -48,12 +48,13 @@ class ApproximateUnique(object):
   set of hash values by assuming the rest of the hash values are as densely
   distributed as the sample space.
   Args:
-   **kwargs: Accepts a single named argument "size" or "error".
-   size: an int not smaller than 16, which we would use to estimate
-     number of unique values.
-   error: max estimation error, which is a float between 0.01
-     and 0.50. If error is given, size will be calculated from error with
-     _get_sample_size_from_est_error function.
+  **kwargs: Accepts a single named argument "size" or "error".
+  size: an int not smaller than 16, which we would use to estimate number of
+  unique values.
+  error: max estimation error, which is a float between 0.01 and 0.50. If
+  error is given, size will be calculated from error with
+   _get_sample_size_from_est_error function.
+
  """
 
   _NO_VALUE_ERR_MSG = 'Either size or error should be set. Received {}.'
@@ -94,7 +95,7 @@ class ApproximateUnique(object):
 
     Calculate sample size from estimation error
     """
-    # math.ceil in python 2.7 returns a float, while it returns an int in python 3.
+    #math.ceil in python2.7 returns a float, while it returns an int in python3.
     return int(math.ceil(4.0 / math.pow(est_err, 2.0)))
 
   @typehints.with_input_types(T)
