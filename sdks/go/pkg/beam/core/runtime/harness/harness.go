@@ -255,6 +255,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(id, "execution plan for %v not found", ref)
 		}
 
+		// Get the desired splits for the root FnAPI read operation.
 		ds := msg.GetDesiredSplits()["0"]
 		if ds == nil {
 			return fail(id, "failed to split: desired splits for root was empty.")

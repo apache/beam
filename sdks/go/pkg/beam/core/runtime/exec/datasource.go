@@ -189,7 +189,7 @@ func (n *DataSource) FinishBundle(ctx context.Context) error {
 	err := n.Out.FinishBundle(ctx)
 	n.count = 0
 	n.splitPos = math.MaxInt64
-	n.mu.Unlock()
+	defer n.mu.Unlock()
 	return err
 }
 
@@ -202,12 +202,10 @@ func (n *DataSource) String() string {
 	return fmt.Sprintf("DataSource[%v] Coder:%v Out:%v", n.SID, n.Coder, n.Out.ID())
 }
 
-// IncrementCountAndCheckSplit increments DataSource.count by one and checks to
-// make sure the new value is smaller than the promised split point. If the new
-// value is greater than or equal to the split point, calls the FinishBundle and
-// returns true to indicate that the caller should stop processing elements and
-// exit. If the new value is before the split point (or if the split point
-// hasn't been set), returns false.
+// IncrementCountAndCheckSplit increments DataSource.count by one and checks if
+// the caller should abort further element processing, and finish the bundle.
+// Returns true if the new value of count is greater than or equal to the split
+// point, and false otherwise.
 func (n *DataSource) IncrementCountAndCheckSplit(ctx context.Context) bool {
 	b := false
 	n.mu.Lock()
@@ -248,20 +246,15 @@ func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
 	}
 	n.mu.Lock()
 	c := n.count
-	// Find the smallest split index that we haven't yet processed.
-	p := math.MaxInt64
-
-	for i := int(0); i < len(splits); i++ {
-		if splits[i] >= c {
-			p = i
-			break
+	// Find the smallest split index that we haven't yet processed, and set
+	// the promised split position to this value.
+	for _, s := range splits {
+		if s >= c {
+			n.splitPos = s
+			fs := n.splitPos
+			n.mu.Unlock()
+			return fs, nil
 		}
-	}
-	if p < len(splits) {
-		n.splitPos = splits[p]
-		fs := n.splitPos
-		n.mu.Unlock()
-		return fs, nil
 	}
 	n.mu.Unlock()
 	// If we can't find a suitable split point from the requested choices,
