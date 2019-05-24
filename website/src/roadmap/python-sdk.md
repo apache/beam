@@ -31,5 +31,5 @@ Apache Beam 2.11.0 is the first release that offers partial support for Python 3
  - [Tracking Issue](https://issues.apache.org/jira/browse/BEAM-1251)
 
 Contributions are welcome! If you are interested to help, you can select an unassigned issue in the Kanban board and assign it to yourself. Comment on the issue if you cannot assign it yourself.
-When submitting a new PR, please tag [@aaltay](https://github.com/aaltay), [@RobbeSneyders](https://github.com/robbesneyders), and [@tvalentyn](https://github.com/tvalentyn).
+When submitting a new PR, please tag [@aaltay](https://github.com/aaltay), [@fredo838](https://github.com/fredo838), [@Juta](https://github.com/Juta), and [@tvalentyn](https://github.com/tvalentyn).
 

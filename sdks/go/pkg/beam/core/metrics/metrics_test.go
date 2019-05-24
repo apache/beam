@@ -25,6 +25,43 @@ import (
 // bID is a bundleId to use in the tests, if nothing more specific is needed.
 const bID = "bID"
 
+// TestRobustness validates metrics not panicking if the context doesn't
+// have the bundle or transform ID.
+func TestRobustness(t *testing.T) {
+	m := NewCounter("Test", "myCount")
+	m.Inc(context.Background(), 3)
+	ptCtx := SetPTransformID(context.Background(), "MY_TRANSFORM")
+	m.Inc(ptCtx, 3)
+	bCtx := SetBundleID(context.Background(), bID)
+	m.Inc(bCtx, 3)
+}
+
+func TestBeamContext(t *testing.T) {
+	t.Run("ptransformID", func(t *testing.T) {
+		ptID := "MY_TRANSFORM"
+		ctx := SetPTransformID(context.Background(), ptID)
+		key := getContextKey(ctx, name{})
+		if key.bundle != bundleIDUnset {
+			t.Errorf("bundleId = %q, want %q", key.bundle, bundleIDUnset)
+		}
+		if key.ptransform != ptID {
+			t.Errorf("ptransformId = %q, want %q", key.ptransform, ptID)
+		}
+
+	})
+
+	t.Run("bundleID", func(t *testing.T) {
+		ctx := SetBundleID(context.Background(), bID)
+		key := getContextKey(ctx, name{})
+		if key.bundle != bID {
+			t.Errorf("bundleId = %q, want %q", key.bundle, bID)
+		}
+		if key.ptransform != ptransformIDUnset {
+			t.Errorf("ptransformId = %q, want %q", key.ptransform, ptransformIDUnset)
+		}
+	})
+}
+
 func ctxWith(b, pt string) context.Context {
 	ctx := context.Background()
 	ctx = SetPTransformID(ctx, pt)

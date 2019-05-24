@@ -25,6 +25,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.samza.application.StreamApplication;
+import org.apache.samza.config.Config;
+import org.apache.samza.config.TaskConfig;
 import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.runtime.ApplicationRunner;
 import org.joda.time.Duration;
@@ -34,16 +36,28 @@ import org.slf4j.LoggerFactory;
 /** The result from executing a Samza Pipeline. */
 public class SamzaPipelineResult implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineResult.class);
+  private static final long DEFAULT_SHUTDOWN_MS = 5000L;
+  // allow some buffer on top of samza's own shutdown timeout
+  private static final long SHUTDOWN_TIMEOUT_BUFFER = 5000L;
 
   private final SamzaExecutionContext executionContext;
   private final ApplicationRunner runner;
   private final StreamApplication app;
+  private final SamzaPipelineLifeCycleListener listener;
+  private final long shutdownTiemoutMs;
 
   public SamzaPipelineResult(
-      StreamApplication app, ApplicationRunner runner, SamzaExecutionContext executionContext) {
+      StreamApplication app,
+      ApplicationRunner runner,
+      SamzaExecutionContext executionContext,
+      SamzaPipelineLifeCycleListener listener,
+      Config config) {
     this.executionContext = executionContext;
     this.runner = runner;
     this.app = app;
+    this.listener = listener;
+    this.shutdownTiemoutMs =
+        config.getLong(TaskConfig.SHUTDOWN_MS(), DEFAULT_SHUTDOWN_MS) + SHUTDOWN_TIMEOUT_BUFFER;
   }
 
   @Override
@@ -53,8 +67,10 @@ public class SamzaPipelineResult implements PipelineResult {
 
   @Override
   public State cancel() {
-    runner.kill(app);
-    return waitUntilFinish();
+    LOG.info("Start to cancel samza pipeline...");
+    runner.kill();
+    LOG.info("Start awaiting finish for {} ms.", shutdownTiemoutMs);
+    return waitUntilFinish(Duration.millis(shutdownTiemoutMs));
   }
 
   @Override
@@ -70,10 +86,16 @@ public class SamzaPipelineResult implements PipelineResult {
     }
 
     final StateInfo stateInfo = getStateInfo();
+
+    if (listener != null && (stateInfo.state == State.DONE || stateInfo.state == State.FAILED)) {
+      listener.onFinish();
+    }
+
     if (stateInfo.state == State.FAILED) {
       throw stateInfo.error;
     }
 
+    LOG.info("Pipeline finished. Final state: {}", stateInfo.state);
     return stateInfo.state;
   }
 
@@ -88,7 +110,7 @@ public class SamzaPipelineResult implements PipelineResult {
   }
 
   private StateInfo getStateInfo() {
-    final ApplicationStatus status = runner.status(app);
+    final ApplicationStatus status = runner.status();
     switch (status.getStatusCode()) {
       case New:
         return new StateInfo(State.STOPPED);

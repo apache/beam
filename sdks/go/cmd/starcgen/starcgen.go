@@ -29,6 +29,7 @@
 //
 //   //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //   //go:generate starcgen --package=<mypackagename>
+//   //go:generate go fmt
 //
 // This will generate registrations and shim types for all types and functions
 // in the package, in a file `<mypackagename>.shims.go`.
@@ -38,6 +39,7 @@
 //
 //   //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //   //go:generate starcgen --package=<mypackagename> --inputs=foo.go --identifiers=myFn,myStructFn --output=custom.shims.go
+//   //go:generate go fmt
 //
 package main
 
@@ -170,7 +172,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("error opening %q: %v", *output, err)
 	}
-	if err := Generate(f, *output, pkg, strings.Split(*ids, ","), fset, fs); err != nil {
+	splitIds := make([]string, 0) // If no ids are specified, we should pass an empty slice.
+	if len(*ids) > 0 {
+		splitIds = strings.Split(*ids, ",")
+	}
+	if err := Generate(f, *output, pkg, splitIds, fset, fs); err != nil {
 		log.Fatal(err)
 	}
 }

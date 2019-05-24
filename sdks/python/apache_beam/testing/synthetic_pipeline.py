@@ -45,9 +45,11 @@ import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.io import restriction_trackers
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms.core import RestrictionProvider
 
 try:
   import numpy as np
@@ -248,6 +250,122 @@ class SyntheticSource(iobase.BoundedSource):
   def default_output_coder(self):
     return beam.coders.TupleCoder(
         [beam.coders.BytesCoder(), beam.coders.BytesCoder()])
+
+
+class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
+  """A `RestrictionProvider` for SyntheticSDFAsSource.
+
+  In initial_restriction(element) and split(element), element means source
+  description.
+  A typical element is like:
+
+    {
+      'key_size': 1,
+      'value_size': 1,
+      'initial_splitting_num_bundles': 2,
+      'initial_splitting_desired_bundle_size': 2,
+      'sleep_per_input_record_sec': 0,
+      'initial_splitting' : 'const'
+
+    }
+
+  """
+
+  def initial_restriction(self, element):
+    return (0, element['num_records'])
+
+  def create_tracker(self, restriction):
+    return restriction_trackers.OffsetRestrictionTracker(
+        restriction[0], restriction[1])
+
+  def split(self, element, restriction):
+    bundle_ranges = []
+    start_position, stop_position = restriction
+    element_size = element['key_size'] + element['value_size']
+    estimate_size = element_size * element['num_records']
+    if element['initial_splitting'] == 'zipf':
+      desired_num_bundles = (
+          element['initial_splitting_num_bundles'] or
+          div_round_up(estimate_size,
+                       element['initial_splitting_desired_bundle_size']))
+      samples = np.random.zipf(
+          element['initial_splitting_distribution_parameter'],
+          desired_num_bundles)
+      total = sum(samples)
+      relative_bundle_sizes = [(float(sample) / total) for sample in samples]
+      start = start_position
+      index = 0
+      while start < stop_position:
+        if index == desired_num_bundles - 1:
+          bundle_ranges.append((start, stop_position))
+          break
+        stop = start + int(
+            element['num_records'] * relative_bundle_sizes[index])
+        bundle_ranges.append((start, stop))
+        start = stop
+        index += 1
+    else:
+      if element['initial_splitting_num_bundles']:
+        bundle_size_in_elements = max(1, int(
+            element['num_records'] /
+            element['initial_splitting_num_bundles']))
+      else:
+        bundle_size_in_elements = (max(
+            div_round_up(
+                element['initial_splitting_desired_bundle_size'], element_size),
+            int(math.floor(math.sqrt(element['num_records'])))))
+      for start in range(start_position, stop_position,
+                         bundle_size_in_elements):
+        stop = min(start + bundle_size_in_elements, stop_position)
+        bundle_ranges.append((start, stop))
+    return bundle_ranges
+
+  def restriction_size(self, element, restriction):
+    return ((element['key_size'] + element['value_size'])
+            * (restriction[1] - restriction[0]))
+
+
+class SyntheticSDFAsSource(beam.DoFn):
+  """A SDF that generates records like a source.
+
+  This SDF accepts a PCollection of record-based source description.
+  A typical description is like:
+
+    {
+      'key_size': 1,
+      'value_size': 1,
+      'initial_splitting_num_bundles': 2,
+      'initial_splitting_desired_bundle_size': 2,
+      'sleep_per_input_record_sec': 0,
+      'initial_splitting' : 'const'
+
+    }
+
+  A simple pipeline taking this SDF as a source is like:
+    p
+    | beam.Create([description1, description2,...])
+    | beam.ParDo(SyntheticSDFAsSource())
+
+  NOTE:
+    The SDF.process() will have different param content between defining a DoFn
+    and runtime.
+    When defining an SDF.process, the restriction_tracker should be a
+    `RestrictionProvider`.
+    During runtime, the DoFnRunner.process_with_sized_restriction() will feed
+    a 'RestrictionTracker' based on a restriction to SDF.process().
+  """
+
+  def process(
+      self,
+      element,
+      restriction_tracker=beam.DoFn.RestrictionParam(
+          SyntheticSDFSourceRestrictionProvider())):
+    for k in range(*restriction_tracker.current_restriction()):
+      if not restriction_tracker.try_claim(k):
+        return
+      r = np.random.RandomState(k)
+      time.sleep(element['sleep_per_input_record_sec'])
+      yield r.bytes(element['key_size']), r.bytes(element['value_size'])
 
 
 class ShuffleBarrier(beam.PTransform):

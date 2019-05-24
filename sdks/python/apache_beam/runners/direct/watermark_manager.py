@@ -160,6 +160,8 @@ class WatermarkManager(object):
     for applied_ptransform, tw in self._transform_to_watermarks.items():
       fired_timers, had_realtime_timer = tw.extract_transform_timers()
       if fired_timers:
+        # We should sort the timer firings, so they are fired in order.
+        fired_timers.sort(key=lambda ft: ft.timestamp)
         all_timers.append((applied_ptransform, fired_timers))
       if (had_realtime_timer
           and tw.output_watermark < WatermarkManager.WATERMARK_POS_INF):
@@ -222,6 +224,14 @@ class _TransformWatermarks(object):
         self._pending.remove(completed)
 
   def refresh(self):
+    """Refresh the watermark for a given transform.
+
+    This method looks at the watermark coming from all input PTransforms, and
+    the timestamp of the minimum element, as well as any watermark holds.
+
+    Returns:
+      True if the watermark has advanced, and False if it has not.
+    """
     with self._lock:
       min_pending_timestamp = WatermarkManager.WATERMARK_POS_INF
       has_pending_elements = False

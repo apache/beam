@@ -43,7 +43,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PortabilityApi', 'Run J
       tasks(':javaPostCommitPortabilityApi')
       commonJobProperties.setGradleSwitches(delegate)
       // Specify maven home on Jenkins, needed by Maven archetype integration tests.
-      switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
+      switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
       // To catch as many as failures
       switches('--continue')
     }

@@ -39,7 +39,9 @@ from apache_beam.utils import proto_utils
 
 KNOWN_COMPOSITES = frozenset([
     common_urns.primitives.GROUP_BY_KEY.urn,
-    common_urns.composites.COMBINE_PER_KEY.urn])
+    common_urns.composites.COMBINE_PER_KEY.urn,
+    common_urns.primitives.PAR_DO.urn,  # After SDF expansion.
+])
 
 COMBINE_URNS = frozenset([
     common_urns.composites.COMBINE_PER_KEY.urn,
@@ -51,6 +53,8 @@ PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+    common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
+    common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_ELEMENTS.urn])
 
 IMPULSE_BUFFER = b'impulse'
@@ -196,7 +200,9 @@ class Stage(object):
       stage_components.CopyFrom(components)
 
       # Only keep the referenced PCollections.
-      for pcoll_id in stage_components.pcollections.keys():
+      # Make pcollectionKey snapshot to avoid "Map modified during iteration"
+      # in py3
+      for pcoll_id in list(stage_components.pcollections.keys()):
         if pcoll_id not in all_inputs and pcoll_id not in all_outputs:
           del stage_components.pcollections[pcoll_id]
 
@@ -418,7 +424,10 @@ def pipeline_from_stages(
     if parent is None:
       roots.add(child)
     else:
-      if parent not in components.transforms:
+      if isinstance(parent, Stage):
+        parent = parent.name
+      if (parent not in components.transforms
+          and parent in pipeline_proto.components.transforms):
         components.transforms[parent].CopyFrom(
             pipeline_proto.components.transforms[parent])
         del components.transforms[parent].subtransforms[:]
@@ -447,11 +456,24 @@ def pipeline_from_stages(
   return new_proto
 
 
-def create_and_optimize_stages(
-    pipeline_proto,
-    phases,
-    known_runner_urns,
-    use_state_iterables=False):
+def create_and_optimize_stages(pipeline_proto,
+                               phases,
+                               known_runner_urns,
+                               use_state_iterables=False):
+  """Create a set of stages given a pipeline proto, and set of optimizations.
+
+  Args:
+    pipeline_proto (beam_runner_api_pb2.Pipeline): A pipeline defined by a user.
+    phases (callable): Each phase identifies a specific transformation to be
+      applied to the pipeline graph. Existing phases are defined in this file,
+      and receive a list of stages, and a pipeline context. Some available
+      transformations are ``lift_combiners``, ``expand_sdf``, ``expand_gbk``,
+      etc.
+
+  Returns:
+    A tuple with a pipeline context, and a list of stages (i.e. an optimized
+    graph).
+  """
   pipeline_context = TransformContext(
       pipeline_proto.components,
       known_runner_urns,
@@ -642,7 +664,7 @@ def lift_combiners(stages, context):
             [transform],
             downstream_side_inputs=base_stage.downstream_side_inputs,
             must_follow=base_stage.must_follow,
-            parent=base_stage.name,
+            parent=base_stage,
             environment=base_stage.environment)
 
       yield make_stage(
@@ -721,8 +743,14 @@ def expand_sdf(stages, context):
               getattr(proto, name).extend(value)
             elif name == 'urn':
               proto.spec.urn = value
+            elif name == 'payload':
+              proto.spec.payload = value
             else:
               setattr(proto, name, value)
+          if 'unique_name' not in kwargs and hasattr(proto, 'unique_name'):
+            proto.unique_name = unique_name(
+                set([p.unique_name for p in protos.values()]),
+                original.unique_name + suffix)
           return new_id
 
         def make_stage(base_stage, transform_id, extra_must_follow=()):
@@ -740,6 +768,7 @@ def expand_sdf(stages, context):
         main_input_id = transform.inputs[main_input_tag]
         element_coder_id = context.components.pcollections[
             main_input_id].coder_id
+        # KV[element, restriction]
         paired_coder_id = context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
                 spec=beam_runner_api_pb2.SdkFunctionSpec(
@@ -747,6 +776,18 @@ def expand_sdf(stages, context):
                         urn=common_urns.coders.KV.urn)),
                 component_coder_ids=[element_coder_id,
                                      pardo_payload.restriction_coder_id]))
+        # KV[KV[element, restriction], double]
+        sized_coder_id = context.add_or_get_coder_id(
+            beam_runner_api_pb2.Coder(
+                spec=beam_runner_api_pb2.SdkFunctionSpec(
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=common_urns.coders.KV.urn)),
+                component_coder_ids=[
+                    paired_coder_id,
+                    context.add_or_get_coder_id(
+                        coders.FloatCoder().to_runner_api(None),
+                        'doubles_coder')
+                ]))
 
         paired_pcoll_id = copy_like(
             context.components.pcollections,
@@ -764,21 +805,43 @@ def expand_sdf(stages, context):
             context.components.pcollections,
             main_input_id,
             '_split',
-            coder_id=paired_coder_id)
+            coder_id=sized_coder_id)
         split_transform_id = copy_like(
             context.components.transforms,
             transform,
-            unique_name=transform.unique_name + '/SplitRestriction',
-            urn=common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+            unique_name=transform.unique_name + '/SplitAndSizeRestriction',
+            urn=common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
             inputs=dict(transform.inputs, **{main_input_tag: paired_pcoll_id}),
             outputs={'out': split_pcoll_id})
+
+        if common_urns.composites.RESHUFFLE.urn in context.known_runner_urns:
+          reshuffle_pcoll_id = copy_like(
+              context.components.pcollections,
+              main_input_id,
+              '_reshuffle',
+              coder_id=sized_coder_id)
+          reshuffle_transform_id = copy_like(
+              context.components.transforms,
+              transform,
+              unique_name=transform.unique_name + '/Reshuffle',
+              urn=common_urns.composites.RESHUFFLE.urn,
+              payload=b'',
+              inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}),
+              outputs={'out': reshuffle_pcoll_id})
+          yield make_stage(stage, reshuffle_transform_id)
+        else:
+          reshuffle_pcoll_id = split_pcoll_id
+          reshuffle_transform_id = None
 
         process_transform_id = copy_like(
             context.components.transforms,
             transform,
             unique_name=transform.unique_name + '/Process',
-            urn=common_urns.sdf_components.PROCESS_ELEMENTS.urn,
-            inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}))
+            urn=
+            common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS
+            .urn,
+            inputs=dict(
+                transform.inputs, **{main_input_tag: reshuffle_pcoll_id}))
 
         yield make_stage(stage, pair_transform_id)
         split_stage = make_stage(stage, split_transform_id)

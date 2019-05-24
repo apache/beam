@@ -32,6 +32,7 @@ import unittest
 import grpc
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
@@ -184,6 +185,15 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
 
+@unittest.skip("BEAM-7248")
+class PortableRunnerOptimized(PortableRunnerTest):
+
+  def create_options(self):
+    options = super(PortableRunnerOptimized, self).create_options()
+    options.view_as(DebugOptions).add_experiment('pre_optimize=all')
+    return options
+
+
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
 
   @classmethod
@@ -230,7 +240,6 @@ class PortableRunnerInternalTest(unittest.TestCase):
     self.assertEqual(
         PortableRunner._create_environment(PipelineOptions.from_dictionary({})),
         beam_runner_api_pb2.Environment(
-            url=docker_image,
             urn=common_urns.environments.DOCKER.urn,
             payload=beam_runner_api_pb2.DockerPayload(
                 container_image=docker_image
@@ -243,7 +252,6 @@ class PortableRunnerInternalTest(unittest.TestCase):
             'environment_type': 'DOCKER',
             'environment_config': docker_image,
         })), beam_runner_api_pb2.Environment(
-            url=docker_image,
             urn=common_urns.environments.DOCKER.urn,
             payload=beam_runner_api_pb2.DockerPayload(
                 container_image=docker_image

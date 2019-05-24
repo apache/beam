@@ -51,7 +51,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
+ *    ./gradlew :sdks:java:testing:load-tests:run -PloadTest.args='
  *      --iterations=1
  *      --sourceOptions={"numRecords":1000,...}
  *      --coSourceOptions={"numRecords":1000,...}
@@ -115,7 +115,8 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
         .apply("CoGroupByKey", CoGroupByKey.create())
         .apply("Ungroup and reiterate", ParDo.of(new UngroupAndReiterate(options.getIterations())))
         .apply(
-            "Collect total bytes", ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")))
+            "Collect total bytes",
+            ParDo.of(new ByteMonitor<>(METRICS_NAMESPACE, "totalBytes.count")))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
   }
 

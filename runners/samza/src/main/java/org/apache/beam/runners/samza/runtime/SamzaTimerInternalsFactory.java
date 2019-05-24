@@ -36,8 +36,10 @@ import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.samza.operators.TimerRegistry;
+import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,33 +54,37 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
   private final NavigableSet<KeyedTimerData<K>> eventTimeTimers;
   private final Coder<K> keyCoder;
-  private final TimerRegistry<KeyedTimerData<K>> timerRegistry;
+  private final Scheduler<KeyedTimerData<K>> timerRegistry;
   private final int timerBufferSize;
   private final SamzaTimerState state;
+  private final IsBounded isBounded;
 
   private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private SamzaTimerInternalsFactory(
       Coder<K> keyCoder,
-      TimerRegistry<KeyedTimerData<K>> timerRegistry,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       int timerBufferSize,
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
-      Coder<BoundedWindow> windowCoder) {
+      Coder<BoundedWindow> windowCoder,
+      IsBounded isBounded) {
     this.keyCoder = keyCoder;
     this.timerRegistry = timerRegistry;
     this.timerBufferSize = timerBufferSize;
     this.eventTimeTimers = new TreeSet<>();
     this.state = new SamzaTimerState(timerStateId, nonKeyedStateInternalsFactory, windowCoder);
+    this.isBounded = isBounded;
   }
 
   static <K> SamzaTimerInternalsFactory<K> createTimerInternalFactory(
       Coder<K> keyCoder,
-      TimerRegistry<KeyedTimerData<K>> timerRegistry,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
+      IsBounded isBounded,
       SamzaPipelineOptions pipelineOptions) {
 
     final Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
@@ -89,7 +95,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         pipelineOptions.getTimerBufferSize(),
         timerStateId,
         nonKeyedStateInternalsFactory,
-        windowCoder);
+        windowCoder,
+        isBounded);
   }
 
   @Override
@@ -183,6 +190,13 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void setTimer(TimerData timerData) {
+      if (isBounded == IsBounded.UNBOUNDED
+          && timerData.getTimestamp().getMillis()
+              >= GlobalWindow.INSTANCE.maxTimestamp().getMillis()) {
+        // No need to register a timer of max timestamp if the input is unbounded
+        return;
+      }
+
       final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
 
       // persist it first
@@ -197,7 +211,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           break;
 
         case PROCESSING_TIME:
-          timerRegistry.register(keyedTimerData, timerData.getTimestamp().getMillis());
+          timerRegistry.schedule(keyedTimerData, timerData.getTimestamp().getMillis());
           break;
 
         default:
@@ -330,13 +344,17 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     private void loadEventTimeTimers() {
       if (!eventTimerTimerState.isEmpty().read()) {
         final Iterator<KeyedTimerData<K>> iter = eventTimerTimerState.readIterator().read();
-        for (int i = 0; i < timerBufferSize && iter.hasNext(); i++) {
+        int i = 0;
+        for (; i < timerBufferSize && iter.hasNext(); i++) {
           eventTimeTimers.add(iter.next());
         }
+
+        LOG.info("Loaded {} event time timers in memory", i);
 
         // manually close the iterator here
         final SamzaStoreStateInternals.KeyValueIteratorState iteratorState =
             (SamzaStoreStateInternals.KeyValueIteratorState) eventTimerTimerState;
+
         iteratorState.closeIterators();
       }
     }
@@ -345,11 +363,15 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       if (!processingTimerTimerState.isEmpty().read()) {
         final Iterator<KeyedTimerData<K>> iter = processingTimerTimerState.readIterator().read();
         // since the iterator will reach to the end, it will be closed automatically
+        int count = 0;
         while (iter.hasNext()) {
           final KeyedTimerData<K> keyedTimerData = iter.next();
-          timerRegistry.register(
+          timerRegistry.schedule(
               keyedTimerData, keyedTimerData.getTimerData().getTimestamp().getMillis());
+          ++count;
         }
+
+        LOG.info("Loaded {} processing time timers in memory", count);
       }
     }
 

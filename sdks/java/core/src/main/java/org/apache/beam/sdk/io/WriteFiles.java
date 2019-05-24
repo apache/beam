@@ -164,6 +164,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   abstract List<PCollectionView<?>> getSideInputs();
 
+  @Nullable
+  public abstract ShardingFunction<UserT, DestinationT> getShardingFunction();
+
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
   @AutoValue.Builder
@@ -184,6 +187,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
+
+    abstract Builder<UserT, DestinationT, OutputT> setShardingFunction(
+        @Nullable ShardingFunction<UserT, DestinationT> shardingFunction);
 
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
@@ -253,6 +259,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedSharding() {
     return toBuilder().setComputeNumShards(null).setNumShardsProvider(null).build();
+  }
+
+  /**
+   * Returns a new {@link WriteFiles} that will write to the current {@link FileBasedSink} using the
+   * specified sharding function to assign shard for inputs.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withShardingFunction(
+      ShardingFunction<UserT, DestinationT> shardingFunction) {
+    return toBuilder().setShardingFunction(shardingFunction).build();
   }
 
   /**
@@ -640,10 +655,16 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       if (numShardsView != null) {
         shardingSideInputs.add(numShardsView);
       }
+
+      ShardingFunction<UserT, DestinationT> shardingFunction =
+          getShardingFunction() == null
+              ? new RandomShardingFunction(destinationCoder)
+              : getShardingFunction();
+
       return input
           .apply(
               "ApplyShardingKey",
-              ParDo.of(new ApplyShardingKeyFn(numShardsView, destinationCoder))
+              ParDo.of(new ApplyShardingFunctionFn(shardingFunction, numShardsView))
                   .withSideInputs(shardingSideInputs))
           .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
           .apply("GroupIntoShards", GroupByKey.create())
@@ -654,34 +675,20 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  private class ApplyShardingKeyFn extends DoFn<UserT, KV<ShardedKey<Integer>, UserT>> {
-    private final @Nullable PCollectionView<Integer> numShardsView;
+  private class RandomShardingFunction implements ShardingFunction<UserT, DestinationT> {
     private final Coder<DestinationT> destinationCoder;
 
     private int shardNumber;
 
-    ApplyShardingKeyFn(
-        @Nullable PCollectionView<Integer> numShardsView, Coder<DestinationT> destinationCoder) {
-      this.numShardsView = numShardsView;
+    RandomShardingFunction(Coder<DestinationT> destinationCoder) {
       this.destinationCoder = destinationCoder;
       this.shardNumber = UNKNOWN_SHARDNUM;
     }
 
-    @ProcessElement
-    public void processElement(ProcessContext context) throws IOException {
-      getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
-      final int shardCount;
-      if (numShardsView != null) {
-        shardCount = context.sideInput(numShardsView);
-      } else {
-        checkNotNull(getNumShardsProvider());
-        shardCount = getNumShardsProvider().get();
-      }
-      checkArgument(
-          shardCount > 0,
-          "Must have a positive number of shards specified for non-runner-determined sharding."
-              + " Got %s",
-          shardCount);
+    @Override
+    public ShardedKey<Integer> assignShardKey(
+        DestinationT destination, UserT element, int shardCount) throws Exception {
+
       if (shardNumber == UNKNOWN_SHARDNUM) {
         // We want to desynchronize the first record sharding key for each instance of
         // ApplyShardingKey, so records in a small PCollection will be statistically balanced.
@@ -697,11 +704,42 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // the destinations. This does mean that multiple destinations might end up on the same shard,
       // however the number of collisions should be small, so there's no need to worry about memory
       // issues.
+      return ShardedKey.of(hashDestination(destination, destinationCoder), shardNumber);
+    }
+  }
+
+  private class ApplyShardingFunctionFn extends DoFn<UserT, KV<ShardedKey<Integer>, UserT>> {
+
+    private final ShardingFunction<UserT, DestinationT> shardingFn;
+    private final @Nullable PCollectionView<Integer> numShardsView;
+
+    ApplyShardingFunctionFn(
+        ShardingFunction<UserT, DestinationT> shardingFn,
+        @Nullable PCollectionView<Integer> numShardsView) {
+      this.numShardsView = numShardsView;
+      this.shardingFn = shardingFn;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
+      final int shardCount;
+      if (numShardsView != null) {
+        shardCount = context.sideInput(numShardsView);
+      } else {
+        checkNotNull(getNumShardsProvider());
+        shardCount = getNumShardsProvider().get();
+      }
+      checkArgument(
+          shardCount > 0,
+          "Must have a positive number of shards specified for non-runner-determined sharding."
+              + " Got %s",
+          shardCount);
+
       DestinationT destination = getDynamicDestinations().getDestination(context.element());
-      context.output(
-          KV.of(
-              ShardedKey.of(hashDestination(destination, destinationCoder), shardNumber),
-              context.element()));
+      ShardedKey<Integer> shardKey =
+          shardingFn.assignShardKey(destination, context.element(), shardCount);
+      context.output(KV.of(shardKey, context.element()));
     }
   }
 

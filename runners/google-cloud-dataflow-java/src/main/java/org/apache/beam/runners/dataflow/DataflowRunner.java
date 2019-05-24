@@ -197,7 +197,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
 
   @VisibleForTesting static final String PIPELINE_FILE_NAME = "pipeline.pb";
-  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_NAME = "dataflow_graph.pb";
+  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_NAME = "dataflow_graph.json";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -356,18 +356,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 DeduplicatedFlattenFactory.create()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()))
-        // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
-        // However, we want a different expansion for single-output splittable ParDo.
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDoSingle(),
-                new ReflectiveOneToOneOverrideFactory(
-                    SplittableParDoOverrides.ParDoSingleViaMulti.class, this)))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDoMulti(),
-                new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
+                PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
+    if (!fnApiEnabled) {
+      // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
+      // However, we want a different expansion for single-output splittable ParDo.
+      overridesBuilder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDoSingle(),
+                  new ReflectiveOneToOneOverrideFactory(
+                      SplittableParDoOverrides.ParDoSingleViaMulti.class, this)))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDoMulti(),
+                  new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
+    }
     if (streaming) {
       if (!hasExperiment(options, "enable_custom_pubsub_source")) {
         overridesBuilder.add(
@@ -897,9 +900,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
-                  + "exceeds the allowable limit for the API. Use experiment "
-                  + "'upload_graph' (--experiments=upload_graph) to direct the runner to "
-                  + "upload the JSON to your GCS staging bucket instead of embedding in the API request.";
+                  + "exceeds the allowable limit. "
+                  + "For more information, please see the documentation on job submission:\n"
+                  + "https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#jobs";
         } else {
           errorMessages = e.getDetails().getMessage();
         }

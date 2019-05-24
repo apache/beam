@@ -17,8 +17,12 @@
  */
 package org.apache.beam.runners.fnexecution.translation;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.IOException;
+import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -75,5 +79,14 @@ public final class PipelineTranslatorUtils {
               windowingStrategyProto, pCollectionId),
           e);
     }
+  }
+
+  /** Indicates whether the given pipeline has any unbounded PCollections. */
+  public static boolean hasUnboundedPCollections(RunnerApi.Pipeline pipeline) {
+    checkNotNull(pipeline);
+    Collection<PCollection> pCollecctions = pipeline.getComponents().getPcollectionsMap().values();
+    // Assume that all PCollections are consumed at some point in the pipeline.
+    return pCollecctions.stream()
+        .anyMatch(pc -> pc.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED);
   }
 }

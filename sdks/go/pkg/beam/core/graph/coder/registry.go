@@ -16,8 +16,9 @@
 package coder
 
 import (
-	"fmt"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var (
@@ -45,7 +46,7 @@ func RegisterCoder(t reflect.Type, enc, dec interface{}) {
 	key := tkey(t)
 
 	if _, err := NewCustomCoder(t.String(), t, enc, dec); err != nil {
-		panic(fmt.Sprintf("RegisterCoder failed for type %v: %v", t, err))
+		panic(errors.Wrapf(err, "RegisterCoder failed for type %v", t))
 	}
 
 	if t.Kind() == reflect.Interface {
@@ -72,7 +73,7 @@ func RegisterCoder(t reflect.Type, enc, dec interface{}) {
 		cc, err := NewCustomCoder(name, rt, enc, dec)
 		if err != nil {
 			// An error on look up shouldn't happen after the validation.
-			panic(fmt.Sprintf("Creating %v CustomCoder for type %v failed: %v", name, rt, err))
+			panic(errors.Wrapf(err, "Creating %v CustomCoder for type %v failed", name, rt))
 		}
 		return cc
 	}

@@ -132,9 +132,6 @@ public class HadoopFormatIOReadTest {
    * This test validates {@link HadoopFormatIO.Read Read} object creation if {@link
    * HadoopFormatIO.Read#withConfiguration(Configuration) withConfiguration(Configuration)} is
    * called more than once.
-   *
-   * @throws InterruptedException
-   * @throws IOException
    */
   @Test
   public void testReadBuildsCorrectlyIfWithConfigurationIsCalledMoreThanOneTime() {
@@ -782,7 +779,6 @@ public class HadoopFormatIOReadTest {
             AvroCoder.of(Employee.class));
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       // Cast to HadoopInputFormatBoundedSource to access getInputFormat().
-      @SuppressWarnings("unchecked")
       HadoopInputFormatBoundedSource<Text, Employee> hifSource =
           (HadoopInputFormatBoundedSource<Text, Employee>) source;
       hifSource.createInputFormatInstance();

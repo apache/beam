@@ -47,13 +47,14 @@ class FlinkTransformOverrides {
       builder
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.writeWithRunnerDeterminedSharding(),
+                  FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory
+                      .writeFilesNeedsOverrides(),
                   new FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory(
                       checkNotNull(options))))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-                  new CreateStreamingFlinkView.Factory()));
+                  CreateStreamingFlinkView.Factory.INSTANCE));
     }
     return builder.build();
   }

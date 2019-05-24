@@ -17,19 +17,20 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+archivesBaseName = 'beam-sdks-java-test-utils'
 applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
 
 dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
   shadow library.java.google_cloud_bigquery
-  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
 
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadowTest")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
 }

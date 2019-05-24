@@ -58,10 +58,8 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.18.0"
-def avatica_version = "1.12.0"
-def hive_version = "2.1.0"
-def netty_version = "4.1.30.Final"
+def calcite_version = "1.19.0"
+def avatica_version = "1.15.0"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -73,8 +71,8 @@ dependencies {
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:join-library", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.commons_codec
   shadow library.java.commons_csv
@@ -84,37 +82,24 @@ dependencies {
   shadow library.java.joda_time
   shadow "com.alibaba:fastjson:1.2.49"
   shadow "com.jayway.jsonpath:json-path:2.4.0"
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-hcatalog", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  provided project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  provided project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   provided library.java.kafka_clients
-  shadowTest library.java.slf4j_jdk14
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.quickcheck_core
-
-  // Needed for HCatalogTableProvider tests,
-  // they use HCat* types
-  shadowTest "io.netty:netty-all:$netty_version"
-  shadowTest("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
-    // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
-    // gets registered and gets started instead of ours,
-    // and a ton of other stuff.
-    exclude group: "org.apache.calcite", module:"calcite-avatica"
-    exclude group: "com.google.guava", module: "guava"
-    exclude group: "com.google.protobuf", module: "protobuf-java"
-  }
+  shadowTestRuntimeClasspath library.java.slf4j_jdk14
 
   // Dependencies that we don't directly reference
   permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
   permitUnusedDeclared library.java.jackson_dataformat_yaml
 
   // Dependencies that are bundled in when we bundle Calcite
-  permitUsedUndeclared "org.codehaus.janino:janino:3.0.9"
-  permitUsedUndeclared "org.codehaus.janino:commons-compiler:3.0.9"
+  permitUsedUndeclared "org.codehaus.janino:janino:3.0.11"
+  permitUsedUndeclared "org.codehaus.janino:commons-compiler:3.0.11"
 
   // Dependencies where one or the other appears "used" depending on classpath,
   // but it doesn't matter which is used
@@ -205,12 +190,11 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   maxParallelForks 4
-  classpath = project(":beam-sdks-java-extensions-sql")
+  classpath = project(":sdks:java:extensions:sql")
           .sourceSets
           .test
           .runtimeClasspath
-          .filter { it.name != "hive-exec-${hive_version}.jar" }
-  testClassesDirs = files(project(":beam-sdks-java-extensions-sql").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 

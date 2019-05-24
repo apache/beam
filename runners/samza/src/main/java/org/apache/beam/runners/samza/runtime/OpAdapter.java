@@ -24,11 +24,11 @@ import java.util.List;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.TimerRegistry;
+import org.apache.samza.context.Context;
+import org.apache.samza.operators.Scheduler;
 import org.apache.samza.operators.functions.FlatMapFunction;
-import org.apache.samza.operators.functions.TimerFunction;
+import org.apache.samza.operators.functions.ScheduledFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
-import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 public class OpAdapter<InT, OutT, K>
     implements FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
         WatermarkFunction<OpMessage<OutT>>,
-        TimerFunction<KeyedTimerData<K>, OpMessage<OutT>>,
+        ScheduledFunction<KeyedTimerData<K>, OpMessage<OutT>>,
         Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(OpAdapter.class);
 
@@ -46,7 +46,7 @@ public class OpAdapter<InT, OutT, K>
   private transient Instant outputWatermark;
   private transient OpEmitter<OutT> emitter;
   private transient Config config;
-  private transient TaskContext taskContext;
+  private transient Context context;
 
   public static <InT, OutT, K> FlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
       Op<InT, OutT, K> op) {
@@ -58,18 +58,18 @@ public class OpAdapter<InT, OutT, K>
   }
 
   @Override
-  public final void init(Config config, TaskContext context) {
+  public final void init(Context context) {
     this.outputList = new ArrayList<>();
     this.emitter = new OpEmitterImpl();
-    this.config = config;
-    this.taskContext = context;
+    this.config = context.getJobContext().getConfig();
+    this.context = context;
   }
 
   @Override
-  public final void registerTimer(TimerRegistry<KeyedTimerData<K>> timerRegistry) {
-    assert taskContext != null;
+  public final void schedule(Scheduler<KeyedTimerData<K>> timerRegistry) {
+    assert context != null;
 
-    op.open(config, taskContext, timerRegistry, emitter);
+    op.open(config, context, timerRegistry, emitter);
   }
 
   @Override
@@ -124,7 +124,7 @@ public class OpAdapter<InT, OutT, K>
   }
 
   @Override
-  public Collection<OpMessage<OutT>> onTimer(KeyedTimerData<K> keyedTimerData, long time) {
+  public Collection<OpMessage<OutT>> onCallback(KeyedTimerData<K> keyedTimerData, long time) {
     assert outputList.isEmpty();
 
     try {

@@ -83,6 +83,18 @@ task startDockerContainer(type: Exec) {
     "${->createDockerContainer.containerId()}" // Lazily evaluate containerId.
 }
 
+task setupDockerContainer(type: Exec) {
+  dependsOn startDockerContainer
+  ext.containerId = {
+    return startDockerContainer.containerId()
+  }
+
+  // Create the config to point to a GitHub or Colab blob in the repo, e.g. apache/beam/blob/master
+  commandLine 'docker', 'exec', '-u', 'root',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """echo 'branch_repo: "${getBranchRepo()}"' > /tmp/_config_branch_repo.yml"""
+}
+
 task stopAndRemoveDockerContainer(type: Exec) {
   commandLine 'docker', 'rm', '-f', "${->createDockerContainer.containerId()}"
 }
@@ -103,13 +115,14 @@ clean.dependsOn cleanWebsite
 class BuildTaskConfiguration {
   String name
   boolean useTestConfig = false
+  boolean useBranchRepoConfig = false
   String baseUrl = ''
   String dockerWorkDir = ''
 }
 def createBuildTask = {
   BuildTaskConfiguration config = it as BuildTaskConfiguration
   task "build${config.name}Website" (type:Exec) {
-    dependsOn startDockerContainer, setupBuildDir
+    dependsOn setupDockerContainer, setupBuildDir
     finalizedBy stopAndRemoveDockerContainer
     inputs.files 'Gemfile.lock', '_config.yml'
     inputs.dir 'src'
@@ -119,23 +132,46 @@ def createBuildTask = {
     if (config.useTestConfig) {
       configs += ",${config.dockerWorkDir}/website/_config_test.yml"
     }
+    if (config.useBranchRepoConfig) {
+      configs += ",/tmp/_config_branch_repo.yml"
+    }
     def baseUrlFlag = config.baseUrl ? "--baseurl=/${config.baseUrl}" : ""
     commandLine 'docker', 'exec',
-      "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+      "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
       """cd ${config.dockerWorkDir}/build/website && \
         bundle exec jekyll build \
-	--destination generated-${config.name.toLowerCase()}-content \
+        --destination generated-${config.name.toLowerCase()}-content \
         --config ${configs} \
         --incremental ${baseUrlFlag} \
         --source ${config.dockerWorkDir}/website/src
         """
   }
 }
-createBuildTask(name:'Local', useTestConfig: true, dockerWorkDir: dockerWorkDir)
+
+// task buildLocalWebsite
+createBuildTask(
+  name:'Local',
+  useTestConfig: true,
+  useBranchRepoConfig: true,
+  dockerWorkDir: dockerWorkDir,
+)
 task buildWebsite(dependsOn:buildLocalWebsite)
 build.dependsOn buildWebsite
-createBuildTask( name:'Gcs', useTestConfig: true, baseUrl: getBaseUrl(), dockerWorkDir: dockerWorkDir)
-createBuildTask( name:'Apache', dockerWorkDir: dockerWorkDir)
+
+// task buildGcsWebsite
+createBuildTask(
+  name:'Gcs',
+  useTestConfig: true,
+  useBranchRepoConfig: true,
+  baseUrl: getBaseUrl(),
+  dockerWorkDir: dockerWorkDir,
+)
+
+// task buildApacheWebsite
+createBuildTask(
+  name:'Apache',
+  dockerWorkDir: dockerWorkDir,
+)
 
 /**
  * Use the pull request ID in the URL path, or the git branch when building locally.
@@ -152,22 +188,55 @@ def getBaseUrl() {
   return "${System.getProperty('user.name')}-${buildContext}"
 }
 
+/**
+ * Gets the branch repository where the new files are located. This is used to point
+ * all the GitHub and Colab files to the pull request's branch when testing, while
+ * pointing them to the apache/beam master branch on production. This is done so tests
+ * and staged versions work even when the files don't exist in master yet.
+ */
+def getBranchRepo() {
+  // Jenkins stores the GitHub author in $ghprbPullAuthorLogin
+  def author = System.env.ghprbPullAuthorLogin
+  if (author == null) {
+    // If the author is not defined, it's most probably running locally.
+    // Try to infer the author from the remote URL
+    for (remote in grgit.remote.list()) {
+      if (remote.getName() == 'origin') {
+        // remote.url = 'git@github.com:author/beam.git'
+        author = remote.url.split(':')[1].split('/')[0]
+        break
+      }
+    }
+  }
+  // Jenkins stores the branch in botho of the following environment variables.
+  def branch = System.env.ghprbSourceBranch ?: System.env.GIT_BRANCH
+  if (branch == null && grgit) {
+    branch = grgit.branch.current().getName()
+  }
+
+  // Return the author's branch repo, otherwise default to the master repo.
+  if (author && branch) {
+    return "${author}/beam/blob/${branch}"
+  }
+  return "apache/beam/blob/master"
+}
+
 def buildContentDir(name) {
   "${project.rootDir}/build/website/generated-${name.toLowerCase()}-content"
 }
 
 task serveWebsite(type: Exec) {
-  dependsOn startDockerContainer, setupBuildDir
+  dependsOn setupDockerContainer, setupBuildDir
   finalizedBy stopAndRemoveDockerContainer
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
   outputs.dir "$buildDir/.sass-cache"
   outputs.dir buildContentDir('local')
   commandLine 'docker', 'exec',
-    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
       bundle exec jekyll serve \
-      --config $dockerWorkDir/website/_config.yml \
+      --config $dockerWorkDir/website/_config.yml,/tmp/_config_branch_repo.yml \
       --incremental \
       --source $dockerWorkDir/website/src \
       --host 0.0.0.0
@@ -175,19 +244,18 @@ task serveWebsite(type: Exec) {
 }
 
 task testWebsite(type: Exec) {
-  // dependsOn startDockerContainer, 'buildWebsite'
+  // dependsOn setupDockerContainer, 'buildWebsite'
   finalizedBy stopAndRemoveDockerContainer
 
   inputs.files "$buildDir/Rakefile"
   inputs.dir buildContentDir('local')
   commandLine 'docker', 'exec',
-    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
-      bundle exec rake test"""
+      bundle exec -- rake test disable_external=${findProperty('disableExternal') ?: true}"""
 }
 
 testWebsite.dependsOn 'buildLocalWebsite'
-check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite
@@ -273,7 +341,7 @@ publishWebsite.dependsOn commitWebsite
 /*
  * Stages a pull request on GCS
  * For example:
- *   ./gradlew :beam-website:stageWebsite -PwebsiteBucket=foo
+ *   ./gradlew :website:stageWebsite -PwebsiteBucket=foo
  */
 task stageWebsite {
   doLast {

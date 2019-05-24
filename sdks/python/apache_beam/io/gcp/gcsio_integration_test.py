@@ -31,9 +31,9 @@ The project's Cloud Storage service account requires Encrypter/Decrypter
 permissions for the key specified in --kms_key_name.
 
 To run these tests manually:
-  ./gradlew beam-sdks-python:integrationTest \
-    -Ptests=apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest \
-    -PkmsKeyName=KMS_KEY_NAME
+  ./gradlew :sdks:python:integrationTest \
+    -Dtests=apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest \
+    -DkmsKeyName=KMS_KEY_NAME
 """
 
 from __future__ import absolute_import

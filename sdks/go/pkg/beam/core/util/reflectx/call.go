@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"sync"
 
-	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"runtime/debug"
 )
 
@@ -90,7 +90,7 @@ func (c *reflectFunc) Call(args []interface{}) []interface{} {
 func CallNoPanic(fn Func, args []interface{}) (ret []interface{}, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v %s", r, debug.Stack())
+			err = errors.Errorf("panic: %v %s", r, debug.Stack())
 		}
 	}()
 	return fn.Call(args), nil

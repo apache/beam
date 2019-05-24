@@ -40,9 +40,9 @@ description = 'Apache Beam :: SDKs :: Java :: Extensions :: Kryo'
 
 dependencies {
     compile "com.esotericsoftware:kryo:${kryoVersion}"
-    shadow project(path: ':beam-sdks-java-core', configuration: 'shadow')
-    testCompile project(path: ':beam-sdks-java-core', configuration: 'shadowTest')
-    testCompile project(':beam-runners-direct-java')
+    shadow project(path: ':sdks:java:core', configuration: 'shadow')
+    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
+    testRuntimeOnly project(':runners:direct-java')
 }
 
 test {

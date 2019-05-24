@@ -44,7 +44,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   private final ByteString jobId;
   private final CloseableResource<JobServiceBlockingStub> jobService;
   @Nullable private State terminationState;
-  @Nullable private Runnable cleanup;
+  @Nullable private final Runnable cleanup;
 
   JobServicePipelineResult(
       ByteString jobId, CloseableResource<JobServiceBlockingStub> jobService, Runnable cleanup) {

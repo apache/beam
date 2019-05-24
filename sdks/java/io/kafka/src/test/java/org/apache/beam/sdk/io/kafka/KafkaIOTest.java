@@ -420,7 +420,7 @@ public class KafkaIOTest {
                     .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
                     .withKeyDeserializer(IntegerDeserializer.class)
                     .withValueDeserializer(LongDeserializer.class)
-                    .updateConsumerProperties(
+                    .withConsumerConfigUpdates(
                         ImmutableMap.of(
                             ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
                             ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
@@ -589,7 +589,7 @@ public class KafkaIOTest {
         p.apply(
                 mkKafkaReadTransform(numElements, null)
                     .withCreateTime(Duration.ZERO)
-                    .updateConsumerProperties(
+                    .withConsumerConfigUpdates(
                         ImmutableMap.of(
                             TIMESTAMP_TYPE_CONFIG,
                             "CreateTime",
@@ -670,7 +670,7 @@ public class KafkaIOTest {
                 new ConsumerFactoryFn(
                     ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
             .withMaxNumRecords(2 * numElements) // Try to read more messages than available.
-            .updateConsumerProperties(ImmutableMap.of("inject.error.at.eof", true))
+            .withConsumerConfigUpdates(ImmutableMap.of("inject.error.at.eof", true))
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class);
 
@@ -912,7 +912,8 @@ public class KafkaIOTest {
     p.apply(
         readStep,
         mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
-            .updateConsumerProperties(ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "test.group"))
+            .withConsumerConfigUpdates(
+                ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "test.group"))
             .commitOffsetsInFinalize()
             .withoutMetadata());
 
@@ -1398,7 +1399,7 @@ public class KafkaIOTest {
               .withTopic("myTopic")
               .withValueSerializer(LongSerializer.class)
               .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
-              .updateProducerProperties(ImmutableMap.of("retry.backoff.ms", 100));
+              .withProducerConfigUpdates(ImmutableMap.of("retry.backoff.ms", 100));
 
       DisplayData displayData = DisplayData.from(write);
 

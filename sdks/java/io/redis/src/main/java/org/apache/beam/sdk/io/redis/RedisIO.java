@@ -319,7 +319,7 @@ public class RedisIO {
         for (String k : keys) {
           processContext.output(k);
         }
-        cursor = scanResult.getStringCursor();
+        cursor = scanResult.getCursor();
         if (cursor.equals(ScanParams.SCAN_POINTER_START)) {
           finished = true;
         }
@@ -450,7 +450,13 @@ public class RedisIO {
       SADD,
 
       /** Use PFADD command. Insert value in a HLL structure. Create key if it doesn't exist */
-      PFADD
+      PFADD,
+
+      /** Use INCBY command. Increment counter value of a key by a given value. */
+      INCRBY,
+
+      /** Use DECRBY command. Decrement counter value of a key by given value. */
+      DECRBY,
     }
 
     @Nullable
@@ -578,6 +584,10 @@ public class RedisIO {
           writeUsingSaddCommand(record, expireTime);
         } else if (Method.PFADD == method) {
           writeUsingHLLCommand(record, expireTime);
+        } else if (Method.INCRBY == method) {
+          writeUsingIncrBy(record);
+        } else if (Method.DECRBY == method) {
+          writeUsingDecrBy(record);
         }
       }
 
@@ -628,6 +638,20 @@ public class RedisIO {
         String value = record.getValue();
 
         pipeline.pfadd(key, value);
+      }
+
+      private void writeUsingIncrBy(KV<String, String> record) {
+        String key = record.getKey();
+        String value = record.getValue();
+        long inc = Long.parseLong(value);
+        pipeline.incrBy(key, inc);
+      }
+
+      private void writeUsingDecrBy(KV<String, String> record) {
+        String key = record.getKey();
+        String value = record.getValue();
+        long decr = Long.parseLong(value);
+        pipeline.decrBy(key, decr);
       }
 
       private void setExpireTimeWhenRequired(String key, Long expireTime) {

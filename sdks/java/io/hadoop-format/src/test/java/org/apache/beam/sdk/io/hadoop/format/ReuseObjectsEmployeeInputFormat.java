@@ -36,7 +36,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * This is a valid InputFormat for reading employee data which is available in the form of {@code
  * List<KV>} as {@linkplain ReuseObjectsEmployeeRecordReader#employeeDataList employeeDataList}.
  * {@linkplain ReuseObjectsEmployeeRecordReader#employeeDataList employeeDataList} is populated
- * using {@linkplain TestEmployeeDataSet#populateEmployeeDataNew()}.
+ * using {@linkplain TestEmployeeDataSet#populateEmployeeData()}.
  *
  * <p>{@linkplain ReuseObjectsEmployeeInputFormat} splits data into {@value
  * TestEmployeeDataSet#NUMBER_OF_SPLITS} splits, each split having {@value

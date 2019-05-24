@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.text;
 
-import static org.apache.beam.sdk.io.Compression.AUTO;
+import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
@@ -29,16 +29,19 @@ import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Compression;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOITMetrics;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.CountMonitor;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
@@ -118,6 +121,11 @@ public class TextIOIT {
             .apply(
                 "Collect write start time",
                 ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "startTime")))
+            .apply(
+                "Collect byte count", ParDo.of(new ByteMonitor<>(FILEIOIT_NAMESPACE, "byteCount")))
+            .apply(
+                "Collect element count",
+                ParDo.of(new CountMonitor<>(FILEIOIT_NAMESPACE, "itemCount")))
             .apply("Write content to files", write)
             .getPerDestinationOutputFilenames()
             .apply(Values.create())
@@ -127,7 +135,11 @@ public class TextIOIT {
 
     PCollection<String> consolidatedHashcode =
         testFilenames
-            .apply("Read all files", TextIO.readAll().withCompression(AUTO))
+            .apply("Match all files", FileIO.matchAll())
+            .apply(
+                "Read matches",
+                FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+            .apply("Read files", TextIO.readFiles())
             .apply(
                 "Collect read end time", ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "endTime")))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
@@ -183,6 +195,18 @@ public class TextIOIT {
           long readEndTime = reader.getEndTimeMetric("endTime");
           double runTime = (readEndTime - writeStartTime) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+        });
+
+    metricSuppliers.add(
+        (metricsReader -> {
+          double totalBytes = metricsReader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
+        }));
+
+    metricSuppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "item_count", totalBytes);
         });
 
     if (gatherGcsPerformanceMetrics) {

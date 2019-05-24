@@ -402,7 +402,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
-              bundleProcessOperation.getPtransformIdToUserStepContext());
+              this.bundleProcessOperation.getPtransformIdToUserStepContext(),
+              this.bundleProcessOperation.getPCollectionIdToNameContext());
 
       counterUpdates =
           monitoringInfos.stream()

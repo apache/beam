@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for Dataflow {@link
+ * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for Beam {@link
  * org.apache.beam.sdk.coders.Coder}s.
  */
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {

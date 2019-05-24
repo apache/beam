@@ -28,7 +28,7 @@ public class ClearWatermarksRule extends ExternalResource {
     clearWatermarks();
   }
 
-  public void clearWatermarks() {
+  private void clearWatermarks() {
     GlobalWatermarkHolder.clear();
   }
 }

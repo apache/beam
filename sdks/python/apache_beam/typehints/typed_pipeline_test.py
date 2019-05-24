@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import typing
 import unittest
 
@@ -59,6 +60,11 @@ class MainInputTest(unittest.TestCase):
     result = ['1', '10', '100'] | beam.Map(int, 16)
     self.assertEqual([1, 16, 256], sorted(result))
 
+  @unittest.skipIf(
+      sys.version_info.major >= 3 and sys.version_info < (3, 7, 0),
+      'Function signatures for builtins are not available in Python 3 before '
+      'version 3.7.')
+  def test_non_function_fails(self):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(str.upper)
 
@@ -100,6 +106,13 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
+
+  def test_filter_type_hint(self):
+    @typehints.with_input_types(int)
+    def filter_fn(data):
+      return data % 2
+
+    self.assertEquals([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
 
 
 class NativeTypesTest(unittest.TestCase):
@@ -180,7 +193,7 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str)
     def repeat(s, times=3):
       return s * times
-    # No type checking on dfault arg.
+    # No type checking on default arg.
     self._run_repeat_test_good(repeat)
 
   @OptionsContext(pipeline_type_check=True)

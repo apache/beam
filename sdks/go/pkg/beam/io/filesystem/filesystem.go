@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var registry = make(map[string]func(context.Context) Interface)
@@ -41,7 +43,7 @@ func New(ctx context.Context, path string) (Interface, error) {
 	scheme := getScheme(path)
 	mkfs, ok := registry[scheme]
 	if !ok {
-		return nil, fmt.Errorf("file system scheme %v not registered for %v", scheme, path)
+		return nil, errors.Errorf("file system scheme %v not registered for %v", scheme, path)
 	}
 	return mkfs(ctx), nil
 }

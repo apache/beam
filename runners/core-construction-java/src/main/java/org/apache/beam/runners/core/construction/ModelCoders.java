@@ -36,6 +36,9 @@ public class ModelCoders {
   // Where is this required explicitly, instead of implicit within WindowedValue and LengthPrefix
   // coders?
   public static final String INT64_CODER_URN = getUrn(StandardCoders.Enum.VARINT);
+  public static final String STRING_UTF8_CODER_URN = getUrn(StandardCoders.Enum.STRING_UTF8);
+
+  public static final String DOUBLE_CODER_URN = getUrn(StandardCoders.Enum.DOUBLE);
 
   public static final String ITERABLE_CODER_URN = getUrn(StandardCoders.Enum.ITERABLE);
   public static final String TIMER_CODER_URN = getUrn(StandardCoders.Enum.TIMER);
@@ -55,13 +58,15 @@ public class ModelCoders {
       ImmutableSet.of(
           BYTES_CODER_URN,
           INT64_CODER_URN,
+          STRING_UTF8_CODER_URN,
           ITERABLE_CODER_URN,
           TIMER_CODER_URN,
           KV_CODER_URN,
           LENGTH_PREFIX_CODER_URN,
           GLOBAL_WINDOW_CODER_URN,
           INTERVAL_WINDOW_CODER_URN,
-          WINDOWED_VALUE_CODER_URN);
+          WINDOWED_VALUE_CODER_URN,
+          DOUBLE_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;

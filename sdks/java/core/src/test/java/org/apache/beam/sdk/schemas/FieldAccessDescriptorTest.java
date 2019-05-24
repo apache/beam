@@ -23,8 +23,8 @@ import static org.junit.Assert.assertTrue;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -69,14 +69,14 @@ public class FieldAccessDescriptorTest {
   public void testFieldNames() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldNames("field0", "field2").resolve(SIMPLE_SCHEMA);
-    assertEquals(Sets.newHashSet(0, 2), fieldAccessDescriptor.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(0, 2), fieldAccessDescriptor.fieldIdsAccessed());
   }
 
   @Test
   public void testFieldIds() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldIds(1, 3).resolve(SIMPLE_SCHEMA);
-    assertEquals(Sets.newHashSet(1, 3), fieldAccessDescriptor.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(1, 3), fieldAccessDescriptor.fieldIdsAccessed());
   }
 
   @Test
@@ -118,7 +118,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(resolved.fieldIdsAccessed().isEmpty());
     assertEquals(1, resolved.nestedFieldsById().size());
     resolved = resolved.nestedFieldsById().get(1);
-    assertEquals(Sets.newHashSet(2), resolved.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(2), resolved.fieldIdsAccessed());
   }
 
   @Test
@@ -131,7 +131,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(resolved.fieldIdsAccessed().isEmpty());
     assertEquals(1, resolved.nestedFieldsById().size());
     resolved = resolved.nestedFieldsById().get(1);
-    assertEquals(Sets.newHashSet(2), resolved.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(2), resolved.fieldIdsAccessed());
   }
 
   @Test
@@ -144,7 +144,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(resolved.fieldIdsAccessed().isEmpty());
     assertEquals(1, resolved.nestedFieldsById().size());
     resolved = resolved.nestedFieldsById().get(1);
-    assertEquals(Sets.newHashSet(2), resolved.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(2), resolved.fieldIdsAccessed());
   }
 
   @Test
@@ -218,7 +218,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(fieldAccessDescriptor.fieldIdsAccessed().isEmpty());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     fieldAccessDescriptor = fieldAccessDescriptor.nestedFieldsById().get(1);
-    assertEquals(Sets.newHashSet(2), fieldAccessDescriptor.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(2), fieldAccessDescriptor.fieldIdsAccessed());
   }
 
   @Test
@@ -229,7 +229,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(fieldAccessDescriptor.fieldIdsAccessed().isEmpty());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     fieldAccessDescriptor = fieldAccessDescriptor.nestedFieldsById().get(1);
-    assertEquals(Sets.newHashSet(2), fieldAccessDescriptor.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(2), fieldAccessDescriptor.fieldIdsAccessed());
   }
 
   @Test
@@ -240,7 +240,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(fieldAccessDescriptor.fieldIdsAccessed().isEmpty());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     fieldAccessDescriptor = fieldAccessDescriptor.nestedFieldsById().get(1);
-    assertEquals(Sets.newHashSet(2), fieldAccessDescriptor.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(2), fieldAccessDescriptor.fieldIdsAccessed());
   }
 
   private static final Schema DOUBLE_NESTED_ARRAY_SCHEMA =
@@ -257,7 +257,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(fieldAccessDescriptor.fieldIdsAccessed().isEmpty());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     fieldAccessDescriptor = fieldAccessDescriptor.nestedFieldsById().get(0);
-    assertEquals(Sets.newHashSet(2), fieldAccessDescriptor.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(2), fieldAccessDescriptor.fieldIdsAccessed());
   }
 
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -283,6 +283,25 @@ public class FieldAccessDescriptorTest {
     assertTrue(fieldAccessDescriptor.fieldIdsAccessed().isEmpty());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     fieldAccessDescriptor = fieldAccessDescriptor.nestedFieldsById().get(0);
-    assertEquals(Sets.newHashSet(2), fieldAccessDescriptor.fieldIdsAccessed());
+    assertEquals(ImmutableList.of(2), fieldAccessDescriptor.fieldIdsAccessed());
+  }
+
+  @Test
+  public void testFieldAccessIdsDefaultOrdering() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("field3", "field2", "field1", "field0")
+            .resolve(SIMPLE_SCHEMA);
+
+    assertEquals(ImmutableList.of(0, 1, 2, 3), fieldAccessDescriptor.fieldIdsAccessed());
+  }
+
+  @Test
+  public void testFieldInsertionOrdering() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("field3", "field2", "field1", "field0")
+            .withOrderByFieldInsertionOrder()
+            .resolve(SIMPLE_SCHEMA);
+
+    assertEquals(ImmutableList.of(3, 2, 1, 0), fieldAccessDescriptor.fieldIdsAccessed());
   }
 }

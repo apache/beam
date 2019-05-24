@@ -226,7 +226,7 @@ import org.slf4j.LoggerFactory;
  *   <li>{@code mapreduce.job.output.value.class}: The value class passed to the {@link
  *       OutputFormat} in {@code mapreduce.job.outputformat.class}.
  *   <li>{@code mapreduce.job.reduces}: Number of reduce tasks. Value is equal to number of write
- *       tasks which will be genarated. This property is not required for {@link
+ *       tasks which will be generated. This property is not required for {@link
  *       Write.PartitionedWriterBuilder#withoutPartitioning()} write.
  *   <li>{@code mapreduce.job.partitioner.class}: Hadoop partitioner class which will be used for
  *       distributing of records among partitions. This property is not required for {@link
@@ -247,7 +247,7 @@ import org.slf4j.LoggerFactory;
  *    MyDbOutputFormatKeyClass, Object.class);
  * myHadoopConfiguration.setClass(&quot;mapreduce.job.output.value.class&quot;,
  *    MyDbOutputFormatValueClass, Object.class);
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.output.value.class&quot;,
+ * myHadoopConfiguration.setClass(&quot;mapreduce.job.partitioner.class&quot;,
  *    MyPartitionerClass, Object.class);
  * myHadoopConfiguration.setInt(&quot;mapreduce.job.reduces&quot;, 2);
  * }</pre>
@@ -296,7 +296,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class HadoopFormatIO {
-  private static final Logger LOGGER = LoggerFactory.getLogger(HadoopFormatIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HadoopFormatIO.class);
 
   /** {@link MRJobConfig#OUTPUT_FORMAT_CLASS_ATTR}. */
   public static final String OUTPUT_FORMAT_CLASS_ATTR = MRJobConfig.OUTPUT_FORMAT_CLASS_ATTR;
@@ -439,7 +439,7 @@ public class HadoopFormatIO {
       // Sets key class to key translation function's output class type.
       return toBuilder()
           .setKeyTranslationFunction(function)
-          .setKeyTypeDescriptor((TypeDescriptor<K>) function.getOutputTypeDescriptor())
+          .setKeyTypeDescriptor(function.getOutputTypeDescriptor())
           .build();
     }
 
@@ -449,7 +449,7 @@ public class HadoopFormatIO {
       // Sets value class to value translation function's output class type.
       return toBuilder()
           .setValueTranslationFunction(function)
-          .setValueTypeDescriptor((TypeDescriptor<V>) function.getOutputTypeDescriptor())
+          .setValueTypeDescriptor(function.getOutputTypeDescriptor())
           .build();
     }
 
@@ -633,25 +633,24 @@ public class HadoopFormatIO {
       // desiredBundleSizeBytes is not being considered as splitting based on this
       // value is not supported by inputFormat getSplits() method.
       if (inputSplit != null) {
-        LOGGER.info("Not splitting source {} because source is already split.", this);
-        return ImmutableList.of((BoundedSource<KV<K, V>>) this);
+        LOG.info("Not splitting source {} because source is already split.", this);
+        return ImmutableList.of(this);
       }
       computeSplitsIfNecessary();
-      LOGGER.info(
+      LOG.info(
           "Generated {} splits. Size of first split is {} ",
           inputSplits.size(),
           inputSplits.get(0).getSplit().getLength());
       return inputSplits.stream()
           .map(
-              serializableInputSplit -> {
-                return new HadoopInputFormatBoundedSource<>(
-                    conf,
-                    keyCoder,
-                    valueCoder,
-                    keyTranslationFunction,
-                    valueTranslationFunction,
-                    serializableInputSplit);
-              })
+              serializableInputSplit ->
+                  new HadoopInputFormatBoundedSource<>(
+                      conf,
+                      keyCoder,
+                      valueCoder,
+                      keyTranslationFunction,
+                      valueTranslationFunction,
+                      serializableInputSplit))
           .collect(Collectors.toList());
     }
 
@@ -808,9 +807,7 @@ public class HadoopFormatIO {
       public boolean start() throws IOException {
         try {
           recordsReturned.set(0L);
-          recordReader =
-              (RecordReader<T1, T2>)
-                  inputFormatObj.createRecordReader(split.getSplit(), taskAttemptContext);
+          recordReader = inputFormatObj.createRecordReader(split.getSplit(), taskAttemptContext);
           if (recordReader != null) {
             recordReader.initialize(split.getSplit(), taskAttemptContext);
             progressValue.set(getProgress());
@@ -852,30 +849,23 @@ public class HadoopFormatIO {
 
       @Override
       public KV<K, V> getCurrent() {
-        K key = null;
-        V value = null;
+        K key;
+        V value;
         try {
           // Transform key if translation function is provided.
-          key =
-              transformKeyOrValue(
-                  (T1) recordReader.getCurrentKey(), keyTranslationFunction, keyCoder);
+          key = transformKeyOrValue(recordReader.getCurrentKey(), keyTranslationFunction, keyCoder);
           // Transform value if translation function is provided.
           value =
               transformKeyOrValue(
-                  (T2) recordReader.getCurrentValue(), valueTranslationFunction, valueCoder);
+                  recordReader.getCurrentValue(), valueTranslationFunction, valueCoder);
         } catch (IOException | InterruptedException e) {
-          LOGGER.error("Unable to read data: " + "{}", e);
+          LOG.error("Unable to read data: ", e);
           throw new IllegalStateException("Unable to read data: " + "{}", e);
         }
         return KV.of(key, value);
       }
 
-      /**
-       * Returns the serialized output of transformed key or value object.
-       *
-       * @throws ClassCastException
-       * @throws CoderException
-       */
+      /** Returns the serialized output of transformed key or value object. */
       @SuppressWarnings("unchecked")
       private <T, T3> T3 transformKeyOrValue(
           T input, @Nullable SimpleFunction<T, T3> simpleFunction, Coder<T3> coder)
@@ -886,7 +876,7 @@ public class HadoopFormatIO {
         } else {
           output = (T3) input;
         }
-        return cloneIfPossiblyMutable((T3) output, coder);
+        return cloneIfPossiblyMutable(output, coder);
       }
 
       /**
@@ -909,7 +899,7 @@ public class HadoopFormatIO {
 
       @Override
       public void close() throws IOException {
-        LOGGER.info("Closing reader after reading {} records.", recordsReturned);
+        LOG.info("Closing reader after reading {} records.", recordsReturned);
         if (recordReader != null) {
           recordReader.close();
           recordReader = null;
@@ -929,21 +919,15 @@ public class HadoopFormatIO {
         return progressValue.doubleValue();
       }
 
-      /**
-       * Returns RecordReader's progress.
-       *
-       * @throws IOException
-       * @throws InterruptedException
-       */
+      /** Returns RecordReader's progress. */
       private Double getProgress() throws IOException, InterruptedException {
         try {
           float progress = recordReader.getProgress();
           return (double) progress < 0 || progress > 1 ? 0.0 : progress;
         } catch (IOException e) {
-          LOGGER.error(
+          LOG.error(
               "Error in computing the fractions consumed as RecordReader.getProgress() throws an "
-                  + "exception : "
-                  + "{}",
+                  + "exception : ",
               e);
           throw new IOException(
               "Error in computing the fractions consumed as RecordReader.getProgress() throws an "
@@ -1012,7 +996,7 @@ public class HadoopFormatIO {
       extends PTransform<
           PCollection<KV<KeyT, ValueT>>, PCollection<KV<Integer, KV<KeyT, ValueT>>>> {
 
-    private PCollectionView<Configuration> configView;
+    private final PCollectionView<Configuration> configView;
 
     private GroupDataByPartition(PCollectionView<Configuration> configView) {
       this.configView = configView;
@@ -1063,17 +1047,18 @@ public class HadoopFormatIO {
    */
   public static class Write<KeyT, ValueT> extends PTransform<PCollection<KV<KeyT, ValueT>>, PDone> {
 
-    @Nullable private transient Configuration configuration;
+    @Nullable private final transient Configuration configuration;
 
     @Nullable
-    private PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
+    private final PTransform<
+            PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
         configTransform;
 
-    private ExternalSynchronization externalSynchronization;
+    private final ExternalSynchronization externalSynchronization;
 
-    private boolean withPartitioning;
+    private final boolean withPartitioning;
 
-    public Write(
+    Write(
         @Nullable Configuration configuration,
         @Nullable
             PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
@@ -1101,7 +1086,7 @@ public class HadoopFormatIO {
        *
        * <ul>
        *   <li>{@code mapreduce.job.reduces}: Number of reduce tasks. Value is equal to number of
-       *       write tasks which will be genarated.
+       *       write tasks which will be generated.
        *   <li>{@code mapreduce.job.partitioner.class}: Hadoop partitioner class which will be used
        *       for distributing of records among partitions.
        * </ul>
@@ -1200,7 +1185,6 @@ public class HadoopFormatIO {
       private Configuration configuration;
       private PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
           configTransform;
-      private ExternalSynchronization externalSynchronization;
       private boolean isWithPartitioning;
 
       @Override
@@ -1236,11 +1220,10 @@ public class HadoopFormatIO {
       public Write<KeyT, ValueT> withExternalSynchronization(
           ExternalSynchronization externalSynchronization) {
         checkNotNull(externalSynchronization, "External synchronization cannot be null");
-        this.externalSynchronization = externalSynchronization;
         return new Write<>(
             this.configuration,
             this.configTransform,
-            this.externalSynchronization,
+            externalSynchronization,
             this.isWithPartitioning);
       }
     }
@@ -1415,14 +1398,13 @@ public class HadoopFormatIO {
    */
   private static class TaskContext<KeyT, ValueT> {
 
-    private RecordWriter<KeyT, ValueT> recordWriter;
-    private OutputCommitter outputCommitter;
-    private OutputFormat<KeyT, ValueT> outputFormatObj;
-    private TaskAttemptContext taskAttemptContext;
+    private final RecordWriter<KeyT, ValueT> recordWriter;
+    private final OutputCommitter outputCommitter;
+    private final TaskAttemptContext taskAttemptContext;
 
     TaskContext(TaskAttemptID taskAttempt, Configuration conf) {
       taskAttemptContext = HadoopFormats.createTaskAttemptContext(conf, taskAttempt);
-      outputFormatObj = HadoopFormats.createOutputFormatFromConfig(conf);
+      OutputFormat<KeyT, ValueT> outputFormatObj = HadoopFormats.createOutputFormatFromConfig(conf);
       outputCommitter = initOutputCommitter(outputFormatObj, conf, taskAttemptContext);
       recordWriter = initRecordWriter(outputFormatObj, taskAttemptContext);
     }
@@ -1460,7 +1442,7 @@ public class HadoopFormatIO {
         OutputFormat<KeyT, ValueT> outputFormatObj, TaskAttemptContext taskAttemptContext)
         throws IllegalStateException {
       try {
-        LOGGER.info(
+        LOG.info(
             "Creating new RecordWriter for task {} of Job with id {}.",
             taskAttemptContext.getTaskAttemptID().getTaskID().getId(),
             taskAttemptContext.getJobID().getJtIdentifier());
@@ -1535,9 +1517,9 @@ public class HadoopFormatIO {
    */
   private static class SetupJobFn<KeyT, ValueT> extends DoFn<KV<KeyT, ValueT>, KV<KeyT, ValueT>> {
 
-    private ExternalSynchronization externalSynchronization;
-    private PCollectionView<Configuration> configView;
-    private TypeDescriptor<KV<KeyT, ValueT>> inputTypeDescriptor;
+    private final ExternalSynchronization externalSynchronization;
+    private final PCollectionView<Configuration> configView;
+    private final TypeDescriptor<KV<KeyT, ValueT>> inputTypeDescriptor;
     private boolean isSetupJobAttempted;
 
     SetupJobFn(
@@ -1666,13 +1648,13 @@ public class HadoopFormatIO {
         jobOutputFormat.checkOutputSpecs(setupTaskContext);
         jobOutputFormat.getOutputCommitter(setupTaskContext).setupJob(setupTaskContext);
 
-        LOGGER.info(
+        LOG.info(
             "Job with id {} successfully configured from window with max timestamp {}.",
             jobId.getJtIdentifier(),
             window.maxTimestamp());
 
       } catch (FileAlreadyExistsException e) {
-        LOGGER.info("Job was already set by other worker. Skipping rest of the setup.");
+        LOG.info("Job was already set by other worker. Skipping rest of the setup.");
       } catch (Exception e) {
         throw new RuntimeException("Unable to setup job.", e);
       }
@@ -1686,8 +1668,8 @@ public class HadoopFormatIO {
    */
   private static class CommitJobFn<T> extends DoFn<Iterable<T>, Void> {
 
-    private PCollectionView<Configuration> configView;
-    private ExternalSynchronization externalSynchronization;
+    private final PCollectionView<Configuration> configView;
+    private final ExternalSynchronization externalSynchronization;
 
     CommitJobFn(
         PCollectionView<Configuration> configView,
@@ -1734,7 +1716,7 @@ public class HadoopFormatIO {
   private static class AssignTaskFn<KeyT, ValueT>
       extends DoFn<KV<KeyT, ValueT>, KV<Integer, KV<KeyT, ValueT>>> {
 
-    private PCollectionView<Configuration> configView;
+    private final PCollectionView<Configuration> configView;
 
     // Transient properties because they are used only for one bundle
     /** Cache of created TaskIDs for given bundle. */
@@ -1879,7 +1861,7 @@ public class HadoopFormatIO {
           taskContext.getRecordWriter().close(taskContext.getTaskAttemptContext());
           taskContext.getOutputCommitter().commitTask(taskContext.getTaskAttemptContext());
 
-          LOGGER.info("Write task for {} was successfully committed!", taskContext);
+          LOG.info("Write task for {} was successfully committed!", taskContext);
         } catch (Exception e) {
           processTaskException(taskContext, e);
         }
@@ -1890,7 +1872,7 @@ public class HadoopFormatIO {
     }
 
     private void processTaskException(TaskContext<KeyT, ValueT> taskContext, Exception e) {
-      LOGGER.warn("Write task for {} failed. Will abort task.", taskContext);
+      LOG.warn("Write task for {} failed. Will abort task.", taskContext);
       taskContext.abortTask();
       throw new IllegalArgumentException(e);
     }
@@ -1933,7 +1915,7 @@ public class HadoopFormatIO {
         processTaskException(taskContext, e);
       }
 
-      LOGGER.info(
+      LOG.info(
           "Task with id {} of job {} was successfully setup!",
           taskId,
           HadoopFormats.getJobId(conf).getJtIdentifier());

@@ -87,19 +87,13 @@ def run(argv=None):
     rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
     counts = count_tornadoes(rows)
 
-    if 'temp_location' in p.options.get_all_options():
-      location = p.options.get_all_options()['temp_location']
-    else:
-      location = known_args.gcs_location
-
     # Write the output using a "Write" transform that has side effects.
     # pylint: disable=expression-not-assigned
     counts | 'Write' >> beam.io.WriteToBigQuery(
         known_args.output,
         schema='month:INTEGER, tornado_count:INTEGER',
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-        gs_location=location)
+        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)
 
     # Run the pipeline (all operations are deferred until run() is called).
 

@@ -164,8 +164,11 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
 
     ResourceId artifactsResourceId =
         dir.resolve(ARTIFACTS, StandardResolveOptions.RESOLVE_DIRECTORY);
-    LOG.debug("Removing artifacts: {}", artifactsResourceId);
-    FileSystems.delete(Collections.singletonList(artifactsResourceId));
+    if (!proxyManifest.getLocationList().isEmpty()) {
+      // directory only exists when there is at least one artifact
+      LOG.debug("Removing artifacts dir: {}", artifactsResourceId);
+      FileSystems.delete(Collections.singletonList(artifactsResourceId));
+    }
     LOG.debug("Removing manifest: {}", manifestResourceId);
     FileSystems.delete(Collections.singletonList(manifestResourceId));
     LOG.debug("Removing empty dir: {}", dir);

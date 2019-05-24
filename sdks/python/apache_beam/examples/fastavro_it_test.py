@@ -45,10 +45,14 @@ Usage:
 from __future__ import absolute_import
 from __future__ import division
 
+import json
 import logging
+import os
+import sys
 import unittest
 import uuid
 
+from fastavro import parse_schema
 from nose.plugins.attrib import attr
 
 from apache_beam.io.avroio import ReadAllFromAvro
@@ -82,9 +86,13 @@ def record(i):
   }
 
 
+@unittest.skipIf(sys.version_info[0] >= 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'Due to a known issue in avro-python3 package, this'
+                 'test is skipped until BEAM-6522 is addressed. ')
 class FastavroIT(unittest.TestCase):
 
-  SCHEMA = Parse('''
+  SCHEMA_STRING = '''
     {"namespace": "example.avro",
      "type": "record",
      "name": "User",
@@ -95,7 +103,7 @@ class FastavroIT(unittest.TestCase):
          {"name": "color", "type": ["string", "null"]}
      ]
     }
-    ''')
+    '''
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -133,13 +141,11 @@ class FastavroIT(unittest.TestCase):
     fastavro_output = '/'.join([self.output, 'fastavro'])
     avro_output = '/'.join([self.output, 'avro'])
 
-    self.addCleanup(delete_files, [self.output + '*'])
-
     # pylint: disable=expression-not-assigned
     records_pcoll \
     | 'write_fastavro' >> WriteToAvro(
         fastavro_output,
-        self.SCHEMA,
+        parse_schema(json.loads(self.SCHEMA_STRING)),
         use_fastavro=True
     )
 
@@ -147,7 +153,7 @@ class FastavroIT(unittest.TestCase):
     records_pcoll \
     | 'write_avro' >> WriteToAvro(
         avro_output,
-        self.SCHEMA,
+        Parse(self.SCHEMA_STRING),
         use_fastavro=False
     )
 
@@ -190,6 +196,7 @@ class FastavroIT(unittest.TestCase):
     | CoGroupByKey() \
     | Map(check)
 
+    self.addCleanup(delete_files, [self.output])
     fastavro_read_pipeline.run().wait_until_finish()
     assert result.state == PipelineState.DONE
 

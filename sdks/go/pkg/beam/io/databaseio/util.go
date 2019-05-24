@@ -18,9 +18,10 @@
 package databaseio
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 //mapFields maps column into field index in record type
@@ -48,7 +49,7 @@ func mapFields(columns []string, recordType reflect.Type) ([]int, error) {
 			fieldIndex, ok = indexedFields[strings.Replace(strings.ToLower(column), "_", "", strings.Count(column, "_"))]
 		}
 		if !ok {
-			return nil, fmt.Errorf("failed to matched a %v field for SQL column: %v", recordType, column)
+			return nil, errors.Errorf("failed to matched a %v field for SQL column: %v", recordType, column)
 		}
 		mappedFieldIndex[i] = fieldIndex
 	}

@@ -27,10 +27,6 @@ import javax.annotation.Nonnull;
  * A lock which can always be acquired. It should not be used when a proper lock is required, but it
  * is useful as a performance optimization when locking is not necessary but the code paths have to
  * be shared between the locking and the non-locking variant.
- *
- * <p>For example, in {@link
- * org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator}, the
- * locking on the state backend is only required when both timers and state are used.
  */
 public class NoopLock implements Lock, Serializable {
 

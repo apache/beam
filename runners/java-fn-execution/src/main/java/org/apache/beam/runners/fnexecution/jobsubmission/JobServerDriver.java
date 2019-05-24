@@ -27,6 +27,7 @@ import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.kohsuke.args4j.Option;
+import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,13 +89,19 @@ public abstract class JobServerDriver implements Runnable {
 
     @Option(
         name = "--clean-artifacts-per-job",
-        usage = "When true, remove each job's staged artifacts when it completes")
-    private boolean cleanArtifactsPerJob = false;
+        usage = "When true, remove each job's staged artifacts when it completes",
+        // Allows setting boolean parameters to false which default to true
+        handler = ExplicitBooleanOptionHandler.class)
+    private boolean cleanArtifactsPerJob = true;
 
     @Option(
         name = "--sdk-worker-parallelism",
-        usage = "Default parallelism for SDK worker processes (see portable pipeline options)")
-    private Long sdkWorkerParallelism = 1L;
+        usage =
+            "Default parallelism for SDK worker processes. This option is only applied when the "
+                + "pipeline option sdkWorkerParallelism is set to 0."
+                + "Default is 1, If 0, worker parallelism will be dynamically decided by runner."
+                + "See also: sdkWorkerParallelism Pipeline Option")
+    private long sdkWorkerParallelism = 1L;
 
     public String getHost() {
       return host;
@@ -120,7 +127,7 @@ public abstract class JobServerDriver implements Runnable {
       return cleanArtifactsPerJob;
     }
 
-    public Long getSdkWorkerParallelism() {
+    public long getSdkWorkerParallelism() {
       return this.sdkWorkerParallelism;
     }
   }

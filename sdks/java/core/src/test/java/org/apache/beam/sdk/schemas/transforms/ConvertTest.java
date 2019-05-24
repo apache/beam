@@ -27,6 +27,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
@@ -36,8 +37,12 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for the {@link Convert} class. */
+@RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class ConvertTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

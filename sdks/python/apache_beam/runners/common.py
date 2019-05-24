@@ -210,6 +210,8 @@ class DoFnSignature(object):
     self.process_method = MethodWrapper(do_fn, 'process')
     self.start_bundle_method = MethodWrapper(do_fn, 'start_bundle')
     self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
+    self.setup_lifecycle_method = MethodWrapper(do_fn, 'setup')
+    self.teardown_lifecycle_method = MethodWrapper(do_fn, 'teardown')
 
     restriction_provider = self.get_restriction_provider()
     self.initial_restriction_method = (
@@ -239,8 +241,8 @@ class DoFnSignature(object):
 
   def get_restriction_provider(self):
     result = _find_param_with_default(self.process_method,
-                                      default_as_type=RestrictionProvider)
-    return result[1] if result else None
+                                      default_as_type=DoFn.RestrictionParam)
+    return result[1].restriction_provider if result else None
 
   def _validate(self):
     self._validate_process()
@@ -271,7 +273,7 @@ class DoFnSignature(object):
     userstate.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
-    return any([isinstance(default, RestrictionProvider) for default in
+    return any([isinstance(default, DoFn.RestrictionParam) for default in
                 self.process_method.defaults])
 
   def is_stateful_dofn(self):
@@ -356,6 +358,11 @@ class DoFnInvoker(object):
     """
     raise NotImplementedError
 
+  def invoke_setup(self):
+    """Invokes the DoFn.setup() method
+    """
+    self.signature.setup_lifecycle_method.method_value()
+
   def invoke_start_bundle(self):
     """Invokes the DoFn.start_bundle() method.
     """
@@ -367,6 +374,11 @@ class DoFnInvoker(object):
     """
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
+
+  def invoke_teardown(self):
+    """Invokes the DoFn.teardown() method
+    """
+    self.signature.teardown_lifecycle_method.method_value()
 
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
     self.output_processor.process_outputs(
@@ -538,7 +550,7 @@ class PerWindowInvoker(DoFnInvoker):
             'SDFs in multiply-windowed values with windowed arguments.')
       restriction_tracker_param = _find_param_with_default(
           self.signature.process_method,
-          default_as_type=core.RestrictionProvider)[0]
+          default_as_type=DoFn.RestrictionParam)[0]
       if not restriction_tracker_param:
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
@@ -547,7 +559,7 @@ class PerWindowInvoker(DoFnInvoker):
       try:
         self.current_windowed_value = windowed_value
         self.restriction_tracker = restriction_tracker
-        return self._invoke_per_window(
+        return self._invoke_process_per_window(
             windowed_value, additional_args, additional_kwargs,
             output_processor)
       finally:
@@ -556,14 +568,14 @@ class PerWindowInvoker(DoFnInvoker):
 
     elif self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
-        self._invoke_per_window(
+        self._invoke_process_per_window(
             WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)),
             additional_args, additional_kwargs, output_processor)
     else:
-      self._invoke_per_window(
+      self._invoke_process_per_window(
           windowed_value, additional_args, additional_kwargs, output_processor)
 
-  def _invoke_per_window(
+  def _invoke_process_per_window(
       self, windowed_value, additional_args,
       additional_kwargs, output_processor):
     if self.has_windowed_inputs:
@@ -638,9 +650,11 @@ class PerWindowInvoker(DoFnInvoker):
       deferred_status = self.restriction_tracker.deferred_status()
       if deferred_status:
         deferred_restriction, deferred_watermark = deferred_status
+        element = windowed_value.value
+        size = self.signature.get_restriction_provider().restriction_size(
+            element, deferred_restriction)
         return (
-            windowed_value.with_value(
-                (windowed_value.value, deferred_restriction)),
+            windowed_value.with_value(((element, deferred_restriction), size)),
             deferred_watermark)
 
   def try_split(self, fraction):
@@ -651,10 +665,15 @@ class PerWindowInvoker(DoFnInvoker):
       if split:
         primary, residual = split
         element = self.current_windowed_value.value
+        restriction_provider = self.signature.get_restriction_provider()
+        primary_size = restriction_provider.restriction_size(element, primary)
+        residual_size = restriction_provider.restriction_size(element, residual)
         return (
-            (self.current_windowed_value.with_value((element, primary)),
+            (self.current_windowed_value.with_value(
+                ((element, primary), primary_size)),
              None),
-            (self.current_windowed_value.with_value((element, residual)),
+            (self.current_windowed_value.with_value(
+                ((element, residual), residual_size)),
              restriction_tracker.current_watermark()))
 
   def current_element_progress(self):
@@ -745,11 +764,8 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
-  def finalize(self):
-    self.bundle_finalizer_param.finalize_bundle()
-
-  def process_with_restriction(self, windowed_value):
-    element, restriction = windowed_value.value
+  def process_with_sized_restriction(self, windowed_value):
+    (element, restriction), _ = windowed_value.value
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
         restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
@@ -774,11 +790,27 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
+  def _invoke_lifecycle_method(self, lifecycle_method):
+    try:
+      self.context.set_element(None)
+      lifecycle_method()
+    except BaseException as exn:
+      self._reraise_augmented(exn)
+
+  def setup(self):
+    self._invoke_lifecycle_method(self.do_fn_invoker.invoke_setup)
+
   def start(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_start_bundle)
 
   def finish(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
+
+  def teardown(self):
+    self._invoke_lifecycle_method(self.do_fn_invoker.invoke_teardown)
+
+  def finalize(self):
+    self.bundle_finalizer_param.finalize_bundle()
 
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
