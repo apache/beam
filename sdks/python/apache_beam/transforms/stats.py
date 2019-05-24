@@ -47,15 +47,7 @@ class ApproximateUnique(object):
   Hashes input elements and uses those to extrapolate the size of the entire
   set of hash values by assuming the rest of the hash values are as densely
   distributed as the sample space.
-  Args:
-  **kwargs: Accepts a single named argument "size" or "error".
-  size: an int not smaller than 16, which we would use to estimate number of
-  unique values.
-  error: max estimation error, which is a float between 0.01 and 0.50. If
-  error is given, size will be calculated from error with
-   _get_sample_size_from_est_error function.
-
- """
+  """
 
   _NO_VALUE_ERR_MSG = 'Either size or error should be set. Received {}.'
   _MULTI_VALUE_ERR_MSG = 'Either size or error should be set. ' \
@@ -67,12 +59,19 @@ class ApproximateUnique(object):
                          'between 0.01 and 0.50. Received {error = %s}.'
 
   @staticmethod
-  def get_input_params(size=None, error=None):
+  def parse_input_params(size=None, error=None):
     """
-    :return: sample size
-
     Check if input params are valid and return sample size.
+
+    :param size: an int not smaller than 16, which we would use to estimate
+    number of unique values.
+    :param error: max estimation error, which is a float between 0.01 and 0.50.
+    If error is given, sample size will be calculated from error with
+    _get_sample_size_from_est_error function.
+
+    :return: sample size
     """
+
     if None not in (size, error):
       raise ValueError(ApproximateUnique._MULTI_VALUE_ERR_MSG % (size, error))
     elif size is None and error is None:
@@ -99,12 +98,12 @@ class ApproximateUnique(object):
     return int(math.ceil(4.0 / math.pow(est_err, 2.0)))
 
   @typehints.with_input_types(T)
-  @typehints.with_output_types(T)
+  @typehints.with_output_types(int)
   class Globally(PTransform):
     """ Approximate.Globally approximate number of unique values"""
 
     def __init__(self, size=None, error=None):
-      self._sample_size = ApproximateUnique.get_input_params(size, error)
+      self._sample_size = ApproximateUnique.parse_input_params(size, error)
 
     def expand(self, pcoll):
       coder = coders.registry.get_coder(pcoll)
@@ -114,12 +113,12 @@ class ApproximateUnique(object):
                                                             coder)))
 
   @typehints.with_input_types(typehints.KV[K, V])
-  @typehints.with_output_types(typehints.KV[K, V])
+  @typehints.with_output_types(typehints.KV[K, int])
   class PerKey(PTransform):
     """ Approximate.PerKey approximate number of unique values per key"""
 
     def __init__(self, size=None, error=None):
-      self._sample_size = ApproximateUnique.get_input_params(size, error)
+      self._sample_size = ApproximateUnique.parse_input_params(size, error)
 
     def expand(self, pcoll):
       coder = coders.registry.get_coder(pcoll)
