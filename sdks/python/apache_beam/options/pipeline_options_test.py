@@ -260,7 +260,8 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
 
-    options = PipelineOptions(['--worker_machine_type', 'abc', '--worker_disk_type', 'def'])
+    options = PipelineOptions(
+        ['--worker_machine_type', 'abc', '--worker_disk_type', 'def'])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
