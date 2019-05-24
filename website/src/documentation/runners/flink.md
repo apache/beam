@@ -218,7 +218,7 @@ is part of Flink:
 </span>
 
 ```java
-$ bin/flink -c org.apache.beam.examples.WordCount /path/to/your.jar
+$ bin/flink run -c org.apache.beam.examples.WordCount /path/to/your.jar
 --runner=FlinkRunner --other-parameters
 ```
 
