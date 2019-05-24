@@ -29,6 +29,13 @@ public abstract class ExternalSorter implements Sorter {
   public static class Options implements Serializable {
     private String tempLocation = "/tmp";
     private int memoryMB = 100;
+    private SorterType sorterType = SorterType.HADOOP;
+
+    /** Sorter type. */
+    public enum SorterType {
+      HADOOP,
+      NATIVE
+    }
 
     /** Sets the path to a temporary location where the sorter writes intermediate files. */
     public Options setTempLocation(String tempLocation) {
@@ -49,7 +56,7 @@ public abstract class ExternalSorter implements Sorter {
      * Sets the size of the memory buffer in megabytes. Must be greater than zero and less than
      * 2048.
      */
-    public ExternalSorter.Options setMemoryMB(int memoryMB) {
+    public Options setMemoryMB(int memoryMB) {
       checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
       // integer overflow
@@ -62,6 +69,24 @@ public abstract class ExternalSorter implements Sorter {
     public int getMemoryMB() {
       return memoryMB;
     }
+
+    /** Sets the sorter type. */
+    public Options setSorterType(SorterType sorterType) {
+      this.sorterType = sorterType;
+      return this;
+    }
+
+    /** Returns the sorter type. */
+    public SorterType getSorterType() {
+      return sorterType;
+    }
+  }
+
+  /** Returns a {@link Sorter} configured with the given {@link Options}. */
+  public static ExternalSorter create(Options options) {
+    return options.getSorterType() == Options.SorterType.HADOOP
+        ? HadoopExternalSorter.create(options)
+        : NativeExternalSorter.create(options);
   }
 
   ExternalSorter(Options options) {

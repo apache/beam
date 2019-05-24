@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.UUID;
+import org.apache.beam.sdk.extensions.sorter.ExternalSorter.Options.SorterType;
 import org.apache.beam.sdk.values.KV;
 
 /** {@link ExternalSorter} benchmarks. */
@@ -35,8 +36,11 @@ public class ExternalSorterBenchmark {
     ExternalSorter.Options options =
         new ExternalSorter.Options().setMemoryMB(32).setTempLocation(tempDirectory.toString());
 
-    benchmark(HadoopExternalSorter.create(options));
-    benchmark(NativeExternalSorter.create(options));
+    options.setSorterType(SorterType.HADOOP);
+    benchmark(ExternalSorter.create(options));
+
+    options.setSorterType(SorterType.NATIVE);
+    benchmark(ExternalSorter.create(options));
   }
 
   private static void benchmark(Sorter sorter) throws IOException {
