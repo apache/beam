@@ -479,7 +479,7 @@ class UtilTest(unittest.TestCase):
          '--experiments', 'beam_fn_api'])
     environment = apiclient.Environment(
         [], pipeline_options, 1, FAKE_PIPELINE_URL)
-    self.assertIn("use_multiple_sdk_containers", environment.proto.experiments)
+    self.assertIn('use_multiple_sdk_containers', environment.proto.experiments)
 
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',
@@ -488,7 +488,7 @@ class UtilTest(unittest.TestCase):
          '--experiments', 'use_multiple_sdk_containers'])
     environment = apiclient.Environment(
         [], pipeline_options, 1, FAKE_PIPELINE_URL)
-    self.assertIn("use_multiple_sdk_containers", environment.proto.experiments)
+    self.assertIn('use_multiple_sdk_containers', environment.proto.experiments)
 
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',
@@ -498,7 +498,35 @@ class UtilTest(unittest.TestCase):
     environment = apiclient.Environment(
         [], pipeline_options, 1, FAKE_PIPELINE_URL)
     self.assertNotIn(
-        "use_multiple_sdk_containers", environment.proto.experiments)
+        'use_multiple_sdk_containers', environment.proto.experiments)
+
+  def test_experiment_enable_health_checker(self):
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--experiments', 'beam_fn_api'])
+    environment = apiclient.Environment(
+        [], pipeline_options, 1, FAKE_PIPELINE_URL)
+    self.assertIn('enable_health_checker', environment.proto.experiments)
+
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--experiments', 'beam_fn_api',
+         '--experiments', 'enable_health_checker'])
+    environment = apiclient.Environment(
+        [], pipeline_options, 1, FAKE_PIPELINE_URL)
+    self.assertIn('enable_health_checker', environment.proto.experiments)
+
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--experiments', 'beam_fn_api',
+         '--experiments', 'disable_health_checker'])
+    environment = apiclient.Environment(
+        [], pipeline_options, 1, FAKE_PIPELINE_URL)
+    self.assertNotIn('enable_health_checker', environment.proto.experiments)
+    self.assertIn('disable_health_checker', environment.proto.experiments)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
