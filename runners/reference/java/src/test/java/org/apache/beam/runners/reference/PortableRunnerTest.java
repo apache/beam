@@ -47,7 +47,7 @@ public class PortableRunnerTest implements Serializable {
   private static final ApiServiceDescriptor ENDPOINT_DESCRIPTOR =
       ApiServiceDescriptor.newBuilder().setUrl(ENDPOINT_URL).build();
 
-  private PipelineOptions options = createPipelineOptions();
+  private final PipelineOptions options = createPipelineOptions();
 
   @Rule public transient TestPipeline p = TestPipeline.fromOptions(options);
 
