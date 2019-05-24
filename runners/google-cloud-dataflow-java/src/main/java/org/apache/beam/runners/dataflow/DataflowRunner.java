@@ -326,8 +326,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    // Adding the Java version to the SDK name for user's and support convenience.
+    String javaVersion =
+        Float.parseFloat(System.getProperty("java.specification.version")) >= 9
+            ? "(JDK 11 environment)"
+            : "(JRE 8 environment)";
     String userAgent =
-        String.format("%s/%s", dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion())
+        String.format(
+                "%s %s/%s",
+                dataflowRunnerInfo.getName(), javaVersion, dataflowRunnerInfo.getVersion())
             .replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
 

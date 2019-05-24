@@ -63,14 +63,6 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
       if (!properties.containsKey("name")) {
         properties.setProperty("name", ReleaseInfo.getReleaseInfo().getName());
       }
-      // Adding the Java version to the SDK name for user's and support convenience.
-      String javaVersion =
-          Float.parseFloat(System.getProperty("java.specification.version")) >= 9
-              ? "(JDK 11 environment)"
-              : "(JRE 8 environment)";
-      properties.setProperty(
-          "name", String.format("%s %s", properties.getProperty("name"), javaVersion));
-
       if (!properties.containsKey("version")) {
         properties.setProperty("version", ReleaseInfo.getReleaseInfo().getVersion());
       }
