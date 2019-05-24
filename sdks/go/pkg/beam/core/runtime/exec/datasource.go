@@ -184,12 +184,12 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
 	n.mu.Lock()
+	defer n.mu.Unlock()
 	log.Infof(ctx, "DataSource: %d elements in %d ns", n.count, time.Now().Sub(n.start))
 	n.source = nil
 	err := n.Out.FinishBundle(ctx)
 	n.count = 0
 	n.splitPos = math.MaxInt64
-	defer n.mu.Unlock()
 	return err
 }
 
