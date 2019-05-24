@@ -65,6 +65,7 @@ class ApproximateUnique(object):
 
     :param size: an int not smaller than 16, which we would use to estimate
     number of unique values.
+
     :param error: max estimation error, which is a float between 0.01 and 0.50.
     If error is given, sample size will be calculated from error with
     _get_sample_size_from_est_error function.
