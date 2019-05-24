@@ -60,30 +60,34 @@ import (
 //
 // Here, the inbound shape and output types are different from before.
 func Bind(fn *funcx.Fn, typedefs map[string]reflect.Type, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
+	addContext := func(err error, fn *funcx.Fn) error {
+		return errors.WithContextf(err, "binding fn %v", fn.Fn.Name())
+	}
+
 	inbound, kinds, err := findInbound(fn, in...)
 	if err != nil {
-		return nil, nil, nil, nil, errors.WithContextf(err, "binding fn %v", fn.Fn.Name())
+		return nil, nil, nil, nil, addContext(err, fn)
 	}
 	outbound, err := findOutbound(fn)
 	if err != nil {
-		return nil, nil, nil, nil, errors.WithContextf(err, "binding fn %v", fn.Fn.Name())
+		return nil, nil, nil, nil, addContext(err, fn)
 	}
 
 	subst, err := typex.Bind(inbound, in)
 	if err != nil {
-		return nil, nil, nil, nil, errors.WithContextf(err, "binding fn %v", fn.Fn.Name())
+		return nil, nil, nil, nil, addContext(err, fn)
 	}
 	for k, v := range typedefs {
 		if substK, exists := subst[k]; exists {
 			err := errors.Errorf("cannot substitute type %v with %v, already defined as %v", k, v, substK)
-			return nil, nil, nil, nil, errors.WithContextf(err, "binding fn %v", fn.Fn.Name())
+			return nil, nil, nil, nil, addContext(err, fn)
 		}
 		subst[k] = v
 	}
 
 	out, err := typex.Substitute(outbound, subst)
 	if err != nil {
-		return nil, nil, nil, nil, errors.WithContextf(err, "binding fn %v", fn.Fn.Name())
+		return nil, nil, nil, nil, addContext(err, fn)
 	}
 	return inbound, kinds, outbound, out, nil
 }
@@ -128,6 +132,9 @@ func returnTypes(list []funcx.ReturnParam) []reflect.Type {
 
 func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputKind, error) {
 	// log.Printf("Bind inbound: %v %v", fn, in)
+	addContext := func(err error, p []funcx.FnParam, in interface{}) error {
+		return errors.WithContextf(err, "binding params %v to input %v", p, in)
+	}
 
 	var inbound []typex.FullType
 	var kinds []InputKind
@@ -136,29 +143,26 @@ func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputK
 	for _, input := range in {
 		arity, err := inboundArity(input, index == 0)
 		if err != nil {
-			return nil, nil, errors.WithContextf(err, "binding params %v to input %v", params, input)
+			return nil, nil, addContext(err, params, input)
 		}
 		if len(params)-index < arity {
-			err := errors.New("too few params")
-			return nil, nil, errors.WithContextf(err, "binding params %v to input %v", params[index:], input)
+			return nil, nil, addContext(errors.New("too few params"), params[index:], input)
 		}
 
 		paramsToBind := params[index : index+arity]
 		elm, kind, err := tryBindInbound(input, paramsToBind, index == 0)
 		if err != nil {
-			return nil, nil, errors.WithContextf(err, "binding params %v to input %v", paramsToBind, input)
+			return nil, nil, addContext(err, paramsToBind, input)
 		}
 		inbound = append(inbound, elm)
 		kinds = append(kinds, kind)
 		index += arity
 	}
 	if index < len(params) {
-		err := errors.New("too few inputs: forgot an input or to annotate options?")
-		return nil, nil, errors.WithContextf(err, "binding params %v to inputs %v:", params, in)
+		return nil, nil, addContext(errors.New("too few inputs: forgot an input or to annotate options?"), params, in)
 	}
 	if index > len(params) {
-		err := errors.New("too many inputs")
-		return nil, nil, errors.WithContextf(err, "binding params %v to inputs %v:", params, in)
+		return nil, nil, addContext(errors.New("too many inputs"), params, in)
 	}
 	return inbound, kinds, nil
 }
