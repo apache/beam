@@ -1216,12 +1216,12 @@ sense that includes side effects, etc.</p>
 
 <p>A <code class="highlighter-rouge">FunctionSpec</code> includes a URN identifying the function as well as an arbitrary
 fixed parameter. For example the (hypothetical) “max” CombineFn might have the
-URN <code class="highlighter-rouge">urn:beam:combinefn:max:0.1</code> and a parameter that indicates by what
+URN <code class="highlighter-rouge">beam:combinefn:max:0.1</code> and a parameter that indicates by what
 comparison to take the max.</p>
 
 <p>For most UDFs in a pipeline constructed using a particular language’s SDK, the
 URN will indicate that the SDK must interpret it, for example
-<code class="highlighter-rouge">urn:beam:dofn:javasdk:0.1</code> or <code class="highlighter-rouge">urn:beam:dofn:pythonsdk:0.1</code>. The parameter
+<code class="highlighter-rouge">beam:dofn:javasdk:0.1</code> or <code class="highlighter-rouge">beam:dofn:pythonsdk:0.1</code>. The parameter
 will contain serialized code, such as a Java-serialized <code class="highlighter-rouge">DoFn</code> or a Python
 pickled <code class="highlighter-rouge">DoFn</code>.</p>
 
