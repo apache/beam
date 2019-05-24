@@ -55,6 +55,7 @@ google-cloud-bigquery==1.6.0
 proto-google-cloud-datastore-v1==0.90.4
 google-cloud-bigtable==0.31.1
 google-cloud-core==0.28.1
+google-cloud-storage==1.16.0
 
 # Optional packages
 cython==0.28.1
