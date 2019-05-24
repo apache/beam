@@ -619,10 +619,10 @@ class Pipeline(object):
           default_environment=default_environment)
     elif default_environment is not None:
       raise ValueError(
-          'Only one of context or default_environment may be specificed.')
+          'Only one of context or default_environment may be specified.')
 
-    # The RunnerAPI spec requires certain transforms to have KV inputs
-    # (and corresponding outputs).
+    # The RunnerAPI spec requires certain transforms and side-inputs to have KV
+    # inputs (and corresponding outputs).
     # Currently we only upgrade to KV pairs.  If there is a need for more
     # general shapes, potential conflicts will have to be resolved.
     # We also only handle single-input, and (for fixing the output) single
@@ -632,8 +632,9 @@ class Pipeline(object):
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
-        if (transform_node.transform
-            and transform_node.transform.runner_api_requires_keyed_input()):
+        if not transform_node.transform:
+          return
+        if transform_node.transform.runner_api_requires_keyed_input():
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
@@ -642,6 +643,11 @@ class Pipeline(object):
             output, = transform_node.outputs.values()
             output.element_type = transform_node.transform.infer_output_type(
                 pcoll.element_type)
+        for side_input in transform_node.transform.side_inputs:
+          if side_input.requires_keyed_input():
+            side_input.pvalue.element_type = typehints.coerce_to_kv_type(
+                side_input.pvalue.element_type, transform_node.full_label,
+                side_input_producer=side_input.pvalue.producer.full_label)
 
     self.visit(ForceKvInputTypes())
 
