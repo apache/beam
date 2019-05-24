@@ -23,6 +23,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import org.apache.avro.Schema;
+import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumReader;
@@ -35,6 +36,7 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.beam.sdk.extensions.smb.FileOperations;
+import org.apache.beam.sdk.io.SerializableAvroCodecFactory;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 
@@ -43,20 +45,24 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
   private final Class<ValueT> recordClass;
   private final SerializableSchemaSupplier schemaSupplier;
+  private final SerializableAvroCodecFactory codec;
 
-  private AvroFileOperations(Class<ValueT> recordClass, Schema schema) {
+  private static final CodecFactory DEFAULT_CODEC = CodecFactory.snappyCodec();
+
+  private AvroFileOperations(Class<ValueT> recordClass, Schema schema, CodecFactory codec) {
     this.recordClass = recordClass;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
+    this.codec = new SerializableAvroCodecFactory(codec);
   }
 
   public static AvroFileOperations<GenericRecord> of(Schema schema) {
-    return new AvroFileOperations<>(null, schema);
+    return new AvroFileOperations<>(null, schema, DEFAULT_CODEC);
   }
 
   public static <V extends SpecificRecordBase> AvroFileOperations<V> of(Class<V> recordClass) {
     // Use reflection to get SR schema
     final Schema schema = new ReflectData(recordClass.getClassLoader()).getSchema(recordClass);
-    return new AvroFileOperations<>(recordClass, schema);
+    return new AvroFileOperations<>(recordClass, schema, DEFAULT_CODEC);
   }
 
   @Override
@@ -66,7 +72,7 @@ public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
 
   @Override
   public Writer<ValueT> createWriter() {
-    return new AvroWriter<>(recordClass, schemaSupplier);
+    return new AvroWriter<>(recordClass, schemaSupplier, codec);
   }
 
   Schema getSchema() {
@@ -151,11 +157,16 @@ public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
 
     private final Class<ValueT> recordClass;
     private final SerializableSchemaSupplier schemaSupplier;
+    private final SerializableAvroCodecFactory codec;
     private transient DataFileWriter<ValueT> writer;
 
-    AvroWriter(Class<ValueT> recordClass, SerializableSchemaSupplier schemaSupplier) {
+    AvroWriter(
+        Class<ValueT> recordClass,
+        SerializableSchemaSupplier schemaSupplier,
+        SerializableAvroCodecFactory codec) {
       this.recordClass = recordClass;
       this.schemaSupplier = schemaSupplier;
+      this.codec = codec;
     }
 
     @Override
@@ -170,7 +181,7 @@ public class AvroFileOperations<ValueT> extends FileOperations<ValueT> {
           recordClass == null
               ? new GenericDatumWriter<>(schema)
               : new ReflectDatumWriter<>(recordClass);
-      writer = new DataFileWriter<>(datumWriter);
+      writer = new DataFileWriter<>(datumWriter).setCodec(codec.getCodec());
       writer.create(schema, Channels.newOutputStream(channel));
     }
 
