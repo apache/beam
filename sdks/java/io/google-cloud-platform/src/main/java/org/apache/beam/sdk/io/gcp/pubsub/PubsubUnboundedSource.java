@@ -993,8 +993,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       boolean hasEnoughSamples =
           minReadTimestampMsSinceEpoch.isSignificant()
               || minUnreadTimestampMsSinceEpoch.isSignificant();
-      boolean isStale =
-          lastWatermarkMsSinceEpoch < (nowMsSinceEpoch - UPDATE_THRESHOLD.getMillis());
+      boolean isStale = lastReceivedMsSinceEpoch < (nowMsSinceEpoch - UPDATE_THRESHOLD.getMillis());
       return hasEnoughSamples || isStale;
     }
 
