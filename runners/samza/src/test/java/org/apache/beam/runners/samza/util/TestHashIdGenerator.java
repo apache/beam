@@ -61,4 +61,25 @@ public class TestHashIdGenerator {
     String id2 = idGenerator.getId(Count.perKey().getName());
     Assert.assertNotEquals(id1, id2);
   }
+
+  @Test
+  public void testSameShortNames() {
+    final HashIdGenerator idGenerator = new HashIdGenerator();
+    String id = idGenerator.getId("abcd");
+    Assert.assertEquals("abcd", id);
+    String id2 = idGenerator.getId("abcd");
+    Assert.assertNotEquals("abcd", id2);
+  }
+
+  @Test
+  public void testLongHash() {
+    final HashIdGenerator idGenerator = new HashIdGenerator(10);
+    String id1 = idGenerator.getId(Count.perKey().getName());
+    String id2 = idGenerator.getId(Count.perKey().getName());
+    String id3 = idGenerator.getId(Count.perKey().getName());
+    String id4 = idGenerator.getId(Count.perKey().getName());
+    Assert.assertNotEquals(id1, id2);
+    Assert.assertNotEquals(id3, id2);
+    Assert.assertNotEquals(id3, id4);
+  }
 }
