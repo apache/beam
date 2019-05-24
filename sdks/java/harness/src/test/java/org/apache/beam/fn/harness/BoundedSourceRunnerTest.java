@@ -57,7 +57,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BoundedSourceRunnerTest {
 
-  public static final String URN = "urn:org.apache.beam:source:java:0.1";
+  public static final String URN = "beam:source:java:0.1";
 
   @Test
   public void testRunReadLoopWithMultipleSources() throws Exception {
@@ -144,7 +144,7 @@ public class BoundedSourceRunnerTest {
 
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
-            .setUrn("urn:org.apache.beam:source:java:0.1")
+            .setUrn("beam:source:java:0.1")
             .setPayload(
                 ByteString.copyFrom(SerializableUtils.serializeToByteArray(CountingSource.upTo(3))))
             .build();

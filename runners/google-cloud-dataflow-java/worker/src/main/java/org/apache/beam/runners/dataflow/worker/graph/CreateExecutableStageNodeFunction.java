@@ -94,10 +94,10 @@ import org.joda.time.Duration;
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
-  private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
 
-  private static final String DATA_OUTPUT_URN = "urn:org.apache.beam:sink:runner:0.1";
-  private static final String JAVA_SOURCE_URN = "urn:org.apache.beam:source:java:0.1";
+  private static final String DATA_OUTPUT_URN = "beam:sink:runner:0.1";
+  private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
       BeamUrns.getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);

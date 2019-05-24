@@ -34,7 +34,7 @@ import (
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
 	URNImpulse       = "beam:transform:impulse:v1"
-	URNParDo         = "urn:beam:transform:pardo:v1"
+	URNParDo         = "beam:transform:pardo:v1"
 	URNFlatten       = "beam:transform:flatten:v1"
 	URNGBK           = "beam:transform:group_by_key:v1"
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
@@ -53,7 +53,7 @@ const (
 	// URNJavaDoFn is the legacy constant for marking a DoFn.
 	// TODO: remove URNJavaDoFN when the Dataflow runner
 	// uses the model pipeline and no longer falls back to Java.
-	URNJavaDoFn = "urn:beam:dofn:javasdk:0.1"
+	URNJavaDoFn = "beam:dofn:javasdk:0.1"
 	URNDoFn     = "beam:go:transform:dofn:v1"
 
 	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
