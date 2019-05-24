@@ -194,7 +194,7 @@ public class ZipFilesTest {
     assertTrue(zipDir.mkdir());
     ZipFiles.zipDirectory(tmpDir, zipFile);
     File invalidDirectory = new File("/foo/bar");
-    assertTrue(!invalidDirectory.exists());
+    assertFalse(invalidDirectory.exists());
     try {
       ZipFiles.unzipFile(zipFile, invalidDirectory);
       fail("We expect the IllegalArgumentException, but it never occured");
