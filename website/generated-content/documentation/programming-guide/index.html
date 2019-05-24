@@ -550,12 +550,16 @@ options.</p>
 
 <p>You can add your own custom options in addition to the standard
 <code class="highlighter-rouge">PipelineOptions</code>. To add your own options, define an interface with getter and
-setter methods for each option, as in the following example:</p>
+setter methods for each option, as in the following example for
+adding <code class="highlighter-rouge">input</code> and <code class="highlighter-rouge">output</code> custom options:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
-    <span class="n">String</span> <span class="nf">getMyCustomOption</span><span class="o">();</span>
-    <span class="kt">void</span> <span class="nf">setMyCustomOption</span><span class="o">(</span><span class="n">String</span> <span class="n">myCustomOption</span><span class="o">);</span>
-  <span class="o">}</span>
+    <span class="n">String</span> <span class="nf">getInput</span><span class="o">();</span>
+    <span class="kt">void</span> <span class="nf">setInput</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">);</span>
+    
+    <span class="n">String</span> <span class="nf">getOutput</span><span class="o">();</span>
+    <span class="kt">void</span> <span class="nf">setOutput</span><span class="o">(</span><span class="n">String</span> <span class="n">output</span><span class="o">);</span>
+<span class="o">}</span>
 </code></pre>
 </div>
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
@@ -580,11 +584,16 @@ a command-line argument, and a default value.</p>
 <p>You set the description and default value using annotations, as follows:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
-    <span class="nd">@Description</span><span class="o">(</span><span class="s">"My custom command line argument."</span><span class="o">)</span>
-    <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"DEFAULT"</span><span class="o">)</span>
-    <span class="n">String</span> <span class="nf">getMyCustomOption</span><span class="o">();</span>
-    <span class="kt">void</span> <span class="nf">setMyCustomOption</span><span class="o">(</span><span class="n">String</span> <span class="n">myCustomOption</span><span class="o">);</span>
-  <span class="o">}</span>
+    <span class="nd">@Description</span><span class="o">(</span><span class="s">"Input for the pipeline"</span><span class="o">)</span>
+    <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"gs://my-bucket/input"</span><span class="o">)</span>
+    <span class="n">String</span> <span class="nf">getInput</span><span class="o">();</span>
+    <span class="kt">void</span> <span class="nf">setInput</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">);</span>
+
+    <span class="nd">@Description</span><span class="o">(</span><span class="s">"Output for the pipeline"</span><span class="o">)</span>
+    <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"gs://my-bucket/input"</span><span class="o">)</span>
+    <span class="n">String</span> <span class="nf">getOutput</span><span class="o">();</span>
+    <span class="kt">void</span> <span class="nf">setOutput</span><span class="o">(</span><span class="n">String</span> <span class="n">output</span><span class="o">);</span>
+<span class="o">}</span>
 </code></pre>
 </div>
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
@@ -601,8 +610,8 @@ a command-line argument, and a default value.</p>
 </code></pre>
 </div>
 <div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
-  </span><span class="n">input</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"input"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://my-bucket/input"</span><span class="p">,</span><span class="x"> </span><span class="s">"File(s) to read."</span><span class="p">)</span><span class="x">
-  </span><span class="n">output</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"output"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://my-bucket/output"</span><span class="p">,</span><span class="x"> </span><span class="s">"Output file."</span><span class="p">)</span><span class="x">
+  </span><span class="n">input</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"input"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://my-bucket/input"</span><span class="p">,</span><span class="x"> </span><span class="s">"Input for the pipeline"</span><span class="p">)</span><span class="x">
+  </span><span class="n">output</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"output"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://my-bucket/output"</span><span class="p">,</span><span class="x"> </span><span class="s">"Output for the pipeline"</span><span class="p">)</span><span class="x">
 </span><span class="p">)</span><span class="x">
 </span></code></pre>
 </div>
@@ -624,7 +633,7 @@ with <code class="highlighter-rouge">PipelineOptionsFactory</code>:</p>
 </code></pre>
 </div>
 
-<p>Now your pipeline can accept <code class="highlighter-rouge">--myCustomOption=value</code> as a command-line argument.</p>
+<p>Now your pipeline can accept <code class="highlighter-rouge">--input=value</code> and <code class="highlighter-rouge">--output=value</code> as command-line arguments.</p>
 
 <h2 id="pcollections">3. PCollections</h2>
 
@@ -674,7 +683,7 @@ a <code class="highlighter-rouge">PCollection</code>:</p>
 
     <span class="c1">// Create the PCollection 'lines' by applying a 'Read' transform.</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-      <span class="s">"ReadMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="o">));</span>
+      <span class="s">"ReadMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
 <span class="o">}</span>
 </code></pre>
 </div>
@@ -682,7 +691,7 @@ a <code class="highlighter-rouge">PCollection</code>:</p>
 
 </code></pre>
 </div>
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="p">)</span><span class="x">
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://some/inputData.txt"</span><span class="p">)</span><span class="x">
 </span></code></pre>
 </div>
 
