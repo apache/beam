@@ -191,3 +191,19 @@ func (p *Plan) Metrics() *fnpb.Metrics {
 		Ptransforms: transforms,
 	}
 }
+
+// SplitPoints captures the split requested by the Runner.
+type SplitPoints struct {
+	Splits []int64
+	Frac   float32
+}
+
+// Split takes a set of potential split points, selects and actuates split on an
+// appropriate split point, and returns the selected split point if successful.
+// Returns an error when unable to split.
+func (p *Plan) Split(s SplitPoints) (int64, error) {
+	if p.source != nil {
+		return p.source.Split(s.Splits, s.Frac)
+	}
+	return 0, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+}
