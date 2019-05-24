@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 
@@ -143,8 +144,8 @@ public class RowTest {
     assertEquals("str", row.getString(7));
     assertEquals(dateTime, row.getDateTime("f_datetime"));
     assertEquals(dateTime, row.getDateTime(8));
-    assertEquals(false, row.getBoolean("f_boolean"));
-    assertEquals(false, row.getBoolean(9));
+    assertFalse(row.getBoolean("f_boolean"));
+    assertFalse(row.getBoolean(9));
   }
 
   @Test
