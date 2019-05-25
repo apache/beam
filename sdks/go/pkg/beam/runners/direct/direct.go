@@ -28,6 +28,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
 )
 
 func init() {
@@ -44,6 +46,14 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	log.Info(ctx, "Pipeline:")
 	log.Info(ctx, p)
+
+	if *jobopts.Strict {
+		log.Info(ctx, "Strict mode enabled, applying additional validation.")
+		if err := vet.Execute(ctx, p); err != nil {
+			return errors.Wrap(err, "strictness check failed")
+		}
+		log.Info(ctx, "Strict mode validation passed.")
+	}
 
 	edges, _, err := p.Build()
 	if err != nil {
