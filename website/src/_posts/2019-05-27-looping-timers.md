@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Looping timers in Apache Beam"
-date:   2019-05-24 00:00:01 -0800
+date:   2019-05-27 00:00:01 -0800
 excerpt_separator: <!--more-->
 categories: blog
 authors:
@@ -334,6 +334,9 @@ runners will need to add support for it with all of their more advanced
 feature sets. You can experiment with this pattern today using the
 DirectRunner. For other runners, please look out for their release notes on
 support for dealing with this use case in production.
+
+([Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/))
+
 
 Runner specific notes:
 Google Cloud Dataflow Runners Drain feature does not support looping timers (Link to matrix)
