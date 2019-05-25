@@ -33,7 +33,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -314,11 +313,8 @@ public class DefaultJobBundleFactoryTest {
                         "coder-id",
                         Coder.newBuilder()
                             .setSpec(
-                                SdkFunctionSpec.newBuilder()
-                                    .setSpec(
-                                        FunctionSpec.newBuilder()
-                                            .setUrn(ModelCoders.INTERVAL_WINDOW_CODER_URN)
-                                            .build())
+                                FunctionSpec.newBuilder()
+                                    .setUrn(ModelCoders.INTERVAL_WINDOW_CODER_URN)
                                     .build())
                             .build())
                     .build())

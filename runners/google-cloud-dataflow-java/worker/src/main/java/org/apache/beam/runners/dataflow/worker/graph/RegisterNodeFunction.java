@@ -248,11 +248,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
           processBundleDescriptor.putCoders(
               coderId,
               RunnerApi.Coder.newBuilder()
-                  .setSpec(
-                      RunnerApi.SdkFunctionSpec.newBuilder()
-                          .setSpec(
-                              RunnerApi.FunctionSpec.newBuilder()
-                                  .setPayload(output.toByteString())))
+                  .setSpec(RunnerApi.FunctionSpec.newBuilder().setPayload(output.toByteString()))
                   .build());
         }
       } catch (IOException e) {

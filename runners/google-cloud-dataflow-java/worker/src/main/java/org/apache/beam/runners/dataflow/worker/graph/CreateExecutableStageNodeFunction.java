@@ -249,11 +249,7 @@ public class CreateExecutableStageNodeFunction
           componentsBuilder.putCoders(
               coderId,
               RunnerApi.Coder.newBuilder()
-                  .setSpec(
-                      RunnerApi.SdkFunctionSpec.newBuilder()
-                          .setSpec(
-                              RunnerApi.FunctionSpec.newBuilder()
-                                  .setPayload(output.toByteString())))
+                  .setSpec(RunnerApi.FunctionSpec.newBuilder().setPayload(output.toByteString()))
                   .build());
           // For non-java coder, hope it's GlobalWindows by default.
           // TODO(BEAM-6231): Actually discover the right windowing strategy.
