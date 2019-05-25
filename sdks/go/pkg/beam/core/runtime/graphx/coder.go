@@ -130,7 +130,7 @@ func (b *CoderUnmarshaller) WindowCoder(id string) (*coder.WindowCoder, error) {
 		return nil, err
 	}
 
-	w := urnToWindowCoder(c.GetSpec().GetSpec().GetUrn())
+	w := urnToWindowCoder(c.GetSpec().GetUrn())
 	b.windowCoders[id] = w
 	return w, nil
 }
@@ -147,7 +147,7 @@ func urnToWindowCoder(urn string) *coder.WindowCoder {
 }
 
 func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
-	urn := c.GetSpec().GetSpec().GetUrn()
+	urn := c.GetSpec().GetUrn()
 	components := c.GetComponentCoderIds()
 
 	switch urn {
@@ -175,7 +175,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		isGBK := elm.GetSpec().GetSpec().GetUrn() == urnIterableCoder
+		isGBK := elm.GetSpec().GetUrn() == urnIterableCoder
 		if isGBK {
 			id = elm.GetComponentCoderIds()[0]
 			kind = coder.CoGBK
@@ -217,13 +217,13 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		}
 		// TODO(lostluck) 2018/10/17: Make this strict again, once dataflow can use
 		// the portable pipeline model directly (BEAM-2885)
-		if elm.GetSpec().GetSpec().GetUrn() != "" && elm.GetSpec().GetSpec().GetUrn() != urnCustomCoder {
+		if elm.GetSpec().GetUrn() != "" && elm.GetSpec().GetUrn() != urnCustomCoder {
 			// TODO(herohde) 11/17/2017: revisit this restriction
 			return nil, errors.Errorf("could not unmarshal length prefix coder from %v, want a custom coder as a sub component but got %v", c, elm)
 		}
 
 		var ref v1.CustomCoder
-		if err := protox.DecodeBase64(string(elm.GetSpec().GetSpec().GetPayload()), &ref); err != nil {
+		if err := protox.DecodeBase64(string(elm.GetSpec().GetPayload()), &ref); err != nil {
 			return nil, err
 		}
 		custom, err := decodeCustomCoder(&ref)
@@ -256,7 +256,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		// TODO(herohde) 11/27/2017: we still see CoderRefs from Dataflow. Handle that
 		// case here, for now, so that the harness can use this logic.
 
-		payload := c.GetSpec().GetSpec().GetPayload()
+		payload := c.GetSpec().GetPayload()
 
 		var ref CoderRef
 		if err := json.Unmarshal(payload, &ref); err != nil {
@@ -286,14 +286,14 @@ func (b *CoderUnmarshaller) isCoGBKList(id string) ([]string, bool) {
 	if err != nil {
 		return nil, false
 	}
-	if elm.GetSpec().GetSpec().GetUrn() != urnLengthPrefixCoder {
+	if elm.GetSpec().GetUrn() != urnLengthPrefixCoder {
 		return nil, false
 	}
 	elm2, err := b.peek(elm.GetComponentCoderIds()[0])
 	if err != nil {
 		return nil, false
 	}
-	if elm2.GetSpec().GetSpec().GetUrn() != urnCoGBKList {
+	if elm2.GetSpec().GetUrn() != urnCoGBKList {
 		return nil, false
 	}
 	return elm2.GetComponentCoderIds(), true
@@ -331,12 +331,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 			panic(errors.Wrapf(err, "Failed to marshal custom coder %v", c))
 		}
 		inner := b.internCoder(&pb.Coder{
-			Spec: &pb.SdkFunctionSpec{
-				Spec: &pb.FunctionSpec{
-					Urn:     urnCustomCoder,
-					Payload: []byte(data),
-				},
-				// TODO(BEAM-3204): coders should not have environments.
+			Spec: &pb.FunctionSpec{
+				Urn:     urnCustomCoder,
+				Payload: []byte(data),
 			},
 		})
 		return b.internBuiltInCoder(urnLengthPrefixCoder, inner)
@@ -405,10 +402,8 @@ func (b *CoderMarshaller) Build() map[string]*pb.Coder {
 
 func (b *CoderMarshaller) internBuiltInCoder(urn string, components ...string) string {
 	return b.internCoder(&pb.Coder{
-		Spec: &pb.SdkFunctionSpec{
-			Spec: &pb.FunctionSpec{
-				Urn: urn,
-			},
+		Spec: &pb.FunctionSpec{
+			Urn: urn,
 		},
 		ComponentCoderIds: components,
 	})

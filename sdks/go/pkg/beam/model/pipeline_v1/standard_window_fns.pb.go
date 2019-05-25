@@ -38,7 +38,7 @@ func (x GlobalWindowsPayload_Enum) String() string {
 	return proto.EnumName(GlobalWindowsPayload_Enum_name, int32(x))
 }
 func (GlobalWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_fd35e1520ea21389, []int{0, 0}
+	return fileDescriptor_standard_window_fns_5141058bf14e7fda, []int{0, 0}
 }
 
 type FixedWindowsPayload_Enum int32
@@ -59,7 +59,7 @@ func (x FixedWindowsPayload_Enum) String() string {
 	return proto.EnumName(FixedWindowsPayload_Enum_name, int32(x))
 }
 func (FixedWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_fd35e1520ea21389, []int{1, 0}
+	return fileDescriptor_standard_window_fns_5141058bf14e7fda, []int{1, 0}
 }
 
 type SlidingWindowsPayload_Enum int32
@@ -80,7 +80,7 @@ func (x SlidingWindowsPayload_Enum) String() string {
 	return proto.EnumName(SlidingWindowsPayload_Enum_name, int32(x))
 }
 func (SlidingWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_fd35e1520ea21389, []int{2, 0}
+	return fileDescriptor_standard_window_fns_5141058bf14e7fda, []int{2, 0}
 }
 
 type SessionsPayload_Enum int32
@@ -101,7 +101,7 @@ func (x SessionsPayload_Enum) String() string {
 	return proto.EnumName(SessionsPayload_Enum_name, int32(x))
 }
 func (SessionsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_fd35e1520ea21389, []int{3, 0}
+	return fileDescriptor_standard_window_fns_5141058bf14e7fda, []int{3, 0}
 }
 
 type GlobalWindowsPayload struct {
@@ -114,7 +114,7 @@ func (m *GlobalWindowsPayload) Reset()         { *m = GlobalWindowsPayload{} }
 func (m *GlobalWindowsPayload) String() string { return proto.CompactTextString(m) }
 func (*GlobalWindowsPayload) ProtoMessage()    {}
 func (*GlobalWindowsPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_fd35e1520ea21389, []int{0}
+	return fileDescriptor_standard_window_fns_5141058bf14e7fda, []int{0}
 }
 func (m *GlobalWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GlobalWindowsPayload.Unmarshal(m, b)
@@ -146,7 +146,7 @@ func (m *FixedWindowsPayload) Reset()         { *m = FixedWindowsPayload{} }
 func (m *FixedWindowsPayload) String() string { return proto.CompactTextString(m) }
 func (*FixedWindowsPayload) ProtoMessage()    {}
 func (*FixedWindowsPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_fd35e1520ea21389, []int{1}
+	return fileDescriptor_standard_window_fns_5141058bf14e7fda, []int{1}
 }
 func (m *FixedWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FixedWindowsPayload.Unmarshal(m, b)
@@ -193,7 +193,7 @@ func (m *SlidingWindowsPayload) Reset()         { *m = SlidingWindowsPayload{} }
 func (m *SlidingWindowsPayload) String() string { return proto.CompactTextString(m) }
 func (*SlidingWindowsPayload) ProtoMessage()    {}
 func (*SlidingWindowsPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_fd35e1520ea21389, []int{2}
+	return fileDescriptor_standard_window_fns_5141058bf14e7fda, []int{2}
 }
 func (m *SlidingWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SlidingWindowsPayload.Unmarshal(m, b)
@@ -245,7 +245,7 @@ func (m *SessionsPayload) Reset()         { *m = SessionsPayload{} }
 func (m *SessionsPayload) String() string { return proto.CompactTextString(m) }
 func (*SessionsPayload) ProtoMessage()    {}
 func (*SessionsPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_fd35e1520ea21389, []int{3}
+	return fileDescriptor_standard_window_fns_5141058bf14e7fda, []int{3}
 }
 func (m *SessionsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SessionsPayload.Unmarshal(m, b)
@@ -284,10 +284,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("standard_window_fns.proto", fileDescriptor_standard_window_fns_fd35e1520ea21389)
+	proto.RegisterFile("standard_window_fns.proto", fileDescriptor_standard_window_fns_5141058bf14e7fda)
 }
 
-var fileDescriptor_standard_window_fns_fd35e1520ea21389 = []byte{
+var fileDescriptor_standard_window_fns_5141058bf14e7fda = []byte{
 	// 407 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x93, 0x31, 0x4f, 0xdb, 0x40,
 	0x14, 0xc7, 0xeb, 0x36, 0x4d, 0xab, 0xcb, 0xd0, 0xd6, 0x6d, 0xa4, 0xc4, 0x43, 0x9b, 0x78, 0x68,
