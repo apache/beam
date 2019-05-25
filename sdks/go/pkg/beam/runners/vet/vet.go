@@ -203,7 +203,7 @@ func (e *Eval) summary() {
 	}
 }
 
-// NameType turns a reflect.Type into a string based on it's name.
+// NameType turns a reflect.Type into a string based on its name.
 // It prefixes Emit or Iter if the function satisfies the constraints of those types.
 func NameType(t reflect.Type) string {
 	if emt, ok := makeEmitter(t); ok {
