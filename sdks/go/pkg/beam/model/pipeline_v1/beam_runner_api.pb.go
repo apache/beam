@@ -2602,8 +2602,8 @@ type Coder struct {
 	// may be a cross-language agreed-upon format, or it may be a "custom coder"
 	// that can only be used by a particular SDK. It does not include component
 	// coders, as it is beneficial for these to be comprehensible to a runner
-	// regardless of whether the binary format is agree-upon.
-	Spec *SdkFunctionSpec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
+	// regardless of whether the binary format is agreed-upon.
+	Spec *FunctionSpec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
 	// (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
 	// this is a list of the components. In order for encodings to be identical,
 	// the SdkFunctionSpec and all components must be identical, recursively.

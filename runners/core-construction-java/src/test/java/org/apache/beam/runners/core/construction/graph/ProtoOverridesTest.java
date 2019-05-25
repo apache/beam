@@ -34,7 +34,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides.TransformReplacement;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
@@ -68,7 +67,7 @@ public class ProtoOverridesTest {
                         PCollection.newBuilder().setUniqueName("intermediate").build())
                     .putCoders(
                         "coder",
-                        Coder.newBuilder().setSpec(SdkFunctionSpec.getDefaultInstance()).build()))
+                        Coder.newBuilder().setSpec(FunctionSpec.getDefaultInstance()).build()))
             .build();
 
     PTransform secondReplacement =
@@ -146,7 +145,7 @@ public class ProtoOverridesTest {
                         PCollection.newBuilder().setUniqueName("intermediate").build())
                     .putCoders(
                         "coder",
-                        Coder.newBuilder().setSpec(SdkFunctionSpec.getDefaultInstance()).build()))
+                        Coder.newBuilder().setSpec(FunctionSpec.getDefaultInstance()).build()))
             .build();
 
     ByteString newPayload = ByteString.copyFrom("foo-bar-baz".getBytes(StandardCharsets.UTF_8));
