@@ -42,7 +42,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-class BigQueryReadTests(unittest.TestCase):
+class BigQueryReadIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_read_table_'
 
   def setUp(self):
@@ -124,7 +124,7 @@ class BigQueryReadTests(unittest.TestCase):
         {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
         {'bytes': b'abc', 'date': '2000-01-01', 'time': '00:00:00'},
         {'bytes': b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date': '3000-12-31',
-         'time': '23:59:59.990'},
+         'time': '23:59:59'},
         {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
     ]
     # bigquery client expects base64 encoded bytes
@@ -142,7 +142,6 @@ class BigQueryReadTests(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args()
 
     with beam.Pipeline(argv=args) as p:
-      # pylint: disable=expression-not-assigned
       result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
           query='SELECT number, str FROM `%s`' % output_table,
           use_standard_sql=True)))
@@ -161,7 +160,7 @@ class BigQueryReadTests(unittest.TestCase):
         {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
         {'bytes': b'abc', 'date': '2000-01-01', 'time': '00:00:00'},
         {'bytes': b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date': '3000-12-31',
-         'time': '23:59:59.990'},
+         'time': '23:59:59'},
         {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
     ]
     # bigquery io returns bytes as base64 encoded values
