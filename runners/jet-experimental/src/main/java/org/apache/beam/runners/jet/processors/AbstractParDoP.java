@@ -48,6 +48,7 @@ import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.jet.DAGBuilder;
+import org.apache.beam.runners.jet.JetPipelineOptions;
 import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.runners.jet.metrics.JetMetricsContainer;
 import org.apache.beam.sdk.coders.Coder;
@@ -79,6 +80,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
   private final Map<Integer, PCollectionView<?>> ordinalToSideInput;
   private final String ownerId;
   private final String stepId;
+  private final boolean cooperative;
   private final long metricsFlushPeriod =
       TimeUnit.SECONDS.toMillis(1) + ThreadLocalRandom.current().nextLong(500);
 
@@ -130,15 +132,13 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
     this.ordinalToSideInput = ordinalToSideInput;
     this.ownerId = ownerId;
     this.stepId = stepId;
+    this.cooperative = isCooperativenessAllowed(pipelineOptions) && hasOutput();
   }
 
   @Override
   public void init(@Nonnull Outbox outbox, @Nonnull Context context) {
     this.outbox = outbox;
-    metricsContainer = new JetMetricsContainer(stepId, ownerId, context);
-    MetricsEnvironment.setCurrentContainer(metricsContainer);
-    assert !isCooperative(); // todo: previous line is correct only if the processor is
-    // non-cooperative
+    this.metricsContainer = new JetMetricsContainer(stepId, ownerId, context);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();
@@ -182,8 +182,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
 
   @Override
   public boolean isCooperative() {
-    return false; // todo: re-examine later, we should be non-cooperative for doFns that do I/O, can
-    // be cooperative for others
+    return cooperative;
   }
 
   @Override
@@ -193,6 +192,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
 
   @Override
   public void process(int ordinal, @Nonnull Inbox inbox) {
+    MetricsEnvironment.setCurrentContainer(metricsContainer);
+
     if (!outputManager.tryFlush()) {
       // don't process more items until outputManager is empty
       return;
@@ -207,6 +208,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
         processNonBufferedRegularItems(inbox);
       }
     }
+
+    MetricsEnvironment.setCurrentContainer(null);
   }
 
   private void processSideInput(PCollectionView<?> sideInputView, Inbox inbox) {
@@ -288,10 +291,24 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
     boolean successful = outputManager.tryFlush();
     if (successful) {
       metricsContainer.flush(false);
-      MetricsEnvironment.setCurrentContainer(
-          null); // todo: this is correct only as long as the processor is non-cooperative
     }
     return successful;
+  }
+
+  private boolean hasOutput() {
+    for (int[] value : outputCollToOrdinals.values()) {
+      if (value.length > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static Boolean isCooperativenessAllowed(
+      SerializablePipelineOptions serializablePipelineOptions) {
+    PipelineOptions pipelineOptions = serializablePipelineOptions.get();
+    JetPipelineOptions jetPipelineOptions = pipelineOptions.as(JetPipelineOptions.class);
+    return jetPipelineOptions.getJetProcessorsCooperative();
   }
 
   /**

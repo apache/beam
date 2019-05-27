@@ -58,4 +58,11 @@ public interface JetPipelineOptions extends PipelineOptions {
   Integer getJetLocalMode();
 
   void setJetLocalMode(Integer noOfLocalClusterMembers);
+
+  @Description("Weather Jet Processors for DoFns should use green threads or not")
+  @Validation.Required
+  @Default.Boolean(false)
+  Boolean getJetProcessorsCooperative();
+
+  void setJetProcessorsCooperative(Boolean cooperative);
 }
