@@ -523,27 +523,30 @@ public class RabbitMqIO {
 
     private Map<String, Object> serializableHeaders(Map<String, Object> headers) {
       Map<String, Object> returned = new HashMap<>();
-      for (Map.Entry<String, Object> h : headers.entrySet()) {
-        Object value = h.getValue();
-        if (!(value instanceof Serializable)) {
-          try {
-            if (value instanceof LongString) {
-              LongString longString = (LongString) value;
-              byte[] bytes = longString.getBytes();
-              String s = new String(bytes, "UTF-8");
-              value = s;
-            } else {
-              throw new RuntimeException(String.format("no transformation defined for %s", value));
+      if (headers != null) {
+        for (Map.Entry<String, Object> h : headers.entrySet()) {
+          Object value = h.getValue();
+          if (!(value instanceof Serializable)) {
+            try {
+              if (value instanceof LongString) {
+                LongString longString = (LongString) value;
+                byte[] bytes = longString.getBytes();
+                String s = new String(bytes, "UTF-8");
+                value = s;
+              } else {
+                throw new RuntimeException(
+                    String.format("no transformation defined for %s", value));
+              }
+            } catch (Throwable t) {
+              throw new UnsupportedOperationException(
+                  String.format(
+                      "can't make unserializable value %s a serializable value (which is mandatory for Apache Beam dataflow implementation)",
+                      value),
+                  t);
             }
-          } catch (Throwable t) {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "can't make unserializable value %s a serializable value (which is mandatory for Apache Beam dataflow implementation)",
-                    value),
-                t);
           }
+          returned.put(h.getKey(), value);
         }
-        returned.put(h.getKey(), value);
       }
       return returned;
     }
