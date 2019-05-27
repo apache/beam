@@ -22,7 +22,6 @@ import base64
 import datetime
 import logging
 import random
-import sys
 import time
 import unittest
 
@@ -129,6 +128,39 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @attr('IT')
+  def test_big_query_write_schema_autodetect(self):
+    if self.runner_name == 'TestDataflowRunner':
+      self.skipTest('DataflowRunner does not support schema autodetection')
+
+    output_table = 'python_write_table'
+    output_table = self.output_table.format(output_table)
+
+    input_data = [
+        {'number': 1, 'str': 'abc'},
+        {'number': 2, 'str': 'def'},
+    ]
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT number, str FROM %s" % output_table,
+            data=[(1, 'abc',), (2, 'def',)])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink')
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      (p | 'create' >> beam.Create(input_data)
+       | 'write' >> beam.io.WriteToBigQuery(
+           output_table,
+           method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
+           schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
+           create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+
+  @attr('IT')
   def test_big_query_write_new_types(self):
     output_table = 'python_new_types_table'
     output_table = self.output_table.format(output_table)
@@ -137,12 +169,12 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
         {'bytes': b'abc', 'date': '2000-01-01', 'time': '00:00:00'},
         {'bytes': b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date': '3000-12-31',
-         'time': '23:59:59.990000'},
+         'time': '23:59:59'},
         {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
     ]
     # bigquery io expects bytes to be base64 encoded values
     for row in input_data:
-      row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
+      row['bytes'] = base64.b64encode(row['bytes'])
 
     table_schema = {"fields": [
         {"name": "bytes", "type": "BYTES"},
@@ -158,7 +190,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
                   (b'abc', datetime.date(2000, 1, 1),
                    datetime.time(0, 0, 0), ),
                   (b'\xe4\xbd\xa0\xe5\xa5\xbd', datetime.date(3000, 12, 31),
-                   datetime.time(23, 59, 59, 990000), ),
+                   datetime.time(23, 59, 59), ),
                   (b'\xab\xac\xad', datetime.date(2000, 1, 1),
                    datetime.time(0, 0, 0), )])]
 
@@ -184,12 +216,12 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
         {'bytes': b'abc', 'date': '2000-01-01', 'time': '00:00:00'},
         {'bytes': b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date': '3000-12-31',
-         'time': '23:59:59.990000'},
+         'time': '23:59:59'},
         {'bytes': b'\xab\xac\xad', 'date': '2000-01-01', 'time': '00:00:00'}
     ]
     # bigquery io expects bytes to be base64 encoded values
     for row in input_data:
-      row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
+      row['bytes'] = base64.b64encode(row['bytes'])
 
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
@@ -200,7 +232,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
                   (b'abc', datetime.date(2000, 1, 1),
                    datetime.time(0, 0, 0), ),
                   (b'\xe4\xbd\xa0\xe5\xa5\xbd', datetime.date(3000, 12, 31),
-                   datetime.time(23, 59, 59, 990000), ),
+                   datetime.time(23, 59, 59), ),
                   (b'\xab\xac\xad', datetime.date(2000, 1, 1),
                    datetime.time(0, 0, 0), )])]
 
