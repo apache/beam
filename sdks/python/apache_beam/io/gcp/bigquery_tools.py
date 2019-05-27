@@ -925,6 +925,12 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       if self.schema is None:
         self.schema = schema
       for row in rows:
+        # return base64 encoded bytes as byte type on python 3
+        # to match behavior DataflowRunner
+        for i in range(len(row.f)):
+          if self.schema.fields[i].type == 'BYTES':
+            row.f[i].v.string_value = row.f[i].v.string_value.encode('utf-8')
+
         if self.row_as_dict:
           yield self.client.convert_row_to_dict(row, schema)
         else:
@@ -998,6 +1004,13 @@ class RowAsDictJsonCoder(coders.Coder):
     # This code will catch this error to emit an error that explains
     # to the programmer that they have used NAN/INF values.
     try:
+      # on python 3 base64 bytes are decoded to strings before being send to bq
+      if sys.version[0] == '3':
+        if type(table_row) == str:
+          table_row = json.loads(table_row)
+        for field, value in iteritems(table_row):
+          if type(value) == bytes:
+            table_row[field] = value.decode('utf-8')
       return json.dumps(
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:
