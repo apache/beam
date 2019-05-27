@@ -17,16 +17,23 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.core.InMemoryStateInternals;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.GroupAlsoByWindowViaOutputBufferFn;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsFunction;
@@ -42,34 +49,51 @@ class GroupByKeyTranslatorBatch<K, V>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> transform,
       TranslationContext context) {
 
-    Dataset<WindowedValue<KV<K, V>>> input = context.getDataset(context.getInput());
+    @SuppressWarnings("unchecked")
+    final PCollection<KV<K, V>> inputPCollection = (PCollection<KV<K, V>>) context.getInput();
 
-    // Extract key to group by key only.
-    KeyValueGroupedDataset<K, KV<K, V>> grouped =
-        input
-            .map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.kvEncoder())
-            .groupByKey((MapFunction<KV<K, V>, K>) KV::getKey, EncoderHelpers.genericEncoder());
+    Dataset<WindowedValue<KV<K, V>>> input = context.getDataset(inputPCollection);
 
-    // Materialize grouped values, potential OOM because of creation of new iterable
-    Dataset<KV<K, Iterable<V>>> materialized =
-        grouped.mapGroups(
-            (MapGroupsFunction<K, KV<K, V>, KV<K, Iterable<V>>>)
-                // TODO: We need to improve this part and avoid creating of new List (potential OOM)
-                // (key, iterator) -> KV.of(key, () -> Iterators.transform(iterator, KV::getValue)),
-                (key, iterator) -> {
-                  List<V> values = new ArrayList<>();
-                  while (iterator.hasNext()) {
-                    values.add(iterator.next().getValue());
-                  }
-                  return KV.of(key, Iterables.unmodifiableIterable(values));
-                },
-            EncoderHelpers.kvEncoder());
+    //group by key only
+    KeyValueGroupedDataset<K, WindowedValue<KV<K, V>>> groupByKeyOnly = input
+        .groupByKey((MapFunction<WindowedValue<KV<K, V>>, K>) wv -> wv.getValue().getKey(),
+            EncoderHelpers.genericEncoder());
 
-    // Window the result into global window.
-    Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
-        materialized.map(
-            WindowingHelpers.windowMapFunction(), EncoderHelpers.windowedValueEncoder());
+    // Materialize groupByKeyOnly values, potential OOM because of creation of new iterable
+    Dataset<KV<K, Iterable<WindowedValue<V>>>> materialized = groupByKeyOnly.mapGroups(
+        (MapGroupsFunction<K, WindowedValue<KV<K, V>>, KV<K, Iterable<WindowedValue<V>>>>) (key, iterator) -> {
+          List<WindowedValue<V>> values = new ArrayList<>();
+          while (iterator.hasNext()) {
+            WindowedValue<KV<K, V>> next = iterator.next();
+            values.add(WindowedValue
+                .of(next.getValue().getValue(), next.getTimestamp(), next.getWindows(),
+                    next.getPane()));
+          }
+          KV<K, Iterable<WindowedValue<V>>> kv = KV.of(key, Iterables.unmodifiableIterable(values));
+          return kv;
+        }, EncoderHelpers.kvEncoder());
+
+    WindowingStrategy<?, ?> windowingStrategy = inputPCollection.getWindowingStrategy();
+    KvCoder<K, V> coder = (KvCoder<K, V>) inputPCollection.getCoder();
+    // group also by windows
+    Dataset<WindowedValue<KV<K, Iterable<V>>>> output = materialized.flatMap(
+        new GroupAlsoByWindowViaOutputBufferFn<>(windowingStrategy,
+            new InMemoryStateInternalsFactory<>(), SystemReduceFn.buffering(coder.getValueCoder()),
+            context.getSerializableOptions()), EncoderHelpers.windowedValueEncoder());
 
     context.putDataset(context.getOutput(), output);
   }
+
+  /**
+   * In-memory state internals factory.
+   *
+   * @param <K> State key type.
+   */
+  static class InMemoryStateInternalsFactory<K> implements StateInternalsFactory<K>, Serializable {
+    @Override
+    public StateInternals stateInternalsForKey(K key) {
+      return InMemoryStateInternals.forKey(key);
+    }
+  }
+
 }
