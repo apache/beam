@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.BoundedSourceCoder;
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.ReadFromBoundedSourceFn;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
@@ -25,7 +27,6 @@ import static org.junit.Assert.assertThat;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.core.construction.JavaReadViaImpulse.ReadFromBoundedSourceFn;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse.SplitBoundedSourceFn;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -78,7 +79,7 @@ public class JavaReadViaImpulseTest {
                  * This should produce some small number of bundles, but more than one.
                  */
                 ParDo.of(new SplitBoundedSourceFn<>(CountingSource.upTo(1_000_000L), 300_000L)))
-            .setCoder(new JavaReadViaImpulse.BoundedSourceCoder<>());
+            .setCoder(new BoundedSourceCoder<>());
 
     PAssert.that(splits)
         .satisfies(
@@ -95,7 +96,7 @@ public class JavaReadViaImpulseTest {
   public void testReadFromSourceFn() {
     BoundedSource<Long> source = CountingSource.upTo(10L);
     PCollection<BoundedSource<Long>> sourcePC =
-        p.apply(Create.of(source).withCoder(new JavaReadViaImpulse.BoundedSourceCoder<>()));
+        p.apply(Create.of(source).withCoder(new BoundedSourceCoder<>()));
     PCollection<Long> elems =
         sourcePC.apply(ParDo.of(new ReadFromBoundedSourceFn<>())).setCoder(VarLongCoder.of());
 

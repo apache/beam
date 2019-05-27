@@ -18,8 +18,14 @@
 package org.apache.beam.sdk.io;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -61,7 +67,9 @@ public class ReadAllViaFileBasedSource<T>
     return input
         .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
         .apply("Reshuffle", Reshuffle.viaRandomKey())
-        .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
+        .apply("Create sources", ParDo.of(new CreateBoundedSourceFn<>(createSource)))
+        .setCoder(new BoundedSourceCoder<>())
+        .apply("Read ranges", ParDo.of(new ReadFromBoundedSourceFn<>()))
         .setCoder(coder);
   }
 
@@ -86,10 +94,11 @@ public class ReadAllViaFileBasedSource<T>
     }
   }
 
-  private static class ReadFileRangesFn<T> extends DoFn<KV<ReadableFile, OffsetRange>, T> {
+  private static class CreateBoundedSourceFn<T>
+      extends DoFn<KV<ReadableFile, OffsetRange>, BoundedSource<T>> {
     private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
 
-    private ReadFileRangesFn(
+    private CreateBoundedSourceFn(
         SerializableFunction<String, ? extends FileBasedSource<T>> createSource) {
       this.createSource = createSource;
     }
@@ -98,15 +107,53 @@ public class ReadAllViaFileBasedSource<T>
     public void process(ProcessContext c) throws IOException {
       ReadableFile file = c.element().getKey();
       OffsetRange range = c.element().getValue();
-      FileBasedSource<T> source =
+      c.output(
           CompressedSource.from(createSource.apply(file.getMetadata().resourceId().toString()))
-              .withCompression(file.getCompression());
+              .withCompression(file.getCompression())
+              .createForSubrangeOfFile(file.getMetadata(), range.getFrom(), range.getTo()));
+    }
+  }
+
+  /**
+   * A {@link Coder} for {@link BoundedSource}s that wraps a {@link SerializableCoder}. We cannot
+   * safely use an unwrapped SerializableCoder because {@link
+   * SerializableCoder#structuralValue(Serializable)} assumes that coded elements support object
+   * equality (https://issues.apache.org/jira/browse/BEAM-3807). By default, Coders compare equality
+   * by serialized bytes, which we want in this case. It is usually safe to depend on coded
+   * representation here because we only compare objects on bundle commit, which compares
+   * serializations of the same object instance.
+   *
+   * <p>BoundedSources are generally not used as PCollection elements, so we do not expose this
+   * coder for wider use.
+   */
+  public static class BoundedSourceCoder<T> extends CustomCoder<BoundedSource<T>> {
+    private final Coder<BoundedSource<T>> coder;
+
+    public BoundedSourceCoder() {
+      coder = (Coder<BoundedSource<T>>) SerializableCoder.of((Class) BoundedSource.class);
+    }
+
+    @Override
+    public void encode(BoundedSource<T> value, OutputStream outStream)
+        throws CoderException, IOException {
+      coder.encode(value, outStream);
+    }
+
+    @Override
+    public BoundedSource<T> decode(InputStream inStream) throws CoderException, IOException {
+      return coder.decode(inStream);
+    }
+  }
+
+  /** Reads elements contained within an input {@link BoundedSource}. */
+  // TODO: Extend to be a Splittable DoFn.
+  public static class ReadFromBoundedSourceFn<T> extends DoFn<BoundedSource<T>, T> {
+    @ProcessElement
+    public void readSource(ProcessContext c) throws IOException {
       try (BoundedSource.BoundedReader<T> reader =
-          source
-              .createForSubrangeOfFile(file.getMetadata(), range.getFrom(), range.getTo())
-              .createReader(c.getPipelineOptions())) {
+          c.element().createReader(c.getPipelineOptions())) {
         for (boolean more = reader.start(); more; more = reader.advance()) {
-          c.output(reader.getCurrent());
+          c.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
         }
       }
     }

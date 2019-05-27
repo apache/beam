@@ -17,15 +17,11 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.BoundedSourceCoder;
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.ReadFromBoundedSourceFn;
+
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
 import java.util.Map;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
@@ -124,53 +120,6 @@ public class JavaReadViaImpulse {
       for (BoundedSource<T> split : source.split(bundleSize, ctxt.getPipelineOptions())) {
         ctxt.output(split);
       }
-    }
-  }
-
-  /** Reads elements contained within an input {@link BoundedSource}. */
-  // TODO: Extend to be a Splittable DoFn.
-  @VisibleForTesting
-  static class ReadFromBoundedSourceFn<T> extends DoFn<BoundedSource<T>, T> {
-    @ProcessElement
-    public void readSource(ProcessContext ctxt) throws IOException {
-      try (BoundedSource.BoundedReader<T> reader =
-          ctxt.element().createReader(ctxt.getPipelineOptions())) {
-        for (boolean more = reader.start(); more; more = reader.advance()) {
-          ctxt.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
-        }
-      }
-    }
-  }
-
-  /**
-   * A {@link Coder} for {@link BoundedSource}s that wraps a {@link SerializableCoder}. We cannot
-   * safely use an unwrapped SerializableCoder because {@link
-   * SerializableCoder#structuralValue(Serializable)} assumes that coded elements support object
-   * equality (https://issues.apache.org/jira/browse/BEAM-3807). By default, Coders compare equality
-   * by serialized bytes, which we want in this case. It is usually safe to depend on coded
-   * representation here because we only compare objects on bundle commit, which compares
-   * serializations of the same object instance.
-   *
-   * <p>BoundedSources are generally not used as PCollection elements, so we do not expose this
-   * coder for wider use.
-   */
-  @VisibleForTesting
-  static class BoundedSourceCoder<T> extends CustomCoder<BoundedSource<T>> {
-    private final Coder<BoundedSource<T>> coder;
-
-    BoundedSourceCoder() {
-      coder = (Coder<BoundedSource<T>>) SerializableCoder.of((Class) BoundedSource.class);
-    }
-
-    @Override
-    public void encode(BoundedSource<T> value, OutputStream outStream)
-        throws CoderException, IOException {
-      coder.encode(value, outStream);
-    }
-
-    @Override
-    public BoundedSource<T> decode(InputStream inStream) throws CoderException, IOException {
-      return coder.decode(inStream);
     }
   }
 }
