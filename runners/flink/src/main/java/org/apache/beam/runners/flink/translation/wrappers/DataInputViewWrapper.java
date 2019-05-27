@@ -29,13 +29,9 @@ import org.apache.flink.core.memory.DataInputView;
  */
 public class DataInputViewWrapper extends InputStream {
 
-  private DataInputView inputView;
+  private final DataInputView inputView;
 
   public DataInputViewWrapper(DataInputView inputView) {
-    this.inputView = inputView;
-  }
-
-  public void setInputView(DataInputView inputView) {
     this.inputView = inputView;
   }
 
