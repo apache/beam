@@ -25,6 +25,7 @@ description = "Apache Beam :: Runners :: Hazelcast Jet"
 
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":runners:core-construction-java")
 
 project.ext {
     jet_version = '3.0'
@@ -32,6 +33,7 @@ project.ext {
 }
 
 configurations {
+    needsRunner
     validatesRunner
 }
 
@@ -42,14 +44,21 @@ dependencies {
 
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
     shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
+    shadowTest project(path: ":runners:core-construction-java", configuration: "shadowTest")
     shadowTest library.java.hamcrest_core
     shadowTest library.java.junit
     shadowTest "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
     shadowTest "com.hazelcast:hazelcast:$hazelcast_version:tests"
     shadowTest "com.hazelcast:hazelcast-client:$hazelcast_version:tests"
 
+    needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+    needsRunner project(path: ":runners:core-java", configuration: "shadowTest")
+    needsRunner project(path: ":runners:core-construction-java", configuration: "shadowTest")
+    needsRunner project(path: project.path, configuration: "shadowTest")
+
     validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
     validatesRunner project(path: ":runners:core-java", configuration: "shadowTest")
+    validatesRunner project(path: ":runners:core-construction-java", configuration: "shadowTest")
     validatesRunner project(path: project.path, configuration: "shadowTest")
 }
 
@@ -61,6 +70,7 @@ task validatesRunnerBatch(type: Test) {
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse' //impulse doesn't cooperate properly with Jet when multiple cluster members are used
         exclude '**/SplittableDoFnTest.class' //Splittable DoFn functionality not yet in the runner
     }
@@ -70,6 +80,27 @@ task validatesRunnerBatch(type: Test) {
 
 task validatesRunner {
     group = "Verification"
-    description "Validates Jet runner"
+    description "Validates Jet Runner"
     dependsOn validatesRunnerBatch
+}
+
+task needsRunnerTests(type: Test) {
+    group = "Verification"
+    description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(["--runner=TestJetRunner"])
+
+    classpath = configurations.needsRunner
+    testClassesDirs += files(project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
+    testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
+    testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+    useJUnit {
+        includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+        excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+    }
+}
+
+task needsRunner {
+    group = "Verification"
+    description "Runs lower level tests with the Jet Runner"
+    dependsOn needsRunnerTests
 }
