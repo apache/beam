@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,27 +16,9 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
+/** Utilities for configuring worker environment. */
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.sdk.harness;
 
-// This job runs the suite of ValidatesRunner tests against the Flink runner.
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Python_PVR_Flink',
-    gradleTask: ':beam-sdks-python:flinkValidatesRunner',
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^runners/core-construction-java/.*$',
-      '^runners/core-java/.*$',
-      '^runners/extensions-java/.*$',
-      '^runners/flink/.*$',
-      '^runners/java-fn-execution/.*$',
-      '^runners/reference/.*$',
-      '^sdks/python/.*$',
-      '^release/.*$',
-      // Test regressions of cross-language KafkaIO test
-      '^sdks/java/io/kafka/.*$',
-    ]
-)
-builder.build {
-    previousNames('beam_PostCommit_Python_VR_Flink')
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;
