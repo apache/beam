@@ -59,6 +59,7 @@ __all__ = [
     'Distinct',
     'Keys',
     'KvSwap',
+    'Reify',
     'RemoveDuplicates',
     'Reshuffle',
     'ToString',
@@ -724,3 +725,66 @@ class ToString(object):
           Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
                        .with_input_types(input_type)
                        .with_output_types(output_type)))
+
+
+class Reify(object):
+  """PTransforms for converting between explicit and implicit form of various
+  Beam values."""
+
+  @typehints.with_input_types(T)
+  @typehints.with_output_types(T)
+  class Timestamp(PTransform):
+    """PTransform to wrap a value in a TimestampedValue with it's
+    associated timestamp."""
+
+    @staticmethod
+    def add_timestamp_info(element, timestamp=DoFn.TimestampParam):
+      yield TimestampedValue(element, timestamp)
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(self.add_timestamp_info)
+
+  @typehints.with_input_types(T)
+  @typehints.with_output_types(T)
+  class Window(PTransform):
+    """PTransform to convert an element in a PCollection into a tuple of
+    (element, timestamp, window), wrapped in a TimestampedValue with it's
+    associated timestamp."""
+
+    @staticmethod
+    def add_window_info(element, timestamp=DoFn.TimestampParam,
+                        window=DoFn.WindowParam):
+      yield TimestampedValue((element, timestamp, window), timestamp)
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(self.add_window_info)
+
+  @typehints.with_input_types(typehints.KV[K, V])
+  @typehints.with_output_types(typehints.KV[K, V])
+  class TimestampInValue(PTransform):
+    """PTransform to wrap the Value in a KV pair in a TimestampedValue with
+    the element's associated timestamp."""
+
+    @staticmethod
+    def add_timestamp_info(element, timestamp=DoFn.TimestampParam):
+      key, value = element
+      yield (key, TimestampedValue(value, timestamp))
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(self.add_timestamp_info)
+
+  @typehints.with_input_types(typehints.KV[K, V])
+  @typehints.with_output_types(typehints.KV[K, V])
+  class WindowInValue(PTransform):
+    """PTransform to convert the Value in a KV pair into a tuple of
+    (value, timestamp, window), with the whole element being wrapped inside a
+    TimestampedValue."""
+
+    @staticmethod
+    def add_window_info(element, timestamp=DoFn.TimestampParam,
+                        window=DoFn.WindowParam):
+      key, value = element
+      yield TimestampedValue((key, (value, timestamp, window)), timestamp)
+
+    def expand(self, pcoll):
+      return pcoll | ParDo(self.add_window_info)
