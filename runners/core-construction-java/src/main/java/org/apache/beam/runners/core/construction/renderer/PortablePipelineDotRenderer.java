@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.util;
+package org.apache.beam.runners.core.construction.renderer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,18 +26,17 @@ import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 /**
  * A DOT renderer for BEAM portable {@link org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline}.
  */
-public class PortablePipelineDotRenderer {
+class PortablePipelineDotRenderer {
   private final StringBuilder dotBuilder = new StringBuilder();
   private final Map<String, Integer> valueToProducerNodeId = new HashMap<>();
   private int indent;
   private int nextNodeId;
 
-  public static String toDotString(RunnerApi.Pipeline pipeline) {
-    final PortablePipelineDotRenderer renderer = new PortablePipelineDotRenderer();
-    return renderer.toDot(pipeline);
-  }
-
   private PortablePipelineDotRenderer() {}
+
+  static String toDotString(RunnerApi.Pipeline pipeline) {
+    return new PortablePipelineDotRenderer().toDot(pipeline);
+  }
 
   private String toDot(RunnerApi.Pipeline pipeline) {
     final QueryablePipeline p =
@@ -64,16 +63,10 @@ public class PortablePipelineDotRenderer {
         escapeString(transform.getUniqueName()),
         escapeString(transform.getSpec().getUrn()));
 
-    transform
-        .getOutputs()
-        .values()
-        .forEach(
-            x -> {
-              valueToProducerNodeId.put(x, nodeId);
-            });
+    transform.getOutputsMap().values().forEach(x -> valueToProducerNodeId.put(x, nodeId));
 
     transform
-        .getInputs()
+        .getInputsMap()
         .forEach(
             (key, value) -> {
               final int producerId = valueToProducerNodeId.get(value);
@@ -111,14 +104,10 @@ public class PortablePipelineDotRenderer {
       dotBuilder.append(String.format("%-" + indent + "s", ""));
     }
     dotBuilder.append(String.format(format, args));
-    dotBuilder.append("\n");
+    dotBuilder.append(System.lineSeparator());
   }
 
   private static String escapeString(String x) {
     return x.replace("\"", "\\\"");
-  }
-
-  private static String shortenTag(String tag) {
-    return tag.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
   }
 }
