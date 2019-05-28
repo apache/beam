@@ -303,7 +303,7 @@ class SyntheticSource(iobase.BoundedSource):
         else 'perfect')
     if 'delayDistribution' in input_spec:
       if input_spec['delayDistribution']['type'] != 'const':
-       raise ValueError('SyntheticSource currently only supports delay '
+        raise ValueError('SyntheticSource currently only supports delay '
                          'distributions of type \'const\'. Received %s.',
                          input_spec['delayDistribution']['type'])
       self._sleep_per_input_record_sec = (
