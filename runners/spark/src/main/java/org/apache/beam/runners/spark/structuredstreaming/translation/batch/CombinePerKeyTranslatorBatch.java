@@ -52,9 +52,11 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
 
     Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(input);
 
+    //TODO merge windows instead of doing unwindow/window to comply with beam model
     Dataset<KV<K, InputT>> keyedDataset =
         inputDataset.map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.kvEncoder());
 
+    // TODO change extractKey impl to deal with WindowedVAlue and use it in GBK
     KeyValueGroupedDataset<K, KV<K, InputT>> groupedDataset =
         keyedDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
 

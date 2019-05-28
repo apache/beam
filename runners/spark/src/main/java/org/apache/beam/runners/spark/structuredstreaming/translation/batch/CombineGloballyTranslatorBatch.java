@@ -53,6 +53,7 @@ class CombineGloballyTranslatorBatch<InputT, AccumT, OutputT>
 
     Dataset<WindowedValue<InputT>> inputDataset = context.getDataset(input);
 
+    //TODO merge windows instead of doing unwindow/window to comply with beam model
     Dataset<InputT> unWindowedDataset =
         inputDataset.map(WindowingHelpers.unwindowMapFunction(), EncoderHelpers.genericEncoder());
 
