@@ -62,7 +62,7 @@ except ImportError:
 def parse_byte_size(s):
   suffixes = 'BKMGTP'
   if s[-1] in suffixes:
-    return int(float(s[:-1]) * 1024**suffixes.index(s[-1]))
+    return int(float(s[:-1]) * 1024 ** suffixes.index(s[-1]))
 
   return int(s)
 
@@ -223,7 +223,7 @@ def getSyntheticSDFStep(per_element_delay_sec=0,
       # the given number of seconds, so we only sleep enough to make up for
       # overheads not incurred elsewhere.
       to_sleep = self._per_bundle_delay_sec - (
-        time.time() - self._start_time)
+          time.time() - self._start_time)
 
       # Ignoring sub-millisecond sleep times.
       if to_sleep >= 1e-3:
@@ -300,8 +300,8 @@ class SyntheticSource(iobase.BoundedSource):
       self._initial_splitting_distribution_parameter = 0
     self._dynamic_splitting = (
       'none' if (
-        'splitPointFrequencyRecords' in input_spec
-        and input_spec['splitPointFrequencyRecords'] == 0)
+          'splitPointFrequencyRecords' in input_spec
+          and input_spec['splitPointFrequencyRecords'] == 0)
       else 'perfect')
     if 'delayDistribution' in input_spec:
       if input_spec['delayDistribution']['type'] != 'const':
@@ -310,9 +310,9 @@ class SyntheticSource(iobase.BoundedSource):
           'distributions of type \'const\'. Received %s.',
           input_spec['delayDistribution']['type'])
       self._sleep_per_input_record_sec = (
-        float(input_spec['delayDistribution']['const']) / 1000)
+          float(input_spec['delayDistribution']['const']) / 1000)
       if (self._sleep_per_input_record_sec and
-        self._sleep_per_input_record_sec < 1e-3):
+          self._sleep_per_input_record_sec < 1e-3):
         raise ValueError(
           'Sleep time per input record must be at least 1e-3.'
           ' Received: %r', self._sleep_per_input_record_sec)
@@ -431,10 +431,10 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     estimate_size = element_size * element['num_records']
     if element['initial_splitting'] == 'zipf':
       desired_num_bundles = (
-        element['initial_splitting_num_bundles'] or
-        div_round_up(estimate_size,
-                     element[
-                       'initial_splitting_desired_bundle_size']))
+          element['initial_splitting_num_bundles'] or
+          div_round_up(estimate_size,
+                       element[
+                         'initial_splitting_desired_bundle_size']))
       samples = np.random.zipf(
         element['initial_splitting_distribution_parameter'],
         desired_num_bundles)
@@ -505,10 +505,10 @@ class SyntheticSDFAsSource(beam.DoFn):
   """
 
   def process(
-    self,
-    element,
-    restriction_tracker=beam.DoFn.RestrictionParam(
-      SyntheticSDFSourceRestrictionProvider())):
+      self,
+      element,
+      restriction_tracker=beam.DoFn.RestrictionParam(
+        SyntheticSDFSourceRestrictionProvider())):
     for k in range(*restriction_tracker.current_restriction()):
       if not restriction_tracker.try_claim(k):
         return
@@ -524,7 +524,7 @@ class ShuffleBarrier(beam.PTransform):
             | beam.Map(rotate_key)
             | beam.GroupByKey()
             | 'Ungroup' >> beam.FlatMap(
-        lambda elm: [(elm[0], v) for v in elm[1]]))
+          lambda elm: [(elm[0], v) for v in elm[1]]))
 
 
 class SideInputBarrier(beam.PTransform):
@@ -533,8 +533,8 @@ class SideInputBarrier(beam.PTransform):
     return (pc
             | beam.Map(rotate_key)
             | beam.Map(
-        lambda elem, ignored: elem,
-        beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
+          lambda elem, ignored: elem,
+          beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
 
 
 def merge_using_gbk(name, pc1, pc2):
@@ -544,8 +544,8 @@ def merge_using_gbk(name, pc1, pc2):
   pc2_with_key = pc2 | (name + 'AttachKey2') >> beam.Map(lambda x: (x, x))
 
   grouped = (
-    {'pc1': pc1_with_key, 'pc2': pc2_with_key} |
-    (name + 'Group') >> beam.CoGroupByKey())
+      {'pc1': pc1_with_key, 'pc2': pc2_with_key} |
+      (name + 'Group') >> beam.CoGroupByKey())
   return (grouped |
           (name + 'DeDup') >> beam.Map(lambda elm: elm[0]))  # Ignoring values
 
@@ -712,7 +712,7 @@ def run(argv=None):
 
     pc_list = []
     num_roots = 2 ** (len(known_args.steps) - 1) if (
-      barrier == 'merge-gbk' or barrier == 'merge-side-input') else 1
+        barrier == 'merge-gbk' or barrier == 'merge-side-input') else 1
     for read_no in range(num_roots):
       pc_list.append((p | ('Read %d' % read_no) >> beam.io.Read(source)))
 
