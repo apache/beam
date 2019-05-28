@@ -49,6 +49,7 @@ dependencies {
   shadowTest library.java.jackson_annotations
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest project(path: ":model:fn-execution", configuration: "shadow")
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 task runExpansionService (type: JavaExec) {
