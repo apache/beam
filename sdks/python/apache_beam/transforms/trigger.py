@@ -77,7 +77,7 @@ class AccumulationMode(object):
 class _StateTag(with_metaclass(ABCMeta, object)):
   """An identifier used to store and retrieve typed, combinable state.
 
-  The given tag must be unique for this stage."""
+  The given tag must be unique for this step."""
 
   def __init__(self, tag):
     self.tag = tag
