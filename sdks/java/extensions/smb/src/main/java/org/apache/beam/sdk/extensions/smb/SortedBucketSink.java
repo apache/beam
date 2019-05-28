@@ -45,11 +45,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -82,6 +84,11 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
 
   @Override
   public final WriteResult expand(PCollection<V> input) {
+    // @Todo: should we allow windowed writes?
+    Preconditions.checkArgument(
+        input.isBounded() == IsBounded.BOUNDED,
+        "SortedBucketSink cannot be applied to a non-bounded PCollection");
+
     return input
         .apply("ExtractKeys", ParDo.of(new ExtractKeys<>(this.bucketMetadata)))
         .setCoder(
@@ -289,7 +296,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
                     tuple
                         .get(new TupleTag<ResourceId>("TempMetadata"))
                         .apply(
-                            "RenameMetadta",
+                            "RenameMetadata",
                             ParDo.of(
                                 new DoFn<ResourceId, ResourceId>() {
                                   @ProcessElement
