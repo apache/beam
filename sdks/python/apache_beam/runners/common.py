@@ -198,9 +198,9 @@ class MethodWrapper(object):
         kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
 
     if self.timestamp_arg_name:
-        kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
+      kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
     if self.window_arg_name:
-        kwargs[self.window_arg_name] = window
+      kwargs[self.window_arg_name] = window
 
     if kwargs:
       return self.method_value(**kwargs)
