@@ -186,8 +186,7 @@ class SyntheticPipelineTest(unittest.TestCase):
       (pcoll
        | beam.Map(lambda elm: elm[0]) | 'key' >> beam.Map(assert_size, 5))
       (pcoll
-       | beam.Map(lambda elm: elm[1]) | 'value' >> beam.Map(assert_size,
-                                                            15))
+       | beam.Map(lambda elm: elm[1]) | 'value' >> beam.Map(assert_size, 15))
       assert_that(pcoll | beam.combiners.Count.Globally(),
                   equal_to([300]))
 
@@ -195,9 +194,8 @@ class SyntheticPipelineTest(unittest.TestCase):
     source = synthetic_pipeline.SyntheticSource(
         input_spec(1000, 1, 1, 'const', 0))
     splits = source.split(100)
-    sources_info = [
-      (split.source, split.start_position, split.stop_position)
-      for split in splits]
+    sources_info = [(split.source, split.start_position, split.stop_position)
+                    for split in splits]
     self.assertEquals(20, len(sources_info))
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), sources_info)
@@ -206,9 +204,8 @@ class SyntheticPipelineTest(unittest.TestCase):
     source = synthetic_pipeline.SyntheticSource(
         input_spec(1000, 1, 1, 'zipf', 3, 10))
     splits = source.split(100)
-    sources_info = [
-      (split.source, split.start_position, split.stop_position)
-      for split in splits]
+    sources_info = [(split.source, split.start_position, split.stop_position)
+                   for split in splits]
     self.assertEquals(10, len(sources_info))
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), sources_info)
