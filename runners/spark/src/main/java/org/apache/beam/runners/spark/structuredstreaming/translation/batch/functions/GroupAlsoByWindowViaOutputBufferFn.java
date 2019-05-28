@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.UnsupportedSideInputReader;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
@@ -100,21 +101,18 @@ public class GroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWind
     // Finish any pending windows by advancing the input watermark to infinity.
     timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
-    // not supported yet
-/*
     // Finally, advance the processing time to infinity to fire any timers.
     timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
     timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     fireEligibleTimers(timerInternals, reduceFnRunner);
-*/
 
     reduceFnRunner.persist();
 
     return outputter.getOutputs().iterator();
   }
 
-/*  private void fireEligibleTimers(
+  private void fireEligibleTimers(
       InMemoryTimerInternals timerInternals,
       ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner)
       throws Exception {
@@ -136,7 +134,7 @@ public class GroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWind
       reduceFnRunner.onTimers(timers);
       timers.clear();
     }
-  }*/
+  }
 
   private static class GABWOutputWindowedValue<K, V>
       implements OutputWindowedValue<KV<K, Iterable<V>>> {
