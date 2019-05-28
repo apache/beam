@@ -35,11 +35,9 @@ class Infrastructure {
         switches("-Pdocker-repository-root=${repositoryRoot}")
         switches("-Pdocker-tag=${dockerTag}")
       }
-      shell("echo \" Tagging Harness' image\"...")
+      shell("echo \"Tagging Harness' image\"...")
       shell("docker tag ${image} ${imageTag}")
-      shell("echo \" Configure docker credentials\"...")
-      shell("docker-credential-gcr configure-docker")
-      shell("echo \" Pushing Harness' image\"...")
+      shell("echo \"Pushing Harness' image\"...")
       shell("docker push ${imageTag}")
     }
   }
@@ -54,16 +52,14 @@ class Infrastructure {
       gradle {
         rootBuildScriptDir(common.checkoutDir)
         common.setGradleSwitches(delegate)
-        tasks(":beam-runners-flink_2.11-job-server-container:docker")
+        tasks(":runners:flink:1.7:job-server-container:docker")
         switches("-Pdocker-repository-root=${repositoryRoot}")
         switches("-Pdocker-tag=${dockerTag}")
       }
 
-      shell("echo \" Tagging Flink Job Server's image\"...")
+      shell("echo \"Tagging Flink Job Server's image\"...")
       shell("docker tag ${image} ${imageTag}")
-      shell("echo \" Configure docker credentials\"...")
-      shell("docker-credential-gcr configure-docker")
-      shell("echo \" Pushing Flink Job Server's image\"...")
+      shell("echo \"Pushing Flink Job Server's image\"...")
       shell("docker push ${imageTag}")
     }
   }
@@ -78,7 +74,7 @@ class Infrastructure {
         env("GCLOUD_ZONE", "us-central1-a")
         env("CLUSTER_NAME", clusterName)
         env("GCS_BUCKET", gcsBucket)
-        env("FLINK_DOWNLOAD_URL", 'http://archive.apache.org/dist/flink/flink-1.5.6/flink-1.5.6-bin-hadoop28-scala_2.11.tgz')
+        env("FLINK_DOWNLOAD_URL", 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz')
         env("FLINK_NUM_WORKERS", workerCount)
         env("DETACHED_MODE", 'true')
 
