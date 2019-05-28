@@ -203,7 +203,6 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     // SDF
-    excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
