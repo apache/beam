@@ -272,50 +272,49 @@ class SyntheticSource(iobase.BoundedSource):
       return parse_byte_size(s) if isinstance(s, str) else int(s)
 
     self._num_records = input_spec['numRecords']
-    self._key_size = maybe_parse_byte_size(
-      input_spec.get('keySizeBytes', 1))
+    self._key_size = maybe_parse_byte_size(input_spec.get('keySizeBytes', 1))
     self._value_size = maybe_parse_byte_size(
       input_spec.get('valueSizeBytes', 1))
     self._total_size = self.element_size * self._num_records
     self._initial_splitting = (
-      input_spec['bundleSizeDistribution']['type']
-      if 'bundleSizeDistribution' in input_spec else 'const')
+        input_spec['bundleSizeDistribution']['type']
+        if 'bundleSizeDistribution' in input_spec else 'const')
     if self._initial_splitting != 'const' and self._initial_splitting != 'zipf':
       raise ValueError(
-        'Only const and zipf distributions are supported for determining '
-        'sizes of bundles produced by initial splitting. Received: %s',
-        self._initial_splitting)
+          'Only const and zipf distributions are supported for determining '
+          'sizes of bundles produced by initial splitting. Received: %s',
+          self._initial_splitting)
     self._initial_splitting_num_bundles = (
       input_spec['forceNumInitialBundles']
       if 'forceNumInitialBundles' in input_spec else 0)
     if self._initial_splitting == 'zipf':
       self._initial_splitting_distribution_parameter = (
-        input_spec['bundleSizeDistribution']['param'])
+          input_spec['bundleSizeDistribution']['param'])
       if self._initial_splitting_distribution_parameter < 1:
         raise ValueError(
-          'Parameter for a Zipf distribution must be larger than 1. '
-          'Received %r.',
-          self._initial_splitting_distribution_parameter)
+            'Parameter for a Zipf distribution must be larger than 1. '
+            'Received %r.',
+            self._initial_splitting_distribution_parameter)
     else:
       self._initial_splitting_distribution_parameter = 0
     self._dynamic_splitting = (
-      'none' if (
-          'splitPointFrequencyRecords' in input_spec
-          and input_spec['splitPointFrequencyRecords'] == 0)
+        'none' if (
+            'splitPointFrequencyRecords' in input_spec
+            and input_spec['splitPointFrequencyRecords'] == 0)
       else 'perfect')
     if 'delayDistribution' in input_spec:
       if input_spec['delayDistribution']['type'] != 'const':
-        raise ValueError(
-          'SyntheticSource currently only supports delay '
-          'distributions of type \'const\'. Received %s.',
-          input_spec['delayDistribution']['type'])
+         raise ValueError(
+            'SyntheticSource currently only supports delay '
+            'distributions of type \'const\'. Received %s.',
+            input_spec['delayDistribution']['type'])
       self._sleep_per_input_record_sec = (
           float(input_spec['delayDistribution']['const']) / 1000)
       if (self._sleep_per_input_record_sec and
           self._sleep_per_input_record_sec < 1e-3):
         raise ValueError(
-          'Sleep time per input record must be at least 1e-3.'
-          ' Received: %r', self._sleep_per_input_record_sec)
+            'Sleep time per input record must be at least 1e-3.'
+            ' Received: %r', self._sleep_per_input_record_sec)
     else:
       self._sleep_per_input_record_sec = 0
 
@@ -341,8 +340,7 @@ class SyntheticSource(iobase.BoundedSource):
         self._initial_splitting_distribution_parameter,
         desired_num_bundles)
       total = sum(samples)
-      relative_bundle_sizes = [(float(sample) / total) for sample in
-                               samples]
+      relative_bundle_sizes = [(float(sample) / total) for sample in samples]
       bundle_ranges = []
       start = start_position
       index = 0
@@ -350,20 +348,19 @@ class SyntheticSource(iobase.BoundedSource):
         if index == desired_num_bundles - 1:
           bundle_ranges.append((start, stop_position))
           break
-        stop = start + int(
-          self._num_records * relative_bundle_sizes[index])
+        stop = start + int(self._num_records * relative_bundle_sizes[index])
         bundle_ranges.append((start, stop))
         start = stop
         index += 1
     else:
       if self._initial_splitting_num_bundles:
         bundle_size_in_elements = max(1, int(
-          self._num_records /
-          self._initial_splitting_num_bundles))
+            self._num_records /
+            self._initial_splitting_num_bundles))
       else:
         bundle_size_in_elements = (max(
-          div_round_up(desired_bundle_size, self.element_size),
-          int(math.floor(math.sqrt(self._num_records)))))
+            div_round_up(desired_bundle_size, self.element_size),
+            int(math.floor(math.sqrt(self._num_records)))))
       bundle_ranges = []
       for start in range(start_position, stop_position,
                          bundle_size_in_elements):
@@ -378,8 +375,7 @@ class SyntheticSource(iobase.BoundedSource):
       start_position = 0
     if stop_position is None:
       stop_position = self._num_records
-    tracker = range_trackers.OffsetRangeTracker(start_position,
-                                                stop_position)
+    tracker = range_trackers.OffsetRangeTracker(start_position, stop_position)
     if self._dynamic_splitting == 'none':
       tracker = range_trackers.UnsplittableRangeTracker(tracker)
     return tracker
@@ -395,7 +391,7 @@ class SyntheticSource(iobase.BoundedSource):
 
   def default_output_coder(self):
     return beam.coders.TupleCoder(
-      [beam.coders.BytesCoder(), beam.coders.BytesCoder()])
+        [beam.coders.BytesCoder(), beam.coders.BytesCoder()])
 
 
 class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
@@ -422,7 +418,7 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
 
   def create_tracker(self, restriction):
     return restriction_trackers.OffsetRestrictionTracker(
-      restriction[0], restriction[1])
+        restriction[0], restriction[1])
 
   def split(self, element, restriction):
     bundle_ranges = []
@@ -439,8 +435,7 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
         element['initial_splitting_distribution_parameter'],
         desired_num_bundles)
       total = sum(samples)
-      relative_bundle_sizes = [(float(sample) / total) for sample in
-                               samples]
+      relative_bundle_sizes = [(float(sample) / total) for sample in samples]
       start = start_position
       index = 0
       while start < stop_position:
@@ -448,21 +443,21 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
           bundle_ranges.append((start, stop_position))
           break
         stop = start + int(
-          element['num_records'] * relative_bundle_sizes[index])
+            element['num_records'] * relative_bundle_sizes[index])
         bundle_ranges.append((start, stop))
         start = stop
         index += 1
     else:
       if element['initial_splitting_num_bundles']:
         bundle_size_in_elements = max(1, int(
-          element['num_records'] /
+              element['num_records'] /
           element['initial_splitting_num_bundles']))
       else:
         bundle_size_in_elements = (max(
-          div_round_up(
-            element['initial_splitting_desired_bundle_size'],
-            element_size),
-          int(math.floor(math.sqrt(element['num_records'])))))
+           div_round_up(
+                element['initial_splitting_desired_bundle_size'],
+                element_size),
+            int(math.floor(math.sqrt(element['num_records'])))))
       for start in range(start_position, stop_position,
                          bundle_size_in_elements):
         stop = min(start + bundle_size_in_elements, stop_position)
@@ -524,7 +519,7 @@ class ShuffleBarrier(beam.PTransform):
             | beam.Map(rotate_key)
             | beam.GroupByKey()
             | 'Ungroup' >> beam.FlatMap(
-          lambda elm: [(elm[0], v) for v in elm[1]]))
+                lambda elm: [(elm[0], v) for v in elm[1]]))
 
 
 class SideInputBarrier(beam.PTransform):
@@ -533,8 +528,8 @@ class SideInputBarrier(beam.PTransform):
     return (pc
             | beam.Map(rotate_key)
             | beam.Map(
-          lambda elem, ignored: elem,
-          beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
+                lambda elem, ignored: elem,
+                beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
 
 
 def merge_using_gbk(name, pc1, pc2):
@@ -578,7 +573,7 @@ def expand_using_second_output(name, pc):
       yield element
 
   pc1, pc2 = (pc | name >> beam.ParDo(
-    ExpandFn()).with_outputs('second_out', main='main_out'))
+      ExpandFn()).with_outputs('second_out', main='main_out'))
   return [pc1, pc2]
 
 
@@ -608,23 +603,23 @@ def _parse_steps(json_str):
   for val in json_data:
     steps = {}
     steps['per_element_delay'] = (
-      (float(val['per_element_delay_msec']) / 1000)
-      if 'per_element_delay_msec' in val else 0)
+        (float(val['per_element_delay_msec']) / 1000)
+        if 'per_element_delay_msec' in val else 0)
     steps['per_bundle_delay'] = (
-      float(val['per_bundle_delay_sec'])
-      if 'per_bundle_delay_sec' in val else 0)
+        float(val['per_bundle_delay_sec'])
+        if 'per_bundle_delay_sec' in val else 0)
     steps['output_records_per_input_record'] = (
-      int(val['output_records_per_input_record'])
-      if 'output_records_per_input_record' in val else 1)
+        int(val['output_records_per_input_record'])
+        if 'output_records_per_input_record' in val else 1)
     steps['output_filter_ratio'] = (
-      float(val['output_filter_ratio'])
-      if 'output_filter_ratio' in val else 0)
+        float(val['output_filter_ratio'])
+        if 'output_filter_ratio' in val else 0)
     steps['splittable'] = (
-      bool(val['splittable'])
-      if 'splittable' in val else False)
+        bool(val['splittable'])
+        if 'splittable' in val else False)
     steps['initial_splitting_num_bundles'] = (
-      int(val['initial_splitting_num_bundles'])
-      if 'initial_splitting_num_bundles' in val else 8)
+        int(val['initial_splitting_num_bundles'])
+        if 'initial_splitting_num_bundles' in val else 8)
     all_steps.append(steps)
 
   return all_steps
@@ -643,41 +638,41 @@ def parse_args(args):
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-    '--steps',
-    dest='steps',
-    type=_parse_steps,
-    help='A JSON string that gives a list where each entry of the list is '
-         'configuration information for a step. Configuration for each step '
-         'consists of '
-         '(1) A float "per_bundle_delay_sec" (in seconds). Defaults to 0.'
-         '(2) A float "per_element_delay_msec" (in milli seconds). '
-         '    Defaults to 0.'
-         '(3) An integer "output_records_per_input_record". Defaults to 1.'
-         '(4) A float "output_filter_ratio" in the range [0, 1] . '
-         '    Defaults to 0.'
-         '(5) A bool "splittable" that defaults to false.'
-         '(6) A integer "initial_splitting_num_bundles". Defaults to 8.')
+      '--steps',
+      dest='steps',
+      type=_parse_steps,
+      help='A JSON string that gives a list where each entry of the list is '
+           'configuration information for a step. Configuration for each step '
+           'consists of '
+           '(1) A float "per_bundle_delay_sec" (in seconds). Defaults to 0.'
+           '(2) A float "per_element_delay_msec" (in milli seconds). '
+           '    Defaults to 0.'
+           '(3) An integer "output_records_per_input_record". Defaults to 1.'
+           '(4) A float "output_filter_ratio" in the range [0, 1] . '
+           '    Defaults to 0.'
+           '(5) A bool "splittable" that defaults to false.'
+           '(6) A integer "initial_splitting_num_bundles". Defaults to 8.')
 
   parser.add_argument(
-    '--input',
-    dest='input',
-    type=json.loads,
-    help='A JSON string that describes the properties of the SyntheticSource '
-         'used by the pipeline. Configuration is similar to Java '
-         'SyntheticBoundedInput.'
-         'Currently supports following properties. '
-         '(1) An integer "numRecords". '
-         '(2) An integer "keySize". '
-         '(3) An integer "valueSize". '
-         '(4) A tuple "bundleSizeDistribution" with following values. '
-         '    A string "type". Allowed values are "const" and "zipf". '
-         '    An float "param". Only used if "type"=="zipf". Must be '
-         '    larger than 1. '
-         '(5) An integer "forceNumInitialBundles". '
-         '(6) An integer "splitPointFrequencyRecords". '
-         '(7) A tuple "delayDistribution" with following values. '
-         '    A string "type". Only allowed value is "const". '
-         '    An integer "const". ')
+      '--input',
+      dest='input',
+      type=json.loads,
+      help='A JSON string that describes the properties of the SyntheticSource '
+           'used by the pipeline. Configuration is similar to Java '
+           'SyntheticBoundedInput.'
+           'Currently supports following properties. '
+           '(1) An integer "numRecords". '
+           '(2) An integer "keySize". '
+           '(3) An integer "valueSize". '
+           '(4) A tuple "bundleSizeDistribution" with following values. '
+           '    A string "type". Allowed values are "const" and "zipf". '
+           '    An float "param". Only used if "type"=="zipf". Must be '
+           '    larger than 1. '
+           '(5) An integer "forceNumInitialBundles". '
+           '(6) An integer "splitPointFrequencyRecords". '
+           '(7) A tuple "delayDistribution" with following values. '
+           '    A string "type". Only allowed value is "const". '
+           '    An integer "const". ')
 
   parser.add_argument('--barrier',
                       dest='barrier',
@@ -728,32 +723,29 @@ def run(argv=None):
           elif barrier == 'side-input':
             new_pc_list.append(
               (pc |
-               ('side-input %d.%d' % (
-                 step_no, pc_no)) >> SideInputBarrier()))
+               ('side-input %d.%d' % (step_no, pc_no)) >> SideInputBarrier()))
           elif barrier == 'expand-gbk':
             new_pc_list.extend(
               expand_using_gbk(
-                ('expand-gbk %d.%d' % (step_no, pc_no)), pc))
+                  ('expand-gbk %d.%d' % (step_no, pc_no)), pc))
           elif barrier == 'expand-second-output':
             new_pc_list.extend(
               expand_using_second_output(
-                ('expand-second-output %d.%d' % (
-                  step_no, pc_no)), pc))
+                  ('expand-second-output %d.%d' % (step_no, pc_no)), pc))
           elif barrier == 'merge-gbk':
             if pc_no % 2 == 0:
               new_pc_list.append(
-                merge_using_gbk(
-                  ('merge-gbk %d.%d' % (step_no, pc_no)),
-                  pc, pc_list[pc_no + 1]))
+                merge_using_gbk(('merge-gbk %d.%d' % (step_no, pc_no)),
+                                pc, pc_list[pc_no + 1]))
             else:
               continue
           elif barrier == 'merge-side-input':
             if pc_no % 2 == 0:
               new_pc_list.append(
-                merge_using_side_input(
-                  ('merge-side-input %d.%d' % (
-                    step_no, pc_no)),
-                  pc, pc_list[pc_no + 1]))
+                  merge_using_side_input(
+                    ('merge-side-input %d.%d' % (
+                      step_no, pc_no)),
+                    pc, pc_list[pc_no + 1]))
             else:
               continue
 
@@ -763,20 +755,20 @@ def run(argv=None):
       for pc_no, pc in enumerate(pc_list):
         if steps['splittable']:
           step = getSyntheticSDFStep(
-            per_element_delay_sec=steps['per_element_delay'],
-            per_bundle_delay_sec=steps['per_bundle_delay'],
-            output_records_per_input_record=
-            steps['output_records_per_input_record'],
-            output_filter_ratio=steps['output_filter_ratio'],
-            initial_splitting_num_bundles=
-            steps['initial_splitting_num_bundles'])
+              per_element_delay_sec=steps['per_element_delay'],
+              per_bundle_delay_sec=steps['per_bundle_delay'],
+              output_records_per_input_record=
+              steps['output_records_per_input_record'],
+              output_filter_ratio=steps['output_filter_ratio'],
+              initial_splitting_num_bundles=
+              steps['initial_splitting_num_bundles'])
         else:
           step = SyntheticStep(
-            per_element_delay_sec=steps['per_element_delay'],
-            per_bundle_delay_sec=steps['per_bundle_delay'],
-            output_records_per_input_record=
-            steps['output_records_per_input_record'],
-            output_filter_ratio=steps['output_filter_ratio'])
+              per_element_delay_sec=steps['per_element_delay'],
+              per_bundle_delay_sec=steps['per_bundle_delay'],
+              output_records_per_input_record=
+              steps['output_records_per_input_record'],
+              output_filter_ratio=steps['output_filter_ratio'])
         new_pc = pc | 'SyntheticStep %d.%d' % (
           step_no, pc_no) >> beam.ParDo(step)
         new_pc_list.append(new_pc)

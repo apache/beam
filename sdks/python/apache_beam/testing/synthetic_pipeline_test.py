@@ -44,12 +44,12 @@ def input_spec(num_records, key_size, value_size,
                bundle_size_distribution_param=0,
                force_initial_num_bundles=0):
   return {
-    'numRecords': num_records,
-    'keySizeBytes': key_size,
-    'valueSizeBytes': value_size,
-    'bundleSizeDistribution': {'type': bundle_size_distribution_type,
-                               'param': bundle_size_distribution_param},
-    'forceNumInitialBundles': force_initial_num_bundles,
+      'numRecords': num_records,
+      'keySizeBytes': key_size,
+      'valueSizeBytes': value_size,
+      'bundleSizeDistribution': {'type': bundle_size_distribution_type,
+                                 'param': bundle_size_distribution_param},
+      'forceNumInitialBundles': force_initial_num_bundles,
   }
 
 
