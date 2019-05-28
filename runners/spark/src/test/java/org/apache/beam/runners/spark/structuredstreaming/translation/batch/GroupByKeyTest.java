@@ -29,10 +29,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,6 +57,41 @@ public class GroupByKeyTest implements Serializable {
     p = Pipeline.create(options);
   }
 
+  @Test
+  public void testGroupByKeyPreservesWindowing(){
+    PCollection<KV<Integer, Iterable<Integer>>> input = p.apply(Create
+        .timestamped(
+            TimestampedValue.of(KV.of(1, 1), new Instant(1)),
+            TimestampedValue.of(KV.of(1, 3), new Instant(2)),
+            TimestampedValue.of(KV.of(1, 5), new Instant(11)),
+            TimestampedValue.of(KV.of(2, 2), new Instant(3)),
+            TimestampedValue.of(KV.of(2, 4), new Instant(11)),
+            TimestampedValue.of(KV.of(2, 6), new Instant(12))))
+        .apply(Window.into(FixedWindows.of(Duration.millis(10)))).apply(GroupByKey.create())
+    // do manual assertion for windows because Passert do not support multiple kv with same key (because multiple windows)
+        .apply(ParDo.of(new DoFn<KV<Integer, Iterable<Integer>>, KV<Integer, Iterable<Integer>>>() {
+
+          @ProcessElement public void processElement(ProcessContext context) {
+            KV<Integer, Iterable<Integer>> element = context.element();
+            if (element.getKey() == 1) {
+              if (Iterables.size(element.getValue()) == 2) {
+                assertThat(element.getValue(), containsInAnyOrder(1, 3)); // window [0-10)
+              } else {
+                assertThat(element.getValue(), containsInAnyOrder(5)); // window [10-20)
+              }
+            } else { //key == 2
+              if (Iterables.size(element.getValue()) == 2) {
+                assertThat(element.getValue(), containsInAnyOrder(4, 6)); // window [10-20)
+              } else {
+                assertThat(element.getValue(), containsInAnyOrder(2)); // window [0-10)
+              }
+            }
+            context.output(element);
+          }
+        }));
+    p.run();
+
+  }
   @Test
   public void testGroupByKey() {
     List<KV<Integer, Integer>> elems = new ArrayList<>();
