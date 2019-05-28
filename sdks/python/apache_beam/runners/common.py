@@ -189,17 +189,20 @@ class MethodWrapper(object):
                             key,
                             window,
                             timestamp):
-    # TODO(ccy): support WindowParam, TimestampParam and side inputs.
+    # TODO(ccy): support side inputs.
+    kwargs = {}
     if self.has_userstate_arguments:
-      kwargs = {}
       for kw, state_spec in self.state_args_to_replace.items():
         kwargs[kw] = user_state_context.get_state(state_spec, key, window)
       for kw, timer_spec in self.timer_args_to_replace.items():
         kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
-      if self.timestamp_arg_name:
+
+    if self.timestamp_arg_name:
         kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
-      if self.window_arg_name:
+    if self.window_arg_name:
         kwargs[self.window_arg_name] = window
+
+    if kwargs:
       return self.method_value(**kwargs)
     else:
       return self.method_value()
