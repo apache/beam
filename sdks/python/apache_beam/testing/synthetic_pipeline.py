@@ -303,9 +303,9 @@ class SyntheticSource(iobase.BoundedSource):
         else 'perfect')
     if 'delayDistribution' in input_spec:
       if input_spec['delayDistribution']['type'] != 'const':
-         raise ValueError('SyntheticSource currently only supports delay '
-                          'distributions of type \'const\'. Received %s.',
-                          input_spec['delayDistribution']['type'])
+       raise ValueError('SyntheticSource currently only supports delay '
+                         'distributions of type \'const\'. Received %s.',
+                         input_spec['delayDistribution']['type'])
       self._sleep_per_input_record_sec = (
           float(input_spec['delayDistribution']['const']) / 1000)
       if (self._sleep_per_input_record_sec and
@@ -425,8 +425,7 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
       desired_num_bundles = (
           element['initial_splitting_num_bundles'] or
           div_round_up(estimate_size,
-                       element[
-                         'initial_splitting_desired_bundle_size']))
+                       element['initial_splitting_desired_bundle_size']))
       samples = np.random.zipf(
           element['initial_splitting_distribution_parameter'],
           desired_num_bundles)
@@ -446,8 +445,8 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     else:
       if element['initial_splitting_num_bundles']:
         bundle_size_in_elements = max(1, int(
-              element['num_records'] /
-          element['initial_splitting_num_bundles']))
+            element['num_records'] /
+            element['initial_splitting_num_bundles']))
       else:
         bundle_size_in_elements = (max(
             div_round_up(
@@ -716,8 +715,8 @@ def run(argv=None):
                  ('shuffle %d.%d' % (step_no, pc_no)) >> ShuffleBarrier()))
           elif barrier == 'side-input':
             new_pc_list.append(
-              (pc |
-               ('side-input %d.%d' % (step_no, pc_no)) >> SideInputBarrier()))
+                (pc |
+                 ('side-input %d.%d' % (step_no, pc_no)) >> SideInputBarrier()))
           elif barrier == 'expand-gbk':
             new_pc_list.extend(
                 expand_using_gbk(('expand-gbk %d.%d' % (step_no, pc_no)), pc))
@@ -737,7 +736,7 @@ def run(argv=None):
               new_pc_list.append(
                   merge_using_side_input(
                       ('merge-side-input %d.%d' % (step_no, pc_no)),
-                    pc, pc_list[pc_no + 1]))
+                      pc, pc_list[pc_no + 1]))
             else:
               continue
 
