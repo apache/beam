@@ -56,7 +56,6 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
                                   str(int(time.time())),
                                   random.randint(0, 10000))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
-    self.output_table = "%s.{}" % (self.dataset_id)
     logging.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
@@ -72,7 +71,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       logging.debug('Failed to clean up dataset %s in project %s',
                     self.dataset_id, self.project)
 
-  def create_table(self, tablename):
+  def create_table(self, table_name):
     table_schema = bigquery.TableSchema()
     table_field = bigquery.TableFieldSchema()
     table_field.name = 'bytes'
@@ -90,7 +89,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         tableReference=bigquery.TableReference(
             projectId=self.project,
             datasetId=self.dataset_id,
-            tableId=tablename),
+            tableId=table_name),
         schema=table_schema)
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=self.project, datasetId=self.dataset_id, table=table)
@@ -98,8 +97,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
 
   @attr('IT')
   def test_big_query_write(self):
-    output_table = 'python_write_table'
-    output_table = self.output_table.format(output_table)
+    table_name = 'python_write_table'
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [
         {'number': 1, 'str': 'abc'},
@@ -112,7 +111,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT number, str FROM %s" % output_table,
+            query="SELECT number, str FROM %s" % table_id,
             data=[(1, 'abc',), (2, 'def',)])]
 
     args = self.test_pipeline.get_full_options_as_args(
@@ -122,7 +121,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       # pylint: disable=expression-not-assigned
       (p | 'create' >> beam.Create(input_data)
        | 'write' >> beam.io.WriteToBigQuery(
-           output_table,
+           table_id,
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
@@ -132,8 +131,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest('DataflowRunner does not support schema autodetection')
 
-    output_table = 'python_write_table'
-    output_table = self.output_table.format(output_table)
+    table_name = 'python_write_table'
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [
         {'number': 1, 'str': 'abc'},
@@ -143,7 +142,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT number, str FROM %s" % output_table,
+            query="SELECT number, str FROM %s" % table_id,
             data=[(1, 'abc',), (2, 'def',)])]
 
     args = self.test_pipeline.get_full_options_as_args(
@@ -154,7 +153,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       # pylint: disable=expression-not-assigned
       (p | 'create' >> beam.Create(input_data)
        | 'write' >> beam.io.WriteToBigQuery(
-           output_table,
+           table_id,
            method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
            schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
@@ -162,8 +161,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
 
   @attr('IT')
   def test_big_query_write_new_types(self):
-    output_table = 'python_new_types_table'
-    output_table = self.output_table.format(output_table)
+    table_name = 'python_new_types_table'
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [
         {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
@@ -184,7 +183,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT bytes, date, time FROM %s" % output_table,
+            query="SELECT bytes, date, time FROM %s" % table_id,
             data=[(b'xyw', datetime.date(2011, 1, 1),
                    datetime.time(23, 59, 59, 999999), ),
                   (b'abc', datetime.date(2000, 1, 1),
@@ -201,16 +200,16 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       # pylint: disable=expression-not-assigned
       (p | 'create' >> beam.Create(input_data)
        | 'write' >> beam.io.WriteToBigQuery(
-           output_table,
+           table_id,
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @attr('IT')
   def test_big_query_write_without_schema(self):
-    output_table = 'python_no_schema_table'
-    self.create_table(output_table)
-    output_table = self.output_table.format(output_table)
+    table_name = 'python_no_schema_table'
+    self.create_table(table_name)
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [
         {'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'},
@@ -226,7 +225,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT bytes, date, time FROM %s" % output_table,
+            query="SELECT bytes, date, time FROM %s" % table_id,
             data=[(b'xyw', datetime.date(2011, 1, 1),
                    datetime.time(23, 59, 59, 999999), ),
                   (b'abc', datetime.date(2000, 1, 1),
@@ -243,7 +242,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       # pylint: disable=expression-not-assigned
       (p | 'create' >> beam.Create(input_data)
        | 'write' >> beam.io.WriteToBigQuery(
-           output_table,
+           table_id,
            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
 
 

@@ -55,7 +55,6 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
                                   str(int(time.time())),
                                   random.randint(0, 10000))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
-    self.output_table = "%s.{}" % (self.dataset_id)
     logging.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
@@ -97,7 +96,7 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     self.bigquery_client.insert_rows(
         self.project, self.dataset_id, tablename, table_data)
 
-  def create_table_new_types(self, tablename):
+  def create_table_new_types(self, table_name):
     table_schema = bigquery.TableSchema()
     table_field = bigquery.TableFieldSchema()
     table_field.name = 'bytes'
@@ -115,7 +114,7 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
         tableReference=bigquery.TableReference(
             projectId=self.project,
             datasetId=self.dataset_id,
-            tableId=tablename),
+            tableId=table_name),
         schema=table_schema)
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=self.project, datasetId=self.dataset_id, table=table)
@@ -131,28 +130,28 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     for row in table_data:
       row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
     self.bigquery_client.insert_rows(
-        self.project, self.dataset_id, tablename, table_data)
+        self.project, self.dataset_id, table_name, table_data)
 
   @attr('IT')
   def test_big_query_read(self):
-    output_table = 'python_write_table'
-    self.create_table(output_table)
-    output_table = self.output_table.format(output_table)
+    table_name = 'python_write_table'
+    self.create_table(table_name)
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     args = self.test_pipeline.get_full_options_as_args()
 
     with beam.Pipeline(argv=args) as p:
       result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-          query='SELECT number, str FROM `%s`' % output_table,
+          query='SELECT number, str FROM `%s`' % table_id,
           use_standard_sql=True)))
       assert_that(result, equal_to([{'number': 1, 'str': 'abc'},
                                     {'number': 2, 'str': 'def'}]))
 
   @attr('IT')
   def test_big_query_read_new_types(self):
-    output_table = 'python_new_types_table'
-    self.create_table_new_types(output_table)
-    output_table = self.output_table.format(output_table)
+    table_name = 'python_new_types_table'
+    self.create_table_new_types(table_name)
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     args = self.test_pipeline.get_full_options_as_args()
 
@@ -169,7 +168,7 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
 
     with beam.Pipeline(argv=args) as p:
       result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-          query='SELECT bytes, date, time FROM `%s`' % output_table,
+          query='SELECT bytes, date, time FROM `%s`' % table_id,
           use_standard_sql=True)))
       assert_that(result, equal_to(expected_data))
 
