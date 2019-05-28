@@ -108,7 +108,7 @@ applyJavaNature(
     }
 
     dependencies {
-        include(project(path: ":model:fn-execution", configuration: "shadow"))
+        include(project(path: ":beam-model-fn-execution", configuration: "shadow"))
     }
     relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
 
