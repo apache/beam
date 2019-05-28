@@ -39,6 +39,7 @@ class SchemaUtils {
           .put("DATETIME", FieldType.DATETIME)
           .put("DOUBLE", FieldType.DOUBLE)
           .put("FLOAT", FieldType.DOUBLE)
+          .put("FLOAT64", FieldType.DOUBLE)
           .put("INT32", FieldType.INT32)
           .put("INT64", FieldType.INT64)
           .put("STRING", FieldType.STRING)
