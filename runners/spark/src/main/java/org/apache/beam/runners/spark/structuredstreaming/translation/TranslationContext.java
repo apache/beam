@@ -201,7 +201,7 @@ public class TranslationContext {
             // code.
             List<WindowedValue> windowedValues = ((Dataset<WindowedValue>) dataset).collectAsList();
             for (WindowedValue windowedValue : windowedValues) {
-              LOG.debug(windowedValue.toString());
+              LOG.debug("**** dataset content {} ****", windowedValue.toString());
             }
           } else {
             // apply a dummy fn just to apply for each action that will trigger the pipeline run in
