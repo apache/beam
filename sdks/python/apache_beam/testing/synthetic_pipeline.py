@@ -274,7 +274,7 @@ class SyntheticSource(iobase.BoundedSource):
     self._num_records = input_spec['numRecords']
     self._key_size = maybe_parse_byte_size(input_spec.get('keySizeBytes', 1))
     self._value_size = maybe_parse_byte_size(
-      input_spec.get('valueSizeBytes', 1))
+        input_spec.get('valueSizeBytes', 1))
     self._total_size = self.element_size * self._num_records
     self._initial_splitting = (
         input_spec['bundleSizeDistribution']['type']
@@ -285,36 +285,33 @@ class SyntheticSource(iobase.BoundedSource):
           'sizes of bundles produced by initial splitting. Received: %s',
           self._initial_splitting)
     self._initial_splitting_num_bundles = (
-      input_spec['forceNumInitialBundles']
-      if 'forceNumInitialBundles' in input_spec else 0)
+        input_spec['forceNumInitialBundles']
+        if 'forceNumInitialBundles' in input_spec else 0)
     if self._initial_splitting == 'zipf':
       self._initial_splitting_distribution_parameter = (
           input_spec['bundleSizeDistribution']['param'])
       if self._initial_splitting_distribution_parameter < 1:
         raise ValueError(
             'Parameter for a Zipf distribution must be larger than 1. '
-            'Received %r.',
-            self._initial_splitting_distribution_parameter)
+            'Received %r.', self._initial_splitting_distribution_parameter)
     else:
       self._initial_splitting_distribution_parameter = 0
     self._dynamic_splitting = (
         'none' if (
             'splitPointFrequencyRecords' in input_spec
             and input_spec['splitPointFrequencyRecords'] == 0)
-      else 'perfect')
+        else 'perfect')
     if 'delayDistribution' in input_spec:
       if input_spec['delayDistribution']['type'] != 'const':
-         raise ValueError(
-            'SyntheticSource currently only supports delay '
-            'distributions of type \'const\'. Received %s.',
-            input_spec['delayDistribution']['type'])
+         raise ValueError('SyntheticSource currently only supports delay '
+                          'distributions of type \'const\'. Received %s.',
+                          input_spec['delayDistribution']['type'])
       self._sleep_per_input_record_sec = (
           float(input_spec['delayDistribution']['const']) / 1000)
       if (self._sleep_per_input_record_sec and
           self._sleep_per_input_record_sec < 1e-3):
-        raise ValueError(
-            'Sleep time per input record must be at least 1e-3.'
-            ' Received: %r', self._sleep_per_input_record_sec)
+        raise ValueError('Sleep time per input record must be at least 1e-3.'
+                         ' Received: %r', self._sleep_per_input_record_sec)
     else:
       self._sleep_per_input_record_sec = 0
 
@@ -335,10 +332,9 @@ class SyntheticSource(iobase.BoundedSource):
       stop_position = self._num_records
     if self._initial_splitting == 'zipf':
       desired_num_bundles = self._initial_splitting_num_bundles or math.ceil(
-        float(self.estimate_size()) / desired_bundle_size)
-      samples = np.random.zipf(
-        self._initial_splitting_distribution_parameter,
-        desired_num_bundles)
+          float(self.estimate_size()) / desired_bundle_size)
+      samples = np.random.zipf(self._initial_splitting_distribution_parameter,
+                               desired_num_bundles)
       total = sum(samples)
       relative_bundle_sizes = [(float(sample) / total) for sample in samples]
       bundle_ranges = []
@@ -432,8 +428,8 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
                        element[
                          'initial_splitting_desired_bundle_size']))
       samples = np.random.zipf(
-        element['initial_splitting_distribution_parameter'],
-        desired_num_bundles)
+          element['initial_splitting_distribution_parameter'],
+          desired_num_bundles)
       total = sum(samples)
       relative_bundle_sizes = [(float(sample) / total) for sample in samples]
       start = start_position
@@ -454,9 +450,8 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
           element['initial_splitting_num_bundles']))
       else:
         bundle_size_in_elements = (max(
-           div_round_up(
-                element['initial_splitting_desired_bundle_size'],
-                element_size),
+            div_round_up(
+                element['initial_splitting_desired_bundle_size'], element_size),
             int(math.floor(math.sqrt(element['num_records'])))))
       for start in range(start_position, stop_position,
                          bundle_size_in_elements):
@@ -503,7 +498,7 @@ class SyntheticSDFAsSource(beam.DoFn):
       self,
       element,
       restriction_tracker=beam.DoFn.RestrictionParam(
-        SyntheticSDFSourceRestrictionProvider())):
+          SyntheticSDFSourceRestrictionProvider())):
     for k in range(*restriction_tracker.current_restriction()):
       if not restriction_tracker.try_claim(k):
         return
@@ -717,34 +712,31 @@ def run(argv=None):
         for pc_no, pc in enumerate(pc_list):
           if barrier == 'shuffle':
             new_pc_list.append(
-              (pc |
-               ('shuffle %d.%d' % (
-                 step_no, pc_no)) >> ShuffleBarrier()))
+                (pc |
+                 ('shuffle %d.%d' % (step_no, pc_no)) >> ShuffleBarrier()))
           elif barrier == 'side-input':
             new_pc_list.append(
               (pc |
                ('side-input %d.%d' % (step_no, pc_no)) >> SideInputBarrier()))
           elif barrier == 'expand-gbk':
             new_pc_list.extend(
-              expand_using_gbk(
-                  ('expand-gbk %d.%d' % (step_no, pc_no)), pc))
+                expand_using_gbk(('expand-gbk %d.%d' % (step_no, pc_no)), pc))
           elif barrier == 'expand-second-output':
             new_pc_list.extend(
-              expand_using_second_output(
-                  ('expand-second-output %d.%d' % (step_no, pc_no)), pc))
+                expand_using_second_output(
+                    ('expand-second-output %d.%d' % (step_no, pc_no)), pc))
           elif barrier == 'merge-gbk':
             if pc_no % 2 == 0:
               new_pc_list.append(
-                merge_using_gbk(('merge-gbk %d.%d' % (step_no, pc_no)),
-                                pc, pc_list[pc_no + 1]))
+                  merge_using_gbk(('merge-gbk %d.%d' % (step_no, pc_no)),
+                                  pc, pc_list[pc_no + 1]))
             else:
               continue
           elif barrier == 'merge-side-input':
             if pc_no % 2 == 0:
               new_pc_list.append(
                   merge_using_side_input(
-                    ('merge-side-input %d.%d' % (
-                      step_no, pc_no)),
+                      ('merge-side-input %d.%d' % (step_no, pc_no)),
                     pc, pc_list[pc_no + 1]))
             else:
               continue
