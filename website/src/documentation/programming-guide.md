@@ -188,13 +188,17 @@ a command-line argument.
 
 You can add your own custom options in addition to the standard
 `PipelineOptions`. To add your own options, define an interface with getter and
-setter methods for each option, as in the following example:
+setter methods for each option, as in the following example for
+adding `input` and `output` custom options:
 
 ```java
 public interface MyOptions extends PipelineOptions {
-    String getMyCustomOption();
-    void setMyCustomOption(String myCustomOption);
-  }
+    String getInput();
+    void setInput(String input);
+    
+    String getOutput();
+    void setOutput(String output);
+}
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom
@@ -214,11 +218,16 @@ You set the description and default value using annotations, as follows:
 
 ```java
 public interface MyOptions extends PipelineOptions {
-    @Description("My custom command line argument.")
-    @Default.String("DEFAULT")
-    String getMyCustomOption();
-    void setMyCustomOption(String myCustomOption);
-  }
+    @Description("Input for the pipeline")
+    @Default.String("gs://my-bucket/input")
+    String getInput();
+    void setInput(String input);
+
+    @Description("Output for the pipeline")
+    @Default.String("gs://my-bucket/input")
+    String getOutput();
+    void setOutput(String output);
+}
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom_with_help_and_default
@@ -226,8 +235,8 @@ public interface MyOptions extends PipelineOptions {
 ```
 ```go
 var (
-  input = flag.String("input", "gs://my-bucket/input", "File(s) to read.")
-  output = flag.String("output", "gs://my-bucket/output", "Output file.")
+  input = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
+  output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
 )
 ```
 
@@ -251,7 +260,7 @@ MyOptions options = PipelineOptionsFactory.fromArgs(args)
                                                 .as(MyOptions.class);
 ```
 
-Now your pipeline can accept `--myCustomOption=value` as a command-line argument.
+Now your pipeline can accept `--input=value` and `--output=value` as command-line arguments.
 
 ## 3. PCollections {#pcollections}
 
@@ -302,7 +311,7 @@ public static void main(String[] args) {
 
     // Create the PCollection 'lines' by applying a 'Read' transform.
     PCollection<String> lines = p.apply(
-      "ReadMyFile", TextIO.read().from("protocol://path/to/some/inputData.txt"));
+      "ReadMyFile", TextIO.read().from("gs://some/inputData.txt"));
 }
 ```
 ```py
@@ -310,7 +319,7 @@ public static void main(String[] args) {
 %}
 ```
 ```go
-lines := textio.Read(s, "protocol://path/to/some/inputData.txt")
+lines := textio.Read(s, "gs://some/inputData.txt")
 ```
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -514,12 +523,14 @@ that you can apply multiple transforms to the same input `PCollection` to create
 a branching pipeline, like so:
 
 ```java
-[Output PCollection 1] = [Input PCollection].apply([Transform 1])
-[Output PCollection 2] = [Input PCollection].apply([Transform 2])
+[PCollection of database table rows] = [Database Table Reader].apply([Read Transform])
+[PCollection of 'A' names] = [PCollection of database table rows].apply([Transform A])
+[PCollection of 'B' names] = [PCollection of database table rows].apply([Transform B])
 ```
 ```py
-[Output PCollection 1] = [Input PCollection] | [Transform 1]
-[Output PCollection 2] = [Input PCollection] | [Transform 2]
+[PCollection of database table rows] = [Database Table Reader] | [Read Transform]
+[PCollection of 'A' names] = [PCollection of database table rows] | [Transform A]
+[PCollection of 'B' names] = [PCollection of database table rows] | [Transform B]
 ```
 
 The resulting workflow graph from the branching pipeline above looks like this.

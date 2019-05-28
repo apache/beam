@@ -44,6 +44,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -168,6 +169,9 @@ class MethodWrapper(object):
     self.has_userstate_arguments = False
     self.state_args_to_replace = {}
     self.timer_args_to_replace = {}
+    self.timestamp_arg_name = None
+    self.window_arg_name = None
+
     for kw, v in zip(args[-len(defaults):], defaults):
       if isinstance(v, core.DoFn.StateParam):
         self.state_args_to_replace[kw] = v.state_spec
@@ -175,15 +179,30 @@ class MethodWrapper(object):
       elif isinstance(v, core.DoFn.TimerParam):
         self.timer_args_to_replace[kw] = v.timer_spec
         self.has_userstate_arguments = True
+      elif v == core.DoFn.TimestampParam:
+        self.timestamp_arg_name = kw
+      elif v == core.DoFn.WindowParam:
+        self.window_arg_name = kw
 
-  def invoke_timer_callback(self, user_state_context, key, window):
-    # TODO(ccy): support WindowParam, TimestampParam and side inputs.
+  def invoke_timer_callback(self,
+                            user_state_context,
+                            key,
+                            window,
+                            timestamp):
+    # TODO(ccy): support side inputs.
+    kwargs = {}
     if self.has_userstate_arguments:
-      kwargs = {}
       for kw, state_spec in self.state_args_to_replace.items():
         kwargs[kw] = user_state_context.get_state(state_spec, key, window)
       for kw, timer_spec in self.timer_args_to_replace.items():
         kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
+
+    if self.timestamp_arg_name:
+      kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
+    if self.window_arg_name:
+      kwargs[self.window_arg_name] = window
+
+    if kwargs:
       return self.method_value(**kwargs)
     else:
       return self.method_value()
@@ -384,7 +403,7 @@ class DoFnInvoker(object):
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window,)),
         self.signature.timer_methods[timer_spec].invoke_timer_callback(
-            self.user_state_context, key, window))
+            self.user_state_context, key, window, timestamp))
 
   def invoke_split(self, element, restriction):
     return self.signature.split_method.method_value(element, restriction)

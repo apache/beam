@@ -15,17 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
+package org.apache.beam.runners.core.construction;
 
-import java.io.DataInputStream;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_URN;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
 
-/** This interface is used to restore key-groups state. */
-public interface KeyGroupRestoringOperator {
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
+/** Tests for {@link ReshuffleTranslation}. */
+@RunWith(JUnit4.class)
+public class ReshuffleTranslationTest {
+
   /**
-   * Restore the state for a given {@code keyGroupIndex}.
-   *
-   * @param keyGroupIndex the id of the key-group to be put in the snapshot.
-   * @param in the stream to read from.
+   * Tests that the translator is registered so the URN can be retrieved (the only thing you can
+   * meaningfully do with a {@link Reshuffle}).
    */
-  void restoreKeyGroupState(int keyGroupIndex, DataInputStream in) throws Exception;
+  @Test
+  public void testUrnRetrievable() throws Exception {
+    assertThat(PTransformTranslation.urnForTransform(Reshuffle.of()), equalTo(RESHUFFLE_URN));
+  }
 }

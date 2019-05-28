@@ -1101,5 +1101,31 @@ class DecoratorHelpers(TypeHintTestCase):
                         getcallargs_forhints(str.join, str, list))
 
 
+class TestCoerceToKvType(TypeHintTestCase):
+  def test_coercion_success(self):
+    cases = [
+        ((Any, ), typehints.KV[Any, Any]),
+        ((typehints.KV[Any, Any],), typehints.KV[Any, Any]),
+        ((typehints.Tuple[str, int],), typehints.KV[str, int]),
+    ]
+    for args, expected in cases:
+      self.assertEqual(typehints.coerce_to_kv_type(*args), expected)
+      self.assertCompatible(args[0], expected)
+
+  def test_coercion_fail(self):
+    cases = [
+        ((str, 'label', 'producer'), r'producer.*compatible'),
+        ((Tuple[str],), r'two components'),
+        # It seems that the only Unions that may be successfully coerced are not
+        # Unions but Any (e.g. Union[Any, Tuple[Any, Any]] is Any).
+        ((Union[str, int],), r'compatible'),
+        ((Union,), r'compatible'),
+        ((typehints.List[Any],), r'compatible'),
+    ]
+    for args, regex in cases:
+      with self.assertRaisesRegexp(ValueError, regex):
+        typehints.coerce_to_kv_type(*args)
+
+
 if __name__ == '__main__':
   unittest.main()

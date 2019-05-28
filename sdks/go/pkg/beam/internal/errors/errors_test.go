@@ -116,10 +116,10 @@ func TestTopLevelMsg(t *testing.T) {
 	}{
 		{
 			err:  New(base),
-			want: base,
+			want: "",
 		}, {
 			err:  Wrap(WithContext(New(base), ctx1), msg1),
-			want: base,
+			want: "",
 		}, {
 			err:  SetTopLevelMsg(New(base), top1),
 			want: top1,

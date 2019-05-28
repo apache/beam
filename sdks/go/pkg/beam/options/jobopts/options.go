@@ -61,6 +61,10 @@ var (
 
 	// Async determines whether to wait for job completion.
 	Async = flag.Bool("async", false, "Do not wait for job completion.")
+
+	// Strict mode applies additional validation to user pipelines before
+	// executing them and fails early if the pipelines don't pass.
+	Strict = flag.Bool("beam_strict", false, "Apply additional validation to pipelines.")
 )
 
 // GetEndpoint returns the endpoint, if non empty and exits otherwise. Runners

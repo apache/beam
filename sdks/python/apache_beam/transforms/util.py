@@ -62,6 +62,7 @@ __all__ = [
     'RemoveDuplicates',
     'Reshuffle',
     'Values',
+    'WithKeys'
     ]
 
 K = typehints.TypeVariable('K')
@@ -653,3 +654,15 @@ class Reshuffle(PTransform):
   @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
   def from_runner_api_parameter(unused_parameter, unused_context):
     return Reshuffle()
+
+
+@ptransform_fn
+def WithKeys(pcoll, k):
+  """PTransform that takes a PCollection, and either a constant key or a
+  callable, and returns a PCollection of (K, V), where each of the values in
+  the input PCollection has been paired with either the constant key or a key
+  computed from the value.
+  """
+  if callable(k):
+    return pcoll | Map(lambda v: (k(v), v))
+  return pcoll | Map(lambda v: (k, v))

@@ -818,7 +818,12 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
-          target project.fileTree(project.projectDir) {
+          def targetFiles = project.fileTree(project.projectDir)
+          // Explicitly add source sets because projects may have source located outside of the project directory
+          project.sourceSets.each { sourceSet ->
+            targetFiles += sourceSet.allJava
+          }
+          target targetFiles.matching {
             include '**/*.java'
             exclude '**/archetype-resources/src/**'
             exclude '**/build/generated/**'
@@ -1699,7 +1704,7 @@ class BeamModulePlugin implements Plugin<Project> {
           // Build artifact
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcRoot}/sdks/python && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
+            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcRoot}/sdks/python && python setup.py -q sdist --formats zip,gztar --dist-dir ${project.buildDir}"
           }
           def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
           println "sdist archive name: ${collection.singleFile}"

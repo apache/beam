@@ -25,6 +25,7 @@ from __future__ import division
 
 import json
 import logging
+import sys
 import threading
 import time
 import traceback
@@ -430,6 +431,14 @@ class DataflowRunner(PipelineRunner):
             'It can only be used when FnAPI is enabled.')
       else:
         debug_options.add_experiment('use_staged_dataflow_worker_jar')
+
+    # Make Dataflow workers use FastAvro on Python 3 unless use_avro experiment
+    # is set. Note that use_avro is only interpreted by the Dataflow runner
+    # at job submission and is not interpreted by Dataflow service or workers,
+    # which by default use avro library unless use_fastavro experiment is set.
+    if sys.version_info[0] > 2 and (
+        not debug_options.lookup_experiment('use_avro')):
+      debug_options.add_experiment('use_fastavro')
 
     self.job = apiclient.Job(options, self.proto_pipeline)
 

@@ -45,7 +45,7 @@ mapQualifier: '{}'
             | '{*}'
             ;
 
-IDENTIFIER: [a-zA-Z0-9]+ ;
+IDENTIFIER: [a-zA-Z0-9_]+ ;
 
 WILDCARD: '*';
 

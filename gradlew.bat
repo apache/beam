@@ -17,13 +17,10 @@
 @rem ################################################################################
 @echo off
 
+pushd %~dp0
+
 set CMD_LINE_ARGS=%*
 set ORG_CMD_LINE_ARGS=%*
-
-echo Executing
-echo.
-echo   gradlew %CMD_LINE_ARGS%
-echo.
 
 for /F "tokens=1,2*" %%i in (project-mappings) do call :process %%i %%j
 
@@ -36,7 +33,7 @@ if not "%ORG_CMD_LINE_ARGS%" == "%CMD_LINE_ARGS%" (
   echo.
 )
 
-gradlew_orig.bat %CMD_LINE_ARGS%
+gradlew_orig.bat %CMD_LINE_ARGS% & popd
 EXIT /B 0
 
 

@@ -32,12 +32,14 @@ import apache_beam.transforms.combiners as combine
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import window
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.typehints import TypeCheckError
 
 
 class CombineTest(unittest.TestCase):
@@ -390,6 +392,93 @@ class CombineTest(unittest.TestCase):
           | beam.Create(range(100))
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
+
+
+class LatestTest(unittest.TestCase):
+
+  def test_globally(self):
+    l = [window.TimestampedValue(3, 100),
+         window.TimestampedValue(1, 200),
+         window.TimestampedValue(2, 300)]
+    with TestPipeline() as p:
+      # Map(lambda x: x) PTransform is added after Create here, because when
+      # a PCollection of TimestampedValues is created with Create PTransform,
+      # the timestamps are not assigned to it. Adding a Map forces the
+      # PCollection to go through a DoFn so that the PCollection consists of
+      # the elements with timestamps assigned to them instead of a PCollection
+      # of TimestampedValue(element, timestamp).
+      pc = p | Create(l) | Map(lambda x: x)
+      latest = pc | combine.Latest.Globally()
+      assert_that(latest, equal_to([2]))
+
+  def test_globally_empty(self):
+    l = []
+    with TestPipeline() as p:
+      pc = p | Create(l) | Map(lambda x: x)
+      latest = pc | combine.Latest.Globally()
+      assert_that(latest, equal_to([None]))
+
+  def test_per_key(self):
+    l = [window.TimestampedValue(('a', 1), 300),
+         window.TimestampedValue(('b', 3), 100),
+         window.TimestampedValue(('a', 2), 200)]
+    with TestPipeline() as p:
+      pc = p | Create(l) | Map(lambda x: x)
+      latest = pc | combine.Latest.PerKey()
+      assert_that(latest, equal_to([('a', 1), ('b', 3)]))
+
+  def test_per_key_empty(self):
+    l = []
+    with TestPipeline() as p:
+      pc = p | Create(l) | Map(lambda x: x)
+      latest = pc | combine.Latest.PerKey()
+      assert_that(latest, equal_to([]))
+
+
+class LatestCombineFnTest(unittest.TestCase):
+
+  def setUp(self):
+    self.fn = combine.LatestCombineFn()
+
+  def test_create_accumulator(self):
+    accumulator = self.fn.create_accumulator()
+    self.assertEquals(accumulator, (None, window.MIN_TIMESTAMP))
+
+  def test_add_input(self):
+    accumulator = self.fn.create_accumulator()
+    element = (1, 100)
+    new_accumulator = self.fn.add_input(accumulator, element)
+    self.assertEquals(new_accumulator, (1, 100))
+
+  def test_merge_accumulators(self):
+    accumulators = [(2, 400), (5, 100), (9, 200)]
+    merged_accumulator = self.fn.merge_accumulators(accumulators)
+    self.assertEquals(merged_accumulator, (2, 400))
+
+  def test_extract_output(self):
+    accumulator = (1, 100)
+    output = self.fn.extract_output(accumulator)
+    self.assertEquals(output, 1)
+
+  def test_with_input_types_decorator_violation(self):
+    l_int = [1, 2, 3]
+    l_dict = [{'a': 3}, {'g': 5}, {'r': 8}]
+    l_3_tuple = [(12, 31, 41), (12, 34, 34), (84, 92, 74)]
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_int)
+        _ = pc | beam.CombineGlobally(self.fn)
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_dict)
+        _ = pc | beam.CombineGlobally(self.fn)
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_3_tuple)
+        _ = pc | beam.CombineGlobally(self.fn)
 
 
 if __name__ == '__main__':

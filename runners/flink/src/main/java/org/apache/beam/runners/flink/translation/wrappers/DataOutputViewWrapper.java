@@ -28,13 +28,9 @@ import org.apache.flink.core.memory.DataOutputView;
  */
 public class DataOutputViewWrapper extends OutputStream {
 
-  private DataOutputView outputView;
+  private final DataOutputView outputView;
 
   public DataOutputViewWrapper(DataOutputView outputView) {
-    this.outputView = outputView;
-  }
-
-  public void setOutputView(DataOutputView outputView) {
     this.outputView = outputView;
   }
 

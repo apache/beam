@@ -27,7 +27,6 @@ package vet
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -43,6 +42,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 func init() {
@@ -54,20 +54,22 @@ func init() {
 type disabledResolver bool
 
 func (p disabledResolver) Sym2Addr(name string) (uintptr, error) {
-	return 0, fmt.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
+	return 0, errors.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
 }
 
 // Execute evaluates the pipeline on whether it can run without reflection.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
 	e, err := Evaluate(ctx, p)
 	if err != nil {
-		return err
+		return errors.WithContext(err, "validating pipeline with vet runner")
 	}
 	if !e.Performant() {
 		e.summary()
 		e.Generate("main")
 		e.diag("*/\n")
-		return fmt.Errorf("pipeline is not performant, see diagnostic summary:\n%s\n%s", string(e.d.Bytes()), string(e.Bytes()))
+		err := errors.Errorf("pipeline is not performant, see diagnostic summary:\n%s\n%s", string(e.d.Bytes()), string(e.Bytes()))
+		err = errors.WithContext(err, "validating pipeline with vet runner")
+		return errors.SetTopLevelMsg(err, "pipeline is not performant")
 	}
 	// Pipeline nas no further tasks.
 	return nil
@@ -203,7 +205,7 @@ func (e *Eval) summary() {
 	}
 }
 
-// NameType turns a reflect.Type into a string based on it's name.
+// NameType turns a reflect.Type into a string based on its name.
 // It prefixes Emit or Iter if the function satisfies the constraints of those types.
 func NameType(t reflect.Type) string {
 	if emt, ok := makeEmitter(t); ok {
