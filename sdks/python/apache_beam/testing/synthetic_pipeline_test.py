@@ -205,7 +205,7 @@ class SyntheticPipelineTest(unittest.TestCase):
         input_spec(1000, 1, 1, 'zipf', 3, 10))
     splits = source.split(100)
     sources_info = [(split.source, split.start_position, split.stop_position)
-                   for split in splits]
+                    for split in splits]
     self.assertEquals(10, len(sources_info))
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), sources_info)
