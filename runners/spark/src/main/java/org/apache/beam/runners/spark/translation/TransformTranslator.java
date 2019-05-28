@@ -121,7 +121,6 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, V>>> inRDD =
             ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
-        final NamedAggregatorsAccumulator accum = AggregatorsAccumulator.getInstance();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
@@ -155,8 +154,7 @@ public final class TransformTranslator {
                       windowingStrategy,
                       new TranslationUtils.InMemoryStateInternalsFactory<>(),
                       SystemReduceFn.buffering(coder.getValueCoder()),
-                      context.getSerializableOptions(),
-                      accum));
+                      context.getSerializableOptions()));
         }
         context.putDataset(transform, new BoundedDataset<>(groupedByKey));
       }
