@@ -263,27 +263,24 @@ class Coder(object):
   def to_runner_api(self, context):
     urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.SdkFunctionSpec(
-            environment_id=(
-                context.default_environment_id() if context else None),
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=urn,
-                payload=typed_param
-                if isinstance(typed_param, (bytes, type(None)))
-                else typed_param.SerializeToString())),
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=urn,
+            payload=typed_param
+            if isinstance(typed_param, (bytes, type(None)))
+            else typed_param.SerializeToString()),
         component_coder_ids=[context.coders.get_id(c) for c in components])
 
   @classmethod
   def from_runner_api(cls, coder_proto, context):
-    """Converts from an SdkFunctionSpec to a Fn object.
+    """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.
     """
-    parameter_type, constructor = cls._known_urns[coder_proto.spec.spec.urn]
+    parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
     try:
       return constructor(
           proto_utils.parse_Bytes(
-              coder_proto.spec.spec.payload, parameter_type),
+              coder_proto.spec.payload, parameter_type),
           [context.coders.get_by_id(c)
            for c in coder_proto.component_coder_ids],
           context)
