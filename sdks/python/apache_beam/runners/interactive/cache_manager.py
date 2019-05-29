@@ -68,8 +68,8 @@ class CacheManager(object):
       *labels: List of labels for PCollection instance.
 
     Returns:
-      (List[PCollection])
-      (int) the version number
+      Tuple[List[Any], int]: A tuple containing a list of items in the
+        PCollection and the version number.
 
     It is possible that the version numbers from read() and_latest_version()
     are different. This usually means that the cache's been evicted (thus
