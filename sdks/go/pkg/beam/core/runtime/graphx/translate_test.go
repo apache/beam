@@ -41,22 +41,36 @@ func pickFn(a int, small, big func(int)) {
 	}
 }
 
-func pick(t *testing.T, g *graph.Graph) *graph.MultiEdge {
-	dofn, err := graph.NewDoFn(pickFn)
+func pickSideFn(a, side int, small, big func(int)) {
+	if a < side {
+		small(a)
+	} else {
+		big(a)
+	}
+}
+
+func addDoFn(t *testing.T, g *graph.Graph, fn interface{}, scope *graph.Scope, inputs []*graph.Node, outputCoders []*coder.Coder) {
+	t.Helper()
+	dofn, err := graph.NewDoFn(fn)
 	if err != nil {
 		t.Fatal(err)
 	}
+	e, err := graph.NewParDo(g, scope, dofn, inputs, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(outputCoders) != len(e.Output) {
+		t.Fatalf("%v has %d outputs, but only got %d coders", dofn.Name(), len(e.Output), len(outputCoders))
+	}
+	for i, c := range outputCoders {
+		e.Output[i].To.Coder = c
+	}
+}
 
+func newIntInput(g *graph.Graph) *graph.Node {
 	in := g.NewNode(intT(), window.DefaultWindowingStrategy(), true)
 	in.Coder = intCoder()
-
-	e, err := graph.NewParDo(g, g.Root(), dofn, []*graph.Node{in}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.Output[0].To.Coder = intCoder()
-	e.Output[1].To.Coder = intCoder()
-	return e
+	return in
 }
 
 func intT() typex.FullType {
@@ -67,30 +81,82 @@ func intCoder() *coder.Coder {
 	return custom("int", reflectx.Int)
 }
 
-// TestParDo verifies that ParDo can be serialized.
-func TestParDo(t *testing.T) {
-	g := graph.New()
-	pick(t, g)
+// TestMarshal verifies that ParDo can be serialized.
+func TestMarshal(t *testing.T) {
+	tests := []struct {
+		name                     string
+		makeGraph                func(t *testing.T, g *graph.Graph)
+		edges, transforms, roots int
+	}{
+		{
+			name: "ParDo",
+			makeGraph: func(t *testing.T, g *graph.Graph) {
+				addDoFn(t, g, pickFn, g.Root(), []*graph.Node{newIntInput(g)}, []*coder.Coder{intCoder(), intCoder()})
+			},
+			edges:      1,
+			transforms: 1,
+			roots:      1,
+		}, {
+			name: "ScopedParDo",
+			makeGraph: func(t *testing.T, g *graph.Graph) {
+				addDoFn(t, g, pickFn, g.NewScope(g.Root(), "sub"), []*graph.Node{newIntInput(g)}, []*coder.Coder{intCoder(), intCoder()})
+			},
+			edges:      1,
+			transforms: 2,
+			roots:      1,
+		}, {
+			name: "SideInput",
+			makeGraph: func(t *testing.T, g *graph.Graph) {
+				in := newIntInput(g)
+				side := newIntInput(g)
+				addDoFn(t, g, pickSideFn, g.Root(), []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()})
+			},
+			edges:      1,
+			transforms: 2,
+			roots:      2,
+		}, {
+			name: "ScopedSideInput",
+			makeGraph: func(t *testing.T, g *graph.Graph) {
+				in := newIntInput(g)
+				side := newIntInput(g)
+				addDoFn(t, g, pickSideFn, g.NewScope(g.Root(), "sub"), []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()})
+			},
+			edges:      1,
+			transforms: 3,
+			roots:      1,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
 
-	edges, _, err := g.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(edges) != 1 {
-		t.Fatal("expected a single edge")
-	}
+			g := graph.New()
+			test.makeGraph(t, g)
 
-	payload, err := proto.Marshal(&pb.DockerPayload{ContainerImage: "foo"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, err := graphx.Marshal(edges,
-		&graphx.Options{Environment: pb.Environment{Urn: "beam:env:docker:v1", Payload: payload}})
-	if err != nil {
-		t.Fatal(err)
-	}
+			edges, _, err := g.Build()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(edges) != test.edges {
+				t.Fatal("expected a single edge")
+			}
 
-	if len(p.GetComponents().GetTransforms()) != 1 {
-		t.Errorf("bad ParDo translation: %v", proto.MarshalTextString(p))
+			payload, err := proto.Marshal(&pb.DockerPayload{ContainerImage: "foo"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			p, err := graphx.Marshal(edges,
+				&graphx.Options{Environment: pb.Environment{Urn: "beam:env:docker:v1", Payload: payload}})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got, want := len(p.GetComponents().GetTransforms()), test.transforms; got != want {
+				t.Errorf("got %d transforms, want %d : %v", got, want, proto.MarshalTextString(p))
+			}
+			if got, want := len(p.GetRootTransformIds()), test.roots; got != want {
+				t.Errorf("got %d roots, want %d : %v", got, want, proto.MarshalTextString(p))
+			}
+		})
 	}
 }
