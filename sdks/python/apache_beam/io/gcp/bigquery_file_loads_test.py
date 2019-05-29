@@ -33,6 +33,7 @@ from hamcrest.core.core.is_ import is_
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
@@ -83,6 +84,23 @@ _DISTINCT_DESTINATIONS = list(
 _ELEMENTS = list([json.loads(elm[1]) for elm in _DESTINATION_ELEMENT_PAIRS])
 
 
+class CustomRowCoder(coders.Coder):
+  """
+  Custom row coder that also expects strings as input data when encoding
+  """
+
+  def __init__(self):
+    self.coder = bigquery_tools.RowAsDictJsonCoder()
+
+  def encode(self, table_row):
+    if type(table_row) == str:
+      table_row = json.loads(table_row)
+    return self.coder.encode(table_row)
+
+  def decode(self, encoded_table_row):
+    return self.coder.decode(encoded_table_row)
+
+
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   maxDiff = None
@@ -104,7 +122,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   def test_files_created(self):
     """Test that the files are created and written."""
 
-    fn = bqfl.WriteRecordsToFile()
+    fn = bqfl.WriteRecordsToFile(coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_files_created(output_pcs):
@@ -133,7 +151,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     file length is very small, so only a couple records fit in each file.
     """
 
-    fn = bqfl.WriteRecordsToFile(max_file_size=50)
+    fn = bqfl.WriteRecordsToFile(max_file_size=50, coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
@@ -163,12 +181,13 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   def test_records_are_spilled(self):
     """Forces records to be written to many files.
 
-    For each destination multiple files are necessary, and at most two files can
-    be created. This forces records to be spilled to the next stage of
+    For each destination multiple files are necessary, and at most two files
+    can be created. This forces records to be spilled to the next stage of
     processing.
     """
 
-    fn = bqfl.WriteRecordsToFile(max_files_per_bundle=2)
+    fn = bqfl.WriteRecordsToFile(max_files_per_bundle=2,
+                                 coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
@@ -222,7 +241,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
   def test_files_are_created(self):
     """Test that the files are created and written."""
 
-    fn = bqfl.WriteGroupedRecordsToFile()
+    fn = bqfl.WriteGroupedRecordsToFile(coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_files_created(output_pc):
@@ -249,7 +268,8 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     For each destination multiple files are necessary. This is because the max
     file length is very small, so only a couple records fit in each file.
     """
-    fn = bqfl.WriteGroupedRecordsToFile(max_file_size=50)
+    fn = bqfl.WriteGroupedRecordsToFile(max_file_size=50,
+                                        coder=CustomRowCoder())
     self.tmpdir = self._new_tempdir()
 
     def check_multiple_files(output_pc):
@@ -296,7 +316,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         destination,
         custom_gcs_temp_location=self._new_tempdir(),
         test_client=bq_client,
-        validate=False)
+        validate=False,
+        coder=CustomRowCoder())
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:
