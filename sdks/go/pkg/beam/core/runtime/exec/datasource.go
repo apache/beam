@@ -19,10 +19,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync/atomic"
+	"math"
+	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -33,9 +35,12 @@ type DataSource struct {
 	Coder *coder.Coder
 	Out   Node
 
-	source DataManager
-	count  int64
-	start  time.Time
+	source   DataManager
+	count    int64
+	splitPos int64
+	start    time.Time
+
+	mu sync.Mutex
 }
 
 func (n *DataSource) ID() UnitID {
@@ -47,9 +52,12 @@ func (n *DataSource) Up(ctx context.Context) error {
 }
 
 func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContext) error {
+	n.mu.Lock()
 	n.source = data.Data
 	n.start = time.Now()
-	atomic.StoreInt64(&n.count, 0)
+	n.count = 0
+	n.splitPos = math.MaxInt64
+	n.mu.Unlock()
 	return n.Out.StartBundle(ctx, id, data)
 }
 
@@ -69,19 +77,22 @@ func (n *DataSource) Process(ctx context.Context) error {
 		cv := MakeElementDecoder(c.Components[1])
 
 		for {
+			if n.IncrementCountAndCheckSplit(ctx) {
+				return nil
+			}
 			ws, t, err := DecodeWindowedValueHeader(wc, r)
 			if err != nil {
 				if err == io.EOF {
 					return nil
 				}
-				return fmt.Errorf("source failed: %v", err)
+				return errors.Wrap(err, "source failed")
 			}
 
 			// Decode key
 
 			key, err := ck.Decode(r)
 			if err != nil {
-				return fmt.Errorf("source decode failed: %v", err)
+				return errors.Wrap(err, "source decode failed")
 			}
 			key.Timestamp = t
 			key.Windows = ws
@@ -94,19 +105,17 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 			size, err := coder.DecodeInt32(r)
 			if err != nil {
-				return fmt.Errorf("stream size decoding failed: %v", err)
+				return errors.Wrap(err, "stream size decoding failed")
 			}
 
 			if size > -1 {
 				// Single chunk stream.
 
 				// log.Printf("Fixed size=%v", size)
-				atomic.AddInt64(&n.count, int64(size))
-
 				for i := int32(0); i < size; i++ {
 					value, err := cv.Decode(r)
 					if err != nil {
-						return fmt.Errorf("stream value decode failed: %v", err)
+						return errors.Wrap(err, "stream value decode failed")
 					}
 					buf = append(buf, *value)
 				}
@@ -116,7 +125,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				for {
 					chunk, err := coder.DecodeVarUint64(r)
 					if err != nil {
-						return fmt.Errorf("stream chunk size decoding failed: %v", err)
+						return errors.Wrap(err, "stream chunk size decoding failed")
 					}
 
 					// log.Printf("Chunk size=%v", chunk)
@@ -125,11 +134,10 @@ func (n *DataSource) Process(ctx context.Context) error {
 						break
 					}
 
-					atomic.AddInt64(&n.count, int64(chunk))
 					for i := uint64(0); i < chunk; i++ {
 						value, err := cv.Decode(r)
 						if err != nil {
-							return fmt.Errorf("stream value decode failed: %v", err)
+							return errors.Wrap(err, "stream value decode failed")
 						}
 						buf = append(buf, *value)
 					}
@@ -146,18 +154,21 @@ func (n *DataSource) Process(ctx context.Context) error {
 		ec := MakeElementDecoder(c)
 
 		for {
-			atomic.AddInt64(&n.count, 1)
+			if n.IncrementCountAndCheckSplit(ctx) {
+				return nil
+			}
+
 			ws, t, err := DecodeWindowedValueHeader(wc, r)
 			if err != nil {
 				if err == io.EOF {
 					return nil
 				}
-				return fmt.Errorf("source failed: %v", err)
+				return errors.Wrap(err, "source failed")
 			}
 
 			elm, err := ec.Decode(r)
 			if err != nil {
-				return fmt.Errorf("source decode failed: %v", err)
+				return errors.Wrap(err, "source decode failed")
 			}
 			elm.Timestamp = t
 			elm.Windows = ws
@@ -172,10 +183,13 @@ func (n *DataSource) Process(ctx context.Context) error {
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
-	log.Infof(ctx, "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	log.Infof(ctx, "DataSource: %d elements in %d ns", n.count, time.Now().Sub(n.start))
 	n.source = nil
 	err := n.Out.FinishBundle(ctx)
-	atomic.StoreInt64(&n.count, 0)
+	n.count = 0
+	n.splitPos = math.MaxInt64
 	return err
 }
 
@@ -186,6 +200,21 @@ func (n *DataSource) Down(ctx context.Context) error {
 
 func (n *DataSource) String() string {
 	return fmt.Sprintf("DataSource[%v] Coder:%v Out:%v", n.SID, n.Coder, n.Out.ID())
+}
+
+// IncrementCountAndCheckSplit increments DataSource.count by one and checks if
+// the caller should abort further element processing, and finish the bundle.
+// Returns true if the new value of count is greater than or equal to the split
+// point, and false otherwise.
+func (n *DataSource) IncrementCountAndCheckSplit(ctx context.Context) bool {
+	b := false
+	n.mu.Lock()
+	n.count++
+	if n.count >= n.splitPos {
+		b = true
+	}
+	n.mu.Unlock()
+	return b
 }
 
 // ProgressReportSnapshot captures the progress reading an input source.
@@ -199,5 +228,36 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	if n == nil {
 		return ProgressReportSnapshot{}
 	}
-	return ProgressReportSnapshot{n.SID.Target.ID, n.SID.Target.Name, atomic.LoadInt64(&n.count)}
+	n.mu.Lock()
+	c := n.count
+	n.mu.Unlock()
+	return ProgressReportSnapshot{n.SID.Target.ID, n.SID.Target.Name, c}
+}
+
+// Split takes a sorted set of potential split points, selects and actuates
+// split on an appropriate split point, and returns the selected split point
+// if successful. Returns an error when unable to split.
+func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
+	if splits == nil {
+		return 0, fmt.Errorf("failed to split: requested splits were empty")
+	}
+	if n == nil {
+		return 0, fmt.Errorf("failed to split at requested splits: {%v}, DataSource not initialized", splits)
+	}
+	n.mu.Lock()
+	c := n.count
+	// Find the smallest split index that we haven't yet processed, and set
+	// the promised split position to this value.
+	for _, s := range splits {
+		if s >= c {
+			n.splitPos = s
+			fs := n.splitPos
+			n.mu.Unlock()
+			return fs, nil
+		}
+	}
+	n.mu.Unlock()
+	// If we can't find a suitable split point from the requested choices,
+	// return an error.
+	return 0, fmt.Errorf("failed to split at requested splits: {%v}, DataSource at index: %v", splits, c)
 }

@@ -39,11 +39,11 @@ public class BeamSqlCli {
 
   public BeamSqlCli metaStore(MetaStore metaStore, boolean autoLoadUdfUdaf) {
     this.metaStore = metaStore;
-    this.env = BeamSqlEnv.withTableProvider(metaStore);
+    BeamSqlEnv.BeamSqlEnvBuilder builder = BeamSqlEnv.builder(metaStore);
     if (autoLoadUdfUdaf) {
-      env.loadUdfUdafFromProvider();
+      builder.autoLoadUserDefinedFunctions();
     }
-
+    this.env = builder.build();
     return this;
   }
 

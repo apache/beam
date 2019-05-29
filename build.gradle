@@ -100,6 +100,10 @@ rat {
     "ownership/**/*",
     "**/OWNERS",
 
+    // FIXME add licencse header
+    "project-mappings",
+    "deprecation-warning.txt",
+
     // Json doesn't support comments.
     "**/*.json",
   ]
@@ -125,48 +129,48 @@ check.dependsOn rat
 task javaPreCommit() {
   // We need to list the model/* builds since sdks/java/core doesn't
   // depend on any of the model.
-  dependsOn ":beam-model-pipeline:build"
-  dependsOn ":beam-model-job-management:build"
-  dependsOn ":beam-model-fn-execution:build"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:build"
-  dependsOn ":beam-sdks-java-core:buildNeeded"
-  dependsOn ":beam-sdks-java-core:buildDependents"
-  dependsOn ":beam-examples-java:preCommit"
-  dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
-  dependsOn ":beam-sdks-java-javadoc:allJavadoc"
-  dependsOn ":beam-runners-direct-java:needsRunnerTests"
+  dependsOn ":model:pipeline:build"
+  dependsOn ":model:job-management:build"
+  dependsOn ":model:fn-execution:build"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:build"
+  dependsOn ":sdks:java:core:buildNeeded"
+  dependsOn ":sdks:java:core:buildDependents"
+  dependsOn ":examples:java:preCommit"
+  dependsOn ":sdks:java:extensions:sql:jdbc:preCommit"
+  dependsOn ":sdks:java:javadoc:allJavadoc"
+  dependsOn ":runners:direct-java:needsRunnerTests"
 }
 
 task javaPreCommitPortabilityApi() {
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommitPortabilityApi"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:build"
+  dependsOn ":runners:google-cloud-dataflow-java:examples:verifyPortabilityApi"
 }
 
 task javaPostCommit() {
-  dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
-  dependsOn ":beam-sdks-java-extensions-google-cloud-platform-core:postCommit"
-  dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
+  dependsOn ":runners:google-cloud-dataflow-java:postCommit"
+  dependsOn ":sdks:java:extensions:google-cloud-platform-core:postCommit"
+  dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
 }
 
 task sqlPostCommit() {
-  dependsOn ":beam-sdks-java-extensions-sql:postCommit"
-  dependsOn ":beam-sdks-java-extensions-sql-jdbc:postCommit"
+  dependsOn ":sdks:java:extensions:sql:postCommit"
+  dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
 }
 
 task javaPostCommitPortabilityApi () {
-  dependsOn ":beam-runners-google-cloud-dataflow-java:postCommitPortabilityApi"
+  dependsOn ":runners:google-cloud-dataflow-java:postCommitPortabilityApi"
 }
 
 task goPreCommit() {
-  dependsOn ":beam-sdks-go:goTest"
+  dependsOn ":sdks:go:goTest"
 
-  dependsOn ":beam-sdks-go-examples:build"
-  dependsOn ":beam-sdks-go-test:build"
+  dependsOn ":sdks:go:examples:build"
+  dependsOn ":sdks:go:test:build"
 
   // Ensure all container Go boot code builds as well.
-  dependsOn ":beam-sdks-java-container:build"
-  dependsOn ":beam-sdks-python-container:build"
-  dependsOn ":beam-sdks-go-container:build"
+  dependsOn ":sdks:java:container:build"
+  dependsOn ":sdks:python:container:build"
+  dependsOn ":sdks:go:container:build"
 }
 
 task goPostCommit() {
@@ -180,33 +184,38 @@ task goIntegrationTests() {
       args '-c', './sdks/go/test/run_integration_tests.sh'
     }
   }
-  dependsOn ":beam-sdks-go-test:build"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn ":sdks:go:test:build"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 }
 
 task pythonPreCommit() {
-  dependsOn ":beam-sdks-python:preCommitPy2"
-  dependsOn ":beam-sdks-python-test-suites-tox-py35:preCommitPy35"
-  dependsOn ":beam-sdks-python-test-suites-tox-py36:preCommitPy36"
-  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
+  dependsOn ":sdks:python:preCommitPy2"
+  dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
+  dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
+  dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
+  dependsOn ":sdks:python:test-suites:dataflow:preCommitIT"
 }
 
 task pythonPostCommit() {
-  dependsOn ":beam-sdks-python:postCommit"
+  dependsOn ":sdks:python:postCommit"
 }
 
 task python3PostCommit() {
-  dependsOn ":beam-sdks-python-test-suites-dataflow-py3:postCommitIT"
-  dependsOn ":beam-sdks-python-test-suites-dataflow-py3:validatesRunnerBatchTests"
-  dependsOn ":beam-sdks-python-test-suites-direct-py3:postCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests"
+  dependsOn ":sdks:python:test-suites:direct:py35:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py36:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
 }
 
 task portablePythonPreCommit() {
-  dependsOn ":beam-sdks-python:portablePreCommit"
+  dependsOn ":sdks:python:portablePreCommit"
 }
 
 task websitePreCommit() {
-  dependsOn ":beam-website:preCommit"
+  dependsOn ":website:preCommit"
 }
 
 task communityMetricsPreCommit() {
@@ -218,13 +227,13 @@ task communityMetricsProber() {
 }
 
 task javaExamplesDataflowPrecommit() {
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
+  dependsOn ":runners:google-cloud-dataflow-java:examples:preCommit"
+  dependsOn ":runners:google-cloud-dataflow-java:examples-streaming:preCommit"
 }
 
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
-  dependsOn ":beam-sdks-python:dependencyUpdates"
+  dependsOn ":sdks:python:dependencyUpdates"
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

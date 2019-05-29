@@ -78,7 +78,9 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
     Map<String, DataflowStepContext> stepContextMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user:anyNamespace:anyName")
+            .setUrn("beam:metric:user")
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyName")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace")
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
     UserMonitoringInfoToCounterUpdateTransformer testObject =
@@ -98,7 +100,9 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
 
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user:anyNamespace:anyName")
+            .setUrn("beam:metric:user")
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyName")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace")
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
     UserMonitoringInfoToCounterUpdateTransformer testObject =

@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
@@ -33,8 +34,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test for {@link Select}. */
+@RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class SelectTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -127,52 +132,6 @@ public class SelectTest {
     }
   }
 
-  /** A pojo matching the schema results from selection field2.*. */
-  @DefaultSchema(JavaFieldSchema.class)
-  static class POJO2NestedAll {
-    POJO1 field2 = new POJO1();
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      POJO2NestedAll that = (POJO2NestedAll) o;
-      return Objects.equals(field2, that.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field2);
-    }
-  }
-
-  /** A pojo matching the schema results from selection field2.field1, field2.field3. */
-  @DefaultSchema(JavaFieldSchema.class)
-  static class POJO2NestedPartial {
-    POJO1Selected field2 = new POJO1Selected();
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      POJO2NestedPartial that = (POJO2NestedPartial) o;
-      return Objects.equals(field2, that.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field2);
-    }
-  }
-
   @Test
   @Category(NeedsRunner.class)
   public void testSelectMissingFieldName() {
@@ -216,24 +175,36 @@ public class SelectTest {
   @Test
   @Category(NeedsRunner.class)
   public void testSelectNestedAll() {
-    PCollection<POJO2NestedAll> pojos =
+    PCollection<POJO1> pojos =
+        pipeline
+            .apply(Create.of(new POJO2()))
+            .apply(Select.fieldNames("field2"))
+            .apply(Convert.to(POJO1.class));
+    PAssert.that(pojos).containsInAnyOrder(new POJO1());
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectNestedAllWildcard() {
+    PCollection<POJO1> pojos =
         pipeline
             .apply(Create.of(new POJO2()))
             .apply(Select.fieldNames("field2.*"))
-            .apply(Convert.to(POJO2NestedAll.class));
-    PAssert.that(pojos).containsInAnyOrder(new POJO2NestedAll());
+            .apply(Convert.to(POJO1.class));
+    PAssert.that(pojos).containsInAnyOrder(new POJO1());
     pipeline.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testSelectNestedPartial() {
-    PCollection<POJO2NestedPartial> pojos =
+    PCollection<POJO1Selected> pojos =
         pipeline
             .apply(Create.of(new POJO2()))
             .apply(Select.fieldNames("field2.field1", "field2.field3"))
-            .apply(Convert.to(POJO2NestedPartial.class));
-    PAssert.that(pojos).containsInAnyOrder(new POJO2NestedPartial());
+            .apply(Convert.to(POJO1Selected.class));
+    PAssert.that(pojos).containsInAnyOrder(new POJO1Selected());
     pipeline.run();
   }
 
@@ -295,8 +266,8 @@ public class SelectTest {
 
   @DefaultSchema(JavaFieldSchema.class)
   static class PartialRowSingleArray {
-    List<POJO1Selected> field1 =
-        ImmutableList.of(new POJO1Selected(), new POJO1Selected(), new POJO1Selected());
+    List<String> field1 = ImmutableList.of("field1", "field1", "field1");
+    List<Double> field3 = ImmutableList.of(3.14, 3.14, 3.14);
 
     @Override
     public boolean equals(Object o) {
@@ -307,12 +278,12 @@ public class SelectTest {
         return false;
       }
       PartialRowSingleArray that = (PartialRowSingleArray) o;
-      return Objects.equals(field1, that.field1);
+      return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(field1);
+      return Objects.hash(field1, field3);
     }
   }
 
@@ -356,11 +327,16 @@ public class SelectTest {
 
   @DefaultSchema(JavaFieldSchema.class)
   static class PartialRowSingleMap {
-    Map<String, POJO1Selected> field1 =
+    Map<String, String> field1 =
         ImmutableMap.of(
-            "key1", new POJO1Selected(),
-            "key2", new POJO1Selected(),
-            "key3", new POJO1Selected());
+            "key1", "field1",
+            "key2", "field1",
+            "key3", "field1");
+    Map<String, Double> field3 =
+        ImmutableMap.of(
+            "key1", 3.14,
+            "key2", 3.14,
+            "key3", 3.14);
 
     @Override
     public boolean equals(Object o) {
@@ -371,12 +347,12 @@ public class SelectTest {
         return false;
       }
       PartialRowSingleMap that = (PartialRowSingleMap) o;
-      return Objects.equals(field1, that.field1);
+      return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(field1);
+      return Objects.hash(field1, field3);
     }
   }
 
@@ -427,8 +403,17 @@ public class SelectTest {
     private static final List<List<POJO1Selected>> POJO_LIST_LIST =
         ImmutableList.of(POJO_LIST, POJO_LIST, POJO_LIST);
 
-    List<List<List<POJO1Selected>>> field1 =
-        ImmutableList.of(POJO_LIST_LIST, POJO_LIST_LIST, POJO_LIST_LIST);
+    private static final List<String> STRING_LIST = ImmutableList.of("field1", "field1", "field1");
+    private static final List<List<String>> STRING_LISTLIST =
+        ImmutableList.of(STRING_LIST, STRING_LIST, STRING_LIST);
+    List<List<List<String>>> field1 =
+        ImmutableList.of(STRING_LISTLIST, STRING_LISTLIST, STRING_LISTLIST);
+
+    private static final List<Double> DOUBLE_LIST = ImmutableList.of(3.14, 3.14, 3.14);
+    private static final List<List<Double>> DOUBLE_LISTLIST =
+        ImmutableList.of(DOUBLE_LIST, DOUBLE_LIST, DOUBLE_LIST);
+    List<List<List<Double>>> field3 =
+        ImmutableList.of(DOUBLE_LISTLIST, DOUBLE_LISTLIST, DOUBLE_LISTLIST);
 
     @Override
     public boolean equals(Object o) {
@@ -507,21 +492,37 @@ public class SelectTest {
 
   @DefaultSchema(JavaFieldSchema.class)
   static class PartialRowMultipleMaps {
-    static final Map<String, POJO1Selected> POJO_MAP =
+    static final Map<String, String> STRING_MAP =
         ImmutableMap.of(
-            "key1", new POJO1Selected(),
-            "key2", new POJO1Selected(),
-            "key3", new POJO1Selected());
-    static final Map<String, Map<String, POJO1Selected>> POJO_MAP_MAP =
+            "key1", "field1",
+            "key2", "field1",
+            "key3", "field1");
+    static final Map<String, Map<String, String>> STRING_MAPMAP =
         ImmutableMap.of(
-            "key1", POJO_MAP,
-            "key2", POJO_MAP,
-            "key3", POJO_MAP);
-    Map<String, Map<String, Map<String, POJO1Selected>>> field1 =
+            "key1", STRING_MAP,
+            "key2", STRING_MAP,
+            "key3", STRING_MAP);
+    Map<String, Map<String, Map<String, String>>> field1 =
         ImmutableMap.of(
-            "key1", POJO_MAP_MAP,
-            "key2", POJO_MAP_MAP,
-            "key3", POJO_MAP_MAP);
+            "key1", STRING_MAPMAP,
+            "key2", STRING_MAPMAP,
+            "key3", STRING_MAPMAP);
+    static final Map<String, Double> DOUBLE_MAP =
+        ImmutableMap.of(
+            "key1", 3.14,
+            "key2", 3.14,
+            "key3", 3.14);
+    static final Map<String, Map<String, Double>> DOUBLE_MAPMAP =
+        ImmutableMap.of(
+            "key1", DOUBLE_MAP,
+            "key2", DOUBLE_MAP,
+            "key3", DOUBLE_MAP);
+
+    Map<String, Map<String, Map<String, Double>>> field3 =
+        ImmutableMap.of(
+            "key1", DOUBLE_MAPMAP,
+            "key2", DOUBLE_MAPMAP,
+            "key3", DOUBLE_MAPMAP);
 
     @Override
     public boolean equals(Object o) {
@@ -532,12 +533,12 @@ public class SelectTest {
         return false;
       }
       PartialRowMultipleMaps that = (PartialRowMultipleMaps) o;
-      return Objects.equals(field1, that.field1);
+      return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(field1);
+      return Objects.hash(field1, field3);
     }
   }
 
@@ -592,15 +593,20 @@ public class SelectTest {
 
   @DefaultSchema(JavaFieldSchema.class)
   static class PartialRowNestedArraysAndMaps {
-    static final List<POJO1Selected> POJO_LIST =
-        ImmutableList.of(new POJO1Selected(), new POJO1Selected(), new POJO1Selected());
-    static final Map<String, List<POJO1Selected>> POJO_MAP_LIST =
+    static final Map<String, List<String>> STRING_MAP =
         ImmutableMap.of(
-            "key1", POJO_LIST,
-            "key2", POJO_LIST,
-            "key3", POJO_LIST);
-    List<Map<String, List<POJO1Selected>>> field1 =
-        ImmutableList.of(POJO_MAP_LIST, POJO_MAP_LIST, POJO_MAP_LIST);
+            "key1", ImmutableList.of("field1", "field1", "field1"),
+            "key2", ImmutableList.of("field1", "field1", "field1"),
+            "key3", ImmutableList.of("field1", "field1", "field1"));
+    List<Map<String, List<String>>> field1 = ImmutableList.of(STRING_MAP, STRING_MAP, STRING_MAP);
+
+    static final Map<String, List<Double>> DOUBLE_MAP =
+        ImmutableMap.of(
+            "key1", ImmutableList.of(3.14, 3.14, 3.14),
+            "key2", ImmutableList.of(3.14, 3.14, 3.14),
+            "key3", ImmutableList.of(3.14, 3.14, 3.14));
+
+    List<Map<String, List<Double>>> field3 = ImmutableList.of(DOUBLE_MAP, DOUBLE_MAP, DOUBLE_MAP);
 
     @Override
     public boolean equals(Object o) {
@@ -611,12 +617,17 @@ public class SelectTest {
         return false;
       }
       PartialRowNestedArraysAndMaps that = (PartialRowNestedArraysAndMaps) o;
-      return Objects.equals(field1, that.field1);
+      return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(field1);
+      return Objects.hash(field1, field3);
+    }
+
+    @Override
+    public String toString() {
+      return "PartialRowNestedArraysAndMaps{" + "field1=" + field1 + ", field3=" + field3 + '}';
     }
   }
 
@@ -637,6 +648,7 @@ public class SelectTest {
             .apply("convert2", Convert.to(PartialRowNestedArraysAndMaps.class));
 
     PAssert.that(selected).containsInAnyOrder(new PartialRowNestedArraysAndMaps());
+    PAssert.that(selected2).containsInAnyOrder(new PartialRowNestedArraysAndMaps());
     pipeline.run();
   }
 }

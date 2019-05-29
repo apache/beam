@@ -46,11 +46,7 @@ public class CloseableResourceTest {
   public void callsCloser() throws Exception {
     AtomicBoolean closed = new AtomicBoolean(false);
     try (CloseableResource<Foo> ignored =
-        CloseableResource.of(
-            new Foo(),
-            foo -> {
-              closed.set(true);
-            })) {
+        CloseableResource.of(new Foo(), foo -> closed.set(true))) {
       // Do nothing.
     }
     assertThat(closed.get(), is(true));

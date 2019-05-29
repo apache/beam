@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.avro;
 
+import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
@@ -32,15 +33,18 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroIO;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOITMetrics;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.CountMonitor;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
@@ -118,6 +122,8 @@ public class AvroIOIT {
             .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
             .setCoder(AvroCoder.of(AVRO_SCHEMA))
             .apply("Collect start time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "writeStart")))
+            .apply("Collect byte count", ParDo.of(new ByteMonitor<>(AVRO_NAMESPACE, "byteCount")))
+            .apply("Collect item count", ParDo.of(new CountMonitor<>(AVRO_NAMESPACE, "itemCount")))
             .apply(
                 "Write Avro records to files",
                 AvroIO.writeGenericRecords(AVRO_SCHEMA)
@@ -131,11 +137,14 @@ public class AvroIOIT {
 
     PCollection<String> consolidatedHashcode =
         testFilenames
-            .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
+            .apply("Match all files", FileIO.matchAll())
+            .apply(
+                "Read matches",
+                FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+            .apply("Read files", AvroIO.readFilesGenericRecords(AVRO_SCHEMA))
             .apply("Collect end time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "endPoint")))
             .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
-
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
@@ -185,6 +194,18 @@ public class AvroIOIT {
           long writeStart = reader.getStartTimeMetric("writeStart");
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+        });
+
+    suppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("byteCount");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", totalBytes);
+        });
+
+    suppliers.add(
+        reader -> {
+          double totalBytes = reader.getCounterMetric("itemCount");
+          return NamedTestResult.create(uuid, timestamp, "element_count", totalBytes);
         });
 
     return suppliers;

@@ -42,14 +42,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  *
  * <p>SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
  * builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN); builder.setInt64Value(1);
- * builder.setPTransformLabel("myTransform"); builder.setPCollectionLabel("myPcollection");
- * MonitoringInfo mi = builder.build();
- *
- * <p>Example Usage (ElementCount counter):
- *
- * <p>SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
- * builder.setUrn(SimpleMonitoringInfoBuilder.setUrnForUserMetric("myNamespace", "myName"));
- * builder.setInt64Value(1); MonitoringInfo mi = builder.build();
+ * builder.setPTransformLabel("myTransform");
+ * builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "myTransform"); MonitoringInfo mi =
+ * builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
   private final boolean validateAndDropInvalid;
@@ -81,18 +76,6 @@ public class SimpleMonitoringInfoBuilder {
     this.validateAndDropInvalid = validateAndDropInvalid;
   }
 
-  /** @return The metric URN for a user metric, with a proper URN prefix. */
-  public static String userMetricUrn(String metricNamespace, String metricName) {
-    String fixedMetricNamespace = metricNamespace.replace(':', '_');
-    String fixedMetricName = metricName.replace(':', '_');
-    StringBuilder sb = new StringBuilder();
-    sb.append(MonitoringInfoConstants.Urns.USER_COUNTER_PREFIX);
-    sb.append(fixedMetricNamespace);
-    sb.append(':');
-    sb.append(fixedMetricName);
-    return sb.toString();
-  }
-
   /**
    * Sets the urn of the MonitoringInfo.
    *
@@ -100,17 +83,6 @@ public class SimpleMonitoringInfoBuilder {
    */
   public SimpleMonitoringInfoBuilder setUrn(String urn) {
     this.builder.setUrn(urn);
-    return this;
-  }
-
-  /**
-   * Sets the urn of the MonitoringInfo to a proper user metric URN for the given params.
-   *
-   * @param namespace
-   * @param name
-   */
-  public SimpleMonitoringInfoBuilder setUrnForUserMetric(String namespace, String name) {
-    this.builder.setUrn(userMetricUrn(namespace, name));
     return this;
   }
 
@@ -128,22 +100,32 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  /**
+   * Sets the IntDistributionData of the DistributionData in the MonitoringInfo, and the appropriate
+   * type URN.
+   */
+  public SimpleMonitoringInfoBuilder setInt64DistributionValue(DistributionData data) {
+    this.builder
+        .getMetricBuilder()
+        .getDistributionDataBuilder()
+        .getIntDistributionDataBuilder()
+        .setCount(data.count())
+        .setSum(data.sum())
+        .setMin(data.min())
+        .setMax(data.max());
+    this.setInt64DistributionTypeUrn();
+    return this;
+  }
+
+  /** Sets the the appropriate type URN for int64 distribution tuples. */
+  public SimpleMonitoringInfoBuilder setInt64DistributionTypeUrn() {
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64);
+    return this;
+  }
+
   /** Sets the the appropriate type URN for sum int64 counters. */
   public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
     this.builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64);
-    return this;
-  }
-
-  /** Sets the PTRANSFORM MonitoringInfo label to the given param. */
-  public SimpleMonitoringInfoBuilder setPTransformLabel(String pTransform) {
-    // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
-    setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransform);
-    return this;
-  }
-
-  /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
-  public SimpleMonitoringInfoBuilder setPCollectionLabel(String pCollection) {
-    setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollection);
     return this;
   }
 
@@ -153,9 +135,11 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  /** Clear the builder and merge from the provided monitoringInfo. */
-  public void clearAndMerge(MonitoringInfo monitoringInfo) {
+  public void clear() {
     this.builder = MonitoringInfo.newBuilder();
+  }
+  /** Clear the builder and merge from the provided monitoringInfo. */
+  public void merge(MonitoringInfo monitoringInfo) {
     this.builder.mergeFrom(monitoringInfo);
   }
 
@@ -164,7 +148,7 @@ public class SimpleMonitoringInfoBuilder {
    *     MonitoringInfos.
    */
   @VisibleForTesting
-  public static MonitoringInfo clearTimestamp(MonitoringInfo input) {
+  public static MonitoringInfo copyAndClearTimestamp(MonitoringInfo input) {
     MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
     builder.mergeFrom(input);
     builder.clearTimestamp();

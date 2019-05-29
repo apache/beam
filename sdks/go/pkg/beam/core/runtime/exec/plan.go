@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
@@ -55,7 +56,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 
 	for _, u := range units {
 		if u == nil {
-			return nil, fmt.Errorf("no <nil> units")
+			return nil, errors.Errorf("no <nil> units")
 		}
 		if r, ok := u.(Root); ok {
 			roots = append(roots, r)
@@ -68,7 +69,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		}
 	}
 	if len(roots) == 0 {
-		return nil, fmt.Errorf("no root units")
+		return nil, errors.Errorf("no root units")
 	}
 
 	return &Plan{
@@ -102,7 +103,7 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 	}
 
 	if p.status != Up {
-		return fmt.Errorf("invalid status for plan %v: %v", p.id, p.status)
+		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
 	}
 
 	// Process bundle. If there are any kinds of failures, we bail and mark the plan broken.
@@ -149,9 +150,9 @@ func (p *Plan) Down(ctx context.Context) error {
 	case 0:
 		return nil
 	case 1:
-		return fmt.Errorf("plan %v failed: %v", p.id, errs[0])
+		return errors.Wrapf(errs[0], "plan %v failed", p.id)
 	default:
-		return fmt.Errorf("plan %v failed with multiple errors: %v", p.id, errs)
+		return errors.Errorf("plan %v failed with multiple errors: %v", p.id, errs)
 	}
 }
 
@@ -189,4 +190,20 @@ func (p *Plan) Metrics() *fnpb.Metrics {
 	return &fnpb.Metrics{
 		Ptransforms: transforms,
 	}
+}
+
+// SplitPoints captures the split requested by the Runner.
+type SplitPoints struct {
+	Splits []int64
+	Frac   float32
+}
+
+// Split takes a set of potential split points, selects and actuates split on an
+// appropriate split point, and returns the selected split point if successful.
+// Returns an error when unable to split.
+func (p *Plan) Split(s SplitPoints) (int64, error) {
+	if p.source != nil {
+		return p.source.Split(s.Splits, s.Frac)
+	}
+	return 0, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
 }

@@ -223,7 +223,7 @@ class SparkStateInternals<K> implements StateInternals {
 
     private final TimestampCombiner timestampCombiner;
 
-    public SparkWatermarkHoldState(
+    SparkWatermarkHoldState(
         StateNamespace namespace,
         StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {

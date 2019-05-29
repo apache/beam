@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toBeamRow;
 import static org.joda.time.Seconds.secondsBetween;
 import static org.junit.Assert.assertThat;
 
@@ -229,7 +228,7 @@ public class TestBigQuery implements TestRule {
     }
 
     return bqRows.stream()
-        .map(bqRow -> toBeamRow(rowSchema, bqSchema, bqRow))
+        .map(bqRow -> BigQueryUtils.toBeamRow(rowSchema, bqSchema, bqRow))
         .collect(Collectors.toList());
   }
 

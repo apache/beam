@@ -36,7 +36,7 @@ public class HCatToRow {
    * <p>If there is a mismatch between the schema specified here and actual record schema, or
    * internal representation and schema, then runtime errors will happen.
    */
-  public static PTransform<PCollection<? extends HCatRecord>, PCollection<Row>> forSchema(
+  private static PTransform<PCollection<? extends HCatRecord>, PCollection<Row>> forSchema(
       Schema schema) {
     return ParDo.of(new HCatToRowFn(schema));
   }

@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -156,7 +157,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
+  protected void fireTimer(InternalTimer<ByteBuffer, TimerInternals.TimerData> timer) {
     timerInternals.cleanupPendingTimer(timer.getNamespace());
     if (timer.getNamespace().getDomain().equals(TimeDomain.EVENT_TIME)) {
       // ignore this, it can only be a state cleanup timers from StatefulDoFnRunner and ProcessFn

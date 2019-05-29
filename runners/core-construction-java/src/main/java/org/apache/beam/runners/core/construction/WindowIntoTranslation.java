@@ -52,7 +52,7 @@ public class WindowIntoTranslation {
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Window.Assign<?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder()
-          .setUrn("urn:beam:transform:window:v1")
+          .setUrn("beam:transform:window:v1")
           .setPayload(
               WindowIntoTranslation.toProto(transform.getTransform(), components).toByteString())
           .build();

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.joda.time.Duration.ZERO;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -60,6 +62,7 @@ import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -248,16 +251,21 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<Row> leftRows = pinput.get(0);
       PCollection<Row> rightRows = pinput.get(1);
 
+      int leftRowColumnCount = leftRelNode.getRowType().getFieldCount();
+
       // extract the join fields
-      List<Pair<Integer, Integer>> pairs =
-          extractJoinColumns(leftRelNode.getRowType().getFieldCount());
+      List<Pair<RexNode, RexNode>> pairs = extractJoinRexNodes();
 
       // build the extract key type
       // the name of the join field is not important
       Schema extractKeySchemaLeft =
-          pairs.stream().map(pair -> leftSchema.getField(pair.getKey())).collect(toSchema());
+          pairs.stream()
+              .map(pair -> getFieldBasedOnRexNode(leftSchema, pair.getKey(), 0))
+              .collect(toSchema());
       Schema extractKeySchemaRight =
-          pairs.stream().map(pair -> rightSchema.getField(pair.getValue())).collect(toSchema());
+          pairs.stream()
+              .map(pair -> getFieldBasedOnRexNode(rightSchema, pair.getValue(), leftRowColumnCount))
+              .collect(toSchema());
 
       SchemaCoder<Row> extractKeyRowCoder = SchemaCoder.of(extractKeySchemaLeft);
 
@@ -270,7 +278,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
               .apply(
                   "left_ExtractJoinFields",
                   MapElements.via(
-                      new BeamJoinTransforms.ExtractJoinFields(true, pairs, extractKeySchemaLeft)))
+                      new BeamJoinTransforms.ExtractJoinFields(
+                          true, pairs, extractKeySchemaLeft, 0)))
               .setCoder(KvCoder.of(extractKeyRowCoder, leftRows.getCoder()));
 
       PCollection<KV<Row, Row>> extractedRightRows =
@@ -282,7 +291,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
                   "right_ExtractJoinFields",
                   MapElements.via(
                       new BeamJoinTransforms.ExtractJoinFields(
-                          false, pairs, extractKeySchemaRight)))
+                          false, pairs, extractKeySchemaRight, leftRowColumnCount)))
               .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
 
       return PCollectionList.of(extractedLeftRows).and(extractedRightRows);
@@ -488,22 +497,65 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return kvs.setCoder(KvCoder.of(coder.getKeyCoder(), valueCoder));
   }
 
-  private List<Pair<Integer, Integer>> extractJoinColumns(int leftRowColumnCount) {
+  private static Field getFieldBasedOnRexNode(
+      Schema schema, RexNode rexNode, int leftRowColumnCount) {
+    if (rexNode instanceof RexInputRef) {
+      return schema.getField(((RexInputRef) rexNode).getIndex() - leftRowColumnCount);
+    } else if (rexNode instanceof RexFieldAccess) {
+      // need to extract field of Struct/Row.
+      return getFieldBasedOnRexFieldAccess(schema, (RexFieldAccess) rexNode, leftRowColumnCount);
+    }
+
+    throw new UnsupportedOperationException("Does not support " + rexNode.getType() + " in JOIN.");
+  }
+
+  private static Field getFieldBasedOnRexFieldAccess(
+      Schema schema, RexFieldAccess rexFieldAccess, int leftRowColumnCount) {
+    ArrayDeque<RexFieldAccess> fieldAccessStack = new ArrayDeque<>();
+    fieldAccessStack.push(rexFieldAccess);
+
+    RexFieldAccess curr = rexFieldAccess;
+    while (curr.getReferenceExpr() instanceof RexFieldAccess) {
+      curr = (RexFieldAccess) curr.getReferenceExpr();
+      fieldAccessStack.push(curr);
+    }
+
+    // curr.getReferenceExpr() is not a RexFieldAccess. Check if it is RexInputRef, which is only
+    // allowed RexNode type in RexFieldAccess.
+    if (!(curr.getReferenceExpr() instanceof RexInputRef)) {
+      throw new UnsupportedOperationException(
+          "Does not support " + curr.getReferenceExpr().getType() + " in JOIN.");
+    }
+
+    // curr.getReferenceExpr() is a RexInputRef.
+    RexInputRef inputRef = (RexInputRef) curr.getReferenceExpr();
+    Field curField = schema.getField(inputRef.getIndex() - leftRowColumnCount);
+
+    // pop RexFieldAccess from stack one by one to know the final field type.
+    while (fieldAccessStack.size() > 0) {
+      curr = fieldAccessStack.pop();
+      curField = curField.getType().getRowSchema().getField(curr.getField().getIndex());
+    }
+
+    return curField;
+  }
+
+  private List<Pair<RexNode, RexNode>> extractJoinRexNodes() {
     // it's a CROSS JOIN because: condition == true
     if (condition instanceof RexLiteral && (Boolean) ((RexLiteral) condition).getValue()) {
       throw new UnsupportedOperationException("CROSS JOIN is not supported!");
     }
 
     RexCall call = (RexCall) condition;
-    List<Pair<Integer, Integer>> pairs = new ArrayList<>();
+    List<Pair<RexNode, RexNode>> pairs = new ArrayList<>();
     if ("AND".equals(call.getOperator().getName())) {
       List<RexNode> operands = call.getOperands();
       for (RexNode rexNode : operands) {
-        Pair<Integer, Integer> pair = extractOneJoinColumn((RexCall) rexNode, leftRowColumnCount);
+        Pair<RexNode, RexNode> pair = extractJoinPairOfRexNodes((RexCall) rexNode);
         pairs.add(pair);
       }
     } else if ("=".equals(call.getOperator().getName())) {
-      pairs.add(extractOneJoinColumn(call, leftRowColumnCount));
+      pairs.add(extractJoinPairOfRexNodes(call));
     } else {
       throw new UnsupportedOperationException(
           "Operator " + call.getOperator().getName() + " is not supported in join condition");
@@ -512,19 +564,41 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return pairs;
   }
 
-  private Pair<Integer, Integer> extractOneJoinColumn(
-      RexCall oneCondition, int leftRowColumnCount) {
-    List<RexNode> operands = oneCondition.getOperands();
-    final int leftIndex =
-        Math.min(
-            ((RexInputRef) operands.get(0)).getIndex(), ((RexInputRef) operands.get(1)).getIndex());
+  private Pair<RexNode, RexNode> extractJoinPairOfRexNodes(RexCall rexCall) {
+    if (!rexCall.getOperator().getName().equals("=")) {
+      throw new UnsupportedOperationException("Non equi-join is not supported");
+    }
 
-    final int rightIndex1 =
-        Math.max(
-            ((RexInputRef) operands.get(0)).getIndex(), ((RexInputRef) operands.get(1)).getIndex());
-    final int rightIndex = rightIndex1 - leftRowColumnCount;
+    if (isIllegalJoinConjunctionClause(rexCall)) {
+      throw new UnsupportedOperationException(
+          "Only support column reference or struct field access in conjunction clause");
+    }
 
-    return new Pair<>(leftIndex, rightIndex);
+    int leftIndex = getColumnIndex(rexCall.getOperands().get(0));
+    int rightIndex = getColumnIndex(rexCall.getOperands().get(1));
+    if (leftIndex < rightIndex) {
+      return new Pair<>(rexCall.getOperands().get(0), rexCall.getOperands().get(1));
+    } else {
+      return new Pair<>(rexCall.getOperands().get(1), rexCall.getOperands().get(0));
+    }
+  }
+
+  // Only support {RexInputRef | RexFieldAccess} = {RexInputRef | RexFieldAccess}
+  private boolean isIllegalJoinConjunctionClause(RexCall rexCall) {
+    return (!(rexCall.getOperands().get(0) instanceof RexInputRef)
+            && !(rexCall.getOperands().get(0) instanceof RexFieldAccess))
+        || (!(rexCall.getOperands().get(1) instanceof RexInputRef)
+            && !(rexCall.getOperands().get(1) instanceof RexFieldAccess));
+  }
+
+  private int getColumnIndex(RexNode rexNode) {
+    if (rexNode instanceof RexInputRef) {
+      return ((RexInputRef) rexNode).getIndex();
+    } else if (rexNode instanceof RexFieldAccess) {
+      return getColumnIndex(((RexFieldAccess) rexNode).getReferenceExpr());
+    }
+
+    throw new UnsupportedOperationException("Cannot get column index from " + rexNode.getType());
   }
 
   /** check if {@code BeamRelNode} implements {@code BeamSeekableTable}. */

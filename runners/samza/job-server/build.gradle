@@ -23,12 +23,6 @@ apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.samza.SamzaJobServerDriver"
 
-repositories {
-  maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
-  }
-}
-
 applyJavaNature(
     validateShadowJar: false,
     exportJavadoc: false,
@@ -38,9 +32,9 @@ applyJavaNature(
 )
 
 dependencies {
-  compile project(path: ":beam-runners-samza", configuration: "shadow")
-  compile group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
-  compile library.java.slf4j_simple
+  compile project(path: ":runners:samza", configuration: "shadow")
+  runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  runtime library.java.slf4j_simple
   shadow library.java.guava
 }
 

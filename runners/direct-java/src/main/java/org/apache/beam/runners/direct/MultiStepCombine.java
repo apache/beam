@@ -174,7 +174,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
   @Nonnull
   @Override
   public String getUrn() {
-    return "urn:beam:directrunner:transforms:multistepcombine:v1";
+    return "beam:directrunner:transforms:multistepcombine:v1";
   }
 
   @Nullable
@@ -310,7 +310,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
   }
 
   static final String DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN =
-      "urn:beam:directrunner:transforms:merge_accumulators_extract_output:v1";
+      "beam:directrunner:transforms:merge_accumulators_extract_output:v1";
   /**
    * A primitive {@link PTransform} that merges iterables of accumulators and extracts the output.
    *

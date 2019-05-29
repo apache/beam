@@ -20,7 +20,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -158,7 +158,7 @@ class BufferedElements {
 
     @Override
     public List<? extends org.apache.beam.sdk.coders.Coder<?>> getCoderArguments() {
-      return Collections.emptyList();
+      return Arrays.asList(elementCoder, windowCoder);
     }
 
     @Override

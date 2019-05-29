@@ -97,8 +97,10 @@ public abstract class BeamSetOperatorsTransforms {
           }
           break;
         case MINUS:
-          // Say for Row R, there are m instances on left and n instances on right,
-          // EXCEPT ALL outputs MAX(m - n, 0) instances of R.
+          // Say for Row R, there are m instances on left and n instances on right:
+          // - EXCEPT ALL outputs MAX(m - n, 0) instances of R.
+          // - EXCEPT [DISTINCT] outputs a single instance of R if m > 0 and n == 0, else
+          //   they output 0 instances.
           if (leftRows.iterator().hasNext() && !rightRows.iterator().hasNext()) {
             Iterator<Row> iter = leftRows.iterator();
             if (all) {
@@ -121,9 +123,8 @@ public abstract class BeamSetOperatorsTransforms {
                   outputCount--;
                   ctx.output(ctx.element().getKey());
                 }
-              } else {
-                ctx.output(ctx.element().getKey());
               }
+              // Dont output any in DISTINCT (if (!all)) case
             }
           }
       }

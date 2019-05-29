@@ -23,7 +23,7 @@ import yaml
 import dependency_check.version_comparer as version_comparer
 
 from datetime import datetime
-from jira_client import JiraClient
+from .jira_client import JiraClient
 
 
 _JIRA_PROJECT_NAME = 'BEAM'

@@ -91,4 +91,17 @@ public class BeamValuesRelTest extends BaseRelTest {
                 .getRows());
     pipeline.run();
   }
+
+  @Test
+  public void testValues_selectEmpty() throws Exception {
+    String sql = "select 1, '1' FROM string_table WHERE false";
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.FieldType.INT32, "EXPR$0",
+                    Schema.FieldType.STRING, "EXPR$1")
+                .getRows());
+    pipeline.run();
+  }
 }

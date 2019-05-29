@@ -116,7 +116,7 @@ class Step(object):
       ValueError: if the tag does not exist within outputs.
     """
     outputs = self._get_outputs()
-    if tag is None:
+    if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
       name = '%s_%s' % (PropertyNames.OUT, tag)
@@ -150,6 +150,8 @@ class Environment(object):
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
           self.google_cloud_options.service_account_email)
+    if self.google_cloud_options.dataflow_kms_key:
+      self.proto.serviceKmsKeyName = self.google_cloud_options.dataflow_kms_key
 
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
@@ -829,8 +831,8 @@ def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
   Args:
-    distribution_update: Instance of DistributionData or
-    DataflowDistributionCounter.
+    distribution_update: Instance of DistributionData,
+    DistributionInt64Accumulator or DataflowDistributionCounter.
     metric_update_proto: Used for report metrics.
   """
   dist_update_proto = dataflow.DistributionUpdate()
@@ -838,7 +840,7 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
-  # DatadflowDistributionCounter needs to translate histogram
+  # DataflowDistributionCounter needs to translate histogram
   if isinstance(distribution_update, DataflowDistributionCounter):
     dist_update_proto.histogram = dataflow.Histogram()
     distribution_update.translate_to_histogram(dist_update_proto.histogram)
@@ -969,6 +971,11 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
 
 # To enable a counter on the service, add it to this dictionary.
+# This is required for the legacy python dataflow runner, as portability
+# does not communicate to the service via python code, but instead via a
+# a runner harness (in C++ or Java).
+# TODO(BEAM-7050) : Remove this antipattern, legacy dataflow python
+# pipelines will break whenever a new cy_combiner type is used.
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,
@@ -1005,7 +1012,10 @@ structured_counter_translations = {
         MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution)
+        translate_distribution),
+    cy_combiners.DistributionInt64Fn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
 }
 
 
@@ -1045,5 +1055,8 @@ counter_translations = {
         MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
         dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution)
+        translate_distribution),
+    cy_combiners.DistributionInt64Fn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
 }

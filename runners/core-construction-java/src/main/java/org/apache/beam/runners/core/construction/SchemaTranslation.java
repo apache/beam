@@ -53,8 +53,8 @@ public class SchemaTranslation {
           .build();
 
   public static RunnerApi.Schema toProto(Schema schema) {
-    RunnerApi.Schema.Builder builder =
-        RunnerApi.Schema.newBuilder().setId(schema.getUUID().toString());
+    String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
+    RunnerApi.Schema.Builder builder = RunnerApi.Schema.newBuilder().setId(uuid);
     for (Field field : schema.getFields()) {
       RunnerApi.Schema.Field protoField =
           toProto(
@@ -112,6 +112,7 @@ public class SchemaTranslation {
       default:
         break;
     }
+    builder.setNullable(fieldType.getNullable());
     return builder.build();
   }
 
@@ -125,7 +126,9 @@ public class SchemaTranslation {
     }
     Schema schema = builder.build();
     schema.setEncodingPositions(encodingLocationMap);
-    schema.setUUID(UUID.fromString(protoSchema.getId()));
+    if (!protoSchema.getId().isEmpty()) {
+      schema.setUUID(UUID.fromString(protoSchema.getId()));
+    }
 
     return schema;
   }

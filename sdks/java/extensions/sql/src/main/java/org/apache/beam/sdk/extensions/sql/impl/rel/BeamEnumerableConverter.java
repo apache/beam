@@ -118,6 +118,17 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
+  public static List<Row> toRowList(BeamRelNode node) {
+    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
+      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
+      return toRowList(options, node);
+    } finally {
+      Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
+  }
+
   public static PipelineOptions createPipelineOptions(Map<String, String> map) {
     final String[] args = new String[map.size()];
     int i = 0;
@@ -135,7 +146,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     } else if (isLimitQuery(node)) {
       throw new UnsupportedOperationException("Does not support queries with LIMIT in toRowList.");
     }
-    return collectRowList(options, node);
+    return collectRows(options, node).stream().collect(Collectors.toList());
   }
 
   static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
@@ -144,8 +155,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     } else if (isLimitQuery(node)) {
       return limitCollect(options, node);
     }
-
-    return collect(options, node);
+    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues((collectRows(options, node))));
   }
 
   private static PipelineResult limitRun(
@@ -191,7 +201,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     result.waitUntilFinish();
   }
 
-  private static List<Row> collectRowList(PipelineOptions options, BeamRelNode node) {
+  private static Queue<Row> collectRows(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
     Queue<Row> values = new ConcurrentLinkedQueue<>();
 
@@ -207,27 +217,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     runCollector(options, node);
 
     Collector.globalValues.remove(id);
-    return values.stream().collect(Collectors.toList());
-  }
-
-  private static Enumerable<Object> collect(PipelineOptions options, BeamRelNode node) {
-    long id = options.getOptionsId();
-    Queue<Row> values = new ConcurrentLinkedQueue<>();
-
-    checkArgument(
-        options
-            .getRunner()
-            .getCanonicalName()
-            .equals("org.apache.beam.runners.direct.DirectRunner"),
-        "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
-
-    Collector.globalValues.put(id, values);
-
-    runCollector(options, node);
-
-    Collector.globalValues.remove(id);
-
-    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(values));
+    return values;
   }
 
   private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
@@ -303,6 +293,10 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   private static Object fieldToAvatica(Schema.FieldType type, Object beamValue) {
+    if (beamValue == null) {
+      return null;
+    }
+
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
         String logicalId = type.getLogicalType().getIdentifier();

@@ -21,12 +21,15 @@ plugins { id 'org.apache.beam.module' }
 // We specifically enumerate all the projects that we depend on since
 // the list is used in both defining the included set for the uber jar
 // and also the set of project level dependencies.
-def dependOnProjects = [":beam-model-pipeline", ":beam-model-fn-execution", ":beam-sdks-java-core",
-                        ":beam-sdks-java-fn-execution",
-                        ":beam-sdks-java-extensions-google-cloud-platform-core",
-                        ":beam-runners-core-java", ":beam-runners-core-construction-java"]
+def dependOnProjects = [":model:pipeline", ":model:fn-execution", ":sdks:java:core",
+                        ":sdks:java:fn-execution",
+                        ":sdks:java:extensions:google-cloud-platform-core",
+                        ":runners:core-java", ":runners:core-construction-java"]
 
-applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE <<
+applyJavaNature(
+  validateShadowJar: false,
+  testShadowJar: true,
+  shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
   // releasing it since its typically bad practice to release 'all'
@@ -60,6 +63,6 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTestRuntimeClasspath library.java.slf4j_jdk14
 }

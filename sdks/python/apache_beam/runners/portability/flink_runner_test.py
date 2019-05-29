@@ -28,7 +28,11 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 import apache_beam as beam
+from apache_beam import Impulse
+from apache_beam import Map
 from apache_beam.io.external.generate_sequence import GenerateSequence
+from apache_beam.io.external.kafka import ReadFromKafka
+from apache_beam.io.external.kafka import WriteToKafka
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
@@ -43,7 +47,6 @@ if __name__ == '__main__':
   #
   # python -m apache_beam.runners.portability.flink_runner_test \
   #     --flink_job_server_jar=/path/to/job_server.jar \
-  #     --type=Batch \
   #     --environment_type=docker \
   #     --extra_experiments=beam_experiments \
   #     [FlinkRunnerTest.test_method, ...]
@@ -157,20 +160,56 @@ if __name__ == '__main__':
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
 
-    def test_external_transform(self):
-      options = self.create_options()
-      options._all_options['parallelism'] = 1
-      options._all_options['streaming'] = True
-
-      expansion_address = "localhost:" + str(FlinkRunnerTest.expansion_port)
+    def test_external_transforms(self):
+      # TODO Move expansion address resides into PipelineOptions
+      def get_expansion_service():
+        return "localhost:" + str(self.expansion_port)
 
       with self.create_pipeline() as p:
         res = (
             p
             | GenerateSequence(start=1, stop=10,
-                               expansion_service=expansion_address))
+                               expansion_service=get_expansion_service()))
 
         assert_that(res, equal_to([i for i in range(1, 10)]))
+
+      # We expect to fail here because we do not have a Kafka cluster handy.
+      # Nevertheless, we check that the transform is expanded by the
+      # ExpansionService and that the pipeline fails during execution.
+      with self.assertRaises(Exception) as ctx:
+        with self.create_pipeline() as p:
+          # pylint: disable=expression-not-assigned
+          (p
+           | ReadFromKafka(consumer_config={'bootstrap.servers':
+                                            'notvalid1:7777, notvalid2:3531'},
+                           topics=['topic1', 'topic2'],
+                           key_deserializer='org.apache.kafka.'
+                                            'common.serialization.'
+                                            'ByteArrayDeserializer',
+                           value_deserializer='org.apache.kafka.'
+                                              'common.serialization.'
+                                              'LongDeserializer',
+                           expansion_service=get_expansion_service()))
+      self.assertTrue('No resolvable bootstrap urls given in bootstrap.servers'
+                      in str(ctx.exception),
+                      'Expected to fail due to invalid bootstrap.servers, but '
+                      'failed due to:\n%s' % str(ctx.exception))
+
+      # We just test the expansion but do not execute.
+      # pylint: disable=expression-not-assigned
+      (self.create_pipeline()
+       | Impulse()
+       | Map(lambda input: (1, input))
+       | WriteToKafka(producer_config={'bootstrap.servers':
+                                       'localhost:9092, notvalid2:3531'},
+                      topic='topic1',
+                      key_serializer='org.apache.kafka.'
+                                     'common.serialization.'
+                                     'LongSerializer',
+                      value_serializer='org.apache.kafka.'
+                                       'common.serialization.'
+                                       'ByteArraySerializer',
+                      expansion_service=get_expansion_service()))
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding
@@ -217,7 +256,10 @@ if __name__ == '__main__':
                 counter_name, line)
         )
 
-    def test_sdf(self):
+    def test_sdf_with_sdf_initiated_checkpointing(self):
+      raise unittest.SkipTest("BEAM-2939")
+
+    def test_sdf_synthetic_source(self):
       raise unittest.SkipTest("BEAM-2939")
 
     def test_callbacks_with_exception(self):
@@ -227,6 +269,18 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-6868")
 
     # Inherits all other tests.
+
+  class FlinkRunnerTestOptimized(FlinkRunnerTest):
+    # TODO: Remove these tests after resolving BEAM-7248 and enabling
+    #  PortableRunnerOptimized
+    def create_options(self):
+      options = super(FlinkRunnerTestOptimized, self).create_options()
+      options.view_as(DebugOptions).experiments = [
+          'pre_optimize=all'] + options.view_as(DebugOptions).experiments
+      return options
+
+    def test_external_transforms(self):
+      raise unittest.SkipTest("BEAM-7252")
 
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)

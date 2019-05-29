@@ -82,6 +82,8 @@ public class ConfigBuilder {
       // apply user configs
       config.putAll(createUserConfig(options));
 
+      config.put(ApplicationConfig.APP_NAME, options.getJobName());
+      config.put(ApplicationConfig.APP_ID, options.getJobInstance());
       config.put(JobConfig.JOB_NAME(), options.getJobName());
       config.put(JobConfig.JOB_ID(), options.getJobInstance());
 

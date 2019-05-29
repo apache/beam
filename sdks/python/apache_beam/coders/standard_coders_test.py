@@ -37,8 +37,8 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 
-STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
+STANDARD_CODERS_YAML = os.path.normpath(os.path.join(
+    os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
 
 
 def _load_test_cases(test_yaml):
@@ -58,6 +58,7 @@ class StandardCodersTest(unittest.TestCase):
 
   _urn_to_json_value_parser = {
       'beam:coder:bytes:v1': lambda x: x.encode('utf-8'),
+      'beam:coder:string_utf8:v1': lambda x: x,
       'beam:coder:varint:v1': lambda x: x,
       'beam:coder:kv:v1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
@@ -75,7 +76,7 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:timer:v1':
           lambda x, payload_parser: dict(
               payload=payload_parser(x['payload']),
-              timestamp=Timestamp(micros=x['timestamp'])),
+              timestamp=Timestamp(micros=x['timestamp'] * 1000)),
       'beam:coder:double:v1': lambda x: float(x),
   }
 

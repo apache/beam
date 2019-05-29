@@ -129,9 +129,10 @@ class _ReadMatchesFn(beam.DoFn):
                 if isinstance(file_metadata, (str, unicode))
                 else file_metadata)
 
-    if metadata.path.endswith('/') and self._skip_directories:
+    if ((metadata.path.endswith('/') or metadata.path.endswith('\\'))
+        and self._skip_directories):
       return
-    elif metadata.path.endswith('/'):
+    elif metadata.path.endswith('/') or metadata.path.endswith('\\'):
       raise BeamIOError(
           'Directories are not allowed in ReadMatches transform.'
           'Found %s.' % metadata.path)

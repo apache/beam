@@ -80,6 +80,10 @@ if [[ -z `which cython` ]]; then
     sudo `which pip` install cython
     sudo apt-get install gcc
     sudo apt-get install python-dev
+    sudo apt-get install python3-dev
+    sudo apt-get install python3.5-dev
+    sudo apt-get install python3.6-dev
+    sudo apt-get install python3.7-dev
   fi
 else
   cython --version

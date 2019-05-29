@@ -1813,7 +1813,7 @@ public class BigQueryIO {
 
     /**
      * Control how many file shards are written when using BigQuery load jobs. Applicable only when
-     * also setting {@link #withTriggeringFrequency}. The default value is 1000.
+     * also setting {@link #withTriggeringFrequency}.
      */
     @Experimental
     public Write<T> withNumFileShards(int numFileShards) {

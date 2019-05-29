@@ -57,7 +57,10 @@ class ReadFiles(DoFn):
     self._resume_count = resume_count
 
   def process(
-      self, element, restriction_tracker=ReadFilesProvider(), *args, **kwargs):
+      self,
+      element,
+      restriction_tracker=DoFn.RestrictionParam(ReadFilesProvider()),
+      *args, **kwargs):
     file_name = element
     assert isinstance(restriction_tracker, OffsetRestrictionTracker)
 
@@ -107,7 +110,7 @@ class ExpandStrings(DoFn):
 
   def process(
       self, element, side1, side2, side3, window=beam.DoFn.WindowParam,
-      restriction_tracker=ExpandStringsProvider(),
+      restriction_tracker=DoFn.RestrictionParam(ExpandStringsProvider()),
       *args, **kwargs):
     side = []
     side.extend(side1)

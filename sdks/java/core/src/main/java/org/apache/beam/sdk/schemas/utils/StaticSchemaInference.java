@@ -91,8 +91,8 @@ public class StaticSchemaInference {
     return builder.build();
   }
 
-  // Map a Java field type to a Beam Schema FieldType.
-  private static Schema.FieldType fieldFromType(
+  /** Map a Java field type to a Beam Schema FieldType. */
+  public static Schema.FieldType fieldFromType(
       TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
     FieldType primitiveType = PRIMITIVE_TYPES.get(type.getRawType());
     if (primitiveType != null) {

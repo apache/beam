@@ -40,7 +40,9 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsErrorOnInvalidMonitoringInfoType() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user:someCounter")
+            .setUrn("beam:metric:user")
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyCounter")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "namespace")
             .setType("beam:metrics:bad_value")
             .build();
     assertTrue(testObject.validate(testInput).isPresent());
@@ -50,8 +52,21 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsNoErrorOnValidMonitoringInfo() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn(Urns.USER_COUNTER_PREFIX + "someCounter")
+            .setUrn(Urns.USER_COUNTER)
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyCounter")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyString")
             .setType(TypeUrns.SUM_INT64)
+            .build();
+    assertFalse(testObject.validate(testInput).isPresent());
+
+    testInput =
+        MonitoringInfo.newBuilder()
+            .setUrn(Urns.USER_DISTRIBUTION_COUNTER)
+            .putLabels(MonitoringInfoConstants.Labels.NAME, "anyDistribution")
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "namespace")
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyString")
+            .setType(TypeUrns.DISTRIBUTION_INT64)
             .putLabels("dummy", "value")
             .build();
     assertFalse(testObject.validate(testInput).isPresent());

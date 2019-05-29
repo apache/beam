@@ -31,10 +31,10 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
@@ -126,7 +126,7 @@ func SerializeHooksToOptions() {
 	data, err := json.Marshal(enabledHooks)
 	if err != nil {
 		// Shouldn't happen, since all the data is strings.
-		panic(fmt.Sprintf("Couldn't serialize hooks: %v", err))
+		panic(errors.Wrap(err, "Couldn't serialize hooks"))
 	}
 	runtime.GlobalOptions.Set("hooks", string(data))
 }
@@ -141,7 +141,7 @@ func DeserializeHooksFromOptions(ctx context.Context) {
 	}
 	if err := json.Unmarshal([]byte(cfg), &enabledHooks); err != nil {
 		// Shouldn't happen, since all the data is strings.
-		panic(fmt.Sprintf("DeserializeHooks failed on input %q: %v", cfg, err))
+		panic(errors.Wrapf(err, "DeserializeHooks failed on input %q", cfg))
 	}
 
 	for h, opts := range enabledHooks {
@@ -155,7 +155,7 @@ func DeserializeHooksFromOptions(ctx context.Context) {
 // if a hook wants to compose behavior.
 func EnableHook(name string, args ...string) error {
 	if _, ok := hookRegistry[name]; !ok {
-		return fmt.Errorf("EnableHook: hook %s not found", name)
+		return errors.Errorf("EnableHook: hook %s not found", name)
 	}
 	enabledHooks[name] = args
 	return nil
@@ -176,7 +176,7 @@ func Encode(name string, opts []string) string {
 	w := csv.NewWriter(&cfg)
 	// This should never happen since a bytes.Buffer doesn't fail to write.
 	if err := w.Write(append([]string{name}, opts...)); err != nil {
-		panic(fmt.Sprintf("error encoding arguments: %v", err))
+		panic(errors.Wrap(err, "error encoding arguments"))
 	}
 	w.Flush()
 	return cfg.String()
@@ -189,7 +189,7 @@ func Decode(in string) (string, []string) {
 	r := csv.NewReader(strings.NewReader(in))
 	s, err := r.Read()
 	if err != nil {
-		panic(fmt.Sprintf("malformed input for decoding: %s %v", in, err))
+		panic(errors.Wrapf(err, "malformed input for decoding: %s", in))
 	}
 	return s[0], s[1:]
 }

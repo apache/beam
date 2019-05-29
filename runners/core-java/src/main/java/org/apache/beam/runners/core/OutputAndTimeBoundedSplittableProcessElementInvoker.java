@@ -121,7 +121,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
-              public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+              public Object schemaElement(int index) {
                 throw new UnsupportedOperationException("Not supported in SplittableDoFn");
               }
 

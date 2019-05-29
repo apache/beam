@@ -261,6 +261,15 @@ public class PAssert {
     IterableAssert<T> inEarlyPane(BoundedWindow window);
 
     /**
+     * Creates a new {@link IterableAssert} with the assertion restricted to only run on the
+     * provided window across all panes that were produced by the arrival of late data.
+     *
+     * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
+     *     specified window.
+     */
+    IterableAssert<T> inLatePane(BoundedWindow window);
+
+    /**
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
      * run on the provided window across all panes that were not produced by the arrival of late
      * data.
@@ -354,6 +363,15 @@ public class PAssert {
      *     the specified window.
      */
     SingletonAssert<T> inEarlyPane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link SingletonAssert} with the assertion restricted to only run on the
+     * provided window, running the checker only on late panes for each key.
+     *
+     * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
+     *     the specified window.
+     */
+    SingletonAssert<T> inLatePane(BoundedWindow window);
 
     /**
      * Asserts that the value in question is equal to the provided value, according to {@link
@@ -534,6 +552,11 @@ public class PAssert {
     @Override
     public PCollectionContentsAssert<T> inEarlyPane(BoundedWindow window) {
       return withPane(window, PaneExtractors.earlyPanes());
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> inLatePane(BoundedWindow window) {
+      return withPane(window, PaneExtractors.latePanes());
     }
 
     @Override
@@ -729,6 +752,11 @@ public class PAssert {
     }
 
     @Override
+    public PCollectionSingletonIterableAssert<T> inLatePane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.latePanes());
+    }
+
+    @Override
     public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPanes(window, PaneExtractors.nonLatePanes());
     }
@@ -823,6 +851,11 @@ public class PAssert {
     @Override
     public PCollectionSingletonAssert<T> inEarlyPane(BoundedWindow window) {
       return withPanes(window, PaneExtractors.earlyPanes());
+    }
+
+    @Override
+    public PCollectionSingletonAssert<T> inLatePane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.latePanes());
     }
 
     @Override
@@ -951,6 +984,11 @@ public class PAssert {
     @Override
     public PCollectionViewAssert<ElemT, ViewT> inEarlyPane(BoundedWindow window) {
       return inPane(window, PaneExtractors.earlyPanes());
+    }
+
+    @Override
+    public PCollectionViewAssert<ElemT, ViewT> inLatePane(BoundedWindow window) {
+      return inPane(window, PaneExtractors.latePanes());
     }
 
     private PCollectionViewAssert<ElemT, ViewT> inPane(

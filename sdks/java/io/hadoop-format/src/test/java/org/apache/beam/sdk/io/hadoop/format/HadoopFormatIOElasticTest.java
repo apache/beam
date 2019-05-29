@@ -20,10 +20,10 @@ package org.apache.beam.sdk.io.hadoop.format;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -75,7 +75,7 @@ public class HadoopFormatIOElasticTest implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final Logger LOG = LoggerFactory.getLogger(HadoopFormatIOElasticTest.class);
   private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
-  private static String elasticInMemPort = "9200";
+  private static int port;
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
   private static final String ELASTIC_INDEX_NAME = "beamdb";
@@ -90,10 +90,7 @@ public class HadoopFormatIOElasticTest implements Serializable {
 
   @BeforeClass
   public static void startServer() throws NodeValidationException, IOException {
-    ServerSocket serverSocket = new ServerSocket(0);
-    int port = serverSocket.getLocalPort();
-    serverSocket.close();
-    elasticInMemPort = String.valueOf(port);
+    port = NetworkTestHelper.getAvailableLocalPort();
     ElasticEmbeddedServer.startElasticEmbeddedServer();
   }
 
@@ -177,7 +174,7 @@ public class HadoopFormatIOElasticTest implements Serializable {
   private Configuration getConfiguration() {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, ELASTIC_IN_MEM_HOSTNAME);
-    conf.set(ConfigurationOptions.ES_PORT, String.format("%s", elasticInMemPort));
+    conf.set(ConfigurationOptions.ES_PORT, String.format("%s", port));
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
@@ -210,7 +207,7 @@ public class HadoopFormatIOElasticTest implements Serializable {
           Settings.builder()
               .put("node.data", TRUE)
               .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-              .put("http.port", elasticInMemPort)
+              .put("http.port", port)
               .put("path.data", elasticTempFolder.getRoot().getPath())
               .put("path.home", elasticTempFolder.getRoot().getPath())
               .put("transport.type", "local")
@@ -240,11 +237,7 @@ public class HadoopFormatIOElasticTest implements Serializable {
       }
       node.client().admin().indices().prepareRefresh(ELASTIC_INDEX_NAME).get();
     }
-    /**
-     * Shutdown the embedded instance.
-     *
-     * @throws IOException
-     */
+    /** Shutdown the embedded instance. */
     static void shutdown() throws IOException {
       DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().delete(indexRequest).actionGet();

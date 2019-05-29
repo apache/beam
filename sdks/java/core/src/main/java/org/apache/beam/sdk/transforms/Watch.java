@@ -895,7 +895,7 @@ public class Watch {
     private Growth.PollResult computeNeverSeenBeforeResults(
         PollingGrowthState<TerminationStateT> state, Growth.PollResult<OutputT> pollResult) {
       // Collect results to include as newly pending. Note that the poll result may in theory
-      // contain multiple outputs mapping to the the same output key - we need to ignore duplicates
+      // contain multiple outputs mapping to the same output key - we need to ignore duplicates
       // here already.
       Map<HashCode, TimestampedValue<OutputT>> newPending = Maps.newHashMap();
       for (TimestampedValue<OutputT> output : pollResult.getOutputs()) {

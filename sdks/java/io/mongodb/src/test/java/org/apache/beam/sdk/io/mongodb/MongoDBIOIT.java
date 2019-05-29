@@ -20,9 +20,15 @@ package org.apache.beam.sdk.io.mongodb;
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
+import com.google.cloud.Timestamp;
 import com.mongodb.MongoClient;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
@@ -31,8 +37,15 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.CountMonitor;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -65,6 +78,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MongoDBIOIT {
+
+  private static final String NAMESPACE = MongoDBIOIT.class.getName();
+  private static String bigQueryDataset;
+  private static String bigQueryTable;
 
   /** MongoDBIOIT options. */
   public interface MongoDBPipelineOptions extends IOTestPipelineOptions {
@@ -104,6 +121,8 @@ public class MongoDBIOIT {
     PipelineOptionsFactory.register(MongoDBPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(MongoDBPipelineOptions.class);
     collection = String.format("test_%s", new Date().getTime());
+    bigQueryDataset = options.getBigQueryDataset();
+    bigQueryTable = options.getBigQueryTable();
   }
 
   @AfterClass
@@ -125,13 +144,17 @@ public class MongoDBIOIT {
     writePipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(options.getNumberOfRecords()))
         .apply("Produce documents", MapElements.via(new LongToDocumentFn()))
+        .apply("Collect write time metric", ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
+        .apply("Collect item count", ParDo.of(new CountMonitor<>(NAMESPACE, "item_count")))
+        .apply("Collect byte count", ParDo.of(new ByteMonitor<>(NAMESPACE, "byte_count")))
         .apply(
             "Write documents to MongoDB",
             MongoDbIO.write()
                 .withUri(mongoUrl)
                 .withDatabase(options.getMongoDBDatabaseName())
                 .withCollection(collection));
-    writePipeline.run().waitUntilFinish();
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
 
     PCollection<String> consolidatedHashcode =
         readPipeline
@@ -141,13 +164,66 @@ public class MongoDBIOIT {
                     .withUri(mongoUrl)
                     .withDatabase(options.getMongoDBDatabaseName())
                     .withCollection(collection))
+            .apply("Collect read time metrics", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
             .apply("Map documents to Strings", MapElements.via(new DocumentToStringFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getHashForRecordCount(options.getNumberOfRecords(), EXPECTED_HASHES);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    readPipeline.run().waitUntilFinish();
+    PipelineResult readResult = readPipeline.run();
+    readResult.waitUntilFinish();
+    collectAndPublishMetrics(writeResult, readResult);
+  }
+
+  private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
+    String uuid = UUID.randomUUID().toString();
+    String timestamp = Timestamp.now().toString();
+
+    Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
+    Set<Function<MetricsReader, NamedTestResult>> writeSuppliers =
+        getWriteSuppliers(uuid, timestamp);
+    IOITMetrics readMetrics =
+        new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
+    IOITMetrics writeMetrics =
+        new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
+    readMetrics.publish(bigQueryDataset, bigQueryTable);
+    writeMetrics.publish(bigQueryDataset, bigQueryTable);
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric("write_time");
+          long writeEnd = reader.getEndTimeMetric("write_time");
+          return NamedTestResult.create(
+              uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
+        });
+    suppliers.add(
+        reader -> {
+          long itemCount = reader.getCounterMetric("item_count");
+          return NamedTestResult.create(uuid, timestamp, "item_count", itemCount);
+        });
+    suppliers.add(
+        reader -> {
+          long byteCount = reader.getCounterMetric("byte_count");
+          return NamedTestResult.create(uuid, timestamp, "byte_count", byteCount);
+        });
+    return suppliers;
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(
+        reader -> {
+          long readStart = reader.getStartTimeMetric("read_time");
+          long readEnd = reader.getEndTimeMetric("read_time");
+          return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
+        });
+    return suppliers;
   }
 
   private static class LongToDocumentFn extends SimpleFunction<Long, Document> {

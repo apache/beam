@@ -163,7 +163,24 @@ class UtilTest(unittest.TestCase):
     self.assertEqual((split_number.lowBits, split_number.highBits),
                      (0, number))
 
-  def test_translate_distribution(self):
+  def test_translate_distribution_using_accumulator(self):
+    metric_update = dataflow.CounterUpdate()
+    accumulator = mock.Mock()
+    accumulator.min = 1
+    accumulator.max = 15
+    accumulator.sum = 16
+    accumulator.count = 2
+    apiclient.translate_distribution(accumulator, metric_update)
+    self.assertEqual(metric_update.distribution.min.lowBits,
+                     accumulator.min)
+    self.assertEqual(metric_update.distribution.max.lowBits,
+                     accumulator.max)
+    self.assertEqual(metric_update.distribution.sum.lowBits,
+                     accumulator.sum)
+    self.assertEqual(metric_update.distribution.count.lowBits,
+                     accumulator.count)
+
+  def test_translate_distribution_using_distribution_data(self):
     metric_update = dataflow.CounterUpdate()
     distribution_update = DistributionData(16, 2, 1, 15)
     apiclient.translate_distribution(distribution_update, metric_update)
@@ -176,7 +193,7 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(metric_update.distribution.count.lowBits,
                      distribution_update.count)
 
-  def test_translate_distribution_counter(self):
+  def test_translate_distribution_using_dataflow_distribution_counter(self):
     counter_update = DataflowDistributionCounter()
     counter_update.add_input(1)
     counter_update.add_input(3)
@@ -200,6 +217,29 @@ class UtilTest(unittest.TestCase):
   def test_translate_means(self):
     metric_update = dataflow.CounterUpdate()
     accumulator = mock.Mock()
+    accumulator.sum = 16
+    accumulator.count = 2
+    apiclient.MetricUpdateTranslators.translate_scalar_mean_int(accumulator,
+                                                                metric_update)
+    self.assertEqual(metric_update.integerMean.sum.lowBits, accumulator.sum)
+    self.assertEqual(metric_update.integerMean.count.lowBits, accumulator.count)
+
+    accumulator.sum = 16.0
+    accumulator.count = 2
+    apiclient.MetricUpdateTranslators.translate_scalar_mean_float(accumulator,
+                                                                  metric_update)
+    self.assertEqual(metric_update.floatingPointMean.sum, accumulator.sum)
+    self.assertEqual(
+        metric_update.floatingPointMean.count.lowBits, accumulator.count)
+
+  def test_translate_means_using_distribution_accumulator(self):
+    # This is the special case for MeanByteCount.
+    # Which is reported over the FnAPI as a beam distribution,
+    # and to the service as a MetricUpdate IntegerMean.
+    metric_update = dataflow.CounterUpdate()
+    accumulator = mock.Mock()
+    accumulator.min = 7
+    accumulator.max = 9
     accumulator.sum = 16
     accumulator.count = 2
     apiclient.MetricUpdateTranslators.translate_scalar_mean_int(accumulator,

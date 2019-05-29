@@ -20,20 +20,27 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 
 /**
  * Utility functions for dealing with key encoding. Beam requires keys to be compared in binary
  * format. The helpers here ensure that a consistent encoding is used.
  */
-class FlinkKeyUtils {
+public class FlinkKeyUtils {
 
   /** Encodes a key to a byte array wrapped inside a ByteBuffer. */
-  static <K> ByteBuffer encodeKey(K key, Coder<K> keyCoder) {
+  public static <K> ByteBuffer encodeKey(K key, Coder<K> keyCoder) {
     checkNotNull(keyCoder, "Provided coder must not be null");
     final byte[] keyBytes;
     try {
@@ -59,5 +66,38 @@ class FlinkKeyUtils {
               Locale.ENGLISH, "Failed to decode encoded key: %s", Arrays.toString(keyBytes)),
           e);
     }
+  }
+
+  /** The Coder for the Runner's encoded representation of a key. */
+  static class ByteBufferCoder extends StructuredCoder<ByteBuffer> {
+
+    public static ByteBufferCoder of() {
+      return INSTANCE;
+    }
+
+    private static final ByteBufferCoder INSTANCE = new ByteBufferCoder();
+
+    private ByteBufferCoder() {}
+
+    @Override
+    public void encode(ByteBuffer value, OutputStream outStream) throws IOException {
+      @SuppressWarnings("ByteBufferBackingArray")
+      byte[] array = value.array();
+      ByteArrayCoder.of().encode(array, outStream);
+    }
+
+    @Override
+    public ByteBuffer decode(InputStream inStream) throws IOException {
+      byte[] decode = ByteArrayCoder.of().decode(inStream);
+      return ByteBuffer.wrap(decode);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public void verifyDeterministic() {}
   }
 }

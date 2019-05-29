@@ -27,11 +27,14 @@ from apache_beam.coders import BytesCoder
 from apache_beam.coders import IterableCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import VarIntCoder
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
+from apache_beam.transforms import window
 from apache_beam.transforms.combiners import ToListCombineFn
 from apache_beam.transforms.combiners import TopCombineFn
 from apache_beam.transforms.core import DoFn
@@ -418,6 +421,65 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
          'key-value pairs.')):
       values | beam.ParDo(TestStatefulDoFn())
 
+  def test_generate_sequence_with_realtime_timer(self):
+    from apache_beam.transforms.combiners import CountCombineFn
+
+    class GenerateRecords(beam.DoFn):
+
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.REAL_TIME)
+      COUNT_STATE = CombiningValueStateSpec(
+          'count_state', VarIntCoder(), CountCombineFn())
+
+      def __init__(self, frequency, total_records):
+        self.total_records = total_records
+        self.frequency = frequency
+
+      def process(self,
+                  element,
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+        # Processing time timers should be set on ABSOLUTE TIME.
+        emit_timer.set(self.frequency)
+        yield element[1]
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self,
+                      emit_timer=beam.DoFn.TimerParam(EMIT_TIMER),
+                      count_state=beam.DoFn.StateParam(COUNT_STATE)):
+        count = count_state.read() or 0
+        if self.total_records == count:
+          return
+
+        count_state.add(1)
+        # Processing time timers should be set on ABSOLUTE TIME.
+        emit_timer.set(count + 1 + self.frequency)
+        yield 'value'
+
+    TOTAL_RECORDS = 3
+    FREQUENCY = 1
+
+    test_stream = (TestStream()
+                   .advance_watermark_to(0)
+                   .add_elements([('key', 0)])
+                   .advance_processing_time(1) # Timestamp: 1
+                   .add_elements([('key', 1)])
+                   .advance_processing_time(1) # Timestamp: 2
+                   .add_elements([('key', 2)])
+                   .advance_processing_time(1) # Timestamp: 3
+                   .add_elements([('key', 3)]))
+
+    with beam.Pipeline(argv=['--streaming', '--runner=DirectRunner']) as p:
+      _ = (p
+           | test_stream
+           | beam.ParDo(GenerateRecords(FREQUENCY, TOTAL_RECORDS))
+           | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(
+        # 4 RECORDS go through process
+        # 3 values are emitted from timer
+        # Timestamp moves gradually.
+        [0, 'value', 1, 'value', 2, 'value', 3],
+        StatefulDoFnOnDirectRunnerTest.all_records)
+
   def test_simple_stateful_dofn_combining(self):
     class SimpleTestStatefulDoFn(DoFn):
       BUFFER_STATE = CombiningValueStateSpec(
@@ -496,6 +558,38 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
     self.assertEqual(
         [('timer1', 10), ('timer2', 20), ('timer3', 30)],
+        sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
+  def test_timer_output_timestamp_and_window(self):
+
+    class TimerEmittingStatefulDoFn(DoFn):
+      EMIT_TIMER_1 = TimerSpec('emit1', TimeDomain.WATERMARK)
+
+      def process(self, element, timer1=DoFn.TimerParam(EMIT_TIMER_1)):
+        timer1.set(10)
+
+      @on_timer(EMIT_TIMER_1)
+      def emit_callback_1(self,
+                          window=DoFn.WindowParam,
+                          ts=DoFn.TimestampParam):
+        yield ('timer1', int(ts), int(window.start), int(window.end))
+
+    pipeline_options = PipelineOptions()
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([1]))
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | "window_into" >> beam.WindowInto(
+           window.FixedWindows(5),
+           accumulation_mode=trigger.AccumulationMode.DISCARDING)
+       | beam.ParDo(TimerEmittingStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(
+        [('timer1', 10, 10, 15)],
         sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_index_assignment(self):

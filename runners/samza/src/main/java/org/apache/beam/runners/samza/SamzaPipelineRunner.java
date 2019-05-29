@@ -20,9 +20,9 @@ package org.apache.beam.runners.samza;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.samza.util.PortablePipelineDotRenderer;
 import org.apache.beam.sdk.PipelineResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
     // Fused pipeline proto.
     final RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
     LOG.info("Portable pipeline to run:");
-    LOG.info(PortablePipelineDotRenderer.toDotString(fusedPipeline));
+    LOG.info(PipelineDotRenderer.toDotString(fusedPipeline));
     // the pipeline option coming from sdk will set the sdk specific runner which will break
     // serialization
     // so we need to reset the runner here to a valid Java runner

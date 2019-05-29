@@ -21,8 +21,9 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
-	"fmt"
 	"os"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // SymbolTable allows for mapping between symbols and their addresses.
@@ -48,7 +49,7 @@ func New(filename string) (*SymbolTable, error) {
 		d, err := ef.DWARF()
 		if err != nil {
 			f.Close()
-			return nil, fmt.Errorf("No working DWARF: %v", err)
+			return nil, errors.Wrap(err, "No working DWARF")
 		}
 		return &SymbolTable{d}, nil
 	}
@@ -59,7 +60,7 @@ func New(filename string) (*SymbolTable, error) {
 		d, err := mf.DWARF()
 		if err != nil {
 			f.Close()
-			return nil, fmt.Errorf("No working DWARF: %v", err)
+			return nil, errors.Wrap(err, "No working DWARF")
 		}
 		return &SymbolTable{d}, nil
 	}
@@ -70,14 +71,14 @@ func New(filename string) (*SymbolTable, error) {
 		d, err := pf.DWARF()
 		if err != nil {
 			f.Close()
-			return nil, fmt.Errorf("No working DWARF: %v", err)
+			return nil, errors.Wrap(err, "No working DWARF")
 		}
 		return &SymbolTable{d}, nil
 	}
 
 	// Give up, we don't recognize it
 	f.Close()
-	return nil, fmt.Errorf("Unknown file format")
+	return nil, errors.New("Unknown file format")
 }
 
 // Addr2Sym returns the symbol name for the provided address.
@@ -100,7 +101,7 @@ func (s *SymbolTable) Addr2Sym(addr uintptr) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("no symbol found at address %x", addr)
+	return "", errors.Errorf("no symbol found at address %x", addr)
 }
 
 // Sym2Addr returns the address of the provided symbol name.
@@ -124,5 +125,5 @@ func (s *SymbolTable) Sym2Addr(symbol string) (uintptr, error) {
 			}
 		}
 	}
-	return 0, fmt.Errorf("no symbol %q", symbol)
+	return 0, errors.Errorf("no symbol %q", symbol)
 }
