@@ -130,7 +130,8 @@ class FileBasedCacheManager(CacheManager):
 
     if cache_format not in self._available_formats:
       raise ValueError("Unsupported cache format: '%s'." % cache_format)
-    self._Reader, self._Writer = self._available_formats[cache_format]
+    self._reader_class, self._writer_class = self._available_formats[
+        cache_format]
     self._default_pcoder = (
         SafeFastPrimitivesCoder() if cache_format == 'text' else None)
 
@@ -174,11 +175,11 @@ class FileBasedCacheManager(CacheManager):
     return result, version
 
   def source(self, *labels):
-    return self._Reader(
+    return self._reader_class(
         self._glob_path(*labels), coder=self.load_pcoder(*labels))._source
 
   def sink(self, *labels):
-    return self._Writer(
+    return self._writer_class(
         self._path(*labels), coder=self.load_pcoder(*labels))._sink
 
   def cleanup(self):
