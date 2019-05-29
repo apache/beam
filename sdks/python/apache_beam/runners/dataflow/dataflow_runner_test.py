@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import json
+import sys
 import unittest
 from builtins import object
 from builtins import range
@@ -443,6 +444,30 @@ class DataflowRunnerTest(unittest.TestCase):
         remote_runner.job.options.view_as(DebugOptions).experiments)
     self.assertIn('beam_fn_api', experiments_for_job)
     self.assertIn('use_staged_dataflow_worker_jar', experiments_for_job)
+
+  def test_use_fastavro_experiment_is_added_on_py3_and_onwards(self):
+    remote_runner = DataflowRunner()
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+
+    self.assertEqual(
+        sys.version_info[0] > 2,
+        remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
+            'use_fastavro', False))
+
+  def test_use_fastavro_experiment_is_not_added_when_use_avro_is_present(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--experiment=use_avro')
+
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    p.run()
+
+    debug_options = remote_runner.job.options.view_as(DebugOptions)
+
+    self.assertFalse(debug_options.lookup_experiment('use_fastavro', False))
 
 
 if __name__ == '__main__':
