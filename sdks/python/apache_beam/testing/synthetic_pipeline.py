@@ -45,9 +45,9 @@ import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.io import restriction_trackers
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
-from apache_beam.io import restriction_trackers
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -105,18 +105,17 @@ class SyntheticStep(beam.DoFn):
     if to_sleep >= 1e-3:
       time.sleep(to_sleep)
 
-    def process(self, element):
-      print("normal step")
-      if self._per_element_delay_sec >= 1e-3:
-        time.sleep(self._per_element_delay_sec)
-      filter_element = False
-      if self._output_filter_ratio > 0:
-        if np.random.random() < self._output_filter_ratio:
-          filter_element = True
+  def process(self, element):
+    if self._per_element_delay_sec >= 1e-3:
+      time.sleep(self._per_element_delay_sec)
+    filter_element = False
+    if self._output_filter_ratio > 0:
+      if np.random.random() < self._output_filter_ratio:
+        filter_element = True
 
-      if not filter_element:
-        for _ in range(self._output_records_per_input_record):
-          yield element
+    if not filter_element:
+      for _ in range(self._output_records_per_input_record):
+        yield element
 
 
 class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
@@ -149,19 +148,15 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
     self._initial_splitting_uneven_chunks = initial_splitting_uneven_chunks
     self._disable_liquid_sharding = disable_liquid_sharding
     self._size_estimate_override = size_estimate_override
-    print('here')
-    print(disable_liquid_sharding)
 
   def initial_restriction(self, element):
     return (0, self._num_records)
 
   def create_tracker(self, restriction):
     if self._disable_liquid_sharding:
-      print('here!')
       return NonLiquidShardingOffsetRangeTracker(restriction[0],
                                                  restriction[1])
     else:
-      print('here2!')
       # OffsetRange.new_tracker returns a RangeTracker - not RestrictionTracker.
       return OffsetRestrictionTracker(restriction[0], restriction[1])
 
@@ -169,7 +164,7 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
     ''' Randomly split the restriction into the right number of bundles.'''
     elems = restriction[1] - restriction[0]
     bundles = self._initial_splitting_num_bundles
-    randomNums = [np.random.randint(0, elems - 1) for x in
+    randomNums = [np.random.randint(0, elems - 1) for _ in
                   range(0, bundles - 1)]
     print randomNums
     randomNums.append(0)
@@ -181,7 +176,9 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
 
   def split(self, element, restriction):
     elems = restriction[1] - restriction[0]
-    if self._initial_splitting_uneven_chunks and self._initial_splitting_num_bundles > 1 and elems > 1:
+    if (self._initial_splitting_uneven_chunks and
+        self._initial_splitting_num_bundles > 1 and
+        elems > 1):
       return self.split_randomly(restriction)
     else:
       offsets_per_split = max(1, (elems // self._initial_splitting_num_bundles))
@@ -216,8 +213,8 @@ def getSyntheticSDFStep(per_element_delay_sec=0,
                  output_filter_ratio_arg):
       if per_element_delay_sec_arg and per_element_delay_sec_arg < 1e-3:
         raise ValueError(
-          'Per element sleep time must be at least 1e-3. '
-          'Received: %r', per_element_delay_sec_arg)
+            'Per element sleep time must be at least 1e-3. '
+            'Received: %r', per_element_delay_sec_arg)
       self._per_element_delay_sec = per_element_delay_sec_arg
       self._per_bundle_delay_sec = per_bundle_delay_sec_arg
       self._output_filter_ratio = output_filter_ratio_arg
@@ -239,13 +236,12 @@ def getSyntheticSDFStep(per_element_delay_sec=0,
     def process(self,
                 element,
                 restriction_tracker=beam.DoFn.RestrictionParam(
-                      SyntheticSDFStepRestrictionProvider(
-                          output_records_per_input_record,
-                          initial_splitting_num_bundles,
-                          initial_splitting_uneven_chunks,
-                          disable_liquid_sharding,
-                          size_estimate_override))):
-      print("HEREEE")
+                    SyntheticSDFStepRestrictionProvider(
+                        output_records_per_input_record,
+                        initial_splitting_num_bundles,
+                        initial_splitting_uneven_chunks,
+                        disable_liquid_sharding,
+                        size_estimate_override))):
       filter_element = False
       if self._output_filter_ratio > 0:
         if np.random.random() < self._output_filter_ratio:
@@ -259,7 +255,6 @@ def getSyntheticSDFStep(per_element_delay_sec=0,
           time.sleep(self._per_element_delay_sec)
 
         if not filter_element:
-          print("element!")
           yield element
 
   return SyntheticSDFStep(per_element_delay_sec, per_bundle_delay_sec,
@@ -790,7 +785,7 @@ def run(argv=None):
               steps['output_records_per_input_record'],
               output_filter_ratio=steps['output_filter_ratio'])
         new_pc = pc | 'SyntheticStep %d.%d' % (
-          step_no, pc_no) >> beam.ParDo(step)
+            step_no, pc_no) >> beam.ParDo(step)
         new_pc_list.append(new_pc)
       pc_list = new_pc_list
 
