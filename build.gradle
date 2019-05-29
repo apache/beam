@@ -210,8 +210,8 @@ task python3PostCommit() {
 }
 
 task pythonValidatesRunner() {
-  ":sdks:python:test-suites:dataflow:validatesRunnerBatchTests"
-  ":sdks:python:test-suites:dataflow:validatesRunnerStreamingTests"
+  dependsOn ":sdks:python:test-suites:dataflow:validatesRunnerBatchTests"
+  dependsOn ":sdks:python:test-suites:dataflow:validatesRunnerStreamingTests"
 }
 
 task python3ValidatesRunner() {
