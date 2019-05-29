@@ -521,13 +521,13 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
             expected_properties=additional_bq_parameters),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, language FROM %s" % output_table_2,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d])]
@@ -574,13 +574,13 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, foundation FROM %s" % output_table_2,
             data=[(d['name'], d['foundation'])
                   for d in _ELEMENTS
                   if 'foundation' in d])]
