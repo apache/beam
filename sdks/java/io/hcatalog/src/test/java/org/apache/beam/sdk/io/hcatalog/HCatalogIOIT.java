@@ -108,7 +108,7 @@ public class HCatalogIOIT {
 
   private static final ImmutableMap<Integer, String> EXPECTED_HASHES =
       ImmutableMap.of(
-          100, "34c19971bd34cc1ed6218b84d0db3018",
+          100, "34c19971bd34cc1ed6218b84d0db3019",
           1000, "2db7f961724848ffcea299075c166ae8",
           10_000, "7885cdda3ed927e17f7db330adcbebcc");
 
@@ -163,6 +163,35 @@ public class HCatalogIOIT {
 
   @Test
   public void writeAndReadAll() {
+    pipelineWrite
+        .apply("Generate sequence", Create.of(buildHCatRecords(options.getNumberOfRecords())))
+        .apply(
+            HCatalogIO.write()
+                .withConfigProperties(configProperties)
+                .withDatabase(options.getHCatalogHiveDatabaseName())
+                .withTable(tableName));
+    pipelineWrite.run().waitUntilFinish();
+
+    PCollection<String> testRecords =
+        pipelineRead
+            .apply(
+                HCatalogIO.read()
+                    .withConfigProperties(configProperties)
+                    .withDatabase(options.getHCatalogHiveDatabaseName())
+                    .withTable(tableName))
+            .apply(ParDo.of(new CreateHCatFn()));
+
+    PCollection<String> consolidatedHashcode =
+        testRecords.apply("Calculate hashcode", Combine.globally(new HashingFn()));
+
+    String expectedHash = getHashForRecordCount(options.getNumberOfRecords(), EXPECTED_HASHES);
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
+
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  @Test
+  public void writeAndReadAllUnbounded() {
     pipelineWrite
         .apply("Generate sequence", Create.of(buildHCatRecords(options.getNumberOfRecords())))
         .apply(
