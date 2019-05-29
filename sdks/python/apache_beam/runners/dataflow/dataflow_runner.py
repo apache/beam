@@ -655,6 +655,9 @@ class DataflowRunner(PipelineRunner):
     if (not isinstance(transform, beam.io.WriteToBigQuery)
         or 'use_beam_bq_sink' in experiments):
       return self.apply_PTransform(transform, pcoll, options)
+    if transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT:
+      raise RuntimeError(
+          'Schema auto-detection is not supported on the native sink')
     standard_options = options.view_as(StandardOptions)
     if standard_options.streaming:
       if (transform.write_disposition ==
@@ -663,12 +666,15 @@ class DataflowRunner(PipelineRunner):
       return self.apply_PTransform(transform, pcoll, options)
     else:
       from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+      schema = None
+      if transform.schema:
+        schema = parse_table_schema_from_json(json.dumps(transform.schema))
       return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
           beam.io.BigQuerySink(
               transform.table_reference.tableId,
               transform.table_reference.datasetId,
               transform.table_reference.projectId,
-              parse_table_schema_from_json(json.dumps(transform.schema)),
+              schema,
               transform.create_disposition,
               transform.write_disposition,
               kms_key=transform.kms_key))
