@@ -99,7 +99,8 @@ public class RegisterHandler {
         }
       }
 
-      computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptorFixed.build());
+      computeIfAbsent(processBundleDescriptor.getId())
+          .complete(processBundleDescriptorFixed.build());
       for (Map.Entry<String, RunnerApi.Coder> entry :
           processBundleDescriptor.getCodersMap().entrySet()) {
         LOG.debug("Registering {} with type {}", entry.getKey(), entry.getValue().getClass());
