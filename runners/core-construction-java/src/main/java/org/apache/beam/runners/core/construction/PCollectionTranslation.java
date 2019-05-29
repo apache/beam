@@ -23,8 +23,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Utility methods for translating {@link PCollection PCollections} to and from Runner API protos.
@@ -32,15 +30,13 @@ import org.slf4j.LoggerFactory;
 public class PCollectionTranslation {
   private PCollectionTranslation() {}
 
-  private static final Logger LOG = LoggerFactory.getLogger(PCollectionTranslation.class);
-
-
   public static RunnerApi.PCollection toProto(PCollection<?> pCollection, SdkComponents components)
       throws IOException {
     String coderId = components.registerCoder(pCollection.getCoder());
     String windowingStrategyId =
         components.registerWindowingStrategy(pCollection.getWindowingStrategy());
     // TODO: Display Data
+
     return RunnerApi.PCollection.newBuilder()
         .setUniqueName(pCollection.getName())
         .setCoderId(coderId)
@@ -52,7 +48,7 @@ public class PCollectionTranslation {
   public static PCollection<?> fromProto(
       RunnerApi.PCollection pCollection, Pipeline pipeline, RehydratedComponents components)
       throws IOException {
-    
+
     Coder<?> coder = components.getCoder(pCollection.getCoderId());
     return PCollection.createPrimitiveOutputInternal(
         pipeline,
