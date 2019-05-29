@@ -53,7 +53,8 @@ func ParDoSideInput() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-	out := beam.ParDo(s, sumValuesFn, beam.Impulse(s), beam.SideInput{Input: in})
+	sub := s.Scope("subscope") // Ensure scoping works with side inputs. See: BEAM-5354
+	out := beam.ParDo(sub, sumValuesFn, beam.Impulse(s), beam.SideInput{Input: in})
 	passert.Sum(s, out, "out", 1, 45)
 
 	return p

@@ -128,7 +128,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 
 	var subtransforms []string
 	for _, edge := range s.Edges {
-		subtransforms = append(subtransforms, m.addMultiEdge(edge))
+		subtransforms = append(subtransforms, m.addMultiEdge(edge)...)
 	}
 	for _, tree := range s.Children {
 		subtransforms = append(subtransforms, m.addScopeTree(tree))
@@ -173,14 +173,14 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pb.PTrans
 	transform.Spec = &pb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
 }
 
-func (m *marshaller) addMultiEdge(edge NamedEdge) string {
+func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	id := edgeID(edge.Edge)
 	if _, exists := m.transforms[id]; exists {
-		return id
+		return []string{id}
 	}
 
 	if edge.Edge.Op == graph.CoGBK && len(edge.Edge.Input) > 1 {
-		return m.expandCoGBK(edge)
+		return []string{m.expandCoGBK(edge)}
 	}
 
 	inputs := make(map[string]string)
@@ -194,6 +194,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 	}
 
+	// allPIds tracks additional PTransformIDs generated for the pipeline
+	var allPIds []string
 	var spec *pb.FunctionSpec
 	switch edge.Edge.Op {
 	case graph.Impulse:
@@ -238,6 +240,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 					Outputs: map[string]string{"i0": out},
 				}
 				m.transforms[keyedID] = keyed
+				allPIds = append(allPIds, keyedID)
 
 				// Fixup input map
 				inputs[fmt.Sprintf("i%v", i)] = out
@@ -320,7 +323,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 		Outputs:    outputs,
 	}
 	m.transforms[id] = transform
-	return id
+	allPIds = append(allPIds, id)
+	return allPIds
 }
 
 func (m *marshaller) expandCoGBK(edge NamedEdge) string {
