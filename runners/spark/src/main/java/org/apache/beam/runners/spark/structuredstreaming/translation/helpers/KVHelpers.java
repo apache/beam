@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.api.java.function.MapFunction;
 import scala.Tuple2;
@@ -25,8 +26,8 @@ import scala.Tuple2;
 public final class KVHelpers {
 
   /** A Spark {@link MapFunction} for extracting the key out of a {@link KV} for GBK for example. */
-  public static <K, V> MapFunction<KV<K, V>, K> extractKey() {
-    return (MapFunction<KV<K, V>, K>) KV::getKey;
+  public static <K, V> MapFunction<WindowedValue<KV<K, V>>, K> extractKey() {
+    return (MapFunction<WindowedValue<KV<K, V>>, K>) wv -> wv.getValue().getKey();
   }
 
   /** A Spark {@link MapFunction} for making a KV out of a {@link scala.Tuple2}. */

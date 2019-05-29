@@ -28,6 +28,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTr
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.GroupAlsoByWindowViaOutputBufferFn;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -56,8 +57,7 @@ class GroupByKeyTranslatorBatch<K, V>
 
     //group by key only
     KeyValueGroupedDataset<K, WindowedValue<KV<K, V>>> groupByKeyOnly = input
-        .groupByKey((MapFunction<WindowedValue<KV<K, V>>, K>) wv -> wv.getValue().getKey(),
-            EncoderHelpers.genericEncoder());
+        .groupByKey(KVHelpers.extractKey(), EncoderHelpers.genericEncoder());
 
     // Materialize groupByKeyOnly values, potential OOM because of creation of new iterable
     Dataset<KV<K, Iterable<WindowedValue<V>>>> materialized = groupByKeyOnly.mapGroups(
