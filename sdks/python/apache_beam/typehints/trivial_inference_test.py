@@ -36,7 +36,7 @@ global_int = 1
 class TrivialInferenceTest(unittest.TestCase):
 
   def assertReturnType(self, expected, f, inputs=()):
-    self.assertEquals(expected, trivial_inference.infer_return_type(f, inputs))
+    self.assertEqual(expected, trivial_inference.infer_return_type(f, inputs))
 
   def testIdentity(self):
     self.assertReturnType(int, lambda x: x, [int])

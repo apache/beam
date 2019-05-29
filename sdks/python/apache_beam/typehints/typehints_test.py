@@ -1049,22 +1049,22 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertFalse(is_consistent_with(Union[str, int], str))
 
   def test_positional_arg_hints(self):
-    self.assertEquals(typehints.Any, _positional_arg_hints('x', {}))
-    self.assertEquals(int, _positional_arg_hints('x', {'x': int}))
-    self.assertEquals(typehints.Tuple[int, typehints.Any],
-                      _positional_arg_hints(['x', 'y'], {'x': int}))
+    self.assertEqual(typehints.Any, _positional_arg_hints('x', {}))
+    self.assertEqual(int, _positional_arg_hints('x', {'x': int}))
+    self.assertEqual(typehints.Tuple[int, typehints.Any],
+                     _positional_arg_hints(['x', 'y'], {'x': int}))
 
   def test_getcallargs_forhints(self):
     def func(a, b_c, *d):
       b, c = b_c # pylint: disable=unused-variable
       return None
-    self.assertEquals(
+    self.assertEqual(
         {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[Any, Any]))
-    self.assertEquals(
+    self.assertEqual(
         {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[Any, Any, Any, int]))
-    self.assertEquals(
+    self.assertEqual(
         {'a': int, 'b_c': Tuple[str, Any], 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[int, Tuple[str, Any]]))
 
