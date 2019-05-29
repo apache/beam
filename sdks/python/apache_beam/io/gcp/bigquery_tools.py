@@ -1007,8 +1007,6 @@ class RowAsDictJsonCoder(coders.Coder):
       # on python 3 base64-encoded bytes are decoded to strings
       # before being send to bq
       if sys.version_info[0] > 2:
-        if type(table_row) == str:
-          table_row = json.loads(table_row)
         for field, value in iteritems(table_row):
           if type(value) == bytes:
             table_row[field] = value.decode('utf-8')
