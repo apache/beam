@@ -100,16 +100,19 @@ class CoderRegistry(object):
 
   def register_coder(self, typehint_type, typehint_coder_class):
     if not isinstance(typehint_coder_class, type):
-      raise TypeError('Coder registration requires a coder class object. '
-                      'Received %r instead.' % typehint_coder_class)
+      raise TypeError(
+          'Coder registration requires a coder class object. '
+          'Received %r instead.' % typehint_coder_class)
     if typehint_type not in self.custom_types:
       self.custom_types.append(typehint_type)
     self._register_coder_internal(typehint_type, typehint_coder_class)
 
   def get_coder(self, typehint):
     coder = self._coders.get(
-        typehint.__class__ if isinstance(typehint, typehints.TypeConstraint)
-        else typehint, None)
+        typehint.__class__
+        if isinstance(typehint, typehints.TypeConstraint)
+        else typehint,
+        None)
     if isinstance(typehint, typehints.TypeConstraint) and coder is not None:
       return coder.from_type_hint(typehint, self)
     if coder is None:
@@ -144,13 +147,14 @@ class CoderRegistry(object):
 
   def verify_deterministic(self, key_coder, op_name, silent=True):
     if not key_coder.is_deterministic():
-      error_msg = ('The key coder "%s" for %s '
-                   'is not deterministic. This may result in incorrect '
-                   'pipeline output. This can be fixed by adding a type '
-                   'hint to the operation preceding the GroupByKey step, '
-                   'and for custom key classes, by writing a '
-                   'deterministic custom Coder. Please see the '
-                   'documentation for more details.' % (key_coder, op_name))
+      error_msg = (
+          'The key coder "%s" for %s '
+          'is not deterministic. This may result in incorrect '
+          'pipeline output. This can be fixed by adding a type '
+          'hint to the operation preceding the GroupByKey step, '
+          'and for custom key classes, by writing a '
+          'deterministic custom Coder. Please see the '
+          'documentation for more details.' % (key_coder, op_name))
       return key_coder.as_deterministic_coder(op_name, error_msg)
     else:
       return key_coder
@@ -170,12 +174,14 @@ class FirstOf(object):
       try:
         return coder.from_type_hint(typehint, self)
       except Exception as e:
-        msg = ('%s could not provide a Coder for type %s: %s' %
-               (coder, typehint, e))
+        msg = '%s could not provide a Coder for type %s: %s' % (
+            coder,
+            typehint,
+            e)
         messages.append(msg)
 
-    raise ValueError('Cannot provide coder for %s: %s' %
-                     (typehint, ';'.join(messages)))
+    raise ValueError(
+        'Cannot provide coder for %s: %s' % (typehint, ';'.join(messages)))
 
 
 registry = CoderRegistry()

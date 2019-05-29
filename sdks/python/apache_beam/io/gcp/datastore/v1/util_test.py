@@ -51,36 +51,34 @@ class MovingSumTest(unittest.TestCase):
   def test_aggregates_within_window(self):
     ms = util.MovingSum(10, 1)
     ms.add(MovingSumTest.TIMESTAMP, 5)
-    ms.add(MovingSumTest.TIMESTAMP+1, 3)
-    ms.add(MovingSumTest.TIMESTAMP+2, 7)
-    self.assertEqual(15, ms.sum(MovingSumTest.TIMESTAMP+3))
-    self.assertEqual(3, ms.count(MovingSumTest.TIMESTAMP+3))
+    ms.add(MovingSumTest.TIMESTAMP + 1, 3)
+    ms.add(MovingSumTest.TIMESTAMP + 2, 7)
+    self.assertEqual(15, ms.sum(MovingSumTest.TIMESTAMP + 3))
+    self.assertEqual(3, ms.count(MovingSumTest.TIMESTAMP + 3))
 
   def test_data_expires_from_moving_window(self):
     ms = util.MovingSum(5, 1)
     ms.add(MovingSumTest.TIMESTAMP, 5)
-    ms.add(MovingSumTest.TIMESTAMP+3, 3)
-    ms.add(MovingSumTest.TIMESTAMP+6, 7)
-    self.assertEqual(10, ms.sum(MovingSumTest.TIMESTAMP+7))
-    self.assertEqual(2, ms.count(MovingSumTest.TIMESTAMP+7))
+    ms.add(MovingSumTest.TIMESTAMP + 3, 3)
+    ms.add(MovingSumTest.TIMESTAMP + 6, 7)
+    self.assertEqual(10, ms.sum(MovingSumTest.TIMESTAMP + 7))
+    self.assertEqual(2, ms.count(MovingSumTest.TIMESTAMP + 7))
 
 
 class DynamicWriteBatcherTest(unittest.TestCase):
-
   def setUp(self):
     self._batcher = util.DynamicBatchSizer()
 
   # If possible, keep these test cases aligned with the Java test cases in
   # DatastoreV1Test.java
   def test_no_data(self):
-    self.assertEqual(util.WRITE_BATCH_INITIAL_SIZE,
-                     self._batcher.get_batch_size(0))
+    self.assertEqual(
+        util.WRITE_BATCH_INITIAL_SIZE, self._batcher.get_batch_size(0))
 
   def test_fast_queries(self):
     self._batcher.report_latency(0, 1000, 200)
     self._batcher.report_latency(0, 1000, 200)
-    self.assertEqual(util.WRITE_BATCH_MAX_SIZE,
-                     self._batcher.get_batch_size(0))
+    self.assertEqual(util.WRITE_BATCH_MAX_SIZE, self._batcher.get_batch_size(0))
 
   def test_slow_queries(self):
     self._batcher.report_latency(0, 10000, 200)
@@ -90,8 +88,7 @@ class DynamicWriteBatcherTest(unittest.TestCase):
   def test_size_not_below_minimum(self):
     self._batcher.report_latency(0, 30000, 50)
     self._batcher.report_latency(0, 30000, 50)
-    self.assertEqual(util.WRITE_BATCH_MIN_SIZE,
-                     self._batcher.get_batch_size(0))
+    self.assertEqual(util.WRITE_BATCH_MIN_SIZE, self._batcher.get_batch_size(0))
 
   def test_sliding_window(self):
     self._batcher.report_latency(0, 30000, 50)

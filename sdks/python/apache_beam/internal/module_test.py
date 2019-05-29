@@ -24,16 +24,12 @@ from builtins import object
 
 
 class TopClass(object):
-
   class NestedClass(object):
-
     def __init__(self, datum):
       self.datum = 'X:%s' % datum
 
   class MiddleClass(object):
-
     class NestedClass(object):
-
       def __init__(self, datum):
         self.datum = 'Y:%s' % datum
 
@@ -57,9 +53,9 @@ def create_class(datum):
   """Creates an unnamable class to be pickled."""
 
   class Z(object):
-
     def get(self):
       return 'Z:%s' % datum
+
   return Z()
 
 

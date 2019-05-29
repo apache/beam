@@ -24,7 +24,6 @@ from apache_beam.transforms.core import DoFn
 
 
 class DoFnSignatureTest(unittest.TestCase):
-
   def test_dofn_validate_process_error(self):
     class MyDoFn(DoFn):
       def process(self, element, w1=DoFn.WindowParam, w2=DoFn.WindowParam):

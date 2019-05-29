@@ -56,22 +56,14 @@ METRICS_TYPE_LABEL = 'metric'
 VALUE_LABEL = 'value'
 
 SCHEMA = [
-    {'name': ID_LABEL,
-     'field_type': 'STRING',
-     'mode': 'REQUIRED'
+    {'name': ID_LABEL, 'field_type': 'STRING', 'mode': 'REQUIRED'},
+    {
+        'name': SUBMIT_TIMESTAMP_LABEL,
+        'field_type': 'TIMESTAMP',
+        'mode': 'REQUIRED',
     },
-    {'name': SUBMIT_TIMESTAMP_LABEL,
-     'field_type': 'TIMESTAMP',
-     'mode': 'REQUIRED'
-    },
-    {'name': METRICS_TYPE_LABEL,
-     'field_type': 'STRING',
-     'mode': 'REQUIRED'
-    },
-    {'name': VALUE_LABEL,
-     'field_type': 'FLOAT',
-     'mode': 'REQUIRED'
-    }
+    {'name': METRICS_TYPE_LABEL, 'field_type': 'STRING', 'mode': 'REQUIRED'},
+    {'name': VALUE_LABEL, 'field_type': 'FLOAT', 'mode': 'REQUIRED'},
 ]
 
 
@@ -106,14 +98,14 @@ class MetricsReader(object):
     insert_rows = []
 
     for counter in metrics['counters']:
-      counter_dict = CounterMetric(counter, submit_timestamp, metric_id)\
-        .as_dict()
+      counter_dict = CounterMetric(
+          counter, submit_timestamp, metric_id
+      ).as_dict()
       insert_rows.append(counter_dict)
 
     dists = metrics['distributions']
     if len(dists) > 0:
-      runtime = RuntimeMetric(dists, submit_timestamp, metric_id)\
-        .as_dict()
+      runtime = RuntimeMetric(dists, submit_timestamp, metric_id).as_dict()
       insert_rows.append(runtime)
 
     return insert_rows
@@ -128,11 +120,12 @@ class Metric(object):
     self.metric_id = metric_id
 
   def as_dict(self):
-    return {SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
-            ID_LABEL: self.metric_id,
-            VALUE_LABEL: self.value,
-            METRICS_TYPE_LABEL: self.label
-           }
+    return {
+        SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
+        ID_LABEL: self.metric_id,
+        VALUE_LABEL: self.value,
+        METRICS_TYPE_LABEL: self.label,
+    }
 
 
 class CounterMetric(Metric):
@@ -166,12 +159,14 @@ class RuntimeMetric(Metric):
 class ConsoleMetricsPublisher(object):
   def publish(self, results):
     if len(results) > 0:
-      log = "Load test results for test: %s and timestamp: %s:" \
-            % (results[0][ID_LABEL], results[0][SUBMIT_TIMESTAMP_LABEL])
+      log = "Load test results for test: %s and timestamp: %s:" % (
+          results[0][ID_LABEL],
+          results[0][SUBMIT_TIMESTAMP_LABEL])
       logging.info(log)
       for result in results:
-        log = "Metric: %s Value: %s" \
-              % (result[METRICS_TYPE_LABEL], result[VALUE_LABEL])
+        log = "Metric: %s Value: %s" % (
+            result[METRICS_TYPE_LABEL],
+            result[VALUE_LABEL])
         logging.info(log)
     else:
       logging.info("No test results were collected.")
@@ -226,8 +221,7 @@ class BigQueryClient(object):
     except NotFound:
       raise ValueError(
           'Dataset {} does not exist in your project. '
-          'You have to create table first.'
-          .format(dataset_name))
+          'You have to create table first.'.format(dataset_name))
     return bq_dataset
 
   def save(self, results):

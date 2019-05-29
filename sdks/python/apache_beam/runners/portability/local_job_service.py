@@ -99,7 +99,9 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
             job_name=request.job_name,
             pipeline_options=request.pipeline_options,
             retrieval_token=self._artifact_service.retrieval_token(
-                preparation_id)),
+                preparation_id
+            ),
+        ),
         self._staging_dir)
     self._jobs[preparation_id] = BeamJob(
         preparation_id,
@@ -115,7 +117,8 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       self._artifact_service.CommitManifest(
           beam_artifact_api_pb2.CommitManifestRequest(
               staging_session_token=preparation_id,
-              manifest=beam_artifact_api_pb2.Manifest()))
+              manifest=beam_artifact_api_pb2.Manifest())
+)
     return beam_job_api_pb2.PrepareJobResponse(
         preparation_id=preparation_id,
         artifact_staging_endpoint=self._artifact_staging_endpoint,
@@ -192,7 +195,8 @@ class SubprocessSdkWorker(object):
         env=dict(
             os.environ,
             CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
-            LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor))
+            LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor,
+        ))
     try:
       p.wait()
       if p.returncode:
@@ -210,11 +214,7 @@ class BeamJob(threading.Thread):
     The current state of the pipeline is available as self.state.
     """
 
-  def __init__(self,
-               job_id,
-               pipeline_options,
-               pipeline_proto,
-               provision_info):
+  def __init__(self, job_id, pipeline_options, pipeline_proto, provision_info):
     super(BeamJob, self).__init__()
     self._job_id = job_id
     self._pipeline_options = pipeline_options
@@ -241,8 +241,8 @@ class BeamJob(threading.Thread):
     with JobLogHandler(self._log_queues):
       try:
         fn_api_runner.FnApiRunner(
-            provision_info=self._provision_info).run_via_runner_api(
-                self._pipeline_proto)
+            provision_info=self._provision_info
+        ).run_via_runner_api(self._pipeline_proto)
         logging.info('Successfully completed job.')
         self.state = beam_job_api_pb2.JobState.DONE
       except:  # pylint: disable=bare-except
@@ -285,7 +285,6 @@ class BeamJob(threading.Thread):
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
@@ -332,8 +331,9 @@ class JobLogHandler(logging.Handler):
     if self._logged_thread is threading.current_thread():
       msg = beam_job_api_pb2.JobMessage(
           message_id=self._next_id(),
-          time=time.strftime('%Y-%m-%d %H:%M:%S.',
-                             time.localtime(record.created)),
+          time=time.strftime(
+              '%Y-%m-%d %H:%M:%S.', time.localtime(record.created)
+          ),
           importance=self.LOG_LEVEL_MAP[record.levelno],
           message_text=self.format(record))
 

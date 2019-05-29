@@ -92,24 +92,25 @@ class JsonCoder(object):
 
 class EstimatePiTransform(beam.PTransform):
   """Runs 10M trials, and combine the results to estimate pi."""
+
   def __init__(self, tries_per_work_item=100000):
     self.tries_per_work_item = tries_per_work_item
 
   def expand(self, pcoll):
     # A hundred work items of a hundred thousand tries each.
-    return (pcoll
-            | 'Initialize' >> beam.Create(
-                [self.tries_per_work_item] * 100).with_output_types(int)
-            | 'Run trials' >> beam.Map(run_trials)
-            | 'Sum' >> beam.CombineGlobally(combine_results).without_defaults())
+    return (
+        pcoll
+        | 'Initialize'
+        >> beam.Create([self.tries_per_work_item] * 100).with_output_types(int)
+        | 'Run trials' >> beam.Map(run_trials)
+        | 'Sum' >> beam.CombineGlobally(combine_results).without_defaults())
 
 
 def run(argv=None):
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument(
+      '--output', required=True, help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -117,9 +118,10 @@ def run(argv=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   with beam.Pipeline(options=pipeline_options) as p:
 
-    (p  # pylint: disable=expression-not-assigned
-     | EstimatePiTransform()
-     | WriteToText(known_args.output, coder=JsonCoder()))
+    (
+        p  # pylint: disable=expression-not-assigned
+        | EstimatePiTransform()
+        | WriteToText(known_args.output, coder=JsonCoder()))
 
 
 if __name__ == '__main__':

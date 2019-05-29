@@ -70,14 +70,15 @@ def _matcher_or_equal_to(value_or_matcher):
 
 def has_urn_and_labels(mi, urn, labels):
   """Returns true if it the monitoring_info contains the labels and urn."""
+
   def contains_labels(mi, labels):
     # Check all the labels and their values exist in the monitoring_info
     return all(item in mi.labels.items() for item in labels.items())
+
   return contains_labels(mi, labels) and mi.urn == urn
 
 
 class FnApiRunnerTest(unittest.TestCase):
-
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
@@ -94,16 +95,15 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_pardo(self):
     with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(['a', 'bc'])
-             | beam.Map(lambda e: e * 2)
-             | beam.Map(lambda e: e + 'x'))
+      res = (
+          p
+          | beam.Create(['a', 'bc'])
+          | beam.Map(lambda e: e * 2)
+          | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
 
   def test_pardo_metrics(self):
-
     class MyDoFn(beam.DoFn):
-
       def start_bundle(self):
         self.count = beam.metrics.Metrics.counter('ns1', 'elements')
 
@@ -112,7 +112,6 @@ class FnApiRunnerTest(unittest.TestCase):
         return [element]
 
     class MyOtherDoFn(beam.DoFn):
-
       def start_bundle(self):
         self.count = beam.metrics.Metrics.counter('ns2', 'elementsplusone')
 
@@ -121,36 +120,42 @@ class FnApiRunnerTest(unittest.TestCase):
         return [element]
 
     with self.create_pipeline() as p:
-      res = (p | beam.Create([1, 2, 3])
-             | 'mydofn' >> beam.ParDo(MyDoFn())
-             | 'myotherdofn' >> beam.ParDo(MyOtherDoFn()))
+      res = (
+          p
+          | beam.Create([1, 2, 3])
+          | 'mydofn' >> beam.ParDo(MyDoFn())
+          | 'myotherdofn' >> beam.ParDo(MyOtherDoFn()))
       p.run()
       if not MetricsEnvironment.METRICS_SUPPORTED:
         self.skipTest('Metrics are not supported.')
 
-      counter_updates = [{'key': key, 'value': val}
-                         for container in p.runner.metrics_containers()
-                         for key, val in
-                         container.get_updates().counters.items()]
+      counter_updates = [
+          {'key': key, 'value': val}
+          for container in p.runner.metrics_containers()
+          for key, val in container.get_updates().counters.items()
+      ]
       counter_values = [update['value'] for update in counter_updates]
       counter_keys = [update['key'] for update in counter_updates]
       assert_that(res, equal_to([1, 2, 3]))
       self.assertEqual(counter_values, [6, 9])
-      self.assertEqual(counter_keys, [
-          MetricKey('mydofn',
-                    MetricName('ns1', 'elements')),
-          MetricKey('myotherdofn',
-                    MetricName('ns2', 'elementsplusone'))])
+      self.assertEqual(
+          counter_keys,
+          [
+              MetricKey('mydofn', MetricName('ns1', 'elements')),
+              MetricKey('myotherdofn', MetricName('ns2', 'elementsplusone')),
+          ])
 
   def test_pardo_side_outputs(self):
     def tee(elem, *tags):
       for tag in tags:
         if tag in elem:
           yield beam.pvalue.TaggedOutput(tag, elem)
+
     with self.create_pipeline() as p:
-      xy = (p
-            | 'Create' >> beam.Create(['x', 'y', 'xy'])
-            | beam.FlatMap(tee, 'x', 'y').with_outputs())
+      xy = (
+          p
+          | 'Create' >> beam.Create(['x', 'y', 'xy'])
+          | beam.FlatMap(tee, 'x', 'y').with_outputs())
       assert_that(xy.x, equal_to(['x', 'xy']), label='x')
       assert_that(xy.y, equal_to(['y', 'xy']), label='y')
 
@@ -158,10 +163,11 @@ class FnApiRunnerTest(unittest.TestCase):
     def even_odd(elem):
       yield elem
       yield beam.pvalue.TaggedOutput('odd' if elem % 2 else 'even', elem)
+
     with self.create_pipeline() as p:
       ints = p | beam.Create([1, 2, 3])
-      named = ints | 'named' >> beam.FlatMap(
-          even_odd).with_outputs('even', 'odd', main='all')
+      named = ints | 'named' >> beam.FlatMap(even_odd).with_outputs(
+          'even', 'odd', main='all')
       assert_that(named.all, equal_to([1, 2, 3]), label='named.all')
       assert_that(named.even, equal_to([2]), label='named.even')
       assert_that(named.odd, equal_to([1, 3]), label='named.odd')
@@ -176,38 +182,53 @@ class FnApiRunnerTest(unittest.TestCase):
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
+
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b', 'c'])
       side = p | 'side' >> beam.Create(['x', 'y'])
-      assert_that(main | beam.FlatMap(cross_product, beam.pvalue.AsList(side)),
-                  equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'),
-                            ('a', 'y'), ('b', 'y'), ('c', 'y')]))
+      assert_that(
+          main | beam.FlatMap(cross_product, beam.pvalue.AsList(side)),
+          equal_to(
+              [
+                  ('a', 'x'),
+                  ('b', 'x'),
+                  ('c', 'x'),
+                  ('a', 'y'),
+                  ('b', 'y'),
+                  ('c', 'y'),
+              ]
+          ))
 
   def test_pardo_windowed_side_inputs(self):
     with self.create_pipeline() as p:
       # Now with some windowing.
-      pcoll = p | beam.Create(list(range(10))) | beam.Map(
-          lambda t: window.TimestampedValue(t, t))
+      pcoll = (
+          p
+          | beam.Create(list(range(10)))
+          | beam.Map(lambda t: window.TimestampedValue(t, t)))
       # Intentionally choosing non-aligned windows to highlight the transition.
       main = pcoll | 'WindowMain' >> beam.WindowInto(window.FixedWindows(5))
       side = pcoll | 'WindowSide' >> beam.WindowInto(window.FixedWindows(7))
-      res = main | beam.Map(lambda x, s: (x, sorted(s)),
-                            beam.pvalue.AsList(side))
+      res = main | beam.Map(
+          lambda x, s: (x, sorted(s)), beam.pvalue.AsList(side))
       assert_that(
           res,
-          equal_to([
-              # The window [0, 5) maps to the window [0, 7).
-              (0, list(range(7))),
-              (1, list(range(7))),
-              (2, list(range(7))),
-              (3, list(range(7))),
-              (4, list(range(7))),
-              # The window [5, 10) maps to the window [7, 14).
-              (5, list(range(7, 10))),
-              (6, list(range(7, 10))),
-              (7, list(range(7, 10))),
-              (8, list(range(7, 10))),
-              (9, list(range(7, 10)))]),
+          equal_to(
+              [
+                  # The window [0, 5) maps to the window [0, 7).
+                  (0, list(range(7))),
+                  (1, list(range(7))),
+                  (2, list(range(7))),
+                  (3, list(range(7))),
+                  (4, list(range(7))),
+                  # The window [5, 10) maps to the window [7, 14).
+                  (5, list(range(7, 10))),
+                  (6, list(range(7, 10))),
+                  (7, list(range(7, 10))),
+                  (8, list(range(7, 10))),
+                  (9, list(range(7, 10))),
+              ]
+          ),
           label='windowed')
 
   def test_flattened_side_input(self, with_transcoding=True):
@@ -217,7 +238,7 @@ class FnApiRunnerTest(unittest.TestCase):
       side2 = p | 'side2' >> beam.Create([('b', 2)])
       if with_transcoding:
         # Also test non-matching coder types (transcoding required)
-        third_element = [('another_type')]
+        third_element = ['another_type']
       else:
         third_element = [('b', 3)]
       side3 = p | 'side3' >> beam.Create(third_element)
@@ -242,12 +263,16 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
-      side = (p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
-              # TODO(BEAM-4782): Obviate the need for this map.
-              | beam.Map(lambda kv: (kv[0], kv[1])))
+      side = (
+          p
+          | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
+          # TODO(BEAM-4782): Obviate the need for this map.
+          | beam.Map(lambda kv: (kv[0], kv[1])))
       assert_that(
-          main | beam.Map(lambda k, d: (k, sorted(d[k])),
-                          beam.pvalue.AsMultiMap(side)),
+          main
+          | beam.Map(
+              lambda k, d: (k, sorted(d[k])), beam.pvalue.AsMultiMap(side)
+          ),
           equal_to([('a', [1, 3]), ('b', [2])]))
 
   def test_multimap_side_input_type_coercion(self):
@@ -256,17 +281,21 @@ class FnApiRunnerTest(unittest.TestCase):
       # The type of this side-input is forced to Any (overriding type
       # inference). Without type coercion to KV[Any, Any], the usage of this
       # side-input in AsMultiMap() below should fail.
-      side = (p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
-              .with_output_types(beam.typehints.Any))
+      side = p | 'side' >> beam.Create(
+          [('a', 1), ('b', 2), ('a', 3)]
+      ).with_output_types(beam.typehints.Any)
       assert_that(
-          main | beam.Map(lambda k, d: (k, sorted(d[k])),
-                          beam.pvalue.AsMultiMap(side)),
+          main
+          | beam.Map(
+              lambda k, d: (k, sorted(d[k])), beam.pvalue.AsMultiMap(side)
+          ),
           equal_to([('a', [1, 3]), ('b', [2])]))
 
   def test_pardo_unfusable_side_inputs(self):
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
+
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
       assert_that(
@@ -275,10 +304,12 @@ class FnApiRunnerTest(unittest.TestCase):
 
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
-      derived = ((pcoll,) | beam.Flatten()
-                 | beam.Map(lambda x: (x, x))
-                 | beam.GroupByKey()
-                 | 'Unkey' >> beam.Map(lambda kv: kv[0]))
+      derived = (
+          (pcoll,)
+          | beam.Flatten()
+          | beam.Map(lambda x: (x, x))
+          | beam.GroupByKey()
+          | 'Unkey' >> beam.Map(lambda kv: kv[0]))
       assert_that(
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(derived)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
@@ -294,15 +325,18 @@ class FnApiRunnerTest(unittest.TestCase):
         yield k, v, index.read()
 
     inputs = [('A', 'a')] * 2 + [('B', 'b')] * 3
-    expected = [('A', 'a', 1),
-                ('A', 'a', 2),
-                ('B', 'b', 1),
-                ('B', 'b', 2),
-                ('B', 'b', 3)]
+    expected = [
+        ('A', 'a', 1),
+        ('A', 'a', 2),
+        ('B', 'b', 1),
+        ('B', 'b', 2),
+        ('B', 'b', 3),
+    ]
 
     with self.create_pipeline() as p:
-      assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
-                  equal_to(expected))
+      assert_that(
+          p | beam.Create(inputs) | beam.ParDo(AddIndex()), equal_to(expected)
+      )
 
   def test_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
@@ -334,12 +368,15 @@ class FnApiRunnerTest(unittest.TestCase):
       self.skipTest('BEAM-7074: Multiple timer definitions not supported.')
 
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
-    clear_timer_spec = userstate.TimerSpec('clear_timer',
-                                           userstate.TimeDomain.WATERMARK)
+    clear_timer_spec = userstate.TimerSpec(
+        'clear_timer', userstate.TimeDomain.WATERMARK)
 
     class TimerDoFn(beam.DoFn):
-      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec),
-                  clear_timer=beam.DoFn.TimerParam(clear_timer_spec)):
+      def process(
+          self,
+          element,
+          timer=beam.DoFn.TimerParam(timer_spec),
+          clear_timer=beam.DoFn.TimerParam(clear_timer_spec)):
         unused_key, ts = element
         timer.set(ts)
         timer.set(2 * ts)
@@ -377,11 +414,12 @@ class FnApiRunnerTest(unittest.TestCase):
     buffer_size = 3
 
     class BufferDoFn(beam.DoFn):
-      def process(self,
-                  kv,
-                  ts=beam.DoFn.TimestampParam,
-                  timer=beam.DoFn.TimerParam(timer_spec),
-                  state=beam.DoFn.StateParam(state_spec)):
+      def process(
+          self,
+          kv,
+          ts=beam.DoFn.TimestampParam,
+          timer=beam.DoFn.TimerParam(timer_spec),
+          state=beam.DoFn.StateParam(state_spec)):
         _, element = kv
         state.add(element)
         buffer = state.read()
@@ -420,33 +458,30 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Create(elements)
           # Send even and odd elements to different windows.
           | beam.Map(lambda e: window.TimestampedValue(e, ord(e) % 2))
-          | beam.WindowInto(window.FixedWindows(1) if windowed
-                            else window.GlobalWindows())
+          | beam.WindowInto(
+              window.FixedWindows(1) if windowed else window.GlobalWindows())
           | beam.Map(lambda x: ('key', x))
           | beam.ParDo(BufferDoFn()))
 
       assert_that(actual, is_buffered_correctly)
 
   def test_sdf(self):
-
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
           self,
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(
-              ExpandStringsProvider())):
+              ExpandStringsProvider()
+          )):
         assert isinstance(
-            restriction_tracker,
-            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
+            restriction_tracker, restriction_trackers.OffsetRestrictionTracker
+        ), restriction_tracker
         for k in range(*restriction_tracker.current_restriction()):
           yield element[k]
 
     with self.create_pipeline() as p:
       data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
-      actual = (
-          p
-          | beam.Create(data)
-          | beam.ParDo(ExpandingStringsDoFn()))
+      actual = p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn())
       assert_that(actual, equal_to(list(''.join(data))))
 
   def test_sdf_with_sdf_initiated_checkpointing(self):
@@ -458,10 +493,11 @@ class FnApiRunnerTest(unittest.TestCase):
           self,
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(
-              ExpandStringsProvider())):
+              ExpandStringsProvider()
+          )):
         assert isinstance(
-            restriction_tracker,
-            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
+            restriction_tracker, restriction_trackers.OffsetRestrictionTracker
+        ), restriction_tracker
         for k in range(*restriction_tracker.current_restriction()):
           if not restriction_tracker.try_claim(k):
             return
@@ -473,10 +509,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     with self.create_pipeline() as p:
       data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
-      actual = (
-          p
-          | beam.Create(data)
-          | beam.ParDo(ExpandStringsDoFn()))
+      actual = p | beam.Create(data) | beam.ParDo(ExpandStringsDoFn())
 
       assert_that(actual, equal_to(list(''.join(data))))
 
@@ -488,17 +521,18 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
-      res = (p
-             | beam.Create([('a', 1), ('a', 2), ('b', 3)])
-             | beam.GroupByKey()
-             | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
+      res = (
+          p
+          | beam.Create([('a', 1), ('a', 2), ('b', 3)])
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
       assert_that(res, equal_to([('a', [1, 2]), ('b', [3])]))
 
   # Runners may special case the Reshuffle transform urn.
   def test_reshuffle(self):
     with self.create_pipeline() as p:
-      assert_that(p | beam.Create([1, 2, 3]) | beam.Reshuffle(),
-                  equal_to([1, 2, 3]))
+      assert_that(
+          p | beam.Create([1, 2, 3]) | beam.Reshuffle(), equal_to([1, 2, 3]))
 
   def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:
@@ -507,16 +541,19 @@ class FnApiRunnerTest(unittest.TestCase):
         additional = [ord('d')]
       else:
         additional = ['d']
-      res = (p | 'a' >> beam.Create(['a']),
-             p | 'bc' >> beam.Create(['b', 'c']),
-             p | 'd' >> beam.Create(additional)) | beam.Flatten()
+      res = (
+          p | 'a' >> beam.Create(['a']),
+          p | 'bc' >> beam.Create(['b', 'c']),
+          p | 'd' >> beam.Create(additional),
+      ) | beam.Flatten()
       assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
   def test_combine_per_key(self):
     with self.create_pipeline() as p:
-      res = (p
-             | beam.Create([('a', 1), ('a', 2), ('b', 3)])
-             | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      res = (
+          p
+          | beam.Create([('a', 1), ('a', 2), ('b', 3)])
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
 
   def test_read(self):
@@ -527,58 +564,60 @@ class FnApiRunnerTest(unittest.TestCase):
       temp_file.write(b'a\nb\nc')
       temp_file.close()
       with self.create_pipeline() as p:
-        assert_that(p | beam.io.ReadFromText(temp_file.name),
-                    equal_to(['a', 'b', 'c']))
+        assert_that(
+            p | beam.io.ReadFromText(temp_file.name), equal_to(['a', 'b', 'c'])
+        )
     finally:
       os.unlink(temp_file.name)
 
   def test_windowing(self):
     with self.create_pipeline() as p:
-      res = (p
-             | beam.Create([1, 2, 100, 101, 102])
-             | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
-             | beam.WindowInto(beam.transforms.window.Sessions(10))
-             | beam.GroupByKey()
-             | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
+      res = (
+          p
+          | beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
+          | beam.WindowInto(beam.transforms.window.Sessions(10))
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
   def test_large_elements(self):
     with self.create_pipeline() as p:
-      big = (p
-             | beam.Create(['a', 'a', 'b'])
-             | beam.Map(lambda x: (x, x * data_plane._DEFAULT_FLUSH_THRESHOLD)))
+      big = (
+          p
+          | beam.Create(['a', 'a', 'b'])
+          | beam.Map(lambda x: (x, x * data_plane._DEFAULT_FLUSH_THRESHOLD)))
 
-      side_input_res = (
-          big
-          | beam.Map(lambda x, side: (x[0], side.count(x[0])),
-                     beam.pvalue.AsList(big | beam.Map(lambda x: x[0]))))
-      assert_that(side_input_res,
-                  equal_to([('a', 2), ('a', 2), ('b', 1)]), label='side')
+      side_input_res = big | beam.Map(
+          lambda x, side: (x[0], side.count(x[0])),
+          beam.pvalue.AsList(big | beam.Map(lambda x: x[0])))
+      assert_that(
+          side_input_res, equal_to([('a', 2), ('a', 2), ('b', 1)]), label='side'
+      )
 
-      gbk_res = (
-          big
-          | beam.GroupByKey()
-          | beam.Map(lambda x: x[0]))
+      gbk_res = big | beam.GroupByKey() | beam.Map(lambda x: x[0])
       assert_that(gbk_res, equal_to(['a', 'b']), label='gbk')
 
   def test_error_message_includes_stage(self):
     with self.assertRaises(BaseException) as e_cm:
       with self.create_pipeline() as p:
+
         def raise_error(x):
           raise RuntimeError('x')
+
         # pylint: disable=expression-not-assigned
-        (p
-         | beam.Create(['a', 'b'])
-         | 'StageA' >> beam.Map(lambda x: x)
-         | 'StageB' >> beam.Map(lambda x: x)
-         | 'StageC' >> beam.Map(raise_error)
-         | 'StageD' >> beam.Map(lambda x: x))
+        (
+            p
+            | beam.Create(['a', 'b'])
+            | 'StageA' >> beam.Map(lambda x: x)
+            | 'StageB' >> beam.Map(lambda x: x)
+            | 'StageC' >> beam.Map(raise_error)
+            | 'StageD' >> beam.Map(lambda x: x))
     message = e_cm.exception.args[0]
     self.assertIn('StageC', message)
     self.assertNotIn('StageB', message)
 
   def test_error_traceback_includes_user_code(self):
-
     def first(x):
       return second(x)
 
@@ -590,7 +629,9 @@ class FnApiRunnerTest(unittest.TestCase):
 
     try:
       with self.create_pipeline() as p:
-        p | beam.Create([0]) | beam.Map(first)  # pylint: disable=expression-not-assigned
+        p | beam.Create([0]) | beam.Map(
+            first
+        )  # pylint: disable=expression-not-assigned
     except Exception:  # pylint: disable=broad-except
       message = traceback.format_exc()
     else:
@@ -601,7 +642,6 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertIn('third', message)
 
   def test_no_subtransform_composite(self):
-
     class First(beam.PTransform):
       def expand(self, pcolls):
         return pcolls[0]
@@ -631,16 +671,20 @@ class FnApiRunnerTest(unittest.TestCase):
 
     res = p.run()
     res.wait_until_finish()
-    c1, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count1'))[
-        'counters']
+    (c1,) = res.metrics().query(
+        beam.metrics.MetricsFilter().with_step('count1')
+    )['counters']
     self.assertEqual(c1.committed, 2)
-    c2, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count2'))[
-        'counters']
+    (c2,) = res.metrics().query(
+        beam.metrics.MetricsFilter().with_step('count2')
+    )['counters']
     self.assertEqual(c2.committed, 4)
-    dist, = res.metrics().query(beam.metrics.MetricsFilter().with_step('dist'))[
-        'distributions']
-    gaug, = res.metrics().query(
-        beam.metrics.MetricsFilter().with_step('gauge'))['gauges']
+    (dist,) = res.metrics().query(
+        beam.metrics.MetricsFilter().with_step('dist')
+    )['distributions']
+    (gaug,) = res.metrics().query(
+        beam.metrics.MetricsFilter().with_step('gauge')
+    )['gauges']
     self.assertEqual(
         dist.committed.data, beam.metrics.cells.DistributionData(4, 2, 1, 3))
     self.assertEqual(dist.committed.mean, 2.0)
@@ -653,18 +697,16 @@ class FnApiRunnerTest(unittest.TestCase):
       raise Exception('raise exception when calling callback')
 
     class FinalizebleDoFnWithException(beam.DoFn):
-
       def process(
-          self,
-          element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+          self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
         bundle_finalizer.register(raise_expetion)
         yield element
 
     with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(elements_list)
-             | beam.ParDo(FinalizebleDoFnWithException()))
+      res = (
+          p
+          | beam.Create(elements_list)
+          | beam.ParDo(FinalizebleDoFnWithException()))
       assert_that(res, equal_to(['1', '2']))
 
   def test_register_finalizations(self):
@@ -673,16 +715,12 @@ class FnApiRunnerTest(unittest.TestCase):
 
     class FinalizableDoFn(beam.DoFn):
       def process(
-          self,
-          element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+          self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
         bundle_finalizer.register(lambda: event_recorder.record(element))
         yield element
 
     with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(elements_list)
-             | beam.ParDo(FinalizableDoFn()))
+      res = p | beam.Create(elements_list) | beam.ParDo(FinalizableDoFn())
 
       assert_that(res, equal_to(elements_list))
 
@@ -697,25 +735,29 @@ class FnApiRunnerTest(unittest.TestCase):
         'initial_splitting_num_bundles': 2,
         'initial_splitting_desired_bundle_size': 2,
         'sleep_per_input_record_sec': 0,
-        'initial_splitting': 'const'
+        'initial_splitting': 'const',
     }
     num_source_description = 5
     min_num_record = 10
     max_num_record = 20
 
     # pylint: disable=unused-variable
-    source_descriptions = ([dict(
-        {'num_records': random.randint(min_num_record, max_num_record)},
-        **common_attrs) for i in range(0, num_source_description)])
+    source_descriptions = [
+        dict(
+            {'num_records': random.randint(min_num_record, max_num_record)},
+            **common_attrs)
+        for i in range(0, num_source_description)
+    ]
     total_num_records = 0
     for source in source_descriptions:
       total_num_records += source['num_records']
 
     with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(source_descriptions)
-             | beam.ParDo(SyntheticSDFAsSource())
-             | beam.combiners.Count.Globally())
+      res = (
+          p
+          | beam.Create(source_descriptions)
+          | beam.ParDo(SyntheticSDFAsSource())
+          | beam.combiners.Count.Globally())
       assert_that(res, equal_to([total_num_records]))
 
 
@@ -726,7 +768,6 @@ class FnApiRunnerTest(unittest.TestCase):
 # upon repeating bundle processing due to unncessarily incrementing
 # the sampling counter.
 class FnApiRunnerMetricsTest(unittest.TestCase):
-
   def assert_has_counter(
       self, monitoring_infos, urn, labels, value=None, ge_value=None):
     # TODO(ajamato): Consider adding a matcher framework
@@ -741,15 +782,23 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
             found = found + 1
         else:
           found = found + 1
-    ge_value_str = {'ge_value' : ge_value} if ge_value else ''
-    value_str = {'value' : value} if value else ''
+    ge_value_str = {'ge_value': ge_value} if ge_value else ''
+    value_str = {'value': value} if value else ''
     self.assertEqual(
-        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-        (found, (urn, labels, value_str, ge_value_str),))
+        1,
+        found,
+        "Found (%s) Expected only 1 monitoring_info for %s."
+        % (found, (urn, labels, value_str, ge_value_str)))
 
   def assert_has_distribution(
-      self, monitoring_infos, urn, labels,
-      sum=None, count=None, min=None, max=None):
+      self,
+      monitoring_infos,
+      urn,
+      labels,
+      sum=None,
+      count=None,
+      min=None,
+      max=None):
     # TODO(ajamato): Consider adding a matcher framework
     sum = _matcher_or_equal_to(sum)
     count = _matcher_or_equal_to(count)
@@ -783,8 +832,10 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
             increment = 0
         found += increment
     self.assertEqual(
-        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-        (found, (urn, labels, str(description)),))
+        1,
+        found,
+        "Found (%s) Expected only 1 monitoring_info for %s."
+        % (found, (urn, labels, str(description))))
 
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
@@ -812,18 +863,17 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     pcoll = p | beam.Create(['a%d' % i for i in range(num_source_elems)])
 
     # pylint: disable=expression-not-assigned
-    pardo = ('StepThatDoesTwoOutputs' >> beam.ParDo(
-        GenerateTwoOutputs()).with_outputs('SecondOutput',
-                                           'ThirdOutput',
-                                           main='FirstAndMainOutput'))
+    pardo = 'StepThatDoesTwoOutputs' >> beam.ParDo(
+        GenerateTwoOutputs()
+    ).with_outputs('SecondOutput', 'ThirdOutput', main='FirstAndMainOutput')
 
     # Actually feed pcollection to pardo
-    second_output, third_output, first_output = (pcoll | pardo)
+    second_output, third_output, first_output = pcoll | pardo
 
     # consume some of elements
-    merged = ((first_output, second_output, third_output) | beam.Flatten())
-    merged | ('PassThrough') >> beam.ParDo(PassThrough())
-    second_output | ('PassThrough2') >> beam.ParDo(PassThrough())
+    merged = (first_output, second_output, third_output) | beam.Flatten()
+    merged | 'PassThrough' >> beam.ParDo(PassThrough())
+    second_output | 'PassThrough2' >> beam.ParDo(PassThrough())
 
     res = p.run()
     res.wait_until_finish()
@@ -832,63 +882,83 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
     counters = result_metrics.monitoring_infos()
     # All element count and byte count metrics must have a PCOLLECTION_LABEL.
-    self.assertFalse([x for x in counters if
-                      x.urn in [monitoring_infos.ELEMENT_COUNT_URN,
-                                monitoring_infos.SAMPLED_BYTE_SIZE_URN]
-                      and
-                      monitoring_infos.PCOLLECTION_LABEL not in x.labels])
+    self.assertFalse(
+        [
+            x
+            for x in counters
+            if x.urn
+            in [
+                monitoring_infos.ELEMENT_COUNT_URN,
+                monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+            ]
+            and monitoring_infos.PCOLLECTION_LABEL not in x.labels
+        ])
     try:
-      labels = {monitoring_infos.PCOLLECTION_LABEL : 'Impulse'}
+      labels = {monitoring_infos.PCOLLECTION_LABEL: 'Impulse'}
       self.assert_has_counter(
           counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 1)
 
       # Create/Read, "out" output.
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_1'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_1'
+      }
       self.assert_has_counter(
-          counters,
-          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+          counters, monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems
+      )
       self.assert_has_distribution(
-          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          counters,
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          labels,
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
           count=hamcrest.greater_than(0))
 
       # GenerateTwoOutputs, main output.
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_2'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_2'
+      }
       self.assert_has_counter(
-          counters,
-          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+          counters, monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems
+      )
       self.assert_has_distribution(
-          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          counters,
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          labels,
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
           count=hamcrest.greater_than(0))
 
       # GenerateTwoOutputs, "SecondOutput" output.
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_3'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_3'
+      }
       self.assert_has_counter(
           counters,
-          monitoring_infos.ELEMENT_COUNT_URN, labels, 2 * num_source_elems)
+          monitoring_infos.ELEMENT_COUNT_URN,
+          labels,
+          2 * num_source_elems)
       self.assert_has_distribution(
-          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          counters,
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          labels,
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
           count=hamcrest.greater_than(0))
 
       # GenerateTwoOutputs, "ThirdOutput" output.
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_4'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_4'
+      }
       self.assert_has_counter(
-          counters,
-          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+          counters, monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems
+      )
       self.assert_has_distribution(
-          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          counters,
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          labels,
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
@@ -897,39 +967,52 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       # Skipping other pcollections due to non-deterministic naming for multiple
       # outputs.
       # Flatten/Read, main output.
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_5'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_5'
+      }
       self.assert_has_counter(
           counters,
-          monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
+          monitoring_infos.ELEMENT_COUNT_URN,
+          labels,
+          4 * num_source_elems)
       self.assert_has_distribution(
-          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          counters,
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          labels,
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
           count=hamcrest.greater_than(0))
 
       # PassThrough, main output
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_6'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_6'
+      }
       self.assert_has_counter(
           counters,
-          monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
+          monitoring_infos.ELEMENT_COUNT_URN,
+          labels,
+          4 * num_source_elems)
       self.assert_has_distribution(
-          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          counters,
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          labels,
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
           count=hamcrest.greater_than(0))
 
       # PassThrough2, main output
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_7'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_7'
+      }
       self.assert_has_counter(
-          counters,
-          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+          counters, monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems
+      )
       self.assert_has_distribution(
-          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          counters,
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          labels,
           min=hamcrest.greater_than(0),
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
@@ -962,6 +1045,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           found = found + 1
       self.assertEqual(
           1, found, "Did not find exactly 1 metric for %s." % metric_key)
+
     urns = [
         monitoring_infos.START_BUNDLE_MSECS_URN,
         monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
@@ -973,7 +1057,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       namespace = split[0]
       name = ':'.join(split[1:])
       assert_counter_exists(
-          all_metrics_via_montoring_infos, namespace, name, step='Create/Read')
+          all_metrics_via_montoring_infos, namespace, name, step='Create/Read'
+      )
       assert_counter_exists(
           all_metrics_via_montoring_infos, namespace, name, step='MyStep')
 
@@ -990,16 +1075,25 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       self.skipTest('Progress metrics not supported.')
       return
 
-    _ = (p
-         | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])
-         | beam.Map(time.sleep)
-         | beam.Map(lambda x: ('key', x))
-         | beam.GroupByKey()
-         | 'm_out' >> beam.FlatMap(lambda x: [
-             1, 2, 3, 4, 5,
-             beam.pvalue.TaggedOutput('once', x),
-             beam.pvalue.TaggedOutput('twice', x),
-             beam.pvalue.TaggedOutput('twice', x)]))
+    _ = (
+        p
+        | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])
+        | beam.Map(time.sleep)
+        | beam.Map(lambda x: ('key', x))
+        | beam.GroupByKey()
+        | 'm_out'
+        >> beam.FlatMap(
+            lambda x: [
+                1,
+                2,
+                3,
+                4,
+                5,
+                beam.pvalue.TaggedOutput('once', x),
+                beam.pvalue.TaggedOutput('twice', x),
+                beam.pvalue.TaggedOutput('twice', x),
+            ])
+)
 
     res = p.run()
     res.wait_until_finish()
@@ -1013,41 +1107,44 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     try:
       # TODO(ajamato): Delete this block after deleting the legacy metrics code.
       # Test the DEPRECATED legacy metrics
-      pregbk_metrics, postgbk_metrics = list(
-          res._metrics_by_stage.values())
+      pregbk_metrics, postgbk_metrics = list(res._metrics_by_stage.values())
       if 'Create/Read' not in pregbk_metrics.ptransforms:
         # The metrics above are actually unordered. Swap.
         pregbk_metrics, postgbk_metrics = postgbk_metrics, pregbk_metrics
       self.assertEqual(
           4,
-          pregbk_metrics.ptransforms['Create/Read']
-          .processed_elements.measured.output_element_counts['out'])
+          pregbk_metrics.ptransforms[
+              'Create/Read'
+          ].processed_elements.measured.output_element_counts['out'])
       self.assertEqual(
           4,
-          pregbk_metrics.ptransforms['Map(sleep)']
-          .processed_elements.measured.output_element_counts['None'])
+          pregbk_metrics.ptransforms[
+              'Map(sleep)'
+          ].processed_elements.measured.output_element_counts['None'])
       self.assertLessEqual(
           4e-3 * DEFAULT_SAMPLING_PERIOD_MS,
-          pregbk_metrics.ptransforms['Map(sleep)']
-          .processed_elements.measured.total_time_spent)
+          pregbk_metrics.ptransforms[
+              'Map(sleep)'
+          ].processed_elements.measured.total_time_spent)
       self.assertEqual(
           1,
-          postgbk_metrics.ptransforms['GroupByKey/Read']
-          .processed_elements.measured.output_element_counts['None'])
-
-      # The actual stage name ends up being something like 'm_out/lamdbda...'
-      m_out, = [
-          metrics for name, metrics in list(postgbk_metrics.ptransforms.items())
-          if name.startswith('m_out')]
+          postgbk_metrics.ptransforms[
+              'GroupByKey/Read'
+          ].processed_elements.measured.output_element_counts['None'])
+      (
+          # The actual stage name ends up being something like 'm_out/lamdbda...'
+          m_out,
+      ) = [
+          metrics
+          for name, metrics in list(postgbk_metrics.ptransforms.items())
+          if name.startswith('m_out')
+      ]
       self.assertEqual(
-          5,
-          m_out.processed_elements.measured.output_element_counts['None'])
+          5, m_out.processed_elements.measured.output_element_counts['None'])
       self.assertEqual(
-          1,
-          m_out.processed_elements.measured.output_element_counts['once'])
+          1, m_out.processed_elements.measured.output_element_counts['once'])
       self.assertEqual(
-          2,
-          m_out.processed_elements.measured.output_element_counts['twice'])
+          2, m_out.processed_elements.measured.output_element_counts['twice'])
 
       # Test the new MonitoringInfo monitoring format.
       self.assertEqual(2, len(res._monitoring_infos_by_stage))
@@ -1058,35 +1155,41 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
       # pregbk monitoring infos
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                'ref_PCollection_PCollection_1'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_1'
+      }
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       self.assert_has_distribution(
           pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                'ref_PCollection_PCollection_2'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_2'
+      }
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       self.assert_has_distribution(
           pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
-      labels = {monitoring_infos.PTRANSFORM_LABEL : 'Map(sleep)'}
+      labels = {monitoring_infos.PTRANSFORM_LABEL: 'Map(sleep)'}
       self.assert_has_counter(
-          pregbk_mis, monitoring_infos.TOTAL_MSECS_URN,
-          labels, ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
+          pregbk_mis,
+          monitoring_infos.TOTAL_MSECS_URN,
+          labels,
+          ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
 
       # postgbk monitoring infos
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                'ref_PCollection_PCollection_6'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_6'
+      }
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
       self.assert_has_distribution(
           postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
-      labels = {monitoring_infos.PCOLLECTION_LABEL :
-                'ref_PCollection_PCollection_7'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_7'
+      }
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
       self.assert_has_distribution(
@@ -1097,43 +1200,40 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
-
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)
+))
 
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
-
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC,
-                payload=b'2')))
+                urn=python_urns.EMBEDDED_PYTHON_GRPC, payload=b'2')
+))
 
 
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
-
   def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
-
   def create_pipeline(self):
     # Must be GRPC so we can send data and split requests concurrent
     # to the bundle process request.
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)
+))
 
   def test_checkpoint(self):
     # This split manager will get re-invoked on each smaller split,
@@ -1172,7 +1272,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         split1 = yield 0.5
         self.verify_channel_split(split1, 14, 15)  # remainder is 15 to end
         split2 = yield 0.5
-        self.verify_channel_split(split2, 9, 10)   # remainder is 10 to end
+        self.verify_channel_split(split2, 9, 10)  # remainder is 10 to end
         breakpoint.clear()
 
     self.run_split_pipeline(
@@ -1182,11 +1282,12 @@ class FnApiRunnerSplitTest(unittest.TestCase):
   def run_split_pipeline(self, split_manager, elements, element_counter=None):
     with fn_api_runner.split_manager('Identity', split_manager):
       with self.create_pipeline() as p:
-        res = (p
-               | beam.Create(elements)
-               | beam.Reshuffle()
-               | 'Identity' >> beam.Map(lambda x: x)
-               | beam.Map(lambda x: element_counter.increment() or x))
+        res = (
+            p
+            | beam.Create(elements)
+            | beam.Reshuffle()
+            | 'Identity' >> beam.Map(lambda x: x)
+            | beam.Map(lambda x: element_counter.increment() or x))
         assert_that(res, equal_to(elements))
 
   def test_nosplit_sdf(self):
@@ -1239,7 +1340,8 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         [(4, 0)],
         [(4, 1)],
         [(4, 2), (4, 3)],
-        [(4, 0), (4, 1), (4, 2), (4, 3)]]
+        [(4, 0), (4, 1), (4, 2), (4, 3)],
+    ]
 
     self.run_sdf_split_pipeline(
         split_manager, elements, element_counter, expected_groups)
@@ -1276,8 +1378,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         return (0, element)
 
       def create_tracker(self, restriction):
-        return restriction_trackers.OffsetRestrictionTracker(
-            *restriction)
+        return restriction_trackers.OffsetRestrictionTracker(*restriction)
 
       def split(self, element, restriction):
         # Don't do any initial splitting to simplify test.
@@ -1290,7 +1391,8 @@ class FnApiRunnerSplitTest(unittest.TestCase):
       def process(
           self,
           element,
-          restriction_tracker=beam.DoFn.RestrictionParam(EnumerateProvider())):
+          restriction_tracker=beam.DoFn.RestrictionParam(EnumerateProvider()),
+      ):
         to_emit = []
         for k in range(*restriction_tracker.current_restriction()):
           if restriction_tracker.try_claim(k):
@@ -1306,9 +1408,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     with fn_api_runner.split_manager('SDF', split_manager):
       with self.create_pipeline() as p:
         grouped = (
-            p
-            | beam.Create(elements)
-            | 'SDF' >> beam.ParDo(EnumerateSdf()))
+            p | beam.Create(elements) | 'SDF' >> beam.ParDo(EnumerateSdf()))
         flat = grouped | beam.FlatMap(lambda x: x)
         assert_that(flat, equal_to(expected))
         if expected_groups:
@@ -1316,7 +1416,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
   def verify_channel_split(self, split_result, last_primary, first_residual):
     self.assertEqual(1, len(split_result.channel_splits), split_result)
-    channel_split, = split_result.channel_splits
+    (channel_split,) = split_result.channel_splits
     self.assertEqual(last_primary, channel_split.last_primary_element)
     self.assertEqual(first_residual, channel_split.first_residual_element)
     # There should be a primary and residual application for each element
@@ -1393,6 +1493,7 @@ class EventRecorder(object):
   The reason why records are written into a tmp file is, the in-memory dataset
   cannot keep callback records when passing into one DoFn.
   """
+
   def __init__(self, tmp_dir):
     self.tmp_dir = os.path.join(tmp_dir, uuid.uuid4().hex)
     os.mkdir(self.tmp_dir)
@@ -1404,8 +1505,11 @@ class EventRecorder(object):
 
   def events(self):
     content = []
-    record_files = [f for f in os.listdir(self.tmp_dir) if os.path.isfile(
-        os.path.join(self.tmp_dir, f))]
+    record_files = [
+        f
+        for f in os.listdir(self.tmp_dir)
+        if os.path.isfile(os.path.join(self.tmp_dir, f))
+    ]
     for file in record_files:
       with open(os.path.join(self.tmp_dir, file), 'r') as f:
         content.append(f.read())
@@ -1417,6 +1521,7 @@ class EventRecorder(object):
 
 class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
   """A RestrictionProvider that used for sdf related tests."""
+
   def initial_restriction(self, element):
     return (0, len(element))
 

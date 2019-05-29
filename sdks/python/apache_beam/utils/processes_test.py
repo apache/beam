@@ -27,7 +27,6 @@ from apache_beam.utils import processes
 
 
 class Exec(unittest.TestCase):
-
   def setUp(self):
     pass
 
@@ -39,33 +38,21 @@ class Exec(unittest.TestCase):
 
     processes.call(['subprocess', 'call'], shell=False, other_arg=True)
     processes.subprocess.call.assert_called_once_with(
-        ['subprocess', 'call'],
-        shell=False,
-        other_arg=True)
+        ['subprocess', 'call'], shell=False, other_arg=True)
 
     processes.check_call(
-        ['subprocess', 'check_call'],
-        shell=False,
-        other_arg=True)
+        ['subprocess', 'check_call'], shell=False, other_arg=True)
     processes.subprocess.check_call.assert_called_once_with(
-        ['subprocess', 'check_call'],
-        shell=False,
-        other_arg=True)
+        ['subprocess', 'check_call'], shell=False, other_arg=True)
 
     processes.check_output(
-        ['subprocess', 'check_output'],
-        shell=False,
-        other_arg=True)
+        ['subprocess', 'check_output'], shell=False, other_arg=True)
     processes.subprocess.check_output.assert_called_once_with(
-        ['subprocess', 'check_output'],
-        shell=False,
-        other_arg=True)
+        ['subprocess', 'check_output'], shell=False, other_arg=True)
 
     processes.Popen(['subprocess', 'Popen'], shell=False, other_arg=True)
     processes.subprocess.Popen.assert_called_once_with(
-        ['subprocess', 'Popen'],
-        shell=False,
-        other_arg=True)
+        ['subprocess', 'Popen'], shell=False, other_arg=True)
 
   @mock.patch('apache_beam.utils.processes.subprocess')
   def test_method_forwarding_windows(self, *unused_mocks):
@@ -75,40 +62,28 @@ class Exec(unittest.TestCase):
 
     processes.call(['subprocess', 'call'], shell=False, other_arg=True)
     processes.subprocess.call.assert_called_once_with(
-        ['subprocess', 'call'],
-        shell=True,
-        other_arg=True)
+        ['subprocess', 'call'], shell=True, other_arg=True)
 
     processes.check_call(
-        ['subprocess', 'check_call'],
-        shell=False,
-        other_arg=True)
+        ['subprocess', 'check_call'], shell=False, other_arg=True)
     processes.subprocess.check_call.assert_called_once_with(
-        ['subprocess', 'check_call'],
-        shell=True,
-        other_arg=True)
+        ['subprocess', 'check_call'], shell=True, other_arg=True)
 
     processes.check_output(
-        ['subprocess', 'check_output'],
-        shell=False,
-        other_arg=True)
+        ['subprocess', 'check_output'], shell=False, other_arg=True)
     processes.subprocess.check_output.assert_called_once_with(
-        ['subprocess', 'check_output'],
-        shell=True,
-        other_arg=True)
+        ['subprocess', 'check_output'], shell=True, other_arg=True)
 
     processes.Popen(['subprocess', 'Popen'], shell=False, other_arg=True)
     processes.subprocess.Popen.assert_called_once_with(
-        ['subprocess', 'Popen'],
-        shell=True,
-        other_arg=True)
+        ['subprocess', 'Popen'], shell=True, other_arg=True)
 
 
 class TestErrorHandlingCheckCall(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
-    cls.mock_get_patcher = mock.patch(\
-      'apache_beam.utils.processes.subprocess.check_call')
+    cls.mock_get_patcher = mock.patch(
+        'apache_beam.utils.processes.subprocess.check_call')
     cls.mock_get = cls.mock_get_patcher.start()
 
   @classmethod
@@ -128,33 +103,44 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
     try:
       processes.check_call(cmd)
     except RuntimeError as error:
-      self.assertIn('Executable {} not found'.format(str(cmd)),\
-      error.args[0])
+      self.assertIn('Executable {} not found'.format(str(cmd)), error.args[0])
 
   def test_check_call_pip_install_non_existing_package(self):
     returncode = 1
     package = "non-exsisting-package"
-    cmd = ['python', '-m', 'pip', 'download', '--dest', '/var',\
-        '{}'.format(package),\
-        '--no-deps', '--no-binary', ':all:']
+    cmd = [
+        'python',
+        '-m',
+        'pip',
+        'download',
+        '--dest',
+        '/var',
+        '{}'.format(package),
+        '--no-deps',
+        '--no-binary',
+        ':all:',
+    ]
     output = "Collecting {}".format(package)
-    self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
-      cmd, output=output)
+    self.mock_get.side_effect = subprocess.CalledProcessError(
+        returncode, cmd, output=output)
     try:
       output = processes.check_call(cmd)
-      self.fail("The test failed due to that\
-        no error was raised when calling process.check_call")
+      self.fail(
+          "The test failed due to that\
+        no error was raised when calling process.check_call"
+      )
     except RuntimeError as error:
-      self.assertIn("Output from execution of subprocess: {}".format(output),\
-        error.args[0])
-      self.assertIn("Pip install failed for package: {}".format(package),\
-        error.args[0])
+      self.assertIn(
+          "Output from execution of subprocess: {}".format(output),
+          error.args[0])
+      self.assertIn(
+          "Pip install failed for package: {}".format(package), error.args[0])
 
 
 class TestErrorHandlingCheckOutput(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
-    cls.mock_get_patcher = mock.patch(\
+    cls.mock_get_patcher = mock.patch(
         'apache_beam.utils.processes.subprocess.check_output')
     cls.mock_get = cls.mock_get_patcher.start()
 
@@ -164,34 +150,45 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
     try:
       processes.check_output(cmd)
     except RuntimeError as error:
-      self.assertIn('Executable {} not found'.format(str(cmd)),\
-      error.args[0])
+      self.assertIn('Executable {} not found'.format(str(cmd)), error.args[0])
 
   def test_check_output_pip_install_non_existing_package(self):
     returncode = 1
     package = "non-exsisting-package"
-    cmd = ['python', '-m', 'pip', 'download', '--dest', '/var',\
-      '{}'.format(package),\
-      '--no-deps', '--no-binary', ':all:']
+    cmd = [
+        'python',
+        '-m',
+        'pip',
+        'download',
+        '--dest',
+        '/var',
+        '{}'.format(package),
+        '--no-deps',
+        '--no-binary',
+        ':all:',
+    ]
     output = "Collecting {}".format(package)
-    self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
-         cmd, output=output)
+    self.mock_get.side_effect = subprocess.CalledProcessError(
+        returncode, cmd, output=output)
     try:
       output = processes.check_output(cmd)
-      self.fail("The test failed due to that\
-      no error was raised when calling process.check_call")
+      self.fail(
+          "The test failed due to that\
+      no error was raised when calling process.check_call"
+      )
     except RuntimeError as error:
-      self.assertIn("Output from execution of subprocess: {}".format(output),\
-        error.args[0])
-      self.assertIn("Pip install failed for package: {}".format(package),\
-        error.args[0])
+      self.assertIn(
+          "Output from execution of subprocess: {}".format(output),
+          error.args[0])
+      self.assertIn(
+          "Pip install failed for package: {}".format(package), error.args[0])
 
 
 class TestErrorHandlingCall(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
-    cls.mock_get_patcher = mock.patch(\
-      'apache_beam.utils.processes.subprocess.call')
+    cls.mock_get_patcher = mock.patch(
+        'apache_beam.utils.processes.subprocess.call')
     cls.mock_get = cls.mock_get_patcher.start()
 
   def test_oserror_check_output_message(self):
@@ -200,27 +197,38 @@ class TestErrorHandlingCall(unittest.TestCase):
     try:
       processes.call(cmd)
     except RuntimeError as error:
-      self.assertIn('Executable {} not found'.format(str(cmd)),\
-      error.args[0])
+      self.assertIn('Executable {} not found'.format(str(cmd)), error.args[0])
 
   def test_check_output_pip_install_non_existing_package(self):
     returncode = 1
     package = "non-exsisting-package"
-    cmd = ['python', '-m', 'pip', 'download', '--dest', '/var',\
-      '{}'.format(package),\
-      '--no-deps', '--no-binary', ':all:']
+    cmd = [
+        'python',
+        '-m',
+        'pip',
+        'download',
+        '--dest',
+        '/var',
+        '{}'.format(package),
+        '--no-deps',
+        '--no-binary',
+        ':all:',
+    ]
     output = "Collecting {}".format(package)
-    self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
-         cmd, output=output)
+    self.mock_get.side_effect = subprocess.CalledProcessError(
+        returncode, cmd, output=output)
     try:
       output = processes.call(cmd)
-      self.fail("The test failed due to that\
-        no error was raised when calling process.check_call")
+      self.fail(
+          "The test failed due to that\
+        no error was raised when calling process.check_call"
+      )
     except RuntimeError as error:
-      self.assertIn("Output from execution of subprocess: {}".format(output),\
-        error.args[0])
-      self.assertIn("Pip install failed for package: {}".format(package),\
-        error.args[0])
+      self.assertIn(
+          "Output from execution of subprocess: {}".format(output),
+          error.args[0])
+      self.assertIn(
+          "Pip install failed for package: {}".format(package), error.args[0])
 
 
 if __name__ == '__main__':

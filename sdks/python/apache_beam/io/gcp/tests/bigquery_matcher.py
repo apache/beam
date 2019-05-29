@@ -63,11 +63,9 @@ class BigqueryMatcher(BaseMatcher):
         read from expected output.
     """
     if bigquery is None:
-      raise ImportError(
-          'Bigquery dependencies are not installed.')
+      raise ImportError('Bigquery dependencies are not installed.')
     if not query or not isinstance(query, str):
-      raise ValueError(
-          'Invalid argument: query. Please use non-empty string')
+      raise ValueError('Invalid argument: query. Please use non-empty string')
     if not checksum or not isinstance(checksum, str):
       raise ValueError(
           'Invalid argument: checksum. Please use non-empty string')
@@ -80,8 +78,9 @@ class BigqueryMatcher(BaseMatcher):
     # Run query
     bigquery_client = bigquery.Client(project=self.project)
     response = self._query_with_retry(bigquery_client)
-    logging.info('Read from given query (%s), total rows %d',
-                 self.query, len(response))
+    logging.info(
+        'Read from given query (%s), total rows %d', self.query, len(response)
+    )
 
     # Compute checksum
     self.checksum = compute_hash(response)
@@ -91,22 +90,19 @@ class BigqueryMatcher(BaseMatcher):
     return self.checksum == self.expected_checksum
 
   @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
+      num_retries=MAX_RETRIES, retry_filter=retry_on_http_and_value_error)
   def _query_with_retry(self, bigquery_client):
     """Run Bigquery query with retry if got error http response"""
     query_job = bigquery_client.query(self.query)
     return [row.values() for row in query_job]
 
   def describe_to(self, description):
-    description \
-      .append_text("Expected checksum is ") \
-      .append_text(self.expected_checksum)
+    description.append_text("Expected checksum is ").append_text(
+        self.expected_checksum)
 
   def describe_mismatch(self, pipeline_result, mismatch_description):
-    mismatch_description \
-      .append_text("Actual checksum is ") \
-      .append_text(self.checksum)
+    mismatch_description.append_text("Actual checksum is ").append_text(
+        self.checksum)
 
 
 class BigqueryFullResultMatcher(BaseMatcher):
@@ -123,11 +119,9 @@ class BigqueryFullResultMatcher(BaseMatcher):
       data: List of tuples with the expected data.
     """
     if bigquery is None:
-      raise ImportError(
-          'Bigquery dependencies are not installed.')
+      raise ImportError('Bigquery dependencies are not installed.')
     if not query or not isinstance(query, str):
-      raise ValueError(
-          'Invalid argument: query. Please use non-empty string')
+      raise ValueError('Invalid argument: query. Please use non-empty string')
 
     self.project = project
     self.query = query
@@ -138,8 +132,9 @@ class BigqueryFullResultMatcher(BaseMatcher):
     # Run query
     bigquery_client = bigquery.Client(project=self.project)
     response = self._query_with_retry(bigquery_client)
-    logging.info('Read from given query (%s), total rows %d',
-                 self.query, len(response))
+    logging.info(
+        'Read from given query (%s), total rows %d', self.query, len(response)
+    )
 
     self.actual_data = [sorted(i) for i in response]
 
@@ -147,22 +142,18 @@ class BigqueryFullResultMatcher(BaseMatcher):
     return sorted(self.expected_data) == sorted(self.actual_data)
 
   @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
+      num_retries=MAX_RETRIES, retry_filter=retry_on_http_and_value_error)
   def _query_with_retry(self, bigquery_client):
     """Run Bigquery query with retry if got error http response"""
     query_job = bigquery_client.query(self.query)
     return [row.values() for row in query_job]
 
   def describe_to(self, description):
-    description \
-      .append_text("Expected data is ") \
-      .append_text(self.expected_data)
+    description.append_text("Expected data is ").append_text(self.expected_data)
 
   def describe_mismatch(self, pipeline_result, mismatch_description):
-    mismatch_description \
-      .append_text("Actual data is ") \
-      .append_text(self.actual_data)
+    mismatch_description.append_text("Actual data is ").append_text(
+        self.actual_data)
 
 
 class BigQueryTableMatcher(BaseMatcher):
@@ -170,8 +161,7 @@ class BigQueryTableMatcher(BaseMatcher):
 
   def __init__(self, project, dataset, table, expected_properties):
     if bigquery is None:
-      raise ImportError(
-          'Bigquery dependencies are not installed.')
+      raise ImportError('Bigquery dependencies are not installed.')
 
     self.project = project
     self.dataset = dataset
@@ -179,8 +169,7 @@ class BigQueryTableMatcher(BaseMatcher):
     self.expected_properties = expected_properties
 
   @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
+      num_retries=MAX_RETRIES, retry_filter=retry_on_http_and_value_error)
   def _get_table_with_retry(self, bigquery_wrapper):
     return bigquery_wrapper.get_table(self.project, self.dataset, self.table)
 
@@ -219,13 +208,14 @@ class BigQueryTableMatcher(BaseMatcher):
       return expected == actual
 
   def describe_to(self, description):
-    description \
-      .append_text("Expected table attributes are ") \
-      .append_text(sorted((k, v)
-                          for k, v in self.expected_properties.items()))
+    description.append_text("Expected table attributes are ").append_text(
+        sorted((k, v) for k, v in self.expected_properties.items()))
 
   def describe_mismatch(self, pipeline_result, mismatch_description):
-    mismatch_description \
-      .append_text("Actual table attributes are ") \
-      .append_text(sorted((k, self._get_or_none(self.actual_table, k))
-                          for k in self.expected_properties))
+    mismatch_description.append_text(
+        "Actual table attributes are "
+    ).append_text(
+        sorted(
+            (k, self._get_or_none(self.actual_table, k))
+            for k in self.expected_properties)
+)

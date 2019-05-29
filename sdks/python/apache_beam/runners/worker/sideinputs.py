@@ -56,10 +56,11 @@ _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
 class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
 
-  def __init__(self,
-               sources,
-               max_reader_threads=MAX_SOURCE_READER_THREADS,
-               read_counter=None):
+  def __init__(
+      self,
+      sources,
+      max_reader_threads=MAX_SOURCE_READER_THREADS,
+      read_counter=None):
     self.sources = sources
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
@@ -87,6 +88,7 @@ class PrefetchingSourceSetIterable(object):
       reader: A reader that should inherit from ObservableMixin to have
         bytes tracked.
     """
+
     def update_bytes_read(record_size, is_record_size=False, **kwargs):
       # Let the reader report block size.
       if is_record_size:
@@ -136,8 +138,10 @@ class PrefetchingSourceSetIterable(object):
         except queue.Empty:
           return
     except Exception as e:  # pylint: disable=broad-except
-      logging.error('Encountered exception in PrefetchingSourceSetIterable '
-                    'reader thread: %s', traceback.format_exc())
+      logging.error(
+          'Encountered exception in PrefetchingSourceSetIterable '
+          'reader thread: %s',
+          traceback.format_exc())
       self.reader_exceptions.put(e)
       self.has_errored = True
     finally:
@@ -181,16 +185,17 @@ class PrefetchingSourceSetIterable(object):
         t.join()
 
 
-def get_iterator_fn_for_sources(sources,
-                                max_reader_threads=MAX_SOURCE_READER_THREADS,
-                                read_counter=None):
+def get_iterator_fn_for_sources(
+    sources, max_reader_threads=MAX_SOURCE_READER_THREADS, read_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
+
   def _inner():
     return iter(
         PrefetchingSourceSetIterable(
             sources,
             max_reader_threads=max_reader_threads,
-            read_counter=read_counter))
+            read_counter=read_counter)
+)
 
   return _inner
 

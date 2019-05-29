@@ -104,8 +104,8 @@ def _match_same_type(match_against):
 
 
 def _match_is_named_tuple(user_type):
-  return (_safe_issubclass(user_type, typing.Tuple) and
-          hasattr(user_type, '_field_types'))
+  return _safe_issubclass(user_type, typing.Tuple) and hasattr(
+      user_type, '_field_types')
 
 
 def _match_is_union(user_type):
@@ -143,30 +143,32 @@ def convert_to_beam_type(typ):
 
   type_map = [
       _TypeMapEntry(
-          match=_match_same_type(typing.Any),
-          arity=0,
-          beam_type=typehints.Any),
+          match=_match_same_type(typing.Any), arity=0, beam_type=typehints.Any
+      ),
       _TypeMapEntry(
           match=_match_issubclass(typing.Dict),
           arity=2,
-          beam_type=typehints.Dict),
+          beam_type=typehints.Dict,
+      ),
       _TypeMapEntry(
           match=_match_issubclass(typing.List),
           arity=1,
-          beam_type=typehints.List),
+          beam_type=typehints.List,
+      ),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Set),
-          arity=1,
-          beam_type=typehints.Set),
+          match=_match_issubclass(typing.Set), arity=1, beam_type=typehints.Set
+      ),
       # NamedTuple is a subclass of Tuple, but it needs special handling.
       # We just convert it to Any for now.
       # This MUST appear before the entry for the normal Tuple.
       _TypeMapEntry(
-          match=_match_is_named_tuple, arity=0, beam_type=typehints.Any),
+          match=_match_is_named_tuple, arity=0, beam_type=typehints.Any
+      ),
       _TypeMapEntry(
           match=_match_issubclass(typing.Tuple),
           arity=-1,
-          beam_type=typehints.Tuple),
+          beam_type=typehints.Tuple,
+      ),
       _TypeMapEntry(match=_match_is_union, arity=-1, beam_type=typehints.Union),
   ]
 
@@ -181,8 +183,9 @@ def convert_to_beam_type(typ):
   else:
     arity = matched_entry.arity
     if _len_arg(typ) != arity:
-      raise ValueError('expecting type %s to have arity %d, had arity %d '
-                       'instead' % (str(typ), arity, _len_arg(typ)))
+      raise ValueError(
+          'expecting type %s to have arity %d, had arity %d '
+          'instead' % (str(typ), arity, _len_arg(typ)))
   typs = [convert_to_beam_type(_get_arg(typ, i)) for i in range(arity)]
   if arity == 0:
     # Nullary types (e.g. Any) don't accept empty tuples as arguments.

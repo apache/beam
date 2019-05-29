@@ -56,18 +56,21 @@ class DatastoreWriteIT(unittest.TestCase):
     seed = random.randint(0, 100000)
     kind = 'testkind%s%d' % (current_time, seed)
     pipeline_verifiers = [PipelineStateMatcher()]
-    extra_opts = {'kind': kind,
-                  'num_entities': self.NUM_ENTITIES,
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
+    extra_opts = {
+        'kind': kind,
+        'num_entities': self.NUM_ENTITIES,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+    }
     if limit is not None:
       extra_opts['limit'] = limit
 
-    datastore_write_it_pipeline.run(test_pipeline.get_full_options_as_args(
-        **extra_opts))
+    datastore_write_it_pipeline.run(
+        test_pipeline.get_full_options_as_args(**extra_opts))
 
   @attr('IT')
-  @unittest.skipIf(datastore_write_it_pipeline is None,
-                   'GCP dependencies are not installed')
+  @unittest.skipIf(
+      datastore_write_it_pipeline is None, 'GCP dependencies are not installed'
+  )
   def test_datastore_write_limit(self):
     self.run_datastore_write(limit=self.LIMIT)
 

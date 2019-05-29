@@ -29,12 +29,11 @@ from apache_beam.typehints import typehints
 global_int = 1
 
 
-@unittest.skipIf(sys.version_info >= (3, 6, 0) and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3.6. '
-                 'See BEAM-6877')
+@unittest.skipIf(
+    sys.version_info >= (3, 6, 0)
+    and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+    'This test still needs to be fixed on Python 3.6. ' 'See BEAM-6877')
 class TrivialInferenceTest(unittest.TestCase):
-
   def assertReturnType(self, expected, f, inputs=()):
     self.assertEquals(expected, trivial_inference.infer_return_type(f, inputs))
 
@@ -55,12 +54,15 @@ class TrivialInferenceTest(unittest.TestCase):
   def testGetItem(self):
     def reverse(ab):
       return ab[-1], ab[0]
+
     self.assertReturnType(
-        typehints.Tuple[typehints.Any, typehints.Any], reverse, [typehints.Any])
+        typehints.Tuple[typehints.Any, typehints.Any], reverse, [typehints.Any]
+    )
     self.assertReturnType(
         typehints.Tuple[int, float], reverse, [typehints.Tuple[float, int]])
     self.assertReturnType(
-        typehints.Tuple[int, str], reverse, [typehints.Tuple[str, float, int]])
+        typehints.Tuple[int, str], reverse, [typehints.Tuple[str, float, int]]
+    )
     self.assertReturnType(
         typehints.Tuple[int, int], reverse, [typehints.List[int]])
     self.assertReturnType(
@@ -70,6 +72,7 @@ class TrivialInferenceTest(unittest.TestCase):
     def reverse(a_b):
       (a, b) = a_b
       return b, a
+
     any_tuple = typehints.Tuple[typehints.Any, typehints.Any]
     self.assertReturnType(
         typehints.Tuple[int, float], reverse, [typehints.Tuple[float, int]])
@@ -78,32 +81,35 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Tuple[int, int], reverse, [typehints.List[int]])
     self.assertReturnType(
-        typehints.Tuple[typehints.Union[int, float, str],
-                        typehints.Union[int, float, str]],
-        reverse, [typehints.Tuple[int, float, str]])
+        typehints.Tuple[
+            typehints.Union[int, float, str], typehints.Union[int, float, str]
+        ],
+        reverse,
+        [typehints.Tuple[int, float, str]])
     self.assertReturnType(any_tuple, reverse, [typehints.Any])
 
-    self.assertReturnType(typehints.Tuple[int, float],
-                          reverse, [trivial_inference.Const((1.0, 1))])
-    self.assertReturnType(any_tuple,
-                          reverse, [trivial_inference.Const((1, 2, 3))])
+    self.assertReturnType(
+        typehints.Tuple[int, float],
+        reverse,
+        [trivial_inference.Const((1.0, 1))])
+    self.assertReturnType(
+        any_tuple, reverse, [trivial_inference.Const((1, 2, 3))])
 
   def testNoneReturn(self):
     def func(a):
       if a == 5:
         return a
       return None
+
     self.assertReturnType(typehints.Union[int, type(None)], func, [int])
 
   def testSimpleList(self):
     self.assertReturnType(
-        typehints.List[int],
-        lambda xs: [1, 2],
-        [typehints.Tuple[int, ...]])
+        typehints.List[int], lambda xs: [1, 2], [typehints.Tuple[int, ...]])
 
     self.assertReturnType(
         typehints.List[typehints.Any],
-        lambda xs: list(xs), # List is a disallowed builtin
+        lambda xs: list(xs),  # List is a disallowed builtin
         [typehints.Tuple[int, ...]])
 
   def testListComprehension(self):
@@ -112,10 +118,10 @@ class TrivialInferenceTest(unittest.TestCase):
         lambda xs: [x for x in xs],
         [typehints.Tuple[int, ...]])
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3. '
-                   'See BEAM-6877')
+  @unittest.skipIf(
+      sys.version_info[0] == 3
+      and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+      'This test still needs to be fixed on Python 3. ' 'See BEAM-6877')
   def testTupleListComprehension(self):
     self.assertReturnType(
         typehints.List[int],
@@ -136,7 +142,6 @@ class TrivialInferenceTest(unittest.TestCase):
         [typehints.Iterable[typehints.Tuple[str, int]]])
 
   def testGenerator(self):
-
     def foo(x, y):
       yield x
       yield y
@@ -156,7 +161,8 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Any, lambda a, b: a + b, [int, typehints.Any])
     self.assertReturnType(
-        typehints.List[typehints.Union[int, str]], lambda a, b: a + b,
+        typehints.List[typehints.Union[int, str]],
+        lambda a, b: a + b,
         [typehints.List[int], typehints.List[str]])
 
   def testCall(self):
@@ -184,7 +190,6 @@ class TrivialInferenceTest(unittest.TestCase):
         lambda: (typehints.__doc__, typehints.fake))
 
   def testMethod(self):
-
     class A(object):
       def m(self, x):
         return x
@@ -193,7 +198,6 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(float, lambda: A.m(A(), 3.0))
 
   def testAlwaysReturnsEarly(self):
-
     def some_fn(v):
       if v:
         return 1
@@ -209,8 +213,8 @@ class TrivialInferenceTest(unittest.TestCase):
     # Just ensure it doesn't crash.
     fields = []
     self.assertReturnType(
-        typehints.Any,
-        lambda row: {f: row[f] for f in fields}, [typehints.Any])
+        typehints.Any, lambda row: {f: row[f] for f in fields}, [typehints.Any]
+    )
 
 
 if __name__ == '__main__':

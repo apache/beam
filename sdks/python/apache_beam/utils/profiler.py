@@ -42,8 +42,13 @@ class Profile(object):
 
   SORTBY = 'cumulative'
 
-  def __init__(self, profile_id, profile_location=None, log_results=False,
-               file_copy_fn=None, time_prefix='%Y-%m-%d_%H_%M_%S-'):
+  def __init__(
+      self,
+      profile_id,
+      profile_location=None,
+      log_results=False,
+      file_copy_fn=None,
+      time_prefix='%Y-%m-%d_%H_%M_%S-'):
     self.stats = None
     self.profile_id = str(profile_id)
     self.profile_location = profile_location
@@ -78,8 +83,8 @@ class Profile(object):
 
     if self.log_results:
       s = io.StringIO()
-      self.stats = pstats.Stats(
-          self.profile, stream=s).sort_stats(Profile.SORTBY)
+      self.stats = pstats.Stats(self.profile, stream=s).sort_stats(
+          Profile.SORTBY)
       self.stats.print_stats()
       logging.info('Profiler data: [%s]', s.getvalue())
 
@@ -96,9 +101,11 @@ class Profile(object):
   @staticmethod
   def factory_from_options(options):
     if options.profile_cpu:
+
       def create_profiler(profile_id, **kwargs):
         if random.random() < options.profile_sample_rate:
           return Profile(profile_id, options.profile_location, **kwargs)
+
       return create_profiler
 
 
@@ -135,6 +142,7 @@ class MemoryReporter(object):
     # in all platforms).
     try:
       from guppy import hpy  # pylint: disable=import-error
+
       self._hpy = hpy
       self._interval_second = interval_second
       self._timer = None
@@ -176,5 +184,7 @@ class MemoryReporter(object):
       return
     report_start_time = time.time()
     heap_profile = self._hpy().heap()
-    logging.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
-                 heap_profile, time.time() - report_start_time)
+    logging.info(
+        '*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
+        heap_profile,
+        time.time() - report_start_time)

@@ -94,7 +94,9 @@ class PydotRenderer(PipelineGraphRenderer):
     return 'graph'
 
   def render_pipeline_graph(self, pipeline_graph):
-    return pipeline_graph._get_graph().create_svg()  # pylint: disable=protected-access
+    return (
+        pipeline_graph._get_graph().create_svg()
+    )  # pylint: disable=protected-access
 
 
 def get_renderer(option=None):
@@ -117,12 +119,14 @@ def get_renderer(option=None):
     else:
       option = 'text'
 
-  renderer = [r for r in PipelineGraphRenderer.get_all_subclasses()
-              if option == r.option()]
+  renderer = [
+      r
+      for r in PipelineGraphRenderer.get_all_subclasses()
+      if option == r.option()
+  ]
   if len(renderer) == 0:
     raise ValueError()
   elif len(renderer) == 1:
     return renderer[0]()
   else:
-    raise ValueError('Found more than one renderer for option: %s',
-                     option)
+    raise ValueError('Found more than one renderer for option: %s', option)

@@ -66,7 +66,8 @@ class TempDir(object):
       The name of the temporary file created.
     """
     with tempfile.NamedTemporaryFile(
-        delete=False, dir=self._tempdir, suffix=suffix) as f:
+        delete=False, dir=self._tempdir, suffix=suffix
+    ) as f:
       if lines:
         for line in lines:
           f.write(line)
@@ -77,8 +78,9 @@ class TempDir(object):
 def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):
   """Compute a hash value of a list of objects by hashing their string
   representations."""
-  content = [str(x).encode('utf-8') if not isinstance(x, bytes) else x
-             for x in content]
+  content = [
+      str(x).encode('utf-8') if not isinstance(x, bytes) else x for x in content
+  ]
   content.sort()
   m = hashlib.new(hashing_alg)
   for elem in content:
@@ -103,11 +105,16 @@ def patch_retry(testcase, module):
   def patched_retry_with_exponential_backoff(num_retries, retry_filter):
     """A patch for retry decorator to use a mock dummy clock and logger."""
     return real_retry_with_exponential_backoff(
-        num_retries=num_retries, retry_filter=retry_filter, logger=Mock(),
+        num_retries=num_retries,
+        retry_filter=retry_filter,
+        logger=Mock(),
         clock=Mock())
 
-  patch.object(retry, 'with_exponential_backoff',
-               side_effect=patched_retry_with_exponential_backoff).start()
+  patch.object(
+      retry,
+      'with_exponential_backoff',
+      side_effect=patched_retry_with_exponential_backoff,
+  ).start()
 
   # Reload module after patching.
   imp.reload(module)
@@ -121,8 +128,7 @@ def patch_retry(testcase, module):
 
 
 @retry.with_exponential_backoff(
-    num_retries=3,
-    retry_filter=retry.retry_on_beam_io_error_filter)
+    num_retries=3, retry_filter=retry.retry_on_beam_io_error_filter)
 def delete_files(file_paths):
   """A function to clean up files or directories using ``FileSystems``.
 
@@ -132,8 +138,7 @@ def delete_files(file_paths):
     file_paths: A list of strings contains file paths or directories.
   """
   if len(file_paths) == 0:
-    raise RuntimeError('Clean up failed. Invalid file path: %s.' %
-                       file_paths)
+    raise RuntimeError('Clean up failed. Invalid file path: %s.' % file_paths)
   FileSystems.delete(file_paths)
 
 
@@ -154,8 +159,14 @@ class PullResponseMessage(object):
 
   Utility class for ``create_pull_response``.
   """
-  def __init__(self, data, attributes=None,
-               publish_time_secs=None, publish_time_nanos=None, ack_id=None):
+
+  def __init__(
+      self,
+      data,
+      attributes=None,
+      publish_time_secs=None,
+      publish_time_nanos=None,
+      ack_id=None):
     self.data = data
     self.attributes = attributes
     self.publish_time_secs = publish_time_secs

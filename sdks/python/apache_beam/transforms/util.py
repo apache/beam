@@ -62,8 +62,8 @@ __all__ = [
     'RemoveDuplicates',
     'Reshuffle',
     'Values',
-    'WithKeys'
-    ]
+    'WithKeys',
+]
 
 K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
@@ -144,8 +144,7 @@ class CoGroupByKey(PTransform):
     # Creates the key, value pairs for the output PCollection. Values are either
     # lists or dicts (per the class docstring), initialized by the result of
     # result_ctor(result_ctor_arg).
-    def _merge_tagged_vals_under_key(key_grouped, result_ctor,
-                                     result_ctor_arg):
+    def _merge_tagged_vals_under_key(key_grouped, result_ctor, result_ctor_arg):
       (key, grouped) = key_grouped
       result_value = result_ctor(result_ctor_arg)
       for tag, value in grouped:
@@ -173,11 +172,14 @@ class CoGroupByKey(PTransform):
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline
 
-    return ([pcoll | 'pair_with_%s' % tag >> Map(_pair_tag_with_value, tag)
-             for tag, pcoll in pcolls]
-            | Flatten(pipeline=self.pipeline)
-            | GroupByKey()
-            | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
+    return (
+        [
+            pcoll | 'pair_with_%s' % tag >> Map(_pair_tag_with_value, tag)
+            for tag, pcoll in pcolls
+        ]
+        | Flatten(pipeline=self.pipeline)
+        | GroupByKey()
+        | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
 
 
 def Keys(label='Keys'):  # pylint: disable=invalid-name
@@ -198,10 +200,11 @@ def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
 @ptransform_fn
 def Distinct(pcoll):  # pylint: disable=invalid-name
   """Produces a PCollection containing distinct elements of a PCollection."""
-  return (pcoll
-          | 'ToPairs' >> Map(lambda v: (v, None))
-          | 'Group' >> CombinePerKey(lambda vs: None)
-          | 'Distinct' >> Keys())
+  return (
+      pcoll
+      | 'ToPairs' >> Map(lambda v: (v, None))
+      | 'Group' >> CombinePerKey(lambda vs: None)
+      | 'Distinct' >> Keys())
 
 
 @deprecated(since='2.12', current='Distinct')
@@ -218,25 +221,30 @@ class _BatchSizeEstimator(object):
   _MAX_DATA_POINTS = 100
   _MAX_GROWTH_FACTOR = 2
 
-  def __init__(self,
-               min_batch_size=1,
-               max_batch_size=1000,
-               target_batch_overhead=.1,
-               target_batch_duration_secs=1,
-               variance=0.25,
-               clock=time.time):
+  def __init__(
+      self,
+      min_batch_size=1,
+      max_batch_size=1000,
+      target_batch_overhead=0.1,
+      target_batch_duration_secs=1,
+      variance=0.25,
+      clock=time.time):
     if min_batch_size > max_batch_size:
-      raise ValueError("Minimum (%s) must not be greater than maximum (%s)" % (
-          min_batch_size, max_batch_size))
+      raise ValueError(
+          "Minimum (%s) must not be greater than maximum (%s)"
+          % (min_batch_size, max_batch_size))
     if target_batch_overhead and not 0 < target_batch_overhead <= 1:
-      raise ValueError("target_batch_overhead (%s) must be between 0 and 1" % (
-          target_batch_overhead))
+      raise ValueError(
+          "target_batch_overhead (%s) must be between 0 and 1"
+          % target_batch_overhead)
     if target_batch_duration_secs and target_batch_duration_secs <= 0:
-      raise ValueError("target_batch_duration_secs (%s) must be positive" % (
-          target_batch_duration_secs))
+      raise ValueError(
+          "target_batch_duration_secs (%s) must be positive"
+          % target_batch_duration_secs)
     if not (target_batch_overhead or target_batch_duration_secs):
-      raise ValueError("At least one of target_batch_overhead or "
-                       "target_batch_duration_secs must be positive.")
+      raise ValueError(
+          "At least one of target_batch_overhead or "
+          "target_batch_duration_secs must be positive.")
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._target_batch_overhead = target_batch_overhead
@@ -297,8 +305,8 @@ class _BatchSizeEstimator(object):
     if all(xs[0] == x for x in xs):
       # Simply use the mean if all values in xs are same.
       return 0, ybar / xbar
-    b = (sum([(x - xbar) * (y - ybar) for x, y in zip(xs, ys)])
-         / sum([(x - xbar)**2 for x in xs]))
+    b = sum([(x - xbar) * (y - ybar) for x, y in zip(xs, ys)]) / sum(
+        [(x - xbar) ** 2 for x in xs])
     a = ybar - b * xbar
     return a, b
 
@@ -307,6 +315,7 @@ class _BatchSizeEstimator(object):
     # pylint: disable=wrong-import-order, wrong-import-position
     import numpy as np
     from numpy import sum
+
     n = len(xs)
     if all(xs[0] == x for x in xs):
       # If all values of xs are same then fallback to linear_regression_no_numpy
@@ -323,14 +332,14 @@ class _BatchSizeEstimator(object):
       # Refine this by throwing out outliers, according to Cook's distance.
       # https://en.wikipedia.org/wiki/Cook%27s_distance
       sum_x = sum(xs)
-      sum_x2 = sum(xs**2)
+      sum_x2 = sum(xs ** 2)
       errs = a + b * xs - ys
-      s2 = sum(errs**2) / (n - 2)
+      s2 = sum(errs ** 2) / (n - 2)
       if s2 == 0:
         # It's an exact fit!
         return a, b
-      h = (sum_x2 - 2 * sum_x * xs + n * xs**2) / (n * sum_x2 - sum_x**2)
-      cook_ds = 0.5 / s2 * errs**2 * (h / (1 - h)**2)
+      h = (sum_x2 - 2 * sum_x * xs + n * xs ** 2) / (n * sum_x2 - sum_x ** 2)
+      cook_ds = 0.5 / s2 * errs ** 2 * (h / (1 - h) ** 2)
 
       # Re-compute the regression, excluding those points with Cook's distance
       # greater than 0.5, and weighting by the inverse of x to give a more
@@ -343,6 +352,7 @@ class _BatchSizeEstimator(object):
   try:
     # pylint: disable=wrong-import-order, wrong-import-position
     import numpy as np
+
     linear_regression = linear_regression_numpy
   except ImportError:
     linear_regression = linear_regression_no_numpy
@@ -355,15 +365,19 @@ class _BatchSizeEstimator(object):
     elif len(self._data) < 2:
       # Force some variety so we have distinct batch sizes on which to do
       # linear regression below.
-      return int(max(
-          min(self._max_batch_size,
-              self._min_batch_size * self._MAX_GROWTH_FACTOR),
-          self._min_batch_size + 1))
+      return int(
+          max(
+              min(
+                  self._max_batch_size,
+                  self._min_batch_size * self._MAX_GROWTH_FACTOR,
+              ),
+              self._min_batch_size + 1)
+)
 
     # There tends to be a lot of noise in the top quantile, which also
     # has outsided influence in the regression.  If we have enough data,
     # Simply declare the top 20% to be outliers.
-    trimmed_data = sorted(self._data)[:max(20, len(self._data) * 4 // 5)]
+    trimmed_data = sorted(self._data)[: max(20, len(self._data) * 4 // 5)]
 
     # Linear regression for y = a + bx, where x is batch size and y is time.
     xs, ys = zip(*trimmed_data)
@@ -393,7 +407,7 @@ class _BatchSizeEstimator(object):
     jitter = len(self._data) % 2
     # Smear our samples across a range centered at the target.
     if len(self._data) > 10:
-      target += int(target * self._variance * 2 * (random.random() - .5))
+      target += int(target * self._variance * 2 * (random.random() - 0.5))
 
     return int(max(self._min_batch_size + jitter, min(target, cap)))
 
@@ -449,7 +463,8 @@ class _WindowAwareBatchingDoFn(DoFn):
       window, _ = sorted(
           self._batches.items(),
           key=lambda window_batch: len(window_batch[1]),
-          reverse=True)[0]
+          reverse=True,
+      )[0]
       with self._batch_size_estimator.record_time(self._batch_size):
         yield windowed_value.WindowedValue(
             self._batches[window], window.max_timestamp(), (window,))
@@ -501,13 +516,14 @@ class BatchElements(PTransform):
         donwstream operations (mostly for testing)
   """
 
-  def __init__(self,
-               min_batch_size=1,
-               max_batch_size=10000,
-               target_batch_overhead=.05,
-               target_batch_duration_secs=1,
-               variance=0.25,
-               clock=time.time):
+  def __init__(
+      self,
+      min_batch_size=1,
+      max_batch_size=10000,
+      target_batch_overhead=0.05,
+      target_batch_duration_secs=1,
+      variance=0.25,
+      clock=time.time):
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -522,8 +538,8 @@ class BatchElements(PTransform):
     elif pcoll.windowing.is_default():
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.
-      return pcoll | ParDo(_GlobalWindowsBatchingDoFn(
-          self._batch_size_estimator))
+      return pcoll | ParDo(
+          _GlobalWindowsBatchingDoFn(self._batch_size_estimator))
     else:
       return pcoll | ParDo(_WindowAwareBatchingDoFn(self._batch_size_estimator))
 
@@ -592,15 +608,15 @@ class ReshufflePerKey(PTransform):
             globally_windowed.with_value((key, value))
             if timestamp is None
             else window.GlobalWindows.windowed_value((key, value), timestamp)
-            for (value, timestamp) in values]
+            for (value, timestamp) in values
+        ]
 
     else:
       # The linter is confused.
       # hash(1) is used to force "runtime" selection of _IdentityWindowFn
       # pylint: disable=abstract-class-instantiated
       cls = hash(1) and _IdentityWindowFn
-      window_fn = cls(
-          windowing_saved.windowfn.get_window_coder())
+      window_fn = cls(windowing_saved.windowfn.get_window_coder())
 
       def reify_timestamps(element, timestamp=DoFn.TimestampParam):
         key, value = element
@@ -613,7 +629,8 @@ class ReshufflePerKey(PTransform):
         return [
             windowed_value.WindowedValue(
                 (key, value.value), value.timestamp, [window])
-            for value in values]
+            for value in values
+        ]
 
     ungrouped = pcoll | Map(reify_timestamps)
     ungrouped._windowing = Windowing(
@@ -621,9 +638,7 @@ class ReshufflePerKey(PTransform):
         triggerfn=AfterCount(1),
         accumulation_mode=AccumulationMode.DISCARDING,
         timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
-    result = (ungrouped
-              | GroupByKey()
-              | FlatMap(restore_timestamps))
+    result = ungrouped | GroupByKey() | FlatMap(restore_timestamps)
     result._windowing = windowing_saved
     return result
 
@@ -643,10 +658,11 @@ class Reshuffle(PTransform):
   """
 
   def expand(self, pcoll):
-    return (pcoll
-            | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
-            | ReshufflePerKey()
-            | 'RemoveRandomKeys' >> Map(lambda t: t[1]))
+    return (
+        pcoll
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
+        | ReshufflePerKey()
+        | 'RemoveRandomKeys' >> Map(lambda t: t[1]))
 
   def to_runner_api_parameter(self, unused_context):
     return common_urns.composites.RESHUFFLE.urn, None

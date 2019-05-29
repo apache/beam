@@ -68,9 +68,9 @@ from apache_beam.transforms.util import CoGroupByKey
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from avro.schema import Parse # avro-python3 library for python3
+  from avro.schema import Parse  # avro-python3 library for python3
 except ImportError:
-  from avro.schema import parse as Parse # avro library for python2
+  from avro.schema import parse as Parse  # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
@@ -82,14 +82,14 @@ def record(i):
       'label': LABELS[i % len(LABELS)],
       'number': i,
       'number_str': str(i),
-      'color': COLORS[i % len(COLORS)]
+      'color': COLORS[i % len(COLORS)],
   }
 
 
-@unittest.skipIf(sys.version_info[0] >= 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'Due to a known issue in avro-python3 package, this'
-                 'test is skipped until BEAM-6522 is addressed. ')
+@unittest.skipIf(
+    sys.version_info[0] >= 3 and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+    'Due to a known issue in avro-python3 package, this'
+    'test is skipped until BEAM-6522 is addressed. ')
 class FastavroIT(unittest.TestCase):
 
   SCHEMA_STRING = '''
@@ -108,10 +108,7 @@ class FastavroIT(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
-    self.output = '/'.join([
-        self.test_pipeline.get_option('output'),
-        self.uuid
-    ])
+    self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
   @attr('IT')
   def test_avro_it(self):
@@ -132,30 +129,24 @@ class FastavroIT(unittest.TestCase):
       return range(start * batch_size, (start + 1) * batch_size)
 
     # A `PCollection` with `num_records` avro records
-    records_pcoll = \
-        self.test_pipeline \
-        | 'create-batches' >> Create(batches) \
-        | 'expand-batches' >> FlatMap(batch_indices) \
-        | 'create-records' >> Map(record)
+    records_pcoll = (
+        self.test_pipeline
+        | 'create-batches' >> Create(batches)
+        | 'expand-batches' >> FlatMap(batch_indices)
+        | 'create-records' >> Map(record))
 
     fastavro_output = '/'.join([self.output, 'fastavro'])
     avro_output = '/'.join([self.output, 'avro'])
 
     # pylint: disable=expression-not-assigned
-    records_pcoll \
-    | 'write_fastavro' >> WriteToAvro(
+    records_pcoll | 'write_fastavro' >> WriteToAvro(
         fastavro_output,
         parse_schema(json.loads(self.SCHEMA_STRING)),
-        use_fastavro=True
-    )
+        use_fastavro=True)
 
     # pylint: disable=expression-not-assigned
-    records_pcoll \
-    | 'write_avro' >> WriteToAvro(
-        avro_output,
-        Parse(self.SCHEMA_STRING),
-        use_fastavro=False
-    )
+    records_pcoll | 'write_avro' >> WriteToAvro(
+        avro_output, Parse(self.SCHEMA_STRING), use_fastavro=False)
 
     result = self.test_pipeline.run()
     result.wait_until_finish()
@@ -163,17 +154,17 @@ class FastavroIT(unittest.TestCase):
 
     fastavro_read_pipeline = TestPipeline(is_integration_test=True)
 
-    fastavro_records = \
-        fastavro_read_pipeline \
-        | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
-        | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
-        | Map(lambda rec: (rec['number'], rec))
+    fastavro_records = (
+        fastavro_read_pipeline
+        | 'create-fastavro' >> Create(['%s*' % fastavro_output])
+        | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True)
+        | Map(lambda rec: (rec['number'], rec)))
 
-    avro_records = \
-        fastavro_read_pipeline \
-        | 'create-avro' >> Create(['%s*' % avro_output]) \
-        | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
-        | Map(lambda rec: (rec['number'], rec))
+    avro_records = (
+        fastavro_read_pipeline
+        | 'create-avro' >> Create(['%s*' % avro_output])
+        | 'read-avro' >> ReadAllFromAvro(use_fastavro=False)
+        | Map(lambda rec: (rec['number'], rec)))
 
     def check(elem):
       v = elem[1]
@@ -189,12 +180,8 @@ class FastavroIT(unittest.TestCase):
       assertEqual(len(avro_values), 1)
 
     # pylint: disable=expression-not-assigned
-    {
-        'avro': avro_records,
-        'fastavro': fastavro_records
-    } \
-    | CoGroupByKey() \
-    | Map(check)
+    {'avro': avro_records, 'fastavro': fastavro_records} | CoGroupByKey() | Map(
+        check)
 
     self.addCleanup(delete_files, [self.output])
     fastavro_read_pipeline.run().wait_until_finish()

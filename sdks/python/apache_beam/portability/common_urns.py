@@ -28,14 +28,18 @@ from apache_beam.portability.api import standard_window_fns_pb2
 
 class PropertiesFromEnumValue(object):
   def __init__(self, value_descriptor):
-    self.urn = (value_descriptor.GetOptions().Extensions[
-        beam_runner_api_pb2.beam_urn])
-    self.constant = (value_descriptor.GetOptions().Extensions[
-        beam_runner_api_pb2.beam_constant])
-    self.spec = (value_descriptor.GetOptions().Extensions[
-        metrics_pb2.monitoring_info_spec])
-    self.label_props = (value_descriptor.GetOptions().Extensions[
-        metrics_pb2.label_props])
+    self.urn = value_descriptor.GetOptions().Extensions[
+        beam_runner_api_pb2.beam_urn
+    ]
+    self.constant = value_descriptor.GetOptions().Extensions[
+        beam_runner_api_pb2.beam_constant
+    ]
+    self.spec = value_descriptor.GetOptions().Extensions[
+        metrics_pb2.monitoring_info_spec
+    ]
+    self.label_props = value_descriptor.GetOptions().Extensions[
+        metrics_pb2.label_props
+    ]
 
 
 class PropertiesFromEnumType(object):
@@ -60,8 +64,7 @@ side_inputs = PropertiesFromEnumType(
 
 coders = PropertiesFromEnumType(beam_runner_api_pb2.StandardCoders.Enum)
 
-constants = PropertiesFromEnumType(
-    beam_runner_api_pb2.BeamConstants.Constants)
+constants = PropertiesFromEnumType(beam_runner_api_pb2.BeamConstants.Constants)
 
 environments = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardEnvironments.Environments)

@@ -47,9 +47,14 @@ class PubSubMessageMatcher(BaseMatcher):
   subscription until all expected messages are shown or timeout.
   """
 
-  def __init__(self, project, sub_name, expected_msg,
-               timeout=DEFAULT_TIMEOUT, with_attributes=False,
-               strip_attributes=None):
+  def __init__(
+      self,
+      project,
+      sub_name,
+      expected_msg,
+      timeout=DEFAULT_TIMEOUT,
+      with_attributes=False,
+      strip_attributes=None):
     """Initialize PubSubMessageMatcher object.
 
     Args:
@@ -67,8 +72,7 @@ class PubSubMessageMatcher(BaseMatcher):
         value to prevent a successful match.
     """
     if pubsub is None:
-      raise ImportError(
-          'PubSub dependencies are not installed.')
+      raise ImportError('PubSub dependencies are not installed.')
     if not project:
       raise ValueError('Invalid project %s.' % project)
     if not sub_name:
@@ -86,8 +90,8 @@ class PubSubMessageMatcher(BaseMatcher):
 
   def _matches(self, _):
     if self.messages is None:
-      self.messages = self._wait_for_messages(len(self.expected_msg),
-                                              self.timeout)
+      self.messages = self._wait_for_messages(
+          len(self.expected_msg), self.timeout)
     return Counter(self.messages) == Counter(self.expected_msg)
 
   def _wait_for_messages(self, expected_num, timeout):
@@ -97,9 +101,10 @@ class PubSubMessageMatcher(BaseMatcher):
     sub_client = pubsub.SubscriberClient()
     start_time = time.time()
     while time.time() - start_time <= timeout:
-      response = sub_client.pull(self.sub_name,
-                                 max_messages=MAX_MESSAGES_IN_ONE_PULL,
-                                 return_immediately=True)
+      response = sub_client.pull(
+          self.sub_name,
+          max_messages=MAX_MESSAGES_IN_ONE_PULL,
+          return_immediately=True)
       for rm in response.received_messages:
         msg = PubsubMessage._from_message(rm.message)
         if not self.with_attributes:
@@ -111,8 +116,9 @@ class PubSubMessageMatcher(BaseMatcher):
             try:
               del msg.attributes[attr]
             except KeyError:
-              msg.attributes[attr] = ('PubSubMessageMatcher error: '
-                                      'expected attribute not found.')
+              msg.attributes[attr] = (
+                  'PubSubMessageMatcher error: ' 'expected attribute not found.'
+              )
         total_messages.append(msg)
 
       ack_ids = [rm.ack_id for rm in response.received_messages]
@@ -123,13 +129,15 @@ class PubSubMessageMatcher(BaseMatcher):
       time.sleep(1)
 
     if time.time() - start_time > timeout:
-      logging.error('Timeout after %d sec. Received %d messages from %s.',
-                    timeout, len(total_messages), self.sub_name)
+      logging.error(
+          'Timeout after %d sec. Received %d messages from %s.',
+          timeout,
+          len(total_messages),
+          self.sub_name)
     return total_messages
 
   def describe_to(self, description):
-    description.append_text(
-        'Expected %d messages.' % len(self.expected_msg))
+    description.append_text('Expected %d messages.' % len(self.expected_msg))
 
   def describe_mismatch(self, _, mismatch_description):
     c_expected = Counter(self.expected_msg)
@@ -138,9 +146,12 @@ class PubSubMessageMatcher(BaseMatcher):
         "Got %d messages. "
         "Diffs (item, count):\n"
         "  Expected but not in actual: %s\n"
-        "  Unexpected: %s" % (
-            len(self.messages), (c_expected - c_actual).items(),
-            (c_actual - c_expected).items()))
+        "  Unexpected: %s"
+        % (
+            len(self.messages),
+            (c_expected - c_actual).items(),
+            (c_actual - c_expected).items())
+)
     if self.with_attributes and self.strip_attributes:
       mismatch_description.append_text(
           '\n  Stripped attributes: %r' % self.strip_attributes)

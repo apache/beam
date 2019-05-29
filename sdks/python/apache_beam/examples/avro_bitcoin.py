@@ -38,9 +38,9 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from avro.schema import Parse # avro-python3 library for python3
+  from avro.schema import Parse  # avro-python3 library for python3
 except ImportError:
-  from avro.schema import parse as Parse # avro library for python2
+  from avro.schema import parse as Parse  # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -90,7 +90,8 @@ class BitcoinTxnCountDoFn(beam.DoFn):
     ]
 
 
-SCHEMA = Parse('''
+SCHEMA = Parse(
+    '''
   {
     "namespace": "example.avro",
     "type": "record",
@@ -105,31 +106,36 @@ SCHEMA = Parse('''
       {"name": "sum_output", "type": "long"}
     ]
   }
-  ''')
+  '''
+)
 
 
 def run(argv=None):
   """Test Avro IO (backed by fastavro or Apache Avro) on a simple pipeline
   that transforms bitcoin transactions"""
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://beam-avro-test/bitcoin/txns/*',
-                      help='Input file(s) to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
-  parser.add_argument('--compress',
-                      dest='compress',
-                      required=False,
-                      action='store_true',
-                      help='When set, compress the output data')
-  parser.add_argument('--fastavro',
-                      dest='use_fastavro',
-                      required=False,
-                      action='store_true',
-                      help='When set, use fastavro for Avro I/O')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://beam-avro-test/bitcoin/txns/*',
+      help='Input file(s) to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
+  parser.add_argument(
+      '--compress',
+      dest='compress',
+      required=False,
+      action='store_true',
+      help='When set, compress the output data')
+  parser.add_argument(
+      '--fastavro',
+      dest='use_fastavro',
+      required=False,
+      action='store_true',
+      help='When set, use fastavro for Avro I/O')
 
   opts, pipeline_args = parser.parse_known_args(argv)
 
@@ -140,26 +146,24 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   # Read the avro file[pattern] into a PCollection.
-  records = \
-      p | 'read' >> ReadFromAvro(opts.input, use_fastavro=opts.use_fastavro)
+  records = p | 'read' >> ReadFromAvro(
+      opts.input, use_fastavro=opts.use_fastavro)
 
   measured = records | 'scan' >> beam.ParDo(BitcoinTxnCountDoFn())
 
   # pylint: disable=expression-not-assigned
-  measured | 'write' >> \
-      WriteToAvro(
-          opts.output,
-          schema=SCHEMA,
-          codec=('deflate' if opts.compress else 'null'),
-          use_fastavro=opts.use_fastavro
-      )
+  measured | 'write' >> WriteToAvro(
+      opts.output,
+      schema=SCHEMA,
+      codec=('deflate' if opts.compress else 'null'),
+      use_fastavro=opts.use_fastavro)
 
   result = p.run()
   result.wait_until_finish()
 
   # Do not query metrics when creating a template which doesn't run
-  if (not hasattr(result, 'has_job')        # direct runner
-      or result.has_job):               # not just a template creation
+  if (not hasattr(result, 'has_job') or result.has_job  # direct runner
+  ):  # not just a template creation
     metrics = result.metrics().query()
 
     for counter in metrics['counters']:

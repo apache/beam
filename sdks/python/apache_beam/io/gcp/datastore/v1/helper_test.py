@@ -45,11 +45,11 @@ except (ImportError, TypeError):
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-@unittest.skipIf(sys.version_info[0] == 3,
-                 'v1/helper does not support Python 3 TODO: BEAM-4543')
+@unittest.skipIf(
+    sys.version_info[0] == 3,
+    'v1/helper does not support Python 3 TODO: BEAM-4543')
 @unittest.skipIf(datastore_helper is None, 'GCP dependencies are not installed')
 class HelperTest(unittest.TestCase):
-
   def setUp(self):
     self._mock_datastore = MagicMock()
     self._query = query_pb2.Query()
@@ -58,12 +58,12 @@ class HelperTest(unittest.TestCase):
     self._retriable_errors = [
         RPCError("dummy", code_pb2.INTERNAL, "failed"),
         SocketError(errno.ECONNRESET, "Connection Reset"),
-        SocketError(errno.ETIMEDOUT, "Timed out")
+        SocketError(errno.ETIMEDOUT, "Timed out"),
     ]
 
     self._non_retriable_errors = [
         RPCError("dummy", code_pb2.UNAUTHENTICATED, "failed"),
-        SocketError(errno.EADDRNOTAVAIL, "Address not available")
+        SocketError(errno.EADDRNOTAVAIL, "Address not available"),
     ]
 
   def permanent_retriable_datastore_failure(self, req):
@@ -82,31 +82,32 @@ class HelperTest(unittest.TestCase):
   def test_query_iterator(self):
     self._mock_datastore.run_query.side_effect = (
         self.permanent_retriable_datastore_failure)
-    query_iterator = helper.QueryIterator("project", None, self._query,
-                                          self._mock_datastore)
+    query_iterator = helper.QueryIterator(
+        "project", None, self._query, self._mock_datastore)
     self.assertRaises(RPCError, iter(query_iterator).next)
     self.assertEqual(6, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_transient_failures(self):
     self._mock_datastore.run_query.side_effect = (
         self.transient_retriable_datastore_failure)
-    query_iterator = helper.QueryIterator("project", None, self._query,
-                                          self._mock_datastore)
+    query_iterator = helper.QueryIterator(
+        "project", None, self._query, self._mock_datastore)
     fail_count = 5
     self._transient_fail_count = fail_count
     for _ in query_iterator:
       pass
 
-    self.assertEqual(fail_count + 1,
-                     len(self._mock_datastore.run_query.call_args_list))
+    self.assertEqual(
+        fail_count + 1, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_non_retriable_failures(self):
     self._mock_datastore.run_query.side_effect = (
         self.non_retriable_datastore_failure)
-    query_iterator = helper.QueryIterator("project", None, self._query,
-                                          self._mock_datastore)
-    self.assertRaises(tuple(map(type, self._non_retriable_errors)),
-                      iter(query_iterator).next)
+    query_iterator = helper.QueryIterator(
+        "project", None, self._query, self._mock_datastore)
+    self.assertRaises(
+        tuple(map(type, self._non_retriable_errors)), iter(query_iterator).next
+    )
     self.assertEqual(1, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_single_batch(self):
@@ -146,10 +147,10 @@ class HelperTest(unittest.TestCase):
 
     """
     entities = fake_datastore.create_entities(num_entities)
-    self._mock_datastore.run_query.side_effect = \
-        fake_datastore.create_run_query(entities, batch_size)
-    query_iterator = helper.QueryIterator("project", None, self._query,
-                                          self._mock_datastore)
+    self._mock_datastore.run_query.side_effect = fake_datastore.create_run_query(
+        entities, batch_size)
+    query_iterator = helper.QueryIterator(
+        "project", None, self._query, self._mock_datastore)
 
     i = 0
     for entity in query_iterator:

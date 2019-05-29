@@ -65,6 +65,7 @@ class TestDataflowRunner(DataflowRunner):
 
       if on_success_matcher:
         from hamcrest import assert_that as hc_assert_that
+
         hc_assert_that(self.result, pickler.loads(on_success_matcher))
     finally:
       if not self.result.is_in_terminal_state():
@@ -94,7 +95,7 @@ class TestDataflowRunner(DataflowRunner):
         return job_state
       time.sleep(5)
 
-    raise RuntimeError('Timeout after %d seconds while waiting for job %s '
-                       'enters expected state %s. Current state is %s.' %
-                       (timeout, self.result.job_id(),
-                        expected_state, self.result.state))
+    raise RuntimeError(
+        'Timeout after %d seconds while waiting for job %s '
+        'enters expected state %s. Current state is %s.'
+        % (timeout, self.result.job_id(), expected_state, self.result.state))

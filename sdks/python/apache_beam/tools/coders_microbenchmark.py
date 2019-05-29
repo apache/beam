@@ -57,16 +57,14 @@ def coder_benchmark_factory(coder, generate_fn):
   class CoderBenchmark(object):
     def __init__(self, num_elements_per_benchmark):
       self._coder = coders.IterableCoder(coder)
-      self._list = [generate_fn()
-                    for _ in range(num_elements_per_benchmark)]
+      self._list = [generate_fn() for _ in range(num_elements_per_benchmark)]
 
     def __call__(self):
       # Calling coder operations on a single element at a time may incur
       # unrelevant overhead. To compensate, we use a list elements.
       _ = self._coder.decode(self._coder.encode(self._list))
 
-  CoderBenchmark.__name__ = "%s, %s" % (
-      generate_fn.__name__, str(coder))
+  CoderBenchmark.__name__ = "%s, %s" % (generate_fn.__name__, str(coder))
 
   return CoderBenchmark
 
@@ -80,8 +78,11 @@ def large_int():
 
 
 def random_string(length):
-  return unicode(''.join(random.choice(
-      string.ascii_letters + string.digits) for _ in range(length)))
+  return unicode(
+      ''.join(
+          random.choice(string.ascii_letters + string.digits)
+          for _ in range(length))
+)
 
 
 def small_string():
@@ -151,9 +152,7 @@ def large_message_with_map():
 
 def globally_windowed_value():
   return windowed_value.WindowedValue(
-      value=small_int(),
-      timestamp=12345678,
-      windows=(window.GlobalWindow(),))
+      value=small_int(), timestamp=12345678, windows=(window.GlobalWindow(),))
 
 
 def random_windowed_value(num_windows):
@@ -181,71 +180,65 @@ def run_coder_benchmarks(
   # TODO(BEAM-4441): Pick coders using type hints, for example:
   # tuple_coder = typecoders.registry.get_coder(typehints.Tuple[int, ...])
   benchmarks = [
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_int),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_int),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_string),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_string),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_list),
       coder_benchmark_factory(
-          coders.FastPrimitivesCoder(), small_int),
+          coders.IterableCoder(coders.FastPrimitivesCoder()), small_list
+      ),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_list),
       coder_benchmark_factory(
-          coders.FastPrimitivesCoder(), large_int),
+          coders.IterableCoder(coders.FastPrimitivesCoder()), large_list
+      ),
       coder_benchmark_factory(
-          coders.FastPrimitivesCoder(), small_string),
+          coders.IterableCoder(coders.FastPrimitivesCoder()), large_iterable
+      ),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_tuple),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_tuple),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), small_dict),
+      coder_benchmark_factory(coders.FastPrimitivesCoder(), large_dict),
       coder_benchmark_factory(
-          coders.FastPrimitivesCoder(), large_string),
+          coders.ProtoCoder(test_message.MessageWithMap), small_message_with_map
+      ),
       coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          small_list),
-      coder_benchmark_factory(
-          coders.IterableCoder(coders.FastPrimitivesCoder()),
-          small_list),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          large_list),
-      coder_benchmark_factory(
-          coders.IterableCoder(coders.FastPrimitivesCoder()),
-          large_list),
-      coder_benchmark_factory(
-          coders.IterableCoder(coders.FastPrimitivesCoder()),
-          large_iterable),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          small_tuple),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          large_tuple),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          small_dict),
-      coder_benchmark_factory(
-          coders.FastPrimitivesCoder(),
-          large_dict),
-      coder_benchmark_factory(
-          coders.ProtoCoder(test_message.MessageWithMap),
-          small_message_with_map),
-      coder_benchmark_factory(
-          coders.ProtoCoder(test_message.MessageWithMap),
-          large_message_with_map),
+          coders.ProtoCoder(test_message.MessageWithMap), large_message_with_map
+      ),
       coder_benchmark_factory(
           coders.DeterministicProtoCoder(test_message.MessageWithMap),
-          small_message_with_map),
+          small_message_with_map,
+      ),
       coder_benchmark_factory(
           coders.DeterministicProtoCoder(test_message.MessageWithMap),
-          large_message_with_map),
+          large_message_with_map,
+      ),
       coder_benchmark_factory(
           coders.WindowedValueCoder(coders.FastPrimitivesCoder()),
-          wv_with_one_window),
+          wv_with_one_window,
+      ),
       coder_benchmark_factory(
-          coders.WindowedValueCoder(coders.FastPrimitivesCoder(),
-                                    coders.IntervalWindowCoder()),
-          wv_with_multiple_windows),
+          coders.WindowedValueCoder(
+              coders.FastPrimitivesCoder(), coders.IntervalWindowCoder()
+          ),
+          wv_with_multiple_windows,
+      ),
       coder_benchmark_factory(
-          coders.WindowedValueCoder(coders.FastPrimitivesCoder(),
-                                    coders.GlobalWindowCoder()),
-          globally_windowed_value),
+          coders.WindowedValueCoder(
+              coders.FastPrimitivesCoder(), coders.GlobalWindowCoder()
+          ),
+          globally_windowed_value,
+      ),
       coder_benchmark_factory(
-          coders.LengthPrefixCoder(coders.FastPrimitivesCoder()),
-          small_int)
+          coders.LengthPrefixCoder(coders.FastPrimitivesCoder()), small_int
+      ),
   ]
 
-  suite = [utils.BenchmarkConfig(b, input_size, num_runs) for b in benchmarks
-           if re.search(filter_regex, b.__name__, flags=re.I)]
+  suite = [
+      utils.BenchmarkConfig(b, input_size, num_runs)
+      for b in benchmarks
+      if re.search(filter_regex, b.__name__, flags=re.I)
+  ]
   utils.run_benchmarks(suite, verbose=verbose)
 
 
@@ -265,5 +258,8 @@ if __name__ == "__main__":
   seed = 42  # Fix the seed for better consistency
 
   run_coder_benchmarks(
-      options.num_runs, options.num_elements_per_benchmark, options.seed,
-      verbose=True, filter_regex=options.filter)
+      options.num_runs,
+      options.num_elements_per_benchmark,
+      options.seed,
+      verbose=True,
+      filter_regex=options.filter)

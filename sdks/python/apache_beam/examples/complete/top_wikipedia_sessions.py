@@ -57,7 +57,7 @@ from apache_beam.transforms.window import TimestampedValue
 
 ONE_HOUR_IN_SECONDS = 3600
 THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS
-MAX_TIMESTAMP = 0x7fffffffffffffff
+MAX_TIMESTAMP = 0x7FFFFFFFFFFFFFFF
 
 
 class ExtractUserAndTimestampDoFn(beam.DoFn):
@@ -77,23 +77,28 @@ class ComputeSessions(beam.PTransform):
   A session is defined as a string of edits where each is separated from the
   next by less than an hour.
   """
+
   def expand(self, pcoll):
-    return (pcoll
-            | 'ComputeSessionsWindow' >> beam.WindowInto(
-                Sessions(gap_size=ONE_HOUR_IN_SECONDS))
-            | combiners.Count.PerElement())
+    return (
+        pcoll
+        | 'ComputeSessionsWindow'
+        >> beam.WindowInto(Sessions(gap_size=ONE_HOUR_IN_SECONDS))
+        | combiners.Count.PerElement())
 
 
 class TopPerMonth(beam.PTransform):
   """Computes the longest session ending in each month."""
+
   def expand(self, pcoll):
-    return (pcoll
-            | 'TopPerMonthWindow' >> beam.WindowInto(
-                FixedWindows(size=THIRTY_DAYS_IN_SECONDS))
-            | 'Top' >> combiners.core.CombineGlobally(
-                combiners.TopCombineFn(
-                    10, lambda first, second: first[1] < second[1]))
-            .without_defaults())
+    return (
+        pcoll
+        | 'TopPerMonthWindow'
+        >> beam.WindowInto(FixedWindows(size=THIRTY_DAYS_IN_SECONDS))
+        | 'Top'
+        >> combiners.core.CombineGlobally(
+            combiners.TopCombineFn(
+                10, lambda first, second: first[1] < second[1])
+        ).without_defaults())
 
 
 class SessionsToStringsDoFn(beam.DoFn):
@@ -121,15 +126,16 @@ class ComputeTopSessions(beam.PTransform):
     self.sampling_threshold = sampling_threshold
 
   def expand(self, pcoll):
-    return (pcoll
-            | 'ExtractUserAndTimestamp' >> beam.ParDo(
-                ExtractUserAndTimestampDoFn())
-            | beam.Filter(lambda x: (abs(hash(x)) <=
-                                     MAX_TIMESTAMP * self.sampling_threshold))
-            | ComputeSessions()
-            | 'SessionsToStrings' >> beam.ParDo(SessionsToStringsDoFn())
-            | TopPerMonth()
-            | 'FormatOutput' >> beam.ParDo(FormatOutputDoFn()))
+    return (
+        pcoll
+        | 'ExtractUserAndTimestamp' >> beam.ParDo(ExtractUserAndTimestampDoFn())
+        | beam.Filter(
+            lambda x: (abs(hash(x)) <= MAX_TIMESTAMP * self.sampling_threshold)
+        )
+        | ComputeSessions()
+        | 'SessionsToStrings' >> beam.ParDo(SessionsToStringsDoFn())
+        | TopPerMonth()
+        | 'FormatOutput' >> beam.ParDo(FormatOutputDoFn()))
 
 
 def run(argv=None):
@@ -146,13 +152,13 @@ def run(argv=None):
       default='gs://dataflow-samples/wikipedia_edits/*.json',
       help='Input specified as a GCS path containing a BigQuery table exported '
       'as json.')
-  parser.add_argument('--output',
-                      required=True,
-                      help='Output file to write results to.')
-  parser.add_argument('--sampling_threshold',
-                      type=float,
-                      default=0.1,
-                      help='Fraction of entries used for session tracking')
+  parser.add_argument(
+      '--output', required=True, help='Output file to write results to.')
+  parser.add_argument(
+      '--sampling_threshold',
+      type=float,
+      default=0.1,
+      help='Fraction of entries used for session tracking')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -160,10 +166,11 @@ def run(argv=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   with beam.Pipeline(options=pipeline_options) as p:
 
-    (p  # pylint: disable=expression-not-assigned
-     | ReadFromText(known_args.input)
-     | ComputeTopSessions(known_args.sampling_threshold)
-     | WriteToText(known_args.output))
+    (
+        p  # pylint: disable=expression-not-assigned
+        | ReadFromText(known_args.input)
+        | ComputeTopSessions(known_args.sampling_threshold)
+        | WriteToText(known_args.output))
 
 
 if __name__ == '__main__':

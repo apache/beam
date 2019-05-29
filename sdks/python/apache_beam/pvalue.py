@@ -88,9 +88,10 @@ class PValue(object):
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
-    return "%s[%s.%s]" % (self.__class__.__name__,
-                          self.producer.full_label if self.producer else None,
-                          self.tag)
+    return "%s[%s.%s]" % (
+        self.__class__.__name__,
+        self.producer.full_label if self.producer else None,
+        self.tag)
 
   def apply(self, *args, **kwargs):
     """Applies a transform or callable to a PValue.
@@ -148,12 +149,15 @@ class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
         coder_id=context.coder_id_from_element_type(self.element_type),
         is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
-            self.windowing))
+            self.windowing
+        ))
 
   def _unique_name(self):
     if self.producer:
       return '%d%s.%s' % (
-          len(self.producer.full_label), self.producer.full_label, self.tag)
+          len(self.producer.full_label),
+          self.producer.full_label,
+          self.tag)
     else:
       return 'PCollection%s' % id(self)
 
@@ -165,7 +169,8 @@ class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
         None,
         element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
-            proto.windowing_strategy_id))
+            proto.windowing_strategy_id
+        ))
 
 
 class _InvalidUnpickledPCollection(object):
@@ -179,12 +184,14 @@ class PBegin(PValue):
   transforms. This allows us to have transforms that uniformly take PValue(s)
   as inputs.
   """
+
   pass
 
 
 class PDone(PValue):
   """PDone is the output of a transform that has a trivial result such as Write.
   """
+
   pass
 
 
@@ -211,7 +218,10 @@ class DoOutputsTuple(object):
 
   def _str_internal(self):
     return '%s main_tag=%s tags=%s transform=%s' % (
-        self.__class__.__name__, self._main_tag, self._tags, self._transform)
+        self.__class__.__name__,
+        self._main_tag,
+        self._tags,
+        self._transform)
 
   def __iter__(self):
     """Iterates over tags returning for each call a (tag, pvalue) pair."""
@@ -239,8 +249,7 @@ class DoOutputsTuple(object):
     elif self._tags and tag not in self._tags:
       raise ValueError(
           "Tag '%s' is neither the main tag '%s' "
-          "nor any of the tags %s" % (
-              tag, self._main_tag, self._tags))
+          "nor any of the tags %s" % (tag, self._main_tag, self._tags))
     # Check if we accessed this tag before.
     if tag in self._pcolls:
       return self._pcolls[tag]
@@ -275,7 +284,8 @@ class TaggedOutput(object):
   def __init__(self, tag, value):
     if not isinstance(tag, (str, unicode)):
       raise TypeError(
-          'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
+          'Attempting to create a TaggedOutput with non-string tag %s' % (tag,)
+      )
     self.tag = tag
     self.value = value
 
@@ -293,6 +303,7 @@ class AsSideInput(object):
 
   def __init__(self, pcoll):
     from apache_beam.transforms import sideinputs
+
     self.pvalue = pcoll
     self._window_mapping_fn = sideinputs.default_window_mapping_fn(
         pcoll.windowing.windowfn)
@@ -326,8 +337,7 @@ class AsSideInput(object):
 
   @staticmethod
   def from_runner_api(proto, context):
-    return _UnpickledSideInput(
-        SideInputData.from_runner_api(proto, context))
+    return _UnpickledSideInput(SideInputData.from_runner_api(proto, context))
 
   def requires_keyed_input(self):
     return False
@@ -355,6 +365,7 @@ class _UnpickledSideInput(AsSideInput):
 
 class SideInputData(object):
   """All of the data about a side input except for the bound PCollection."""
+
   def __init__(self, access_pattern, window_mapping_fn, view_fn):
     self.access_pattern = access_pattern
     self.window_mapping_fn = window_mapping_fn
@@ -363,23 +374,29 @@ class SideInputData(object):
   def to_runner_api(self, context):
     return beam_runner_api_pb2.SideInput(
         access_pattern=beam_runner_api_pb2.FunctionSpec(
-            urn=self.access_pattern),
+            urn=self.access_pattern
+        ),
         view_fn=beam_runner_api_pb2.SdkFunctionSpec(
             environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_VIEWFN,
-                payload=pickler.dumps(self.view_fn))),
+                payload=pickler.dumps(self.view_fn),
+            ),
+        ),
         window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
             environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_WINDOW_MAPPING_FN,
-                payload=pickler.dumps(self.window_mapping_fn))))
+                payload=pickler.dumps(self.window_mapping_fn),
+            ),
+        ))
 
   @staticmethod
   def from_runner_api(proto, unused_context):
     assert proto.view_fn.spec.urn == python_urns.PICKLED_VIEWFN
-    assert (proto.window_mapping_fn.spec.urn ==
-            python_urns.PICKLED_WINDOW_MAPPING_FN)
+    assert (
+        proto.window_mapping_fn.spec.urn
+        == python_urns.PICKLED_WINDOW_MAPPING_FN)
     return SideInputData(
         proto.access_pattern.urn,
         pickler.loads(proto.window_mapping_fn.spec.payload),
@@ -402,6 +419,7 @@ class AsSingleton(AsSideInput):
   The input PCollection must contain exactly one value per window, unless a
   default is given, in which case it may be empty.
   """
+
   _NO_DEFAULT = object()
 
   def __init__(self, pcoll, default_value=_NO_DEFAULT):
@@ -426,8 +444,8 @@ class AsSingleton(AsSideInput):
       return head[0]
     raise ValueError(
         'PCollection of size %d with more than one element accessed as a '
-        'singleton view. First two elements encountered are "%s", "%s".' % (
-            len(head), str(head[0]), str(head[1])))
+        'singleton view. First two elements encountered are "%s", "%s".'
+        % (len(head), str(head[0]), str(head[1])))
 
   @property
   def element_type(self):
@@ -487,9 +505,7 @@ class AsList(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        common_urns.side_inputs.ITERABLE.urn,
-        self._window_mapping_fn,
-        list)
+        common_urns.side_inputs.ITERABLE.urn, self._window_mapping_fn, list)
 
 
 class AsDict(AsSideInput):
@@ -514,9 +530,7 @@ class AsDict(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        common_urns.side_inputs.ITERABLE.urn,
-        self._window_mapping_fn,
-        dict)
+        common_urns.side_inputs.ITERABLE.urn, self._window_mapping_fn, dict)
 
 
 class AsMultiMap(AsSideInput):
@@ -558,4 +572,5 @@ class EmptySideInput(object):
   whether side input values are EmptySideInput, but they will very likely never
   want to create new instances of this class themselves.
   """
+
   pass

@@ -33,17 +33,24 @@ from apache_beam.transforms.display import HasDisplayData
 
 def _dict_printable_fields(dict_object, skip_fields):
   """Returns a list of strings for the interesting fields of a dict."""
-  return ['%s=%r' % (name, value)
-          for name, value in dict_object.items()
-          # want to output value 0 but not None nor []
-          if (value or value == 0)
-          and name not in skip_fields]
+  return [
+      '%s=%r' % (name, value)
+      for name, value in dict_object.items()
+      # want to output value 0 but not None nor []
+      if (value or value == 0) and name not in skip_fields
+  ]
 
 
-_minor_fields = ['coder', 'key_coder', 'value_coder',
-                 'config_bytes', 'elements',
-                 'append_trailing_newlines', 'strip_trailing_newlines',
-                 'compression_type']
+_minor_fields = [
+    'coder',
+    'key_coder',
+    'value_coder',
+    'config_bytes',
+    'elements',
+    'append_trailing_newlines',
+    'strip_trailing_newlines',
+    'compression_type',
+]
 
 
 class NativeSource(iobase.SourceBase):
@@ -65,8 +72,7 @@ class NativeSource(iobase.SourceBase):
   def __repr__(self):
     return '<{name} {vals}>'.format(
         name=self.__class__.__name__,
-        vals=', '.join(_dict_printable_fields(self.__dict__,
-                                              _minor_fields)))
+        vals=', '.join(_dict_printable_fields(self.__dict__, _minor_fields)))
 
 
 class NativeSourceReader(object):
@@ -139,15 +145,21 @@ class NativeSourceReader(object):
     logging.debug(
         'SourceReader %r does not support dynamic splitting. Ignoring dynamic '
         'split request: %r',
-        self, dynamic_split_request)
+        self,
+        dynamic_split_request)
     return
 
 
 class ReaderProgress(object):
   """A representation of how far a NativeSourceReader has read."""
 
-  def __init__(self, position=None, percent_complete=None, remaining_time=None,
-               consumed_split_points=None, remaining_split_points=None):
+  def __init__(
+      self,
+      position=None,
+      percent_complete=None,
+      remaining_time=None,
+      consumed_split_points=None,
+      remaining_split_points=None):
 
     self._position = position
 
@@ -197,8 +209,14 @@ class ReaderProgress(object):
 class ReaderPosition(object):
   """A representation of position in an iteration of a 'NativeSourceReader'."""
 
-  def __init__(self, end=None, key=None, byte_offset=None, record_index=None,
-               shuffle_position=None, concat_position=None):
+  def __init__(
+      self,
+      end=None,
+      key=None,
+      byte_offset=None,
+      record_index=None,
+      shuffle_position=None,
+      concat_position=None):
     """Initializes ReaderPosition.
 
     A ReaderPosition may get instantiated for one of these position types. Only
@@ -260,7 +278,6 @@ class DynamicSplitResult(object):
 
 
 class DynamicSplitResultWithPosition(DynamicSplitResult):
-
   def __init__(self, stop_position):
     assert isinstance(stop_position, ReaderPosition)
     self.stop_position = stop_position

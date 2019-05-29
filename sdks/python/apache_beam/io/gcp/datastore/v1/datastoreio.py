@@ -50,15 +50,17 @@ from apache_beam.transforms.util import Values
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from googledatastore import helper as datastore_helper
+
   logging.warning(
       'Using deprecated Datastore client.\n'
       'This client will be removed in Beam 3.0 (next Beam major release).\n'
       'Please migrate to apache_beam.io.gcp.datastore.v1new.datastoreio.')
 except ImportError:
   if sys.version_info[0] == 3:
-    warnings.warn('Datastore IO will support Python 3 after replacing '
-                  'googledatastore by google-cloud-datastore, '
-                  'see: BEAM-4543.')
+    warnings.warn(
+        'Datastore IO will support Python 3 after replacing '
+        'googledatastore by google-cloud-datastore, '
+        'see: BEAM-4543.')
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -122,8 +124,7 @@ class ReadFromDatastore(PTransform):
       from apitools.base import py  # pylint: disable=unused-variable
     except ImportError:
       raise ImportError(
-          'Google Cloud IO not available, '
-          'please install apache_beam[gcp]')
+          'Google Cloud IO not available, ' 'please install apache_beam[gcp]')
 
     logging.warning('datastoreio read transform is experimental.')
     super(ReadFromDatastore, self).__init__()
@@ -159,25 +160,31 @@ class ReadFromDatastore(PTransform):
     #   3. In the third step, a ``ParDo`` reads entities for each query and
     #   outputs a ``PCollection[Entity]``.
 
-    queries = (pcoll.pipeline
-               | 'UserQuery' >> Create([self._query])
-               | 'SplitQuery' >> ParDo(ReadFromDatastore.SplitQueryFn(
-                   self._project, self._query, self._datastore_namespace,
-                   self._num_splits)))
+    queries = (
+        pcoll.pipeline
+        | 'UserQuery' >> Create([self._query])
+        | 'SplitQuery'
+        >> ParDo(
+            ReadFromDatastore.SplitQueryFn(
+                self._project,
+                self._query,
+                self._datastore_namespace,
+                self._num_splits)
+))
 
-    sharded_queries = (queries
-                       | GroupByKey()
-                       | Values()
-                       | 'Flatten' >> FlatMap(lambda x: x))
+    sharded_queries = (
+        queries | GroupByKey() | Values() | 'Flatten' >> FlatMap(lambda x: x))
 
     entities = sharded_queries | 'Read' >> ParDo(
         ReadFromDatastore.ReadFn(self._project, self._datastore_namespace))
     return entities
 
   def display_data(self):
-    disp_data = {'project': self._project,
-                 'query': str(self._query),
-                 'num_splits': self._num_splits}
+    disp_data = {
+        'project': self._project,
+        'query': str(self._query),
+        'num_splits': self._num_splits,
+    }
 
     if self._datastore_namespace is not None:
       disp_data['namespace'] = self._datastore_namespace
@@ -186,6 +193,7 @@ class ReadFromDatastore(PTransform):
 
   class SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
+
     def __init__(self, project, query, namespace, num_splits):
       super(ReadFromDatastore.SplitQueryFn, self).__init__()
       self._datastore = None
@@ -208,7 +216,9 @@ class ReadFromDatastore(PTransform):
       # Compute the estimated numSplits if not specified by the user.
       if self._num_splits == 0:
         estimated_num_splits = ReadFromDatastore.get_estimated_num_splits(
-            self._project, self._datastore_namespace, self._query,
+            self._project,
+            self._datastore_namespace,
+            self._query,
             self._datastore)
       else:
         estimated_num_splits = self._num_splits
@@ -216,11 +226,13 @@ class ReadFromDatastore(PTransform):
       logging.info("Splitting the query into %d splits", estimated_num_splits)
       try:
         query_splits = query_splitter.get_splits(
-            self._datastore, query, estimated_num_splits,
+            self._datastore,
+            query,
+            estimated_num_splits,
             helper.make_partition(self._project, self._datastore_namespace))
       except Exception:
-        logging.warning("Unable to parallelize the given query: %s", query,
-                        exc_info=True)
+        logging.warning(
+            "Unable to parallelize the given query: %s", query, exc_info=True)
         query_splits = [query]
 
       sharded_query_splits = []
@@ -231,9 +243,11 @@ class ReadFromDatastore(PTransform):
       return sharded_query_splits
 
     def display_data(self):
-      disp_data = {'project': self._project,
-                   'query': str(self._query),
-                   'num_splits': self._num_splits}
+      disp_data = {
+          'project': self._project,
+          'query': str(self._query),
+          'num_splits': self._num_splits,
+      }
 
       if self._datastore_namespace is not None:
         disp_data['namespace'] = self._datastore_namespace
@@ -242,6 +256,7 @@ class ReadFromDatastore(PTransform):
 
   class ReadFn(DoFn):
     """A DoFn that reads entities from Cloud Datastore, for a given query."""
+
     def __init__(self, project, namespace=None):
       super(ReadFromDatastore.ReadFn, self).__init__()
       self._project = project
@@ -253,8 +268,8 @@ class ReadFromDatastore(PTransform):
 
     def process(self, query, *args, **kwargs):
       # Returns an iterator of entities that reads in batches.
-      entities = helper.fetch_entities(self._project, self._datastore_namespace,
-                                       query, self._datastore)
+      entities = helper.fetch_entities(
+          self._project, self._datastore_namespace, query, self._datastore)
       return entities
 
     def display_data(self):
@@ -296,11 +311,11 @@ class ReadFromDatastore(PTransform):
     kind = query.kind[0].name
     latest_timestamp = ReadFromDatastore.query_latest_statistics_timestamp(
         project, namespace, datastore)
-    logging.info('Latest stats timestamp for kind %s is %s',
-                 kind, latest_timestamp)
+    logging.info(
+        'Latest stats timestamp for kind %s is %s', kind, latest_timestamp)
 
-    kind_stats_query = (
-        helper.make_kind_stats_query(namespace, kind, latest_timestamp))
+    kind_stats_query = helper.make_kind_stats_query(
+        namespace, kind, latest_timestamp)
 
     req = helper.make_request(project, namespace, kind_stats_query)
     resp = datastore.run_query(req)
@@ -317,9 +332,15 @@ class ReadFromDatastore(PTransform):
       estimated_size_bytes = ReadFromDatastore.get_estimated_size_bytes(
           project, namespace, query, datastore)
       logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
-      num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
-          (float(estimated_size_bytes) /
-           ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
+      num_splits = int(
+          min(
+              ReadFromDatastore._NUM_QUERY_SPLITS_MAX,
+              round(
+                  (
+                      float(estimated_size_bytes)
+                      / ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
+              ))
+)
 
     except Exception as e:
       logging.warning('Failed to fetch estimated size bytes: %s', e)
@@ -349,14 +370,17 @@ class _Mutate(PTransform):
     logging.warning('datastoreio write transform is experimental.')
 
   def expand(self, pcoll):
-    return (pcoll
-            | 'Convert to Mutation' >> Map(self._mutation_fn)
-            | 'Write Mutation to Datastore' >> ParDo(_Mutate.DatastoreWriteFn(
-                self._project)))
+    return (
+        pcoll
+        | 'Convert to Mutation' >> Map(self._mutation_fn)
+        | 'Write Mutation to Datastore'
+        >> ParDo(_Mutate.DatastoreWriteFn(self._project)))
 
   def display_data(self):
-    return {'project': self._project,
-            'mutation_fn': self._mutation_fn.__class__.__name__}
+    return {
+        'project': self._project,
+        'mutation_fn': self._mutation_fn.__class__.__name__,
+    }
 
   class DatastoreWriteFn(DoFn):
     """A ``DoFn`` that write mutations to Datastore.
@@ -369,6 +393,7 @@ class _Mutate(PTransform):
     should be idempotent (`upsert` and `delete` mutations) to prevent duplicate
     data or errors.
     """
+
     def __init__(self, project, fixed_batch_size=None):
       """
       Args:
@@ -385,8 +410,8 @@ class _Mutate(PTransform):
           _Mutate.DatastoreWriteFn, "datastoreRpcErrors")
       self._throttled_secs = Metrics.counter(
           _Mutate.DatastoreWriteFn, "cumulativeThrottlingSeconds")
-      self._throttler = AdaptiveThrottler(window_ms=120000, bucket_ms=1000,
-                                          overload_ratio=1.25)
+      self._throttler = AdaptiveThrottler(
+          window_ms=120000, bucket_ms=1000, overload_ratio=1.25)
 
     def _update_rpc_stats(self, successes=0, errors=0, throttled_secs=0):
       self._rpc_successes.inc(successes)
@@ -402,12 +427,12 @@ class _Mutate(PTransform):
       else:
         self._batch_sizer = util.DynamicBatchSizer()
         self._target_batch_size = self._batch_sizer.get_batch_size(
-            time.time()*1000)
+            time.time() * 1000)
 
     def process(self, element):
       size = element.ByteSize()
-      if (self._mutations and
-          size + self._mutations_size > util.WRITE_BATCH_MAX_BYTES_SIZE):
+      if (self._mutations
+          and size + self._mutations_size > util.WRITE_BATCH_MAX_BYTES_SIZE):
         self._flush_batch()
       self._mutations.append(element)
       self._mutations_size += size
@@ -421,14 +446,19 @@ class _Mutate(PTransform):
     def _flush_batch(self):
       # Flush the current batch of mutations to Cloud Datastore.
       _, latency_ms = helper.write_mutations(
-          self._datastore, self._project, self._mutations,
-          self._throttler, self._update_rpc_stats,
-          throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS//1000)
-      logging.debug("Successfully wrote %d mutations in %dms.",
-                    len(self._mutations), latency_ms)
+          self._datastore,
+          self._project,
+          self._mutations,
+          self._throttler,
+          self._update_rpc_stats,
+          throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS // 1000)
+      logging.debug(
+          "Successfully wrote %d mutations in %dms.",
+          len(self._mutations),
+          latency_ms)
 
       if not self._fixed_batch_size:
-        now = time.time()*1000
+        now = time.time() * 1000
         self._batch_sizer.report_latency(now, latency_ms, len(self._mutations))
         self._target_batch_size = self._batch_sizer.get_batch_size(now)
 
@@ -452,8 +482,7 @@ class WriteToDatastore(_Mutate):
       from apitools.base import py  # pylint: disable=unused-variable
     except ImportError:
       raise ImportError(
-          'Google Cloud IO not available, '
-          'please install apache_beam[gcp]')
+          'Google Cloud IO not available, ' 'please install apache_beam[gcp]')
 
     super(WriteToDatastore, self).__init__(
         project, WriteToDatastore.to_upsert_mutation)
@@ -461,8 +490,9 @@ class WriteToDatastore(_Mutate):
   @staticmethod
   def to_upsert_mutation(entity):
     if not helper.is_key_valid(entity.key):
-      raise ValueError('Entities to be written to the Cloud Datastore must '
-                       'have complete keys:\n%s' % entity)
+      raise ValueError(
+          'Entities to be written to the Cloud Datastore must '
+          'have complete keys:\n%s' % entity)
     mutation = datastore_pb2.Mutation()
     mutation.upsert.CopyFrom(entity)
     return mutation
@@ -470,6 +500,7 @@ class WriteToDatastore(_Mutate):
 
 class DeleteFromDatastore(_Mutate):
   """A ``PTransform`` to delete a ``PCollection[Key]`` from Cloud Datastore."""
+
   def __init__(self, project):
     """Initialize the `DeleteFromDatastore` transform.
 
@@ -483,8 +514,10 @@ class DeleteFromDatastore(_Mutate):
   @staticmethod
   def to_delete_mutation(key):
     if not helper.is_key_valid(key):
-      raise ValueError('Keys to be deleted from the Cloud Datastore must be '
-                       'complete:\n%s', key)
+      raise ValueError(
+          'Keys to be deleted from the Cloud Datastore must be '
+          'complete:\n%s',
+          key)
     mutation = datastore_pb2.Mutation()
     mutation.delete.CopyFrom(key)
     return mutation

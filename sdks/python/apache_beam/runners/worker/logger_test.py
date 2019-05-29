@@ -33,7 +33,6 @@ from apache_beam.utils.counters import CounterFactory
 
 
 class PerThreadLoggingContextTest(unittest.TestCase):
-
   def thread_check_attribute(self, name):
     self.assertFalse(name in logger.per_thread_worker_data.get_data())
     with logger.PerThreadLoggingContext(**{name: 'thread-value'}):
@@ -72,22 +71,31 @@ class PerThreadLoggingContextTest(unittest.TestCase):
 class JsonLogFormatterTest(unittest.TestCase):
 
   SAMPLE_RECORD = {
-      'created': 123456.789, 'msecs': 789.654321,
-      'msg': '%s:%d:%.2f', 'args': ('xyz', 4, 3.14),
+      'created': 123456.789,
+      'msecs': 789.654321,
+      'msg': '%s:%d:%.2f',
+      'args': ('xyz', 4, 3.14),
       'levelname': 'WARNING',
-      'process': 'pid', 'thread': 'tid',
-      'name': 'name', 'filename': 'file', 'funcName': 'func',
-      'exc_info': None}
+      'process': 'pid',
+      'thread': 'tid',
+      'name': 'name',
+      'filename': 'file',
+      'funcName': 'func',
+      'exc_info': None,
+  }
 
   SAMPLE_OUTPUT = {
       'timestamp': {'seconds': 123456, 'nanos': 789654321},
-      'severity': 'WARN', 'message': 'xyz:4:3.14', 'thread': 'pid:tid',
-      'job': 'jobid', 'worker': 'workerid', 'logger': 'name:file:func'}
+      'severity': 'WARN',
+      'message': 'xyz:4:3.14',
+      'thread': 'pid:tid',
+      'job': 'jobid',
+      'worker': 'workerid',
+      'logger': 'name:file:func',
+  }
 
   def create_log_record(self, **kwargs):
-
     class Record(object):
-
       def __init__(self, **kwargs):
         for k, v in kwargs.items():
           setattr(self, k, v)
@@ -110,15 +118,15 @@ class JsonLogFormatterTest(unittest.TestCase):
       output['message'] = case['expected']
 
       self.assertEqual(
-          json.loads(formatter.format(self.create_log_record(**record))),
-          output)
+          json.loads(formatter.format(self.create_log_record(**record))), output
+      )
 
   def test_record_with_format_character(self):
     test_cases = [
         {'msg': '%A', 'args': (), 'expected': '%A'},
         {'msg': '%s', 'args': (), 'expected': '%s'},
-        {'msg': '%A%s', 'args': ('xy'), 'expected': '%A%s with args (xy)'},
-        {'msg': '%s%s', 'args': (1), 'expected': '%s%s with args (1)'},
+        {'msg': '%A%s', 'args': 'xy', 'expected': '%A%s with args (xy)'},
+        {'msg': '%s%s', 'args': 1, 'expected': '%s%s with args (1)'},
     ]
 
     self.execute_multiple_cases(test_cases)
@@ -126,7 +134,7 @@ class JsonLogFormatterTest(unittest.TestCase):
   def test_record_with_arbitrary_messages(self):
     test_cases = [
         {'msg': ImportError('abc'), 'args': (), 'expected': 'abc'},
-        {'msg': TypeError('abc %s'), 'args': ('def'), 'expected': 'abc def'},
+        {'msg': TypeError('abc %s'), 'args': 'def', 'expected': 'abc def'},
     ]
 
     self.execute_multiple_cases(test_cases)
@@ -167,12 +175,18 @@ class JsonLogFormatterTest(unittest.TestCase):
     record = self.create_log_record(**self.SAMPLE_RECORD)
     log_output4 = json.loads(formatter.format(record))
 
-    self.assertEqual(log_output1, dict(
-        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step1'))
-    self.assertEqual(log_output2, dict(
-        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step2'))
-    self.assertEqual(log_output3, dict(
-        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step1'))
+    self.assertEqual(
+        log_output1,
+        dict(self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step1'),
+    )
+    self.assertEqual(
+        log_output2,
+        dict(self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step2'),
+    )
+    self.assertEqual(
+        log_output3,
+        dict(self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step1'),
+    )
     self.assertEqual(log_output4, self.SAMPLE_OUTPUT)
 
   def test_exception_record(self):

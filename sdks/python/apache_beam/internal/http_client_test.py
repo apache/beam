@@ -30,7 +30,6 @@ from apache_beam.internal.http_client import proxy_info_from_environment_var
 
 
 class HttpClientTest(unittest.TestCase):
-
   def test_proxy_from_env_http_with_port(self):
     with mock.patch.dict(os.environ, http_proxy='http://localhost:9000'):
       proxy_info = proxy_info_from_environment_var('http_proxy')
@@ -92,7 +91,7 @@ class HttpClientTest(unittest.TestCase):
   def test_proxy_from_env_wrong_method_in_url(self):
     with mock.patch.dict(os.environ, http_proxy='smtp://localhost:8000'):
       proxy_info = proxy_info_from_environment_var('http_proxy')
-      expected = ProxyInfo(3, 'smtp', 80) # wrong proxy info generated
+      expected = ProxyInfo(3, 'smtp', 80)  # wrong proxy info generated
       self.assertEquals(str(expected), str(proxy_info))
 
   def test_get_new_http_proxy_info(self):

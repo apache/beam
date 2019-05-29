@@ -52,43 +52,57 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
     dummy_dir = tempfile.mkdtemp()
 
     remote_runner = DataflowRunner()
-    pipeline = Pipeline(remote_runner,
-                        options=PipelineOptions([
-                            '--dataflow_endpoint=ignored',
-                            '--sdk_location=' + dummy_file_name,
-                            '--job_name=test-job',
-                            '--project=test-project',
-                            '--staging_location=' + dummy_dir,
-                            '--temp_location=/dev/null',
-                            '--template_location=' + dummy_file_name,
-                            '--no_auth=True']))
+    pipeline = Pipeline(
+        remote_runner,
+        options=PipelineOptions(
+            [
+                '--dataflow_endpoint=ignored',
+                '--sdk_location=' + dummy_file_name,
+                '--job_name=test-job',
+                '--project=test-project',
+                '--staging_location=' + dummy_dir,
+                '--temp_location=/dev/null',
+                '--template_location=' + dummy_file_name,
+                '--no_auth=True',
+            ]
+        ))
 
-    pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
+    pipeline | beam.Create([1, 2, 3]) | beam.Map(
+        lambda x: x
+    )  # pylint: disable=expression-not-assigned
     pipeline.run().wait_until_finish()
     with open(dummy_file_name) as template_file:
       saved_job_dict = json.load(template_file)
       self.assertEqual(
-          saved_job_dict['environment']['sdkPipelineOptions']
-          ['options']['project'], 'test-project')
+          saved_job_dict['environment']['sdkPipelineOptions']['options'][
+              'project'
+          ],
+          'test-project')
       self.assertEqual(
-          saved_job_dict['environment']['sdkPipelineOptions']
-          ['options']['job_name'], 'test-job')
+          saved_job_dict['environment']['sdkPipelineOptions']['options'][
+              'job_name'
+          ],
+          'test-job')
 
   def test_bad_path(self):
     dummy_sdk_file = tempfile.NamedTemporaryFile()
     remote_runner = DataflowRunner()
-    pipeline = Pipeline(remote_runner,
-                        options=PipelineOptions([
-                            '--dataflow_endpoint=ignored',
-                            '--sdk_location=' + dummy_sdk_file.name,
-                            '--job_name=test-job',
-                            '--project=test-project',
-                            '--staging_location=ignored',
-                            '--temp_location=/dev/null',
-                            '--template_location=/bad/path',
-                            '--no_auth=True']))
-    remote_runner.job = apiclient.Job(pipeline._options,
-                                      pipeline.to_runner_api())
+    pipeline = Pipeline(
+        remote_runner,
+        options=PipelineOptions(
+            [
+                '--dataflow_endpoint=ignored',
+                '--sdk_location=' + dummy_sdk_file.name,
+                '--job_name=test-job',
+                '--project=test-project',
+                '--staging_location=ignored',
+                '--temp_location=/dev/null',
+                '--template_location=/bad/path',
+                '--no_auth=True',
+            ]
+        ))
+    remote_runner.job = apiclient.Job(
+        pipeline._options, pipeline.to_runner_api())
 
     with self.assertRaises(IOError):
       pipeline.run().wait_until_finish()

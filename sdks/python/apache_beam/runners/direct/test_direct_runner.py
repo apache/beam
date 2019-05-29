@@ -48,6 +48,7 @@ class TestDirectRunner(DirectRunner):
 
       if on_success_matcher:
         from hamcrest import assert_that as hc_assert_that
+
         hc_assert_that(self.result, pickler.loads(on_success_matcher))
     finally:
       if not PipelineState.is_terminal(self.result.state):

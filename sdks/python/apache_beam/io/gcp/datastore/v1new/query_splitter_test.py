@@ -28,10 +28,15 @@ try:
   from apache_beam.io.gcp.datastore.v1new import helper
   from apache_beam.io.gcp.datastore.v1new import query_splitter
   from apache_beam.io.gcp.datastore.v1new import types
-  from apache_beam.io.gcp.datastore.v1new.query_splitter import SplitNotPossibleError
+  from apache_beam.io.gcp.datastore.v1new.query_splitter import (
+      SplitNotPossibleError)
   from google.cloud.datastore import key
+
   # Keep this import last so it doesn't import conflicting pb2 modules.
-  from apache_beam.io.gcp.datastore.v1 import query_splitter_test  # pylint: disable=ungrouped-imports
+  from apache_beam.io.gcp.datastore.v1 import (
+      query_splitter_test,
+  )  # pylint: disable=ungrouped-imports
+
   QuerySplitterTestBase = query_splitter_test.QuerySplitterTest
 
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
@@ -48,6 +53,7 @@ class QuerySplitterTest(QuerySplitterTestBase):
   NOTE: This test inherits test cases from QuerySplitterTestBase.
   Please prefer to add new test cases to v1/query_splitter_test if possible.
   """
+
   _PROJECT = 'project'
   _NAMESPACE = 'namespace'
 
@@ -57,8 +63,13 @@ class QuerySplitterTest(QuerySplitterTestBase):
   def setUp(self):
     """Overrides base class version with skipIf() decorators."""
 
-  def create_query(self, kinds=(), order=False, limit=None, offset=None,
-                   inequality_filter=False):
+  def create_query(
+      self,
+      kinds=(),
+      order=False,
+      limit=None,
+      offset=None,
+      inequality_filter=False):
     if len(kinds) > 1:
       self.skipTest('v1new queries do not support more than one kind.')
     if offset is not None:
@@ -85,15 +96,15 @@ class QuerySplitterTest(QuerySplitterTestBase):
     num_splits = 10
     scatter_query = query_splitter._create_scatter_query(query, num_splits)
     self.assertEqual(scatter_query.kind, query.kind)
-    self.assertEqual(scatter_query.limit,
-                     (num_splits -1) * query_splitter.KEYS_PER_SPLIT)
-    self.assertEqual(scatter_query.order,
-                     [query_splitter.SCATTER_PROPERTY_NAME])
-    self.assertEqual(scatter_query.projection,
-                     [query_splitter.KEY_PROPERTY_NAME])
+    self.assertEqual(
+        scatter_query.limit, (num_splits - 1) * query_splitter.KEYS_PER_SPLIT)
+    self.assertEqual(
+        scatter_query.order, [query_splitter.SCATTER_PROPERTY_NAME])
+    self.assertEqual(
+        scatter_query.projection, [query_splitter.KEY_PROPERTY_NAME])
 
-  def check_get_splits(self, query, num_splits, num_entities,
-                       unused_batch_size):
+  def check_get_splits(
+      self, query, num_splits, num_entities, unused_batch_size):
     """A helper method to test the query_splitter get_splits method.
 
     Args:

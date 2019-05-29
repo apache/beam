@@ -41,28 +41,34 @@ class LeaderBoardTest(unittest.TestCase):
   ]
 
   def create_data(self, p):
-    return (p
-            | beam.Create(LeaderBoardTest.SAMPLE_DATA)
-            | beam.ParDo(leader_board.ParseGameEventFn())
-            | beam.Map(lambda elem:\
-                       beam.window.TimestampedValue(elem, elem['timestamp'])))
-
+    return (
+        p
+        | beam.Create(LeaderBoardTest.SAMPLE_DATA)
+        | beam.ParDo(leader_board.ParseGameEventFn())
+        | beam.Map(
+            lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])
+        )
+)
   def test_leader_board_teams(self):
     with TestPipeline() as p:
-      result = (
-          self.create_data(p)
-          | leader_board.CalculateTeamScores(
-              team_window_duration=60,
-              allowed_lateness=120))
-      assert_that(result, equal_to([
-          ('team1', 14), ('team1', 18), ('team1', 18), ('team2', 2),
-          ('team3', 13)]))
+      result = self.create_data(p) | leader_board.CalculateTeamScores(
+          team_window_duration=60, allowed_lateness=120)
+      assert_that(
+          result,
+          equal_to(
+              [
+                  ('team1', 14),
+                  ('team1', 18),
+                  ('team1', 18),
+                  ('team2', 2),
+                  ('team3', 13),
+              ]
+          ))
 
   def test_leader_board_users(self):
     with TestPipeline() as p:
-      result = (
-          self.create_data(p)
-          | leader_board.CalculateUserScores(allowed_lateness=120))
+      result = self.create_data(p) | leader_board.CalculateUserScores(
+          allowed_lateness=120)
       assert_that(result, equal_to([]))
 
 

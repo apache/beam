@@ -27,7 +27,8 @@ from apache_beam.io import iobase
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import AsList
 from apache_beam.runners.direct import DirectRunner
-from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
+from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import (
+    ConsumerTrackingPipelineVisitor)
 from apache_beam.transforms import CoGroupByKey
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
@@ -41,11 +42,10 @@ from apache_beam.transforms import ParDo
 
 
 class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
-
   def setUp(self):
     self.pipeline = Pipeline(DirectRunner())
     self.visitor = ConsumerTrackingPipelineVisitor()
-    try:                    # Python 2
+    try:  # Python 2
       self.assertCountEqual = self.assertItemsEqual
     except AttributeError:  # Python 3
       pass
@@ -68,15 +68,14 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     self.assertCountEqual(root_transforms, [root_read, root_flatten])
 
-    pbegin_consumers = [c.transform
-                        for c in self.visitor.value_to_consumers[pbegin]]
+    pbegin_consumers = [
+        c.transform for c in self.visitor.value_to_consumers[pbegin]
+    ]
     self.assertCountEqual(pbegin_consumers, [root_read])
     self.assertEqual(len(self.visitor.step_names), 3)
 
   def test_side_inputs(self):
-
     class SplitNumbersFn(DoFn):
-
       def process(self, element):
         if element < 0:
           yield pvalue.TaggedOutput('tag_negative', element)
@@ -84,7 +83,6 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
           yield element
 
     class ProcessNumbersFn(DoFn):
-
       def process(self, element, negatives):
         yield element
 
@@ -93,10 +91,11 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     root_read = Read(DummySource())
 
-    result = (self.pipeline
-              | 'read' >> root_read
-              | ParDo(SplitNumbersFn()).with_outputs('tag_negative',
-                                                     main='positive'))
+    result = (
+        self.pipeline
+        | 'read' >> root_read
+        | ParDo(SplitNumbersFn()).with_outputs('tag_negative', main='positive')
+    )
     positive, negative = result
     positive | ParDo(ProcessNumbersFn(), AsList(negative))
 
@@ -106,8 +105,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     self.assertEqual(root_transforms, [root_read])
     self.assertEqual(len(self.visitor.step_names), 3)
     self.assertEqual(len(self.visitor.views), 1)
-    self.assertTrue(isinstance(self.visitor.views[0],
-                               pvalue.AsList))
+    self.assertTrue(isinstance(self.visitor.views[0], pvalue.AsList))
 
   def test_co_group_by_key(self):
     emails = self.pipeline | 'email' >> Create([('joe', 'joe@example.com')])
@@ -119,7 +117,8 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     root_transforms = [t.transform for t in self.visitor.root_transforms]
     self.assertEqual(len(root_transforms), 2)
     self.assertGreater(
-        len(self.visitor.step_names), 3)  # 2 creates + expanded CoGBK
+        len(self.visitor.step_names), 3
+    )  # 2 creates + expanded CoGBK
     self.assertEqual(len(self.visitor.views), 0)
 
 

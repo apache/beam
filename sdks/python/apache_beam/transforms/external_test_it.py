@@ -33,7 +33,6 @@ from apache_beam.transforms import ptransform
 
 
 class ExternalTransformIT(unittest.TestCase):
-
   @attr('IT')
   def test_job_python_from_python_it(self):
     @ptransform.PTransform.register_urn('simple', None)
@@ -54,13 +53,11 @@ class ExternalTransformIT(unittest.TestCase):
         pipeline
         | beam.Create(['a', 'b'])
         | beam.ExternalTransform(
-            'simple',
-            None,
-            expansion_service.ExpansionServiceServicer()))
+            'simple', None, expansion_service.ExpansionServiceServicer())
+)
     assert_that(res, equal_to(['Simple(a)', 'Simple(b)']))
 
-    proto_pipeline, _ = pipeline.to_runner_api(
-        return_context=True)
+    proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
     pipeline_from_proto = Pipeline.from_runner_api(
         proto_pipeline, pipeline.runner, pipeline._options)
     pipeline_from_proto.run().wait_until_finish()

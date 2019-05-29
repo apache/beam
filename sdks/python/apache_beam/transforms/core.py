@@ -85,8 +85,8 @@ __all__ = [
     'Flatten',
     'Create',
     'Impulse',
-    'RestrictionProvider'
-    ]
+    'RestrictionProvider',
+]
 
 # Type variables
 T = typehints.TypeVariable('T')
@@ -96,6 +96,7 @@ V = typehints.TypeVariable('V')
 
 class DoFnContext(object):
   """A context available to all methods of DoFn instance."""
+
   pass
 
 
@@ -353,8 +354,8 @@ class _RestrictionDoFnParam(_DoFnParam):
       raise ValueError(
           'DoFn.RestrictionParam expected RestrictionProvider object.')
     self.restriction_provider = restriction_provider
-    self.param_id = ('RestrictionParam(%s)'
-                     % restriction_provider.__class__.__name__)
+    self.param_id = (
+        'RestrictionParam(%s)' % restriction_provider.__class__.__name__)
 
 
 class _StateDoFnParam(_DoFnParam):
@@ -423,9 +424,14 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   WatermarkReporterParam = _DoFnParam('WatermarkReporterParam')
   BundleFinalizerParam = _BundleFinalizerParam
 
-  DoFnProcessParams = [ElementParam, SideInputParam, TimestampParam,
-                       WindowParam, WatermarkReporterParam,
-                       BundleFinalizerParam]
+  DoFnProcessParams = [
+      ElementParam,
+      SideInputParam,
+      TimestampParam,
+      WindowParam,
+      WatermarkReporterParam,
+      BundleFinalizerParam,
+  ]
 
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),
@@ -545,12 +551,12 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def is_process_bounded(self):
     """Checks if an object is a bound method on an instance."""
     if not isinstance(self.process, types.MethodType):
-      return False # Not a method
+      return False  # Not a method
     if self.process.__self__ is None:
-      return False # Method is not bound
-    if issubclass(self.process.__self__.__class__, type) or \
-        self.process.__self__.__class__ is type:
-      return False # Method is a classmethod
+      return False  # Method is not bound
+    if (issubclass(self.process.__self__.__class__, type)
+        or self.process.__self__.__class__ is type):
+      return False  # Method is a classmethod
     return True
 
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_DOFN)
@@ -571,8 +577,10 @@ def _fn_takes_side_inputs(fn):
     varkw = argspec.keywords
     kwonlyargs = []
 
-  return (len(argspec.args) + len(kwonlyargs) > 1 + is_bound or
-          argspec.varargs or varkw)
+  return (
+      len(argspec.args) + len(kwonlyargs) > 1 + is_bound
+      or argspec.varargs
+      or varkw)
 
 
 class CallableWrapperDoFn(DoFn):
@@ -597,8 +605,9 @@ class CallableWrapperDoFn(DoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
-    if isinstance(fn, (
-        types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
+    if isinstance(
+        fn, (types.BuiltinFunctionType, types.MethodType, types.FunctionType)
+    ):
       self.process = fn
     else:
       # For cases such as set / list where fn is callable but not a function
@@ -611,10 +620,13 @@ class CallableWrapperDoFn(DoFn):
     # we show its name.
     # Otherwise, it might be an instance of a callable class. We
     # show its class.
-    display_data_value = (self._fn.__name__ if hasattr(self._fn, '__name__')
-                          else self._fn.__class__)
-    return {'fn': DisplayDataItem(display_data_value,
-                                  label='Transform Function')}
+    display_data_value = (
+        self._fn.__name__
+        if hasattr(self._fn, '__name__')
+        else self._fn.__class__)
+    return {
+        'fn': DisplayDataItem(display_data_value, label='Transform Function')
+    }
 
   def __repr__(self):
     return 'CallableWrapperDoFn(%s)' % self._fn
@@ -711,8 +723,8 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       **kwargs: Additional arguments and side inputs.
     """
     for element in elements:
-      mutable_accumulator =\
-        self.add_input(mutable_accumulator, element, *args, **kwargs)
+      mutable_accumulator = self.add_input(
+          mutable_accumulator, element, *args, **kwargs)
     return mutable_accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
@@ -769,9 +781,10 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """
     return self.extract_output(
         self.add_inputs(
-            self.create_accumulator(*args, **kwargs), elements,
-            *args, **kwargs),
-        *args, **kwargs)
+            self.create_accumulator(*args, **kwargs), elements, *args, **kwargs
+        ),
+        *args,
+        **kwargs)
 
   def for_input_type(self, input_type):
     """Returns a specialized implementation of self, if it exists.
@@ -806,6 +819,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
 class _ReiterableChain(object):
   """Like itertools.chain, but allowing re-iteration."""
+
   def __init__(self, iterables):
     self.iterables = iterables
 
@@ -829,6 +843,7 @@ class CallableWrapperCombineFn(CombineFn):
   The purpose of this class is to conveniently wrap simple functions and use
   them in Combine transforms.
   """
+
   _DEFAULT_BUFFER_SIZE = 10
 
   def __init__(self, fn, buffer_size=_DEFAULT_BUFFER_SIZE):
@@ -910,6 +925,7 @@ class CallableWrapperCombineFn(CombineFn):
   def for_input_type(self, input_type):
     # Avoid circular imports.
     from apache_beam.transforms import cy_combiners
+
     if self._fn is any:
       return cy_combiners.AnyCombineFn()
     elif self._fn is all:
@@ -934,6 +950,7 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
   This is identical to its parent, but avoids accepting and passing *args
   and **kwargs for efficiency as they are known to be empty.
   """
+
   def create_accumulator(self):
     return []
 
@@ -1058,14 +1075,14 @@ class ParDo(PTransformWithSideInputs):
 
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
+
     self._signature = DoFnSignature(self.fn)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
 
   def infer_output_type(self, input_type):
-    return trivial_inference.element_type(
-        self.fn.infer_output_type(input_type))
+    return trivial_inference.element_type(self.fn.infer_output_type(input_type))
 
   def make_fn(self, fn, has_side_inputs):
     if isinstance(fn, DoFn):
@@ -1076,9 +1093,10 @@ class ParDo(PTransformWithSideInputs):
     return self.fn._process_argspec_fn()
 
   def display_data(self):
-    return {'fn': DisplayDataItem(self.fn.__class__,
-                                  label='Transform Function'),
-            'fn_dd': self.fn}
+    return {
+        'fn': DisplayDataItem(self.fn.__class__, label='Transform Function'),
+        'fn_dd': self.fn,
+    }
 
   def expand(self, pcoll):
     # In the case of a stateful DoFn, warn if the key coder is not
@@ -1100,7 +1118,8 @@ class ParDo(PTransformWithSideInputs):
             'Key coder %s for transform %s with stateful DoFn may not '
             'be deterministic. This may cause incorrect behavior for complex '
             'key types. Consider adding an input type hint for this transform.',
-            key_coder, self)
+            key_coder,
+            self)
 
     return pvalue.PCollection(pcoll.pipeline)
 
@@ -1136,8 +1155,7 @@ class ParDo(PTransformWithSideInputs):
     """
     main_tag = main_kw.pop('main', None)
     if main_kw:
-      raise ValueError('Unexpected keyword arguments: %s' %
-                       list(main_kw))
+      raise ValueError('Unexpected keyword arguments: %s' % list(main_kw))
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
@@ -1146,15 +1164,17 @@ class ParDo(PTransformWithSideInputs):
     return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
 
   def to_runner_api_parameter(self, context):
-    assert isinstance(self, ParDo), \
-        "expected instance of ParDo, but got %s" % self.__class__
+    assert isinstance(self, ParDo), (
+        "expected instance of ParDo, but got %s" % self.__class__)
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
     from apache_beam.runners.common import DoFnSignature
+
     is_splittable = DoFnSignature(self.fn).is_splittable_dofn()
     if is_splittable:
       restriction_coder = (
-          DoFnSignature(self.fn).get_restriction_provider().restriction_coder())
+          DoFnSignature(self.fn).get_restriction_provider().restriction_coder()
+      )
       restriction_coder_id = context.coders.get_id(restriction_coder)
     else:
       restriction_coder_id = None
@@ -1165,13 +1185,17 @@ class ParDo(PTransformWithSideInputs):
                 environment_id=context.default_environment_id(),
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=python_urns.PICKLED_DOFN_INFO,
-                    payload=picked_pardo_fn_data)),
+                    payload=picked_pardo_fn_data,
+                ),
+            ),
             splittable=is_splittable,
             restriction_coder_id=restriction_coder_id,
-            state_specs={spec.name: spec.to_runner_api(context)
-                         for spec in state_specs},
-            timer_specs={spec.name: spec.to_runner_api(context)
-                         for spec in timer_specs},
+            state_specs={
+                spec.name: spec.to_runner_api(context) for spec in state_specs
+            },
+            timer_specs={
+                spec.name: spec.to_runner_api(context) for spec in timer_specs
+            },
             # It'd be nice to name these according to their actual
             # names/positions in the orignal argument list, but such a
             # transformation is currently irreversible given how
@@ -1179,7 +1203,9 @@ class ParDo(PTransformWithSideInputs):
             # are currently implemented.
             side_inputs={
                 "side%s" % ix: si.to_runner_api(context)
-                for ix, si in enumerate(self.side_inputs)}))
+                for ix, si in enumerate(self.side_inputs)
+            },
+        ))
 
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
@@ -1195,9 +1221,11 @@ class ParDo(PTransformWithSideInputs):
     # This is an ordered list stored as a dict (see the comments in
     # to_runner_api_parameter above).
     indexed_side_inputs = [
-        (int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
-         pvalue.AsSideInput.from_runner_api(si, context))
-        for tag, si in pardo_payload.side_inputs.items()]
+        (
+            int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
+            pvalue.AsSideInput.from_runner_api(si, context))
+        for tag, si in pardo_payload.side_inputs.items()
+    ]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
@@ -1210,13 +1238,15 @@ class ParDo(PTransformWithSideInputs):
     Returns `None` otherwise.
     """
     from apache_beam.runners.common import DoFnSignature
+
     signature = DoFnSignature(self.fn)
-    return (signature.get_restriction_provider().restriction_coder()
-            if signature.is_splittable_dofn() else None)
+    return (
+        signature.get_restriction_provider().restriction_coder()
+        if signature.is_splittable_dofn()
+        else None)
 
 
 class _MultiParDo(PTransform):
-
   def __init__(self, do_transform, tags, main_tag):
     super(_MultiParDo, self).__init__(do_transform.label)
     self._do_transform = do_transform
@@ -1256,7 +1286,7 @@ def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if not callable(fn):
     raise TypeError(
         'FlatMap can be used only with callable objects. '
-        'Received %r instead.' % (fn))
+        'Received %r instead.' % fn)
 
   pardo = ParDo(CallableWrapperDoFn(fn), *args, **kwargs)
   pardo.label = label
@@ -1285,7 +1315,7 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if not callable(fn):
     raise TypeError(
         'Map can be used only with callable objects. '
-        'Received %r instead.' % (fn))
+        'Received %r instead.' % fn)
   if _fn_takes_side_inputs(fn):
     wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
   else:
@@ -1334,7 +1364,7 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if not callable(fn):
     raise TypeError(
         'Filter can be used only with callable objects. '
-        'Received %r instead.' % (fn))
+        'Received %r instead.' % fn)
   wrapper = lambda x, *args, **kwargs: [x] if fn(x, *args, **kwargs) else []
 
   label = 'Filter(%s)' % ptransform.label_from_callable(fn)
@@ -1365,7 +1395,8 @@ def _combine_payload(combine_fn, context):
   return beam_runner_api_pb2.CombinePayload(
       combine_fn=combine_fn.to_runner_api(context),
       accumulator_coder_id=context.coders.get_id(
-          combine_fn.get_accumulator_coder()))
+          combine_fn.get_accumulator_coder()
+      ))
 
 
 class CombineGlobally(PTransform):
@@ -1406,6 +1437,7 @@ class CombineGlobally(PTransform):
   :class:`~apache_beam.pvalue.PValue` arguments will be replaced by their
   actual value in the exact position where they appear in the argument lists.
   """
+
   has_defaults = True
   as_view = False
   fanout = None
@@ -1414,7 +1446,7 @@ class CombineGlobally(PTransform):
     if not (isinstance(fn, CombineFn) or callable(fn)):
       raise TypeError(
           'CombineGlobally can be used only with combineFn objects. '
-          'Received %r instead.' % (fn))
+          'Received %r instead.' % fn)
 
     super(CombineGlobally, self).__init__()
     self.fn = fn
@@ -1423,20 +1455,22 @@ class CombineGlobally(PTransform):
 
   def display_data(self):
     return {
-        'combine_fn':
-            DisplayDataItem(self.fn.__class__, label='Combine Function'),
-        'combine_fn_dd':
-            self.fn,
+        'combine_fn': DisplayDataItem(
+            self.fn.__class__, label='Combine Function'
+        ),
+        'combine_fn_dd': self.fn,
     }
 
   def default_label(self):
     if self.fanout is None:
-      return '%s(%s)' % (self.__class__.__name__,
-                         ptransform.label_from_callable(self.fn))
+      return '%s(%s)' % (
+          self.__class__.__name__,
+          ptransform.label_from_callable(self.fn))
     else:
-      return '%s(%s, fanout=%s)' % (self.__class__.__name__,
-                                    ptransform.label_from_callable(self.fn),
-                                    self.fanout)
+      return '%s(%s, fanout=%s)' % (
+          self.__class__.__name__,
+          ptransform.label_from_callable(self.fn),
+          self.fanout)
 
   def _clone(self, **extra_attributes):
     clone = copy.copy(self)
@@ -1466,23 +1500,29 @@ class CombineGlobally(PTransform):
     if self.fanout:
       combine_per_key = combine_per_key.with_hot_key_fanout(self.fanout)
 
-    combined = (pcoll
-                | 'KeyWithVoid' >> add_input_types(
-                    Map(lambda v: (None, v)).with_output_types(
-                        KV[None, pcoll.element_type]))
-                | 'CombinePerKey' >> combine_per_key
-                | 'UnKey' >> Map(lambda k_v: k_v[1]))
+    combined = (
+        pcoll
+        | 'KeyWithVoid'
+        >> add_input_types(
+            Map(lambda v: (None, v)).with_output_types(
+                KV[None, pcoll.element_type])
+)
+        | 'CombinePerKey' >> combine_per_key
+        | 'UnKey' >> Map(lambda k_v: k_v[1]))
 
     if not self.has_defaults and not self.as_view:
       return combined
 
     if self.has_defaults:
       combine_fn = (
-          self.fn if isinstance(self.fn, CombineFn)
+          self.fn
+          if isinstance(self.fn, CombineFn)
           else CombineFn.from_callable(self.fn))
       default_value = combine_fn.apply([], *self.args, **self.kwargs)
     else:
-      default_value = pvalue.AsSingleton._NO_DEFAULT  # pylint: disable=protected-access
+      default_value = (
+          pvalue.AsSingleton._NO_DEFAULT
+      )  # pylint: disable=protected-access
     view = pvalue.AsSingleton(combined, default_value=default_value)
     if self.as_view:
       return view
@@ -1501,9 +1541,11 @@ class CombineGlobally(PTransform):
         if combined.element_type:
           return transform.with_output_types(combined.element_type)
         return transform
-      return (pcoll.pipeline
-              | 'DoOnce' >> Create([None])
-              | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
+
+      return (
+          pcoll.pipeline
+          | 'DoOnce' >> Create([None])
+          | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
 
 
 class CombinePerKey(PTransformWithSideInputs):
@@ -1525,6 +1567,7 @@ class CombinePerKey(PTransformWithSideInputs):
   Returns:
     A PObject holding the result of the combine operation.
   """
+
   def with_hot_key_fanout(self, fanout):
     """A per-key combine operation like self but with two levels of aggregation.
 
@@ -1549,6 +1592,7 @@ class CombinePerKey(PTransformWithSideInputs):
       A per-key combining PTransform with the specified fanout.
     """
     from apache_beam.transforms.combiners import curry_combine_fn
+
     if fanout is None:
       return self
     else:
@@ -1556,10 +1600,12 @@ class CombinePerKey(PTransformWithSideInputs):
           curry_combine_fn(self.fn, self.args, self.kwargs), fanout)
 
   def display_data(self):
-    return {'combine_fn':
-            DisplayDataItem(self.fn.__class__, label='Combine Function'),
-            'combine_fn_dd':
-            self.fn}
+    return {
+        'combine_fn': DisplayDataItem(
+            self.fn.__class__, label='Combine Function'
+        ),
+        'combine_fn_dd': self.fn,
+    }
 
   def make_fn(self, fn, has_side_inputs):
     self._fn_label = ptransform.label_from_callable(fn)
@@ -1574,8 +1620,10 @@ class CombinePerKey(PTransformWithSideInputs):
   def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
-    return pcoll | GroupByKey() | 'Combine' >> CombineValues(
-        self.fn, *args, **kwargs)
+    return (
+        pcoll
+        | GroupByKey()
+        | 'Combine' >> CombineValues(self.fn, *args, **kwargs))
 
   def default_type_hints(self):
     hints = self.fn.get_type_hints().copy()
@@ -1594,6 +1642,7 @@ class CombinePerKey(PTransformWithSideInputs):
   def to_runner_api_parameter(self, context):
     if self.args or self.kwargs:
       from apache_beam.transforms.combiners import curry_combine_fn
+
       combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
     else:
       combine_fn = self.fn
@@ -1614,7 +1663,6 @@ class CombinePerKey(PTransformWithSideInputs):
 
 # TODO(robertwb): Rename to CombineGroupedValues?
 class CombineValues(PTransformWithSideInputs):
-
   def make_fn(self, fn, has_side_inputs):
     return CombineFn.maybe_from_callable(fn, has_side_inputs)
 
@@ -1627,15 +1675,18 @@ class CombineValues(PTransformWithSideInputs):
     if input_type is not None:
       key_type, _ = input_type.tuple_types
 
-    runtime_type_check = (
-        pcoll.pipeline._options.view_as(TypeOptions).runtime_type_check)
+    runtime_type_check = pcoll.pipeline._options.view_as(
+        TypeOptions
+    ).runtime_type_check
     return pcoll | ParDo(
         CombineValuesDoFn(key_type, self.fn, runtime_type_check),
-        *args, **kwargs)
+        *args,
+        **kwargs)
 
   def to_runner_api_parameter(self, context):
     if self.args or self.kwargs:
       from apache_beam.transforms.combiners import curry_combine_fn
+
       combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
     else:
       combine_fn = self.fn
@@ -1667,9 +1718,7 @@ class CombineValuesDoFn(DoFn):
       # Apply the combiner in a single operation rather than artificially
       # breaking it up so that output type violations manifest as TypeCheck
       # errors rather than type errors.
-      return [
-          (element[0],
-           self.combinefn.apply(element[1], *args, **kwargs))]
+      return [(element[0], self.combinefn.apply(element[1], *args, **kwargs))]
 
     # Add the elements into three accumulators (for testing of merge).
     elements = list(element[1])
@@ -1681,13 +1730,18 @@ class CombineValuesDoFn(DoFn):
           self.combinefn.add_inputs(
               self.combinefn.create_accumulator(*args, **kwargs),
               elements[k::3],
-              *args, **kwargs))
+              *args,
+              **kwargs)
+)
     # Merge the accumulators.
     accumulator = self.combinefn.merge_accumulators(
         accumulators, *args, **kwargs)
     # Convert accumulator to the final result.
-    return [(element[0],
-             self.combinefn.extract_output(accumulator, *args, **kwargs))]
+    return [
+        (
+            element[0],
+            self.combinefn.extract_output(accumulator, *args, **kwargs))
+    ]
 
   def default_type_hints(self):
     hints = self.combinefn.get_type_hints().copy()
@@ -1705,7 +1759,6 @@ class CombineValuesDoFn(DoFn):
 
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
-
   def __init__(self, combine_fn, fanout):
     self._combine_fn = combine_fn
     self._fanout_fn = (
@@ -1720,11 +1773,11 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
   def expand(self, pcoll):
 
     from apache_beam.transforms.trigger import AccumulationMode
+
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
 
     class SplitHotCold(DoFn):
-
       def start_bundle(self):
         # Spreading a hot key across all possible sub-keys for all bundles
         # would defeat the goal of not overwhelming downstream reducers
@@ -1747,6 +1800,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       def extract_output(accumulator):
         # Boolean indicates this is an accumulator.
         return (True, accumulator)
+
       create_accumulator = combine_fn.create_accumulator
       add_input = combine_fn.add_input
       merge_accumulators = combine_fn.merge_accumulators
@@ -1760,6 +1814,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           return combine_fn.merge_accumulators([accumulator, value])
         else:
           return combine_fn.add_input(accumulator, value)
+
       create_accumulator = combine_fn.create_accumulator
       merge_accumulators = combine_fn.merge_accumulators
       compact = combine_fn.compact
@@ -1774,15 +1829,13 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     precombined_hot = (
         hot
         # Avoid double counting that may happen with stacked accumulating mode.
-        | 'WindowIntoDiscarding' >> WindowInto(
+        | 'WindowIntoDiscarding'
+        >> WindowInto(
             pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
         | CombinePerKey(PreCombineFn())
         | Map(StripNonce)
         | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
-    return (
-        (cold, precombined_hot)
-        | Flatten()
-        | CombinePerKey(PostCombineFn()))
+    return (cold, precombined_hot) | Flatten() | CombinePerKey(PostCombineFn())
 
 
 @typehints.with_input_types(typehints.KV[K, V])
@@ -1799,14 +1852,15 @@ class GroupByKey(PTransform):
   """
 
   class ReifyWindows(DoFn):
-
-    def process(self, element, window=DoFn.WindowParam,
-                timestamp=DoFn.TimestampParam):
+    def process(
+        self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam
+    ):
       try:
         k, v = element
       except TypeError:
-        raise TypeCheckError('Input to GroupByKey must be a PCollection with '
-                             'elements compatible with KV[A, B]')
+        raise TypeCheckError(
+            'Input to GroupByKey must be a PCollection with '
+            'elements compatible with KV[A, B]')
 
       return [(k, WindowedValue(v, timestamp, [window]))]
 
@@ -1829,26 +1883,34 @@ class GroupByKey(PTransform):
           'GroupByKey operation "%s"' % self.label)
 
       reify_output_type = KV[key_type, typehints.WindowedValue[value_type]]
-      gbk_input_type = (
-          KV[key_type, Iterable[typehints.WindowedValue[value_type]]])
+      gbk_input_type = KV[
+          key_type, Iterable[typehints.WindowedValue[value_type]]
+      ]
       gbk_output_type = KV[key_type, Iterable[value_type]]
 
       # pylint: disable=bad-continuation
-      return (pcoll
-              | 'ReifyWindows' >> (ParDo(self.ReifyWindows())
-                 .with_output_types(reify_output_type))
-              | 'GroupByKey' >> (_GroupByKeyOnly()
-                 .with_input_types(reify_output_type)
-                 .with_output_types(gbk_input_type))
-              | ('GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing)
-                 .with_input_types(gbk_input_type)
-                 .with_output_types(gbk_output_type)))
+      return (
+          pcoll
+          | 'ReifyWindows'
+          >> (ParDo(self.ReifyWindows()).with_output_types(reify_output_type))
+          | 'GroupByKey'
+          >> (
+              _GroupByKeyOnly()
+              .with_input_types(reify_output_type)
+              .with_output_types(gbk_input_type))
+          | (
+              'GroupByWindow'
+              >> _GroupAlsoByWindow(pcoll.windowing)
+              .with_input_types(gbk_input_type)
+              .with_output_types(gbk_output_type))
+)
     else:
       # The input_type is None, run the default
-      return (pcoll
-              | 'ReifyWindows' >> ParDo(self.ReifyWindows())
-              | 'GroupByKey' >> _GroupByKeyOnly()
-              | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
+      return (
+          pcoll
+          | 'ReifyWindows' >> ParDo(self.ReifyWindows())
+          | 'GroupByKey' >> _GroupByKeyOnly()
+          | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
@@ -1869,6 +1931,7 @@ class GroupByKey(PTransform):
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class _GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
+
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
     return KV[key_type, Iterable[value_type]]
@@ -1882,9 +1945,9 @@ class _GroupByKeyOnly(PTransform):
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
+
   def __init__(self, windowing):
-    super(_GroupAlsoByWindow, self).__init__(
-        _GroupAlsoByWindowDoFn(windowing))
+    super(_GroupAlsoByWindow, self).__init__(_GroupAlsoByWindowDoFn(windowing))
     self.windowing = windowing
 
   def expand(self, pcoll):
@@ -1908,6 +1971,7 @@ class _GroupAlsoByWindowDoFn(DoFn):
   def start_bundle(self):
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import create_trigger_driver
+
     # pylint: enable=wrong-import-order, wrong-import-position
     self.driver = create_trigger_driver(self.windowing, True)
 
@@ -1952,16 +2016,21 @@ class Partition(PTransformWithSideInputs):
   def expand(self, pcoll):
     n = int(self.args[0])
     return pcoll | ParDo(
-        self.ApplyPartitionFnFn(), self.fn, *self.args,
-        **self.kwargs).with_outputs(*[str(t) for t in range(n)])
+        self.ApplyPartitionFnFn(), self.fn, *self.args, **self.kwargs
+    ).with_outputs(*[str(t) for t in range(n)])
 
 
 class Windowing(object):
-  def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
-               timestamp_combiner=None):
+  def __init__(
+      self,
+      windowfn,
+      triggerfn=None,
+      accumulation_mode=None,
+      timestamp_combiner=None):
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
+
     # pylint: enable=wrong-import-order, wrong-import-position
     if triggerfn is None:
       triggerfn = DefaultTrigger()
@@ -1973,23 +2042,25 @@ class Windowing(object):
             'accumulation_mode must be provided for non-trivial triggers')
     if not windowfn.get_window_coder().is_deterministic():
       raise ValueError(
-          'window fn (%s) does not have a determanistic coder (%s)' % (
-              windowfn, windowfn.get_window_coder()))
+          'window fn (%s) does not have a determanistic coder (%s)'
+          % (windowfn, windowfn.get_window_coder()))
     self.windowfn = windowfn
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
     self.timestamp_combiner = (
         timestamp_combiner or TimestampCombiner.OUTPUT_AT_EOW)
     self._is_default = (
-        self.windowfn == GlobalWindows() and
-        self.triggerfn == DefaultTrigger() and
-        self.accumulation_mode == AccumulationMode.DISCARDING and
-        self.timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW)
+        self.windowfn == GlobalWindows()
+        and self.triggerfn == DefaultTrigger()
+        and self.accumulation_mode == AccumulationMode.DISCARDING
+        and self.timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW)
 
   def __repr__(self):
-    return "Windowing(%s, %s, %s, %s)" % (self.windowfn, self.triggerfn,
-                                          self.accumulation_mode,
-                                          self.timestamp_combiner)
+    return "Windowing(%s, %s, %s, %s)" % (
+        self.windowfn,
+        self.triggerfn,
+        self.accumulation_mode,
+        self.timestamp_combiner)
 
   def __eq__(self, other):
     if type(self) == type(other):
@@ -2007,8 +2078,8 @@ class Windowing(object):
     return not self == other
 
   def __hash__(self):
-    return hash((self.windowfn, self.accumulation_mode,
-                 self.timestamp_combiner))
+    return hash(
+        (self.windowfn, self.accumulation_mode, self.timestamp_combiner))
 
   def is_default(self):
     return self._is_default
@@ -2017,11 +2088,12 @@ class Windowing(object):
     return beam_runner_api_pb2.WindowingStrategy(
         window_fn=self.windowfn.to_runner_api(context),
         # TODO(robertwb): Prohibit implicit multi-level merging.
-        merge_status=(beam_runner_api_pb2.MergeStatus.NEEDS_MERGE
-                      if self.windowfn.is_merging()
-                      else beam_runner_api_pb2.MergeStatus.NON_MERGING),
-        window_coder_id=context.coders.get_id(
-            self.windowfn.get_window_coder()),
+        merge_status=(
+            beam_runner_api_pb2.MergeStatus.NEEDS_MERGE
+            if self.windowfn.is_merging()
+            else beam_runner_api_pb2.MergeStatus.NON_MERGING
+        ),
+        window_coder_id=context.coders.get_id(self.windowfn.get_window_coder()),
         trigger=self.triggerfn.to_runner_api(context),
         accumulation_mode=self.accumulation_mode,
         output_time=self.timestamp_combiner,
@@ -2034,6 +2106,7 @@ class Windowing(object):
   def from_runner_api(proto, context):
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import TriggerFn
+
     return Windowing(
         windowfn=WindowFn.from_runner_api(proto.window_fn, context),
         triggerfn=TriggerFn.from_runner_api(proto.trigger, context),
@@ -2058,10 +2131,11 @@ class WindowInto(ParDo):
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, element, timestamp=DoFn.TimestampParam,
-                window=DoFn.WindowParam):
-      context = WindowFn.AssignContext(timestamp, element=element,
-                                       window=window)
+    def process(
+        self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam
+    ):
+      context = WindowFn.AssignContext(
+          timestamp, element=element, window=window)
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
@@ -2081,10 +2155,13 @@ class WindowInto(ParDo):
       windowing = windowfn
       windowfn = windowing.windowfn
       # Use windowing to fill in defaults for kwargs.
-      kwargs = dict(dict(
-          trigger=windowing.triggerfn,
-          accumulation_mode=windowing.accumulation_mode,
-          timestamp_combiner=windowing.timestamp_combiner), **kwargs)
+      kwargs = dict(
+          dict(
+              trigger=windowing.triggerfn,
+              accumulation_mode=windowing.accumulation_mode,
+              timestamp_combiner=windowing.timestamp_combiner,
+          ),
+          **kwargs)
     # Use kwargs to simulate keyword-only arguments.
     triggerfn = kwargs.pop('trigger', None)
     accumulation_mode = kwargs.pop('accumulation_mode', None)
@@ -2165,8 +2242,9 @@ class Flatten(PTransform):
     try:
       pvalueish = tuple(pvalueish)
     except TypeError:
-      raise ValueError('Input to Flatten must be an iterable. '
-                       'Got a value of type %s instead.' % type(pvalueish))
+      raise ValueError(
+          'Input to Flatten must be an iterable. '
+          'Got a value of type %s instead.' % type(pvalueish))
     return pvalueish, pvalueish
 
   def expand(self, pcolls):
@@ -2174,7 +2252,8 @@ class Flatten(PTransform):
       self._check_pcollection(pcoll)
     result = pvalue.PCollection(self.pipeline)
     result.element_type = typehints.Union[
-        tuple(pcoll.element_type for pcoll in pcolls)]
+        tuple(pcoll.element_type for pcoll in pcolls)
+    ]
     return result
 
   def get_windowing(self, inputs):
@@ -2192,7 +2271,8 @@ class Flatten(PTransform):
 
 
 PTransform.register_urn(
-    common_urns.primitives.FLATTEN.urn, None, Flatten.from_runner_api_parameter)
+    common_urns.primitives.FLATTEN.urn, None, Flatten.from_runner_api_parameter
+)
 
 
 class Create(PTransform):
@@ -2206,8 +2286,9 @@ class Create(PTransform):
     """
     super(Create, self).__init__()
     if isinstance(values, (unicode, str, bytes)):
-      raise TypeError('PTransform Create: Refusing to treat string as '
-                      'an iterable. (string=%r)' % values)
+      raise TypeError(
+          'PTransform Create: Refusing to treat string as '
+          'an iterable. (string=%r)' % values)
     elif isinstance(values, dict):
       values = values.items()
     self.values = tuple(values)
@@ -2224,15 +2305,17 @@ class Create(PTransform):
     return Union[[trivial_inference.instance_to_type(v) for v in self.values]]
 
   def get_output_type(self):
-    return (self.get_type_hints().simple_output_type(self.label) or
-            self.infer_output_type(None))
+    return self.get_type_hints().simple_output_type(
+        self.label
+    ) or self.infer_output_type(None)
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     # Must guard against this as some legacy runners don't implement impulse.
     debug_options = pbegin.pipeline._options.view_as(DebugOptions)
-    fn_api = (debug_options.experiments
-              and 'beam_fn_api' in debug_options.experiments)
+    fn_api = (
+        debug_options.experiments and 'beam_fn_api' in debug_options.experiments
+    )
     if fn_api:
       coder = typecoders.registry.get_coder(self.get_output_type())
       serialized_values = [coder.encode(v) for v in self.values]
@@ -2245,9 +2328,11 @@ class Create(PTransform):
         def expand(self, pcoll):
           if len(serialized_values) > 1 and reshuffle:
             from apache_beam.transforms.util import Reshuffle
+
             return pcoll | Reshuffle()
           else:
             return pcoll
+
       return (
           pbegin
           | Impulse()
@@ -2257,10 +2342,11 @@ class Create(PTransform):
     else:
       self.pipeline = pbegin.pipeline
       from apache_beam.io import iobase
+
       coder = typecoders.registry.get_coder(self.get_output_type())
       source = self._create_source_from_iterable(self.values, coder)
-      return (pbegin.pipeline
-              | iobase.Read(source).with_output_types(self.get_output_type()))
+      return pbegin.pipeline | iobase.Read(source).with_output_types(
+          self.get_output_type())
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())

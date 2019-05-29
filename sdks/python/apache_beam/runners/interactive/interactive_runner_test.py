@@ -32,7 +32,6 @@ from apache_beam.runners.interactive import interactive_runner
 
 
 def print_with_message(msg):
-
   def printer(elem):
     print(msg, elem)
     return elem
@@ -41,14 +40,15 @@ def print_with_message(msg):
 
 
 class InteractiveRunnerTest(unittest.TestCase):
-
   def test_basic(self):
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
-            direct_runner.DirectRunner()))
+            direct_runner.DirectRunner())
+)
     p.run().wait_until_finish()
     pc0 = (
-        p | 'read' >> beam.Create([1, 2, 3])
+        p
+        | 'read' >> beam.Create([1, 2, 3])
         | 'Print1.1' >> beam.Map(print_with_message('Run1.1')))
     pc = pc0 | 'Print1.2' >> beam.Map(print_with_message('Run1.2'))
     p.run().wait_until_finish()
@@ -58,9 +58,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     p.run().wait_until_finish()
 
   def test_wordcount(self):
-
     class WordExtractingDoFn(beam.DoFn):
-
       def process(self, element):
         text_line = element.strip()
         words = text_line.split()
@@ -68,7 +66,8 @@ class InteractiveRunnerTest(unittest.TestCase):
 
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
-            direct_runner.DirectRunner()))
+            direct_runner.DirectRunner())
+)
 
     # Count the occurrences of each word.
     counts = (
@@ -77,14 +76,16 @@ class InteractiveRunnerTest(unittest.TestCase):
         | 'split' >> beam.ParDo(WordExtractingDoFn())
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | 'group' >> beam.GroupByKey()
-        | 'count' >> beam.Map(lambda wordones: (wordones[0], sum(wordones[1]))))
+        | 'count' >> beam.Map(lambda wordones: (wordones[0], sum(wordones[1])))
+    )
 
     result = p.run()
     result.wait_until_finish()
 
     actual = dict(result.get(counts))
     self.assertDictEqual(
-        actual, {
+        actual,
+        {
             'to': 2,
             'be': 2,
             'or': 1,
@@ -92,7 +93,7 @@ class InteractiveRunnerTest(unittest.TestCase):
             'that': 1,
             'is': 1,
             'the': 1,
-            'question': 1
+            'question': 1,
         })
 
   def test_session(self):

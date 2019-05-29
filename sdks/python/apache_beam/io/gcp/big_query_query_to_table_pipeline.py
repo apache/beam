@@ -39,19 +39,27 @@ def run_bq_pipeline(argv=None):
     argv: Arguments to the run function.
   """
   parser = argparse.ArgumentParser()
-  parser.add_argument('--query', required=True,
-                      help='Query to process for the table.')
-  parser.add_argument('--output', required=True,
-                      help='Output BQ table to write results to.')
-  parser.add_argument('--output_schema', dest='output_schema', required=True,
-                      help='Schema for output BQ table.')
-  parser.add_argument('--use_standard_sql', action='store_true',
-                      dest='use_standard_sql',
-                      help='Output BQ table to write results to.')
-  parser.add_argument('--kms_key', default=None,
-                      help='Use this Cloud KMS key with BigQuery.')
-  parser.add_argument('--native', default=False, action='store_true',
-                      help='Use NativeSources and Sinks.')
+  parser.add_argument(
+      '--query', required=True, help='Query to process for the table.')
+  parser.add_argument(
+      '--output', required=True, help='Output BQ table to write results to.')
+  parser.add_argument(
+      '--output_schema',
+      dest='output_schema',
+      required=True,
+      help='Schema for output BQ table.')
+  parser.add_argument(
+      '--use_standard_sql',
+      action='store_true',
+      dest='use_standard_sql',
+      help='Output BQ table to write results to.')
+  parser.add_argument(
+      '--kms_key', default=None, help='Use this Cloud KMS key with BigQuery.')
+  parser.add_argument(
+      '--native',
+      default=False,
+      action='store_true',
+      help='Use NativeSources and Sinks.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   table_schema = parse_table_schema_from_json(known_args.output_schema)
@@ -61,16 +69,21 @@ def run_bq_pipeline(argv=None):
 
   # Note to future modifiers: Keep using BigQuerySource if known_args.native is
   # True.
-  data = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-      query=known_args.query, use_standard_sql=known_args.use_standard_sql,
-      kms_key=kms_key))
+  data = p | 'read' >> beam.io.Read(
+      beam.io.BigQuerySource(
+          query=known_args.query,
+          use_standard_sql=known_args.use_standard_sql,
+          kms_key=kms_key)
+)
   if known_args.native:
-    _ = data | 'write' >> beam.io.Write(beam.io.BigQuerySink(
-        known_args.output,
-        schema=table_schema,
-        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-        kms_key=kms_key))
+    _ = data | 'write' >> beam.io.Write(
+        beam.io.BigQuerySink(
+            known_args.output,
+            schema=table_schema,
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+            kms_key=kms_key)
+)
   else:
     _ = data | 'write' >> beam.io.WriteToBigQuery(
         known_args.output,

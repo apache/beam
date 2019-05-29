@@ -143,22 +143,23 @@ class CombineTest(LoadTest):
       yield element
 
   def testCombineGlobally(self):
-    input = (self.pipeline
-             | beam.io.Read(synthetic_pipeline.SyntheticSource(
-                 self.parseTestPipelineOptions()))
-             | 'Measure time: Start' >> beam.ParDo(
-                 MeasureTime(self.metrics_namespace))
-            )
+    input = (
+        self.pipeline
+        | beam.io.Read(
+            synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions())
+        )
+        | 'Measure time: Start'
+        >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
     for branch in range(self.fanout):
       # pylint: disable=expression-not-assigned
-      (input
-       | 'Combine with Top %i' % branch >> beam.CombineGlobally(
-           beam.combiners.TopCombineFn(1000))
-       | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
-       | 'Measure time: End %i' % branch >> beam.ParDo(
-           MeasureTime(self.metrics_namespace))
-      )
+      (
+          input
+          | 'Combine with Top %i' % branch
+          >> beam.CombineGlobally(beam.combiners.TopCombineFn(1000))
+          | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
+          | 'Measure time: End %i' % branch
+          >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':

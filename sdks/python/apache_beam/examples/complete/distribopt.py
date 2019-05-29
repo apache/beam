@@ -74,15 +74,16 @@ class Simulator(object):
     super(Simulator, self).__init__()
     self.quantities = np.atleast_1d(quantities)
 
-    self.A = np.array([[3.0, 10, 30],
-                       [0.1, 10, 35],
-                       [3.0, 10, 30],
-                       [0.1, 10, 35]])
+    self.A = np.array(
+        [[3.0, 10, 30], [0.1, 10, 35], [3.0, 10, 30], [0.1, 10, 35]])
 
-    self.P = 1e-4 * np.array([[3689, 1170, 2673],
-                              [4699, 4387, 7470],
-                              [1091, 8732, 5547],
-                              [381, 5743, 8828]])
+    self.P = 1e-4 * np.array(
+        [
+            [3689, 1170, 2673],
+            [4699, 4387, 7470],
+            [1091, 8732, 5547],
+            [381, 5743, 8828],
+        ])
 
     a0 = np.array([[1.0, 1.2, 3.0, 3.2]])
     coeff = np.sum(np.cos(np.dot(a0.T, self.quantities[None, :])), axis=1)
@@ -179,18 +180,18 @@ class CreateGrid(beam.PTransform):
         records
         | 'pair one' >> beam.Map(lambda x: (1, x))
         | 'group all records' >> beam.GroupByKey()
-        | 'split one of' >> beam.ParDo(self.PreGenerateMappings())
-        .with_outputs('splitted', 'combine')
-    )
+        | 'split one of'
+        >> beam.ParDo(self.PreGenerateMappings()).with_outputs(
+            'splitted', 'combine')
+)
 
     # Create mappings, and prevent fusion (this limits the parallelization
     # in the optimization step)
     mappings = (
         o.splitted
-        | 'create mappings' >> beam.ParDo(self.GenerateMappings(),
-                                          pvalue.AsSingleton(o.combine))
-        | 'prevent fusion' >> beam.Reshuffle()
-    )
+        | 'create mappings'
+        >> beam.ParDo(self.GenerateMappings(), pvalue.AsSingleton(o.combine))
+        | 'prevent fusion' >> beam.Reshuffle())
 
     return mappings
 
@@ -253,11 +254,12 @@ class OptimizeGrid(beam.PTransform):
     mappings, quantities = inputs
     opt = (
         mappings
-        | 'optimization tasks' >> beam.ParDo(self.CreateOptimizationTasks(),
-                                             pvalue.AsDict(quantities))
-        | 'optimize' >> beam.ParDo(self.OptimizeProductParameters())
-        .with_outputs('costs', 'solution')
-    )
+        | 'optimization tasks'
+        >> beam.ParDo(self.CreateOptimizationTasks(), pvalue.AsDict(quantities))
+        | 'optimize'
+        >> beam.ParDo(self.OptimizeProductParameters()).with_outputs(
+            'costs', 'solution')
+)
     return opt
 
 
@@ -299,7 +301,7 @@ def parse_input(line):
   return {
       'crop': columns[0],
       'quantity': int(columns[1]),
-      'transport_costs': transport_costs
+      'transport_costs': transport_costs,
   }
 
 
@@ -316,14 +318,16 @@ def format_output(element):
 
 def run(argv=None):
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      required=True,
-                      help='Input description to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      required=True,
+      help='Input description to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
@@ -333,19 +337,14 @@ def run(argv=None):
     records = (
         p
         | 'read' >> beam.io.ReadFromText(known_args.input)
-        | 'process input' >> beam.Map(parse_input)
-    )
+        | 'process input' >> beam.Map(parse_input))
 
     # Create two pcollections, used as side inputs
-    transport = (
-        records
-        | 'create transport' >> beam.ParDo(CreateTransportData())
-    )
+    transport = records | 'create transport' >> beam.ParDo(
+        CreateTransportData())
 
-    quantities = (
-        records
-        | 'create quantities' >> beam.Map(lambda r: (r['crop'], r['quantity']))
-    )
+    quantities = records | 'create quantities' >> beam.Map(
+        lambda r: (r['crop'], r['quantity']))
 
     # Generate all mappings and optimize greenhouse production parameters
     mappings = records | CreateGrid()
@@ -354,27 +353,29 @@ def run(argv=None):
     # Then add the transport costs and sum costs per crop.
     costs = (
         opt.costs
-        | 'include transport' >> beam.Map(add_transport_costs,
-                                          pvalue.AsDict(transport),
-                                          pvalue.AsDict(quantities))
+        | 'include transport'
+        >> beam.Map(
+            add_transport_costs,
+            pvalue.AsDict(transport),
+            pvalue.AsDict(quantities))
         | 'drop crop and greenhouse' >> beam.Map(lambda x: (x[2], x[3]))
-        | 'aggregate crops' >> beam.CombinePerKey(sum)
-    )
+        | 'aggregate crops' >> beam.CombinePerKey(sum))
 
     # Join cost, mapping and production settings solution on mapping identifier.
     # Then select best.
     join_operands = {
         'cost': costs,
         'production': opt.solution,
-        'mapping': mappings
+        'mapping': mappings,
     }
     best = (
         join_operands
         | 'join' >> beam.CoGroupByKey()
-        | 'select best' >> beam.CombineGlobally(min, key=lambda x: x[1]['cost'])
-        .without_defaults()
-        | 'format output' >> beam.Map(format_output)
-    )
+        | 'select best'
+        >> beam.CombineGlobally(
+            min, key=lambda x: x[1]['cost']
+        ).without_defaults()
+        | 'format output' >> beam.Map(format_output))
 
     # pylint: disable=expression-not-assigned
     best | 'write optimum' >> beam.io.WriteToText(known_args.output)

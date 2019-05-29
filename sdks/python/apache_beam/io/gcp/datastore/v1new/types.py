@@ -33,8 +33,17 @@ __all__ = ['Query', 'Key', 'Entity']
 
 
 class Query(object):
-  def __init__(self, kind=None, project=None, namespace=None, ancestor=None,
-               filters=(), projection=(), order=(), distinct_on=(), limit=None):
+  def __init__(
+      self,
+      kind=None,
+      project=None,
+      namespace=None,
+      ancestor=None,
+      filters=(),
+      projection=(),
+      order=(),
+      distinct_on=(),
+      limit=None):
     """Represents a Datastore query.
 
     Args:
@@ -76,20 +85,34 @@ class Query(object):
     if self.ancestor is not None:
       ancestor_client_key = self.ancestor.to_client_key()
     return query.Query(
-        client, kind=self.kind, project=self.project, namespace=self.namespace,
-        ancestor=ancestor_client_key, filters=self.filters,
-        projection=self.projection, order=self.order,
+        client,
+        kind=self.kind,
+        project=self.project,
+        namespace=self.namespace,
+        ancestor=ancestor_client_key,
+        filters=self.filters,
+        projection=self.projection,
+        order=self.order,
         distinct_on=self.distinct_on)
 
   def clone(self):
     return copy.copy(self)
 
   def __repr__(self):
-    return ('<Query(kind=%s, project=%s, namespace=%s, ancestor=%s, filters=%s,'
-            'projection=%s, order=%s, distinct_on=%s, limit=%s)>' % (
-                self.kind, self.project, self.namespace, self.ancestor,
-                self.filters, self.projection, self.order, self.distinct_on,
-                self.limit))
+    return (
+        '<Query(kind=%s, project=%s, namespace=%s, ancestor=%s, filters=%s,'
+        'projection=%s, order=%s, distinct_on=%s, limit=%s)>'
+        % (
+            self.kind,
+            self.project,
+            self.namespace,
+            self.ancestor,
+            self.filters,
+            self.projection,
+            self.order,
+            self.distinct_on,
+            self.limit)
+)
 
 
 class Key(object):
@@ -121,8 +144,10 @@ class Key(object):
 
   @staticmethod
   def from_client_key(client_key):
-    return Key(client_key.flat_path, project=client_key.project,
-               namespace=client_key.namespace)
+    return Key(
+        client_key.flat_path,
+        project=client_key.project,
+        namespace=client_key.namespace)
 
   def to_client_key(self):
     """
@@ -132,8 +157,11 @@ class Key(object):
     parent = self.parent
     if parent is not None:
       parent = parent.to_client_key()
-    return key.Key(*self.path_elements, parent=parent, namespace=self.namespace,
-                   project=self.project)
+    return key.Key(
+        *self.path_elements,
+        parent=parent,
+        namespace=self.namespace,
+        project=self.project)
 
   def __eq__(self, other):
     if not isinstance(other, Key):
@@ -149,8 +177,11 @@ class Key(object):
 
   def __repr__(self):
     return '<%s(%s, parent=%s, project=%s, namespace=%s)>' % (
-        self.__class__.__name__, str(self.path_elements), str(self.parent),
-        self.project, self.namespace)
+        self.__class__.__name__,
+        str(self.path_elements),
+        str(self.parent),
+        self.project,
+        self.namespace)
 
 
 class Entity(object):
@@ -193,21 +224,24 @@ class Entity(object):
     represents this entity.
     """
     key = self.key.to_client_key()
-    res = entity.Entity(key=key,
-                        exclude_from_indexes=tuple(self.exclude_from_indexes))
+    res = entity.Entity(
+        key=key, exclude_from_indexes=tuple(self.exclude_from_indexes))
     res.update(self.properties)
     return res
 
   def __eq__(self, other):
     if not isinstance(other, Entity):
       return False
-    return (self.key == other.key and
-            self.exclude_from_indexes == other.exclude_from_indexes and
-            self.properties == other.properties)
+    return (
+        self.key == other.key
+        and self.exclude_from_indexes == other.exclude_from_indexes
+        and self.properties == other.properties)
 
   __hash__ = None
 
   def __repr__(self):
     return "<%s(key=%s, exclude_from_indexes=%s) properties=%s>" % (
-        self.__class__.__name__, str(self.key),
-        str(self.exclude_from_indexes), str(self.properties))
+        self.__class__.__name__,
+        str(self.key),
+        str(self.exclude_from_indexes),
+        str(self.properties))

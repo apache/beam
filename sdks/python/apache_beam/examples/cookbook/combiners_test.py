@@ -37,8 +37,7 @@ from apache_beam.testing.util import equal_to
 class CombinersTest(unittest.TestCase):
   """Tests showcasing Dataflow combiners."""
 
-  SAMPLE_DATA = [
-      ('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20), ('c', 100)]
+  SAMPLE_DATA = [('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20), ('c', 100)]
 
   def test_combine_per_key_with_callable(self):
     """CombinePerKey using a standard callable reducing iterables.
@@ -58,6 +57,7 @@ class CombinersTest(unittest.TestCase):
 
   def test_combine_per_key_with_custom_callable(self):
     """CombinePerKey using a custom function reducing iterables."""
+
     def multiply(values):
       result = 1
       for v in values:

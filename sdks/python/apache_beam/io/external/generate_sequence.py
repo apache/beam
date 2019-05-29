@@ -21,7 +21,8 @@ from apache_beam import ExternalTransform
 from apache_beam import pvalue
 from apache_beam.coders import VarIntCoder
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.portability.api.external_transforms_pb2 import (
+    ExternalConfigurationPayload)
 from apache_beam.transforms import ptransform
 
 
@@ -48,9 +49,13 @@ class GenerateSequence(ptransform.PTransform):
     this source. At the moment only the Flink Runner supports this.
   """
 
-  def __init__(self, start, stop=None,
-               elements_per_period=None, max_read_time=None,
-               expansion_service='localhost:8097'):
+  def __init__(
+      self,
+      start,
+      stop=None,
+      elements_per_period=None,
+      max_read_time=None,
+      expansion_service='localhost:8097'):
     super(GenerateSequence, self).__init__()
     self._urn = 'beam:external:java:generate_sequence:v1'
     self.start = start
@@ -66,27 +71,21 @@ class GenerateSequence(ptransform.PTransform):
     coder = VarIntCoder()
     coder_urn = ['beam:coder:varint:v1']
     args = {
-        'start':
-        ConfigValue(
-            coder_urn=coder_urn,
-            payload=coder.encode(self.start))
+        'start': ConfigValue(
+            coder_urn=coder_urn, payload=coder.encode(self.start))
     }
     if self.stop:
       args['stop'] = ConfigValue(
-          coder_urn=coder_urn,
-          payload=coder.encode(self.stop))
+          coder_urn=coder_urn, payload=coder.encode(self.stop))
     if self.elements_per_period:
       args['elements_per_period'] = ConfigValue(
-          coder_urn=coder_urn,
-          payload=coder.encode(self.elements_per_period))
+          coder_urn=coder_urn, payload=coder.encode(self.elements_per_period))
     if self.max_read_time:
       args['max_read_time'] = ConfigValue(
-          coder_urn=coder_urn,
-          payload=coder.encode(self.max_read_time))
+          coder_urn=coder_urn, payload=coder.encode(self.max_read_time))
 
     payload = ExternalConfigurationPayload(configuration=args)
     return pbegin.apply(
         ExternalTransform(
-            self._urn,
-            payload.SerializeToString(),
-            self.expansion_service))
+            self._urn, payload.SerializeToString(), self.expansion_service)
+)

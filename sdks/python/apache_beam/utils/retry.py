@@ -53,6 +53,7 @@ except ImportError:
 
 class PermanentException(Exception):
   """Base class for exceptions that should not be retried."""
+
   pass
 
 
@@ -76,8 +77,13 @@ class FuzzedExponentialIntervals(object):
       the time. Defaults to 1 hour.
   """
 
-  def __init__(self, initial_delay_secs, num_retries, factor=2, fuzz=0.5,
-               max_delay_secs=60 * 60 * 1):
+  def __init__(
+      self,
+      initial_delay_secs,
+      num_retries,
+      factor=2,
+      fuzz=0.5,
+      max_delay_secs=60 * 60 * 1):
     self._initial_delay_secs = initial_delay_secs
     if num_retries > 10000:
       raise ValueError('num_retries parameter cannot exceed 10000.')
@@ -139,14 +145,18 @@ class Clock(object):
 
 def no_retries(fun):
   """A retry decorator for places where we do not want retries."""
-  return with_exponential_backoff(
-      retry_filter=lambda _: False, clock=None)(fun)
+  return with_exponential_backoff(retry_filter=lambda _: False, clock=None)(fun)
 
 
 def with_exponential_backoff(
-    num_retries=7, initial_delay_secs=5.0, logger=logging.warning,
+    num_retries=7,
+    initial_delay_secs=5.0,
+    logger=logging.warning,
     retry_filter=retry_on_server_errors_filter,
-    clock=Clock(), fuzz=True, factor=2, max_delay_secs=60 * 60):
+    clock=Clock(),
+    fuzz=True,
+    factor=2,
+    max_delay_secs=60 * 60):
   """Decorator with arguments that control the retry logic.
 
   Args:
@@ -186,12 +196,17 @@ def with_exponential_backoff(
 
   def real_decorator(fun):
     """The real decorator whose purpose is to return the wrapped function."""
+
     @functools.wraps(fun)
     def wrapper(*args, **kwargs):
       retry_intervals = iter(
           FuzzedExponentialIntervals(
-              initial_delay_secs, num_retries, factor,
-              fuzz=0.5 if fuzz else 0, max_delay_secs=max_delay_secs))
+              initial_delay_secs,
+              num_retries,
+              factor,
+              fuzz=0.5 if fuzz else 0,
+              max_delay_secs=max_delay_secs)
+)
       while True:
         try:
           return fun(*args, **kwargs)

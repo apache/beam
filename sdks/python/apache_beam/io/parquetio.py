@@ -53,8 +53,9 @@ class ReadFromParquet(PTransform):
      Parquet files. This `PTransform` is currently experimental. No
      backward-compatibility guarantees."""
 
-  def __init__(self, file_pattern=None, min_bundle_size=0,
-               validate=True, columns=None):
+  def __init__(
+      self, file_pattern=None, min_bundle_size=0, validate=True, columns=None
+  ):
     """Initializes :class:`ReadFromParquet`.
 
     Uses source ``_ParquetSource`` to read a set of Parquet files defined by
@@ -101,11 +102,7 @@ class ReadFromParquet(PTransform):
 """
     super(ReadFromParquet, self).__init__()
     self._source = _create_parquet_source(
-        file_pattern,
-        min_bundle_size,
-        validate=validate,
-        columns=columns
-    )
+        file_pattern, min_bundle_size, validate=validate, columns=columns)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
@@ -125,10 +122,12 @@ class ReadAllFromParquet(PTransform):
 
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
 
-  def __init__(self, min_bundle_size=0,
-               desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
-               columns=None,
-               label='ReadAllFiles'):
+  def __init__(
+      self,
+      min_bundle_size=0,
+      desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
+      columns=None,
+      label='ReadAllFiles'):
     """Initializes ``ReadAllFromParquet``.
 
     Args:
@@ -142,13 +141,14 @@ class ReadAllFromParquet(PTransform):
     """
     super(ReadAllFromParquet, self).__init__()
     source_from_file = partial(
-        _create_parquet_source,
-        min_bundle_size=min_bundle_size,
-        columns=columns
+        _create_parquet_source, min_bundle_size=min_bundle_size, columns=columns
     )
     self._read_all_files = filebasedsource.ReadAllFiles(
-        True, CompressionTypes.UNCOMPRESSED, desired_bundle_size,
-        min_bundle_size, source_from_file)
+        True,
+        CompressionTypes.UNCOMPRESSED,
+        desired_bundle_size,
+        min_bundle_size,
+        source_from_file)
 
     self.label = label
 
@@ -156,17 +156,13 @@ class ReadAllFromParquet(PTransform):
     return pvalue | self.label >> self._read_all_files
 
 
-def _create_parquet_source(file_pattern=None,
-                           min_bundle_size=0,
-                           validate=False,
-                           columns=None):
-  return \
-    _ParquetSource(
-        file_pattern=file_pattern,
-        min_bundle_size=min_bundle_size,
-        validate=validate,
-        columns=columns
-    )
+def _create_parquet_source(
+    file_pattern=None, min_bundle_size=0, validate=False, columns=None):
+  return _ParquetSource(
+      file_pattern=file_pattern,
+      min_bundle_size=min_bundle_size,
+      validate=validate,
+      columns=columns)
 
 
 class _ParquetUtils(object):
@@ -180,8 +176,7 @@ class _ParquetUtils(object):
 
   @staticmethod
   def get_offset(pf, row_group_index):
-    first_column_metadata =\
-      pf.metadata.row_group(row_group_index).column(0)
+    first_column_metadata = pf.metadata.row_group(row_group_index).column(0)
     if first_column_metadata.has_dictionary_page:
       return first_column_metadata.dictionary_page_offset
     else:
@@ -195,12 +190,12 @@ class _ParquetUtils(object):
 class _ParquetSource(filebasedsource.FileBasedSource):
   """A source for reading Parquet files.
   """
+
   def __init__(self, file_pattern, min_bundle_size, validate, columns):
     super(_ParquetSource, self).__init__(
         file_pattern=file_pattern,
         min_bundle_size=min_bundle_size,
-        validate=validate
-    )
+        validate=validate)
     self._columns = columns
 
   def read_records(self, file_name, range_tracker):
@@ -260,17 +255,18 @@ class WriteToParquet(PTransform):
     guarantees.
   """
 
-  def __init__(self,
-               file_path_prefix,
-               schema,
-               row_group_buffer_size=64*1024*1024,
-               record_batch_size=1000,
-               codec='none',
-               use_deprecated_int96_timestamps=False,
-               file_name_suffix='',
-               num_shards=0,
-               shard_name_template=None,
-               mime_type='application/x-parquet'):
+  def __init__(
+      self,
+      file_path_prefix,
+      schema,
+      row_group_buffer_size=64 * 1024 * 1024,
+      record_batch_size=1000,
+      codec='none',
+      use_deprecated_int96_timestamps=False,
+      file_name_suffix='',
+      num_shards=0,
+      shard_name_template=None,
+      mime_type='application/x-parquet'):
     """Initialize a WriteToParquet transform.
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
@@ -346,39 +342,7 @@ class WriteToParquet(PTransform):
       A WriteToParquet transform usable for writing.
     """
     super(WriteToParquet, self).__init__()
-    self._sink = \
-      _create_parquet_sink(
-          file_path_prefix,
-          schema,
-          codec,
-          row_group_buffer_size,
-          record_batch_size,
-          use_deprecated_int96_timestamps,
-          file_name_suffix,
-          num_shards,
-          shard_name_template,
-          mime_type
-      )
-
-  def expand(self, pcoll):
-    return pcoll | Write(self._sink)
-
-  def display_data(self):
-    return {'sink_dd': self._sink}
-
-
-def _create_parquet_sink(file_path_prefix,
-                         schema,
-                         codec,
-                         row_group_buffer_size,
-                         record_batch_size,
-                         use_deprecated_int96_timestamps,
-                         file_name_suffix,
-                         num_shards,
-                         shard_name_template,
-                         mime_type):
-  return \
-    _ParquetSink(
+    self._sink = _create_parquet_sink(
         file_path_prefix,
         schema,
         codec,
@@ -388,24 +352,54 @@ def _create_parquet_sink(file_path_prefix,
         file_name_suffix,
         num_shards,
         shard_name_template,
-        mime_type
-    )
+        mime_type)
+
+  def expand(self, pcoll):
+    return pcoll | Write(self._sink)
+
+  def display_data(self):
+    return {'sink_dd': self._sink}
+
+
+def _create_parquet_sink(
+    file_path_prefix,
+    schema,
+    codec,
+    row_group_buffer_size,
+    record_batch_size,
+    use_deprecated_int96_timestamps,
+    file_name_suffix,
+    num_shards,
+    shard_name_template,
+    mime_type):
+  return _ParquetSink(
+      file_path_prefix,
+      schema,
+      codec,
+      row_group_buffer_size,
+      record_batch_size,
+      use_deprecated_int96_timestamps,
+      file_name_suffix,
+      num_shards,
+      shard_name_template,
+      mime_type)
 
 
 class _ParquetSink(filebasedsink.FileBasedSink):
   """A sink for parquet files."""
 
-  def __init__(self,
-               file_path_prefix,
-               schema,
-               codec,
-               row_group_buffer_size,
-               record_batch_size,
-               use_deprecated_int96_timestamps,
-               file_name_suffix,
-               num_shards,
-               shard_name_template,
-               mime_type):
+  def __init__(
+      self,
+      file_path_prefix,
+      schema,
+      codec,
+      row_group_buffer_size,
+      record_batch_size,
+      use_deprecated_int96_timestamps,
+      file_name_suffix,
+      num_shards,
+      shard_name_template,
+      mime_type):
     super(_ParquetSink, self).__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
@@ -429,8 +423,10 @@ class _ParquetSink(filebasedsink.FileBasedSink):
   def open(self, temp_path):
     self._file_handle = super(_ParquetSink, self).open(temp_path)
     return pq.ParquetWriter(
-        self._file_handle, self._schema, compression=self._codec,
-        use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps
+        self._file_handle,
+        self._schema,
+        compression=self._codec,
+        use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps,
     )
 
   def write_record(self, writer, value):

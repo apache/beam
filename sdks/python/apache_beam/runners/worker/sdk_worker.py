@@ -47,10 +47,14 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
-  SCHEDULING_DELAY_THRESHOLD_SEC = 5*60  # 5 Minutes
+  SCHEDULING_DELAY_THRESHOLD_SEC = 5 * 60  # 5 Minutes
 
   def __init__(
-      self, control_address, worker_count, credentials=None, worker_id=None,
+      self,
+      control_address,
+      worker_count,
+      credentials=None,
+      worker_id=None,
       profiler_factory=None):
     self._alive = True
     self._worker_count = worker_count
@@ -82,8 +86,8 @@ class SdkHarness(object):
     # workers for process/finalize bundle.
     self.workers = queue.Queue()
     # one worker for progress/split request.
-    self.progress_worker = SdkWorker(self._bundle_processor_cache,
-                                     profiler_factory=self._profiler_factory)
+    self.progress_worker = SdkWorker(
+        self._bundle_processor_cache, profiler_factory=self._profiler_factory)
     # one thread is enough for getting the progress report.
     # Assumption:
     # Progress report generation should not do IO or wait on other resources.
@@ -113,8 +117,10 @@ class SdkHarness(object):
       # potentially get executed by different worker. Hence we need a
       # centralized function list shared among all the workers.
       self.workers.put(
-          SdkWorker(self._bundle_processor_cache,
-                    profiler_factory=self._profiler_factory))
+          SdkWorker(
+              self._bundle_processor_cache,
+              profiler_factory=self._profiler_factory)
+)
 
     def get_responses():
       while True:
@@ -160,16 +166,17 @@ class SdkHarness(object):
       print(traceback_string, file=sys.stderr)
       logging.error(
           'Error processing instruction %s. Original traceback is\n%s\n',
-          request.instruction_id, traceback_string)
+          request.instruction_id,
+          traceback_string)
       response = beam_fn_api_pb2.InstructionResponse(
           instruction_id=request.instruction_id, error=traceback_string)
     self._responses.put(response)
 
   def _request_register(self, request):
-
     def task():
       for process_bundle_descriptor in getattr(
-          request, request.WhichOneof('request')).process_bundle_descriptor:
+          request, request.WhichOneof('request')
+      ).process_bundle_descriptor:
         self._fns[process_bundle_descriptor.id] = process_bundle_descriptor
 
       return beam_fn_api_pb2.InstructionResponse(
@@ -179,7 +186,6 @@ class SdkHarness(object):
     self._execute(task, request)
 
   def _request_process_bundle(self, request):
-
     def task():
       # Take the free worker. Wait till a worker is free.
       worker = self.workers.get()
@@ -191,12 +197,14 @@ class SdkHarness(object):
       finally:
         # Put the worker back in the free worker pool
         self.workers.put(worker)
+
     # Create a task for each process_bundle request and schedule it
     self._process_bundle_queue.put(request)
     self._unscheduled_process_bundle[request.instruction_id] = time.time()
     self._process_thread_pool.submit(task)
     logging.debug(
-        "Currently using %s threads." % len(self._process_thread_pool._threads))
+        "Currently using %s threads." % len(self._process_thread_pool._threads)
+    )
 
   def _request_process_bundle_split(self, request):
     self._request_process_bundle_action(request)
@@ -205,33 +213,35 @@ class SdkHarness(object):
     self._request_process_bundle_action(request)
 
   def _request_process_bundle_action(self, request):
-
     def task():
       instruction_reference = getattr(
-          request, request.WhichOneof('request')).instruction_reference
+          request, request.WhichOneof('request')
+      ).instruction_reference
       # only process progress/split request when a bundle is in processing.
-      if (instruction_reference in
-          self._bundle_processor_cache.active_bundle_processors):
+      if (instruction_reference
+          in self._bundle_processor_cache.active_bundle_processors):
         self._execute(
             lambda: self.progress_worker.do_instruction(request), request)
       else:
-        self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
-            instruction_id=request.instruction_id, error=(
-                'Process bundle request not yet scheduled for instruction {}' if
-                instruction_reference in self._unscheduled_process_bundle else
-                'Unknown process bundle instruction {}').format(
-                    instruction_reference)), request)
+        self._execute(
+            lambda: beam_fn_api_pb2.InstructionResponse(
+                instruction_id=request.instruction_id,
+                error=(
+                    'Process bundle request not yet scheduled for instruction {}'
+                    if instruction_reference in self._unscheduled_process_bundle
+                    else 'Unknown process bundle instruction {}'
+                ).format(instruction_reference),
+            ),
+            request)
 
     self._progress_thread_pool.submit(task)
 
   def _request_finalize_bundle(self, request):
-
     def task():
       # Get one available worker.
       worker = self.workers.get()
       try:
-        self._execute(
-            lambda: worker.do_instruction(request), request)
+        self._execute(lambda: worker.do_instruction(request), request)
       finally:
         # Put the worker back in the free worker pool.
         self.workers.put(worker)
@@ -257,8 +267,10 @@ class SdkHarness(object):
           if request_time:
             scheduling_delay = current_time - request_time
             if scheduling_delay > SdkHarness.SCHEDULING_DELAY_THRESHOLD_SEC:
-              logging.warn('Unable to schedule instruction %s for %s',
-                           instruction_id, scheduling_delay)
+              logging.warn(
+                  'Unable to schedule instruction %s for %s',
+                  instruction_id,
+                  scheduling_delay)
 
 
 class BundleProcessorCache(object):
@@ -301,10 +313,12 @@ class BundleProcessorCache(object):
       processor = bundle_processor.BundleProcessor(
           self.fns[bundle_descriptor_id],
           self.state_handler_factory.create_state_handler(
-              self.fns[bundle_descriptor_id].state_api_service_descriptor),
+              self.fns[bundle_descriptor_id].state_api_service_descriptor
+          ),
           self.data_channel_factory)
-    self.active_bundle_processors[
-        instruction_id] = bundle_descriptor_id, processor
+    self.active_bundle_processors[instruction_id] = (
+        bundle_descriptor_id,
+        processor)
     return processor
 
   def lookup(self, instruction_id):
@@ -329,7 +343,6 @@ class BundleProcessorCache(object):
 
 
 class SdkWorker(object):
-
   def __init__(self, bundle_processor_cache, profiler_factory=None):
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
@@ -338,8 +351,8 @@ class SdkWorker(object):
     request_type = request.WhichOneof('request')
     if request_type:
       # E.g. if register is set, this will call self.register(request.register))
-      return getattr(self, request_type)(getattr(request, request_type),
-                                         request.instruction_id)
+      return getattr(self, request_type)(
+          getattr(request, request_type), request.instruction_id)
     else:
       raise NotImplementedError
 
@@ -364,15 +377,18 @@ class SdkWorker(object):
       with bundle_processor.state_handler.process_instruction_id(
           instruction_id):
         with self.maybe_profile(instruction_id):
-          delayed_applications, requests_finalization = (
-              bundle_processor.process_bundle(instruction_id))
+          (
+              delayed_applications,
+              requests_finalization,
+          ) = bundle_processor.process_bundle(instruction_id)
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
               process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
                   residual_roots=delayed_applications,
                   metrics=bundle_processor.metrics(),
                   monitoring_infos=bundle_processor.monitoring_infos(),
-                  requires_finalization=requests_finalization))
+                  requires_finalization=requests_finalization,
+              ))
       # Don't release here if finalize is needed.
       if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
@@ -402,7 +418,8 @@ class SdkWorker(object):
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
             metrics=processor.metrics() if processor else None,
-            monitoring_infos=processor.monitoring_infos() if processor else []))
+            monitoring_infos=processor.monitoring_infos() if processor else [],
+        ))
 
   def finalize_bundle(self, request, instruction_id):
     processor = self.bundle_processor_cache.lookup(
@@ -412,8 +429,7 @@ class SdkWorker(object):
         finalize_response = processor.finalize_bundle()
         self.bundle_processor_cache.release(request.instruction_reference)
         return beam_fn_api_pb2.InstructionResponse(
-            instruction_id=instruction_id,
-            finalize_bundle=finalize_response)
+            instruction_id=instruction_id, finalize_bundle=finalize_response)
       except:
         self.bundle_processor_cache.discard(request.instruction_reference)
         raise
@@ -474,8 +490,10 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           # Options to have no limits (-1) on the size of the messages
           # received or sent over the data plane. The actual buffer size is
           # controlled in a layer above.
-          options = [('grpc.max_receive_message_length', -1),
-                     ('grpc.max_send_message_length', -1)]
+          options = [
+              ('grpc.max_receive_message_length', -1),
+              ('grpc.max_send_message_length', -1),
+          ]
           if self._credentials is None:
             logging.info('Creating insecure state channel for %s.', url)
             grpc_channel = GRPCChannelFactory.insecure_channel(
@@ -486,8 +504,8 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
                 url, self._credentials, options=options)
           logging.info('State channel established.')
           # Add workerId to the grpc channel
-          grpc_channel = grpc.intercept_channel(grpc_channel,
-                                                WorkerIdInterceptor())
+          grpc_channel = grpc.intercept_channel(
+              grpc_channel, WorkerIdInterceptor())
           self._state_handler_cache[url] = GrpcStateHandler(
               beam_fn_api_pb2_grpc.BeamFnStateStub(grpc_channel))
     return self._state_handler_cache[url]
@@ -581,20 +599,23 @@ class GrpcStateHandler(object):
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             get=beam_fn_api_pb2.StateGetRequest(
-                continuation_token=continuation_token)))
+                continuation_token=continuation_token
+            ))
+)
     return response.get.data, response.get.continuation_token
 
   def blocking_append(self, state_key, data):
     self._blocking_request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
-            append=beam_fn_api_pb2.StateAppendRequest(data=data)))
+            append=beam_fn_api_pb2.StateAppendRequest(data=data))
+)
 
   def blocking_clear(self, state_key):
     self._blocking_request(
         beam_fn_api_pb2.StateRequest(
-            state_key=state_key,
-            clear=beam_fn_api_pb2.StateClearRequest()))
+            state_key=state_key, clear=beam_fn_api_pb2.StateClearRequest())
+)
 
   def _blocking_request(self, request):
     request.id = self._next_id()

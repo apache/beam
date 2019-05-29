@@ -125,10 +125,10 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertEqual(len(logical.distributions), 5)
     self.assertEqual(len(logical.gauges), 5)
 
-    self.assertEqual(set(dirty_values),
-                     set([v.value for _, v in logical.gauges.items()]))
-    self.assertEqual(set(dirty_values),
-                     set([v for _, v in logical.counters.items()]))
+    self.assertEqual(
+        set(dirty_values), set([v.value for _, v in logical.gauges.items()]))
+    self.assertEqual(
+        set(dirty_values), set([v for _, v in logical.counters.items()]))
 
     # Retrieve ALL updates.
     cumulative = mc.get_cumulative()
@@ -136,10 +136,12 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertEqual(len(cumulative.distributions), 10)
     self.assertEqual(len(cumulative.gauges), 10)
 
-    self.assertEqual(set(dirty_values + clean_values),
-                     set([v for _, v in cumulative.counters.items()]))
-    self.assertEqual(set(dirty_values + clean_values),
-                     set([v.value for _, v in cumulative.gauges.items()]))
+    self.assertEqual(
+        set(dirty_values + clean_values),
+        set([v for _, v in cumulative.counters.items()]))
+    self.assertEqual(
+        set(dirty_values + clean_values),
+        set([v.value for _, v in cumulative.gauges.items()]))
 
 
 if __name__ == '__main__':

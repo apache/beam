@@ -38,7 +38,6 @@ from apache_beam.testing.util import equal_to
 
 
 class MatchTest(_TestCaseWithTempDirCleanUp):
-
   def test_basic_two_files(self):
     files = []
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
@@ -65,17 +64,19 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
       files.append(self._create_temp_file(dir=d))
 
     with TestPipeline() as p:
-      files_pc = (p
-                  | beam.Create(directories)
-                  | fileio.MatchAll()
-                  | beam.Map(lambda x: x.path))
+      files_pc = (
+          p
+          | beam.Create(directories)
+          | fileio.MatchAll()
+          | beam.Map(lambda x: x.path))
 
       assert_that(files_pc, equal_to(files))
 
   def test_match_files_one_directory_failure(self):
     directories = [
         '%s%s' % (self._new_tempdir(), os.sep),
-        '%s%s' % (self._new_tempdir(), os.sep)]
+        '%s%s' % (self._new_tempdir(), os.sep),
+    ]
 
     files = list()
     files.append(self._create_temp_file(dir=directories[0]))
@@ -94,7 +95,8 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
   def test_match_files_one_directory_failure(self):
     directories = [
         '%s%s' % (self._new_tempdir(), os.sep),
-        '%s%s' % (self._new_tempdir(), os.sep)]
+        '%s%s' % (self._new_tempdir(), os.sep),
+    ]
 
     files = list()
     files.append(self._create_temp_file(dir=directories[0]))
@@ -111,19 +113,18 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
 
 class ReadTest(_TestCaseWithTempDirCleanUp):
-
   def test_basic_file_name_provided(self):
     content = 'TestingMyContent\nIn multiple lines\nhaha!'
     dir = '%s%s' % (self._new_tempdir(), os.sep)
     self._create_temp_file(dir=dir, content=content)
 
     with TestPipeline() as p:
-      content_pc = (p
-                    | beam.Create([dir])
-                    | fileio.MatchAll()
-                    | fileio.ReadMatches()
-                    | beam.FlatMap(
-                        lambda f: f.read().decode('utf-8').splitlines()))
+      content_pc = (
+          p
+          | beam.Create([dir])
+          | fileio.MatchAll()
+          | fileio.ReadMatches()
+          | beam.FlatMap(lambda f: f.read().decode('utf-8').splitlines()))
 
       assert_that(content_pc, equal_to(content.splitlines()))
 
@@ -141,11 +142,12 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
         return csv.reader(readable_file.open())
 
     with TestPipeline() as p:
-      content_pc = (p
-                    | beam.Create([dir])
-                    | fileio.MatchAll()
-                    | fileio.ReadMatches()
-                    | beam.FlatMap(get_csv_reader))
+      content_pc = (
+          p
+          | beam.Create([dir])
+          | fileio.MatchAll()
+          | fileio.ReadMatches()
+          | beam.FlatMap(get_csv_reader))
 
       assert_that(content_pc, equal_to(rows))
 
@@ -159,13 +161,13 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
     files.append(self._create_temp_file(dir=tempdir, content=content))
 
     with TestPipeline() as p:
-      contents_pc = (p
-                     | beam.Create(files + [tempdir])
-                     | fileio.ReadMatches()
-                     | beam.FlatMap(
-                         lambda x: x.read().decode('utf-8').splitlines()))
+      contents_pc = (
+          p
+          | beam.Create(files + [tempdir])
+          | fileio.ReadMatches()
+          | beam.FlatMap(lambda x: x.read().decode('utf-8').splitlines()))
 
-      assert_that(contents_pc, equal_to(content.splitlines()*2))
+      assert_that(contents_pc, equal_to(content.splitlines() * 2))
 
   def test_fail_on_directories(self):
     content = 'thecontent\n'
@@ -178,10 +180,11 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
 
     with self.assertRaises(beam.io.filesystem.BeamIOError):
       with TestPipeline() as p:
-        _ = (p
-             | beam.Create(files + [tempdir])
-             | fileio.ReadMatches(skip_directories=False)
-             | beam.Map(lambda x: x.read_utf8()))
+        _ = (
+            p
+            | beam.Create(files + [tempdir])
+            | fileio.ReadMatches(skip_directories=False)
+            | beam.Map(lambda x: x.read_utf8()))
 
 
 class MatchIntegrationTest(unittest.TestCase):
@@ -212,25 +215,29 @@ class MatchIntegrationTest(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args()
 
     with beam.Pipeline(argv=args) as p:
-      matches_pc = (p
-                    | beam.Create([self.INPUT_FILE, self.INPUT_FILE_LARGE])
-                    | fileio.MatchAll()
-                    | 'GetPath' >> beam.Map(lambda metadata: metadata.path))
+      matches_pc = (
+          p
+          | beam.Create([self.INPUT_FILE, self.INPUT_FILE_LARGE])
+          | fileio.MatchAll()
+          | 'GetPath' >> beam.Map(lambda metadata: metadata.path))
 
-      assert_that(matches_pc,
-                  equal_to([self.INPUT_FILE] + self.WIKI_FILES),
-                  label='Matched Files')
+      assert_that(
+          matches_pc,
+          equal_to([self.INPUT_FILE] + self.WIKI_FILES),
+          label='Matched Files')
 
-      checksum_pc = (p
-                     | 'SingleFile' >> beam.Create([self.INPUT_FILE])
-                     | 'MatchOneAll' >> fileio.MatchAll()
-                     | fileio.ReadMatches()
-                     | 'ReadIn' >> beam.Map(lambda x: x.read_utf8().split('\n'))
-                     | 'Checksums' >> beam.Map(compute_hash))
+      checksum_pc = (
+          p
+          | 'SingleFile' >> beam.Create([self.INPUT_FILE])
+          | 'MatchOneAll' >> fileio.MatchAll()
+          | fileio.ReadMatches()
+          | 'ReadIn' >> beam.Map(lambda x: x.read_utf8().split('\n'))
+          | 'Checksums' >> beam.Map(compute_hash))
 
-      assert_that(checksum_pc,
-                  equal_to([self.KINGLEAR_CHECKSUM]),
-                  label='Assert Checksums')
+      assert_that(
+          checksum_pc,
+          equal_to([self.KINGLEAR_CHECKSUM]),
+          label='Assert Checksums')
 
 
 if __name__ == '__main__':

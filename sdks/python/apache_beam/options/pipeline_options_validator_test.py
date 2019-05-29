@@ -27,12 +27,12 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.options.pipeline_options_validator import (
+    PipelineOptionsValidator)
 
 
 # Mock runners to use for validations.
 class MockRunners(object):
-
   class DataflowRunner(object):
     pass
 
@@ -45,13 +45,11 @@ class MockRunners(object):
 
 # Matcher that always passes for testing on_success_matcher option
 class AlwaysPassMatcher(BaseMatcher):
-
   def _matches(self, item):
     return True
 
 
 class SetupTest(unittest.TestCase):
-
   def check_errors_for_arguments(self, errors, args):
     """Checks that there is exactly one error for each given argument."""
     missing = []
@@ -85,8 +83,8 @@ class SetupTest(unittest.TestCase):
 
     self.assertEqual(
         self.check_errors_for_arguments(
-            errors,
-            ['project', 'staging_location', 'temp_location']),
+            errors, ['project', 'staging_location', 'temp_location']
+        ),
         [])
 
   def test_gcs_path(self):
@@ -105,51 +103,77 @@ class SetupTest(unittest.TestCase):
       return validator
 
     test_cases = [
-        {'temp_location': None,
-         'staging_location': 'gs://foo/bar',
-         'errors': ['temp_location']},
-        {'temp_location': None,
-         'staging_location': None,
-         'errors': ['staging_location', 'temp_location']},
-        {'temp_location': 'gs://foo/bar',
-         'staging_location': None,
-         'errors': []},
-        {'temp_location': 'gs://foo/bar',
-         'staging_location': 'gs://ABC/bar',
-         'errors': ['staging_location']},
-        {'temp_location': 'gcs:/foo/bar',
-         'staging_location': 'gs://foo/bar',
-         'errors': ['temp_location']},
-        {'temp_location': 'gs:/foo/bar',
-         'staging_location': 'gs://foo/bar',
-         'errors': ['temp_location']},
-        {'temp_location': 'gs://ABC/bar',
-         'staging_location': 'gs://foo/bar',
-         'errors': ['temp_location']},
-        {'temp_location': 'gs://ABC/bar',
-         'staging_location': 'gs://foo/bar',
-         'errors': ['temp_location']},
-        {'temp_location': 'gs://foo',
-         'staging_location': 'gs://foo/bar',
-         'errors': ['temp_location']},
-        {'temp_location': 'gs://foo/',
-         'staging_location': 'gs://foo/bar',
-         'errors': []},
-        {'temp_location': 'gs://foo/bar',
-         'staging_location': 'gs://foo/bar',
-         'errors': []},
+        {
+            'temp_location': None,
+            'staging_location': 'gs://foo/bar',
+            'errors': ['temp_location'],
+        },
+        {
+            'temp_location': None,
+            'staging_location': None,
+            'errors': ['staging_location', 'temp_location'],
+        },
+        {
+            'temp_location': 'gs://foo/bar',
+            'staging_location': None,
+            'errors': [],
+        },
+        {
+            'temp_location': 'gs://foo/bar',
+            'staging_location': 'gs://ABC/bar',
+            'errors': ['staging_location'],
+        },
+        {
+            'temp_location': 'gcs:/foo/bar',
+            'staging_location': 'gs://foo/bar',
+            'errors': ['temp_location'],
+        },
+        {
+            'temp_location': 'gs:/foo/bar',
+            'staging_location': 'gs://foo/bar',
+            'errors': ['temp_location'],
+        },
+        {
+            'temp_location': 'gs://ABC/bar',
+            'staging_location': 'gs://foo/bar',
+            'errors': ['temp_location'],
+        },
+        {
+            'temp_location': 'gs://ABC/bar',
+            'staging_location': 'gs://foo/bar',
+            'errors': ['temp_location'],
+        },
+        {
+            'temp_location': 'gs://foo',
+            'staging_location': 'gs://foo/bar',
+            'errors': ['temp_location'],
+        },
+        {
+            'temp_location': 'gs://foo/',
+            'staging_location': 'gs://foo/bar',
+            'errors': [],
+        },
+        {
+            'temp_location': 'gs://foo/bar',
+            'staging_location': 'gs://foo/bar',
+            'errors': [],
+        },
     ]
 
     for case in test_cases:
-      errors = get_validator(case['temp_location'],
-                             case['staging_location']).validate()
+      errors = get_validator(
+          case['temp_location'], case['staging_location']
+      ).validate()
       self.assertEqual(
           self.check_errors_for_arguments(errors, case['errors']), [])
 
   def test_project(self):
     def get_validator(project):
-      options = ['--job_name=job', '--staging_location=gs://foo/bar',
-                 '--temp_location=gs://foo/bar']
+      options = [
+          '--job_name=job',
+          '--staging_location=gs://foo/bar',
+          '--temp_location=gs://foo/bar',
+      ]
 
       if project is not None:
         options.append('--project=' + project)
@@ -176,8 +200,11 @@ class SetupTest(unittest.TestCase):
 
   def test_job_name(self):
     def get_validator(job_name):
-      options = ['--project=example:example', '--staging_location=gs://foo/bar',
-                 '--temp_location=gs://foo/bar']
+      options = [
+          '--project=example:example',
+          '--staging_location=gs://foo/bar',
+          '--temp_location=gs://foo/bar',
+      ]
 
       if job_name is not None:
         options.append('--job_name=' + job_name)
@@ -203,9 +230,12 @@ class SetupTest(unittest.TestCase):
 
   def test_num_workers(self):
     def get_validator(num_workers):
-      options = ['--project=example:example', '--job_name=job',
-                 '--staging_location=gs://foo/bar',
-                 '--temp_location=gs://foo/bar']
+      options = [
+          '--project=example:example',
+          '--job_name=job',
+          '--staging_location=gs://foo/bar',
+          '--temp_location=gs://foo/bar',
+      ]
 
       if num_workers is not None:
         options.append('--num_workers=' + num_workers)
@@ -229,11 +259,7 @@ class SetupTest(unittest.TestCase):
 
   def test_is_service_runner(self):
     test_cases = [
-        {
-            'runner': MockRunners.OtherRunner(),
-            'options': [],
-            'expected': False,
-        },
+        {'runner': MockRunners.OtherRunner(), 'options': [], 'expected': False},
         {
             'runner': MockRunners.OtherRunner(),
             'options': ['--dataflow_endpoint=https://dataflow.googleapis.com'],
@@ -278,38 +304,34 @@ class SetupTest(unittest.TestCase):
 
   def test_dataflow_job_file_and_template_location_mutually_exclusive(self):
     runner = MockRunners.OtherRunner()
-    options = PipelineOptions([
-        '--template_location', 'abc',
-        '--dataflow_job_file', 'def'
-    ])
+    options = PipelineOptions(
+        ['--template_location', 'abc', '--dataflow_job_file', 'def'])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertTrue(errors)
 
   def test_validate_template_location(self):
     runner = MockRunners.OtherRunner()
-    options = PipelineOptions([
-        '--template_location', 'abc',
-    ])
+    options = PipelineOptions(['--template_location', 'abc'])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertFalse(errors)
 
   def test_validate_dataflow_job_file(self):
     runner = MockRunners.OtherRunner()
-    options = PipelineOptions([
-        '--dataflow_job_file', 'abc'
-    ])
+    options = PipelineOptions(['--dataflow_job_file', 'abc'])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertFalse(errors)
 
   def test_test_matcher(self):
     def get_validator(matcher):
-      options = ['--project=example:example',
-                 '--job_name=job',
-                 '--staging_location=gs://foo/bar',
-                 '--temp_location=gs://foo/bar',]
+      options = [
+          '--project=example:example',
+          '--job_name=job',
+          '--staging_location=gs://foo/bar',
+          '--temp_location=gs://foo/bar',
+      ]
       if matcher:
         options.append('%s=%s' % ('--on_success_matcher', matcher.decode()))
 
@@ -318,14 +340,16 @@ class SetupTest(unittest.TestCase):
       return PipelineOptionsValidator(pipeline_options, runner)
 
     test_case = [
-        {'on_success_matcher': None,
-         'errors': []},
-        {'on_success_matcher': pickler.dumps(AlwaysPassMatcher()),
-         'errors': []},
-        {'on_success_matcher': b'abc',
-         'errors': ['on_success_matcher']},
-        {'on_success_matcher': pickler.dumps(object),
-         'errors': ['on_success_matcher']},
+        {'on_success_matcher': None, 'errors': []},
+        {
+            'on_success_matcher': pickler.dumps(AlwaysPassMatcher()),
+            'errors': [],
+        },
+        {'on_success_matcher': b'abc', 'errors': ['on_success_matcher']},
+        {
+            'on_success_matcher': pickler.dumps(object),
+            'errors': ['on_success_matcher'],
+        },
     ]
 
     for case in test_case:

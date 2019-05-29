@@ -31,19 +31,17 @@ __all__ = [
     'StaticValueProvider',
     'RuntimeValueProvider',
     'check_accessible',
-    ]
+]
 
 
 class ValueProvider(object):
   def is_accessible(self):
     raise NotImplementedError(
-        'ValueProvider.is_accessible implemented in derived classes'
-    )
+        'ValueProvider.is_accessible implemented in derived classes')
 
   def get(self):
     raise NotImplementedError(
-        'ValueProvider.get implemented in derived classes'
-    )
+        'ValueProvider.get implemented in derived classes')
 
 
 class StaticValueProvider(ValueProvider):
@@ -64,8 +62,7 @@ class StaticValueProvider(ValueProvider):
     if self.value == other:
       return True
     if isinstance(other, StaticValueProvider):
-      if (self.value_type == other.value_type and
-          self.value == other.value):
+      if self.value_type == other.value_type and self.value == other.value:
         return True
     return False
 
@@ -105,9 +102,8 @@ class RuntimeValueProvider(ValueProvider):
       raise error.RuntimeValueProviderError(
           '%s.get() not called from a runtime context' % self)
 
-    return RuntimeValueProvider.get_value(self.option_name,
-                                          self.value_type,
-                                          self.default_value)
+    return RuntimeValueProvider.get_value(
+        self.option_name, self.value_type, self.default_value)
 
   @classmethod
   def set_runtime_options(cls, pipeline_options):
@@ -120,8 +116,7 @@ class RuntimeValueProvider(ValueProvider):
         self.__class__.__name__,
         self.option_name,
         self.value_type.__name__,
-        repr(self.default_value)
-    )
+        repr(self.default_value))
 
 
 def check_accessible(value_provider_list):
@@ -135,5 +130,7 @@ def check_accessible(value_provider_list):
         if not obj.is_accessible():
           raise error.RuntimeValueProviderError('%s not accessible' % obj)
       return fnc(self, *args, **kwargs)
+
     return _f
+
   return _check_accessible

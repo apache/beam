@@ -30,7 +30,6 @@ from apache_beam.testing.util import equal_to
 
 
 class BigQuerySideInputTest(unittest.TestCase):
-
   def test_create_groups(self):
     with TestPipeline() as p:
 
@@ -42,16 +41,22 @@ class BigQuerySideInputTest(unittest.TestCase):
       ignore_corpus_pcoll = p | 'CreateIgnoreCorpus' >> beam.Create(['corpus1'])
       ignore_word_pcoll = p | 'CreateIgnoreWord' >> beam.Create(['word1'])
 
-      groups = bigquery_side_input.create_groups(group_ids_pcoll,
-                                                 corpus_pcoll,
-                                                 words_pcoll,
-                                                 ignore_corpus_pcoll,
-                                                 ignore_word_pcoll)
+      groups = bigquery_side_input.create_groups(
+          group_ids_pcoll,
+          corpus_pcoll,
+          words_pcoll,
+          ignore_corpus_pcoll,
+          ignore_word_pcoll)
 
-      assert_that(groups, equal_to(
-          [('A', 'corpus2', 'word2'),
-           ('B', 'corpus2', 'word2'),
-           ('C', 'corpus2', 'word2')]))
+      assert_that(
+          groups,
+          equal_to(
+              [
+                  ('A', 'corpus2', 'word2'),
+                  ('B', 'corpus2', 'word2'),
+                  ('C', 'corpus2', 'word2'),
+              ]
+          ))
 
 
 if __name__ == '__main__':

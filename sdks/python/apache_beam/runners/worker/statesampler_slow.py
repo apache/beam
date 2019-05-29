@@ -26,11 +26,10 @@ from apache_beam.utils import counters
 
 
 class StateSampler(object):
-
   def __init__(self, sampling_period_ms):
-    self._state_stack = [ScopedState(self,
-                                     counters.CounterName('unknown'),
-                                     None)]
+    self._state_stack = [
+        ScopedState(self, counters.CounterName('unknown'), None)
+    ]
     self.state_transition_count = 0
     self.time_since_transition = 0
 
@@ -41,11 +40,9 @@ class StateSampler(object):
     execution thread."""
     return self._state_stack[-1]
 
-  def _scoped_state(self,
-                    counter_name,
-                    name_context,
-                    output_counter,
-                    metrics_container=None):
+  def _scoped_state(
+      self, counter_name, name_context, output_counter, metrics_container=None
+  ):
     assert isinstance(name_context, common.NameContext)
     return ScopedState(
         self, counter_name, name_context, output_counter, metrics_container)
@@ -71,9 +68,13 @@ class StateSampler(object):
 
 
 class ScopedState(object):
-
-  def __init__(self, sampler, name, step_name_context,
-               counter=None, metrics_container=None):
+  def __init__(
+      self,
+      sampler,
+      name,
+      step_name_context,
+      counter=None,
+      metrics_container=None):
     self.state_sampler = sampler
     self.name = name
     self.name_context = step_name_context

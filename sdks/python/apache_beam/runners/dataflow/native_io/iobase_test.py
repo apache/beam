@@ -26,7 +26,8 @@ from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.runners.dataflow.native_io.iobase import ConcatPosition
 from apache_beam.runners.dataflow.native_io.iobase import DynamicSplitRequest
-from apache_beam.runners.dataflow.native_io.iobase import DynamicSplitResultWithPosition
+from apache_beam.runners.dataflow.native_io.iobase import (
+    DynamicSplitResultWithPosition)
 from apache_beam.runners.dataflow.native_io.iobase import NativeSink
 from apache_beam.runners.dataflow.native_io.iobase import NativeSinkWriter
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -38,7 +39,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class TestHelperFunctions(unittest.TestCase):
-
   def test_dict_printable_fields(self):
     dict_object = {
         'key_alpha': '1',
@@ -46,23 +46,15 @@ class TestHelperFunctions(unittest.TestCase):
         'key_charlie': [],
         'key_delta': 2.0,
         'key_echo': 'skip_me',
-        'key_fox': 0
+        'key_fox': 0,
     }
-    skip_fields = [
-        'key_echo',
-    ]
+    skip_fields = ['key_echo']
     self.assertEqual(
         sorted(_dict_printable_fields(dict_object, skip_fields)),
-        [
-            "key_alpha='1'",
-            'key_delta=2.0',
-            'key_fox=0'
-        ]
-    )
+        ["key_alpha='1'", 'key_delta=2.0', 'key_fox=0'])
 
 
 class TestNativeSource(unittest.TestCase):
-
   def test_reader_method(self):
     native_source = NativeSource()
     self.assertRaises(NotImplementedError, native_source.reader)
@@ -72,9 +64,16 @@ class TestNativeSource(unittest.TestCase):
       """A fake source modeled after BigQuerySource, which inherits from
       NativeSource."""
 
-      def __init__(self, table=None, dataset=None, project=None, query=None,
-                   validate=False, coder=None, use_std_sql=False,
-                   flatten_results=True):
+      def __init__(
+          self,
+          table=None,
+          dataset=None,
+          project=None,
+          query=None,
+          validate=False,
+          coder=None,
+          use_std_sql=False,
+          flatten_results=True):
         self.validate = validate
 
     fake_source = FakeSource()
@@ -82,7 +81,6 @@ class TestNativeSource(unittest.TestCase):
 
 
 class TestReaderProgress(unittest.TestCase):
-
   def test_out_of_bounds_percent_complete(self):
     with self.assertRaises(ValueError):
       ReaderProgress(percent_complete=-0.1)
@@ -99,7 +97,6 @@ class TestReaderProgress(unittest.TestCase):
 
 
 class TestReaderPosition(unittest.TestCase):
-
   def test_invalid_concat_position_type(self):
     with self.assertRaises(AssertionError):
       ReaderPosition(concat_position=1)
@@ -109,7 +106,6 @@ class TestReaderPosition(unittest.TestCase):
 
 
 class TestConcatPosition(unittest.TestCase):
-
   def test_invalid_position_type(self):
     with self.assertRaises(AssertionError):
       ConcatPosition(None, position=1)
@@ -119,7 +115,6 @@ class TestConcatPosition(unittest.TestCase):
 
 
 class TestDynamicSplitRequest(unittest.TestCase):
-
   def test_invalid_progress_type(self):
     with self.assertRaises(AssertionError):
       DynamicSplitRequest(progress=1)
@@ -129,7 +124,6 @@ class TestDynamicSplitRequest(unittest.TestCase):
 
 
 class TestDynamicSplitResultWithPosition(unittest.TestCase):
-
   def test_invalid_stop_position_type(self):
     with self.assertRaises(AssertionError):
       DynamicSplitResultWithPosition(stop_position=1)
@@ -139,7 +133,6 @@ class TestDynamicSplitResultWithPosition(unittest.TestCase):
 
 
 class TestNativeSink(unittest.TestCase):
-
   def test_writer_method(self):
     native_sink = NativeSink()
     self.assertRaises(NotImplementedError, native_sink.writer)
@@ -149,9 +142,15 @@ class TestNativeSink(unittest.TestCase):
       """A fake sink modeled after BigQuerySink, which inherits from
       NativeSink."""
 
-      def __init__(self, validate=False, dataset=None, project=None,
-                   schema=None, create_disposition='create',
-                   write_disposition=None, coder=None):
+      def __init__(
+          self,
+          validate=False,
+          dataset=None,
+          project=None,
+          schema=None,
+          create_disposition='create',
+          write_disposition=None,
+          coder=None):
         self.validate = validate
 
     fake_sink = FakeSink()
@@ -185,14 +184,15 @@ class TestNativeSink(unittest.TestCase):
 
     p = TestPipeline()
     sink = FakeSink()
-    p | Create(['a', 'b', 'c']) | _NativeWrite(sink)  # pylint: disable=expression-not-assigned
+    p | Create(['a', 'b', 'c']) | _NativeWrite(
+        sink
+    )  # pylint: disable=expression-not-assigned
     p.run()
 
     self.assertEqual(['a', 'b', 'c'], sink.written_values)
 
 
 class Test_NativeWrite(unittest.TestCase):
-
   def setUp(self):
     self.native_sink = NativeSink()
     self.native_write = _NativeWrite(self.native_sink)

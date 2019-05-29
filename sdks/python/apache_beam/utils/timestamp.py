@@ -48,11 +48,11 @@ class Timestamp(object):
 
   def __init__(self, seconds=0, micros=0):
     if not isinstance(seconds, (int, long, float)):
-      raise TypeError('Cannot interpret %s %s as seconds.' % (
-          seconds, type(seconds)))
+      raise TypeError(
+          'Cannot interpret %s %s as seconds.' % (seconds, type(seconds)))
     if not isinstance(micros, (int, long, float)):
-      raise TypeError('Cannot interpret %s %s as micros.' % (
-          micros, type(micros)))
+      raise TypeError(
+          'Cannot interpret %s %s as micros.' % (micros, type(micros)))
     self.micros = int(seconds * 1000000) + int(micros)
 
   @staticmethod
@@ -69,8 +69,8 @@ class Timestamp(object):
     """
 
     if not isinstance(seconds, (int, long, float, Timestamp)):
-      raise TypeError('Cannot interpret %s %s as Timestamp.' % (
-          seconds, type(seconds)))
+      raise TypeError(
+          'Cannot interpret %s %s as Timestamp.' % (seconds, type(seconds)))
     if isinstance(seconds, Timestamp):
       return seconds
     return Timestamp(seconds)
@@ -110,7 +110,7 @@ class Timestamp(object):
         dt_args.append(int(s))
       else:
         dt_args.append(0)
-    dt_args += (pytz.utc, )
+    dt_args += (pytz.utc,)
     dt = datetime.datetime(*dt_args)
     return cls.from_utc_datetime(dt)
 
@@ -183,10 +183,10 @@ class Timestamp(object):
     return Duration(micros=self.micros % other.micros)
 
 
-MIN_TIMESTAMP = Timestamp(micros=int(
-    common_urns.constants.MIN_TIMESTAMP_MILLIS.constant)*1000)
-MAX_TIMESTAMP = Timestamp(micros=int(
-    common_urns.constants.MAX_TIMESTAMP_MILLIS.constant)*1000)
+MIN_TIMESTAMP = Timestamp(
+    micros=int(common_urns.constants.MIN_TIMESTAMP_MILLIS.constant) * 1000)
+MAX_TIMESTAMP = Timestamp(
+    micros=int(common_urns.constants.MAX_TIMESTAMP_MILLIS.constant) * 1000)
 
 
 @functools.total_ordering

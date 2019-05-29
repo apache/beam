@@ -28,7 +28,6 @@ from apache_beam.io.filebasedsource_test import LineSource
 
 
 class SourceTestUtilsTest(unittest.TestCase):
-
   @classmethod
   def setUpClass(cls):
     # Method has been renamed in Python 3
@@ -63,12 +62,15 @@ class SourceTestUtilsTest(unittest.TestCase):
   def test_source_equals_reference_source(self):
     data = self._create_data(100)
     reference_source = self._create_source(data)
-    sources_info = [(split.source, split.start_position, split.stop_position)
-                    for split in reference_source.split(desired_bundle_size=50)]
+    sources_info = [
+        (split.source, split.start_position, split.stop_position)
+        for split in reference_source.split(desired_bundle_size=50)
+    ]
     if len(sources_info) < 2:
-      raise ValueError('Test is too trivial since splitting only generated %d'
-                       'bundles. Please adjust the test so that at least '
-                       'two splits get generated.' % len(sources_info))
+      raise ValueError(
+          'Test is too trivial since splitting only generated %d'
+          'bundles. Please adjust the test so that at least '
+          'two splits get generated.' % len(sources_info))
 
     source_test_utils.assert_sources_equal_reference_source(
         (reference_source, None, None), sources_info)
@@ -77,20 +79,32 @@ class SourceTestUtilsTest(unittest.TestCase):
     data = self._create_data(100)
     source = self._create_source(data)
     result1 = source_test_utils.assert_split_at_fraction_behavior(
-        source, 10, 0.5,
-        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
+        source,
+        10,
+        0.5,
+        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT,
+    )
     result2 = source_test_utils.assert_split_at_fraction_behavior(
-        source, 20, 0.5,
-        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
+        source,
+        20,
+        0.5,
+        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT,
+    )
     self.assertEquals(result1, result2)
     self.assertEquals(100, result1[0] + result1[1])
 
     result3 = source_test_utils.assert_split_at_fraction_behavior(
-        source, 30, 0.8,
-        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
+        source,
+        30,
+        0.8,
+        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT,
+    )
     result4 = source_test_utils.assert_split_at_fraction_behavior(
-        source, 50, 0.8,
-        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
+        source,
+        50,
+        0.8,
+        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT,
+    )
     self.assertEquals(result3, result4)
     self.assertEquals(100, result3[0] + result4[1])
 

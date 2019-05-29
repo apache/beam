@@ -69,14 +69,16 @@ class WordExtractingDoFn(beam.DoFn):
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
@@ -93,12 +95,12 @@ def run(argv=None):
     (word, ones) = word_ones
     return (word, sum(ones))
 
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(count_ones))
+  counts = (
+      lines
+      | 'split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+      | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+      | 'group' >> beam.GroupByKey()
+      | 'count' >> beam.Map(count_ones))
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
@@ -115,8 +117,8 @@ def run(argv=None):
   result.wait_until_finish()
 
   # Do not query metrics when creating a template which doesn't run
-  if (not hasattr(result, 'has_job')    # direct runner
-      or result.has_job):               # not just a template creation
+  if (not hasattr(result, 'has_job') or result.has_job  # direct runner
+  ):  # not just a template creation
     empty_lines_filter = MetricsFilter().with_name('empty_lines')
     query_result = result.metrics().query(empty_lines_filter)
     if query_result['counters']:

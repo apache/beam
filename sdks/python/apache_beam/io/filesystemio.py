@@ -25,8 +25,13 @@ from builtins import object
 
 from future.utils import with_metaclass
 
-__all__ = ['Downloader', 'Uploader', 'DownloaderStream', 'UploaderStream',
-           'PipeStream']
+__all__ = [
+    'Downloader',
+    'Uploader',
+    'DownloaderStream',
+    'UploaderStream',
+    'PipeStream',
+]
 
 
 class Downloader(with_metaclass(abc.ABCMeta, object)):
@@ -80,10 +85,8 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
 
-  def __init__(self,
-               downloader,
-               read_buffer_size=io.DEFAULT_BUFFER_SIZE,
-               mode='rb'):
+  def __init__(
+      self, downloader, read_buffer_size=io.DEFAULT_BUFFER_SIZE, mode='rb'):
     """Initializes the stream.
 
     Args:
@@ -112,7 +115,7 @@ class DownloaderStream(io.RawIOBase):
     end = min(self._position + len(b), self._downloader.size)
     data = self._downloader.get_range(start, end)
     self._position += len(data)
-    b[:len(data)] = data
+    b[: len(data)] = data
     return len(data)
 
   def seek(self, offset, whence=os.SEEK_SET):
@@ -297,8 +300,8 @@ class PipeStream(object):
         self.last_block = b''
         return
     raise NotImplementedError(
-        'offset: %s, whence: %s, position: %s, last: %s' % (
-            offset, whence, self.position, self.last_block_position))
+        'offset: %s, whence: %s, position: %s, last: %s'
+        % (offset, whence, self.position, self.last_block_position))
 
   def _check_open(self):
     if self.closed:

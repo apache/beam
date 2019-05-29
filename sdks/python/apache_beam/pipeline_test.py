@@ -40,7 +40,8 @@ from apache_beam.pipeline import PTransformOverride
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.direct.evaluation_context import _ExecutionContext
-from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
+from apache_beam.runners.direct.transform_evaluator import (
+    _GroupByKeyOnlyEvaluator)
 from apache_beam.runners.direct.transform_evaluator import _TransformEvaluator
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -65,7 +66,6 @@ class FakeSource(NativeSource):
   """Fake source returning a fixed list of values."""
 
   class _Reader(object):
-
     def __init__(self, vals):
       self._vals = vals
       self._output_counter = Metrics.counter('main', 'outputs')
@@ -111,7 +111,6 @@ class ToStringParDo(beam.PTransform):
 
 
 class PipelineTest(unittest.TestCase):
-
   @staticmethod
   def custom_callable(pcoll):
     return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
@@ -121,12 +120,10 @@ class PipelineTest(unittest.TestCase):
   # work and is not related to other aspects of the tests.
 
   class CustomTransform(PTransform):
-
     def expand(self, pcoll):
       return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
 
   class Visitor(PipelineVisitor):
-
     def __init__(self, visited):
       self.visited = visited
       self.enter_composite = []
@@ -161,8 +158,8 @@ class PipelineTest(unittest.TestCase):
     assert_that(pcoll2, equal_to([11, 12, 13]), label='pcoll2')
 
     pcoll3 = pcoll2 | 'm1' >> Map(lambda x: [x, 12])
-    assert_that(pcoll3,
-                equal_to([[11, 12], [12, 12], [13, 12]]), label='pcoll3')
+    assert_that(
+        pcoll3, equal_to([[11, 12], [12, 12], [13, 12]]), label='pcoll3')
 
     pcoll4 = pcoll3 | 'do2' >> FlatMap(set)
     assert_that(pcoll4, equal_to([11, 12, 12, 12, 13]), label='pcoll4')
@@ -204,10 +201,9 @@ class PipelineTest(unittest.TestCase):
 
     visitor = PipelineTest.Visitor(visited=[])
     pipeline.visit(visitor)
-    self.assertEqual(set([pcoll1, pcoll2, pcoll3, pcoll4, pcoll5]),
-                     set(visitor.visited))
-    self.assertEqual(set(visitor.enter_composite),
-                     set(visitor.leave_composite))
+    self.assertEqual(
+        set([pcoll1, pcoll2, pcoll3, pcoll4, pcoll5]), set(visitor.visited))
+    self.assertEqual(set(visitor.enter_composite), set(visitor.leave_composite))
     self.assertEqual(3, len(visitor.enter_composite))
     self.assertEqual(visitor.enter_composite[2].transform, transform)
     self.assertEqual(visitor.leave_composite[1].transform, transform)
@@ -247,7 +243,6 @@ class PipelineTest(unittest.TestCase):
 
   def test_transform_no_super_init(self):
     class AddSuffix(PTransform):
-
       def __init__(self, suffix):
         # No call to super(...).__init__
         self.suffix = suffix
@@ -290,8 +285,8 @@ class PipelineTest(unittest.TestCase):
     pipeline = TestPipeline(runner='BundleBasedDirectRunner')
 
     # Consumed memory should not be proportional to the number of maps.
-    memory_threshold = (
-        get_memory_usage_in_bytes() + (5 * len_elements * num_elements))
+    memory_threshold = get_memory_usage_in_bytes() + (
+        5 * len_elements * num_elements)
 
     # Plus small additional slack for memory fluctuations during the test.
     memory_threshold += 10 * (2 ** 20)
@@ -301,8 +296,9 @@ class PipelineTest(unittest.TestCase):
     for i in range(num_maps):
       biglist = biglist | ('oom:addone-%d' % i) >> Map(lambda x: x + 'y')
     result = biglist | 'oom:check' >> Map(check_memory, memory_threshold)
-    assert_that(result, equal_to(
-        ['x' * len_elements + 'y' * num_maps] * num_elements))
+    assert_that(
+        result, equal_to(['x' * len_elements + 'y' * num_maps] * num_elements)
+    )
 
     pipeline.run()
 
@@ -313,6 +309,7 @@ class PipelineTest(unittest.TestCase):
   def test_pipeline_as_context(self):
     def raise_exception(exn):
       raise exn
+
     with self.assertRaises(ValueError):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
@@ -326,9 +323,7 @@ class PipelineTest(unittest.TestCase):
   @mock.patch(
       'apache_beam.runners.direct.direct_runner._get_transform_overrides')
   def test_ptransform_overrides(self, file_system_override_mock):
-
     class MyParDoOverride(PTransformOverride):
-
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
@@ -348,9 +343,7 @@ class PipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([3, 6, 9]))
 
   def test_ptransform_override_type_hints(self):
-
     class NoTypeHintOverride(PTransformOverride):
-
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
@@ -358,29 +351,28 @@ class PipelineTest(unittest.TestCase):
         return ToStringParDo()
 
     class WithTypeHintOverride(PTransformOverride):
-
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
       def get_replacement_transform(self, ptransform):
-        return (ToStringParDo()
-                .with_input_types(int)
-                .with_output_types(str))
+        return ToStringParDo().with_input_types(int).with_output_types(str)
 
-    for override, expected_type in [(NoTypeHintOverride(), typehints.Any),
-                                    (WithTypeHintOverride(), str)]:
+    for override, expected_type in [
+        (NoTypeHintOverride(), typehints.Any),
+        (WithTypeHintOverride(), str),
+    ]:
       p = TestPipeline()
-      pcoll = (p
-               | beam.Create([1, 2, 3])
-               | 'Operate' >> DoubleParDo()
-               | 'NoOp' >> beam.Map(lambda x: x))
+      pcoll = (
+          p
+          | beam.Create([1, 2, 3])
+          | 'Operate' >> DoubleParDo()
+          | 'NoOp' >> beam.Map(lambda x: x))
 
       p.replace_all([override])
       self.assertEquals(pcoll.producer.inputs[0].element_type, expected_type)
 
 
 class DoFnTest(unittest.TestCase):
-
   def test_element(self):
     class TestDoFn(DoFn):
       def process(self, element):
@@ -427,19 +419,26 @@ class DoFnTest(unittest.TestCase):
         yield (element, (float(window.start), float(window.end)))
 
     pipeline = TestPipeline()
-    pcoll = (pipeline
-             | Create([1, 7])
-             | Map(lambda x: TimestampedValue(x, x))
-             | WindowInto(windowfn=SlidingWindows(10, 5))
-             | ParDo(TestDoFn()))
-    assert_that(pcoll, equal_to([(1, (-5, 5)), (1, (0, 10)),
-                                 (7, (0, 10)), (7, (5, 15))]))
+    pcoll = (
+        pipeline
+        | Create([1, 7])
+        | Map(lambda x: TimestampedValue(x, x))
+        | WindowInto(windowfn=SlidingWindows(10, 5))
+        | ParDo(TestDoFn()))
+    assert_that(
+        pcoll,
+        equal_to([(1, (-5, 5)), (1, (0, 10)), (7, (0, 10)), (7, (5, 15))]))
     pcoll2 = pcoll | 'Again' >> ParDo(TestDoFn())
     assert_that(
         pcoll2,
-        equal_to([
-            ((1, (-5, 5)), (-5, 5)), ((1, (0, 10)), (0, 10)),
-            ((7, (0, 10)), (0, 10)), ((7, (5, 15)), (5, 15))]),
+        equal_to(
+            [
+                ((1, (-5, 5)), (-5, 5)),
+                ((1, (0, 10)), (0, 10)),
+                ((7, (0, 10)), (0, 10)),
+                ((7, (5, 15)), (5, 15)),
+            ]
+        ),
         label='doubled windows')
     pipeline.run()
 
@@ -461,14 +460,12 @@ class DoFnTest(unittest.TestCase):
 
 
 class Bacon(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--slices', type=int)
 
 
 class Eggs(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--style', default='scrambled')
@@ -479,7 +476,6 @@ class Breakfast(Bacon, Eggs):
 
 
 class PipelineOptionsTest(unittest.TestCase):
-
   def test_flag_parsing(self):
     options = Breakfast(['--slices=3', '--style=sunny side up', '--ignored'])
     self.assertEquals(3, options.slices)
@@ -487,8 +483,7 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_keyword_parsing(self):
     options = Breakfast(
-        ['--slices=3', '--style=sunny side up', '--ignored'],
-        slices=10)
+        ['--slices=3', '--style=sunny side up', '--ignored'], slices=10)
     self.assertEquals(10, options.slices)
     self.assertEquals('sunny side up', options.style)
 
@@ -510,7 +505,9 @@ class PipelineOptionsTest(unittest.TestCase):
       generic_options.slices  # pylint: disable=pointless-statement
 
     with self.assertRaises(AttributeError):
-      generic_options.view_as(Eggs).slices  # pylint: disable=expression-not-assigned
+      generic_options.view_as(
+          Eggs
+      ).slices  # pylint: disable=expression-not-assigned
 
   def test_defaults(self):
     options = Breakfast(['--slices=3'])
@@ -520,22 +517,45 @@ class PipelineOptionsTest(unittest.TestCase):
   def test_dir(self):
     options = Breakfast()
     self.assertEquals(
-        set(['from_dictionary', 'get_all_options', 'slices', 'style',
-             'view_as', 'display_data']),
-        set([attr for attr in dir(options) if not attr.startswith('_') and
-             attr != 'next']))
+        set(
+            [
+                'from_dictionary',
+                'get_all_options',
+                'slices',
+                'style',
+                'view_as',
+                'display_data',
+            ]
+        ),
+        set(
+            [
+                attr
+                for attr in dir(options)
+                if not attr.startswith('_') and attr != 'next'
+            ]
+        ))
     self.assertEquals(
-        set(['from_dictionary', 'get_all_options', 'style', 'view_as',
-             'display_data']),
-        set([attr for attr in dir(options.view_as(Eggs))
-             if not attr.startswith('_') and attr != 'next']))
+        set(
+            [
+                'from_dictionary',
+                'get_all_options',
+                'style',
+                'view_as',
+                'display_data',
+            ]
+        ),
+        set(
+            [
+                attr
+                for attr in dir(options.view_as(Eggs))
+                if not attr.startswith('_') and attr != 'next'
+            ]
+        ))
 
 
 class RunnerApiTest(unittest.TestCase):
-
   def test_parent_pointer(self):
     class MyPTransform(beam.PTransform):
-
       def expand(self, p):
         self.p = p
         return p | beam.Create([None])
@@ -545,19 +565,18 @@ class RunnerApiTest(unittest.TestCase):
     p = Pipeline.from_runner_api(
         Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
-    self.assertEquals(p.transforms_stack[0].parts[0].parent,
-                      p.transforms_stack[0])
+    self.assertEquals(
+        p.transforms_stack[0].parts[0].parent, p.transforms_stack[0])
 
 
 class DirectRunnerRetryTests(unittest.TestCase):
-
   def test_retry_fork_graph(self):
     # TODO(BEAM-3642): The FnApiRunner currently does not currently support
     # retries.
     p = beam.Pipeline(runner='BundleBasedDirectRunner')
 
     # TODO(mariagh): Remove the use of globals from the test.
-    global count_b, count_c # pylint: disable=global-variable-undefined
+    global count_b, count_c  # pylint: disable=global-variable-undefined
     count_b, count_c = 0, 0
 
     def f_b(x):
@@ -572,17 +591,19 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
     names = p | 'CreateNodeA' >> beam.Create(['Ann', 'Joe'])
 
-    fork_b = names | 'SendToB' >> beam.Map(f_b) # pylint: disable=unused-variable
-    fork_c = names | 'SendToC' >> beam.Map(f_c) # pylint: disable=unused-variable
+    fork_b = names | 'SendToB' >> beam.Map(
+        f_b
+    )  # pylint: disable=unused-variable
+    fork_c = names | 'SendToC' >> beam.Map(
+        f_c
+    )  # pylint: disable=unused-variable
 
     with self.assertRaises(Exception):
       p.run().wait_until_finish()
     assert count_b == count_c == 4
 
   def test_no_partial_writeouts(self):
-
     class TestTransformEvaluator(_TransformEvaluator):
-
       def __init__(self):
         self._execution_context = _ExecutionContext(None, {})
 
@@ -606,7 +627,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
         defaultdict(lambda: defaultdict(list)))
     self.assertEqual(
         evaluator.step_context.partial_keyed_state['key'].state,
-        {None: {'elements':['value']}})
+        {None: {'elements': ['value']}})
 
     evaluator.process_element(['key', 'value2'])
     self.assertEqual(
@@ -614,7 +635,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
         defaultdict(lambda: defaultdict(list)))
     self.assertEqual(
         evaluator.step_context.partial_keyed_state['key'].state,
-        {None: {'elements':['value', 'value2']}})
+        {None: {'elements': ['value', 'value2']}})
 
     # Simulate an exception (redo key/value)
     evaluator._execution_context.reset()
@@ -625,7 +646,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
         defaultdict(lambda: defaultdict(list)))
     self.assertEqual(
         evaluator.step_context.partial_keyed_state['key'].state,
-        {None: {'elements':['value']}})
+        {None: {'elements': ['value']}})
 
 
 if __name__ == '__main__':

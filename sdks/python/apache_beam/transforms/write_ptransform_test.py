@@ -43,8 +43,8 @@ class _TestSink(iobase.Sink):
   def pre_finalize(self, init_result, writer_results):
     pass
 
-  def finalize_write(self, init_result, writer_results,
-                     unused_pre_finalize_result):
+  def finalize_write(
+      self, init_result, writer_results, unused_pre_finalize_result):
     self.init_result_at_finalize = init_result
     self.write_results_at_finalize = writer_results
 
@@ -66,7 +66,8 @@ class _TestWriter(iobase.Writer):
 
   def close(self):
     assert self.state in (
-        _TestWriter.STATE_WRITTEN, _TestWriter.STATE_UNSTARTED)
+        _TestWriter.STATE_WRITTEN,
+        _TestWriter.STATE_UNSTARTED)
     self.state = _TestWriter.STATE_CLOSED
     if self.return_write_results:
       return _TestWriter.TEST_WRITE_RESULT
@@ -82,7 +83,6 @@ class _TestWriter(iobase.Writer):
 
 
 class WriteToTestSink(PTransform):
-
   def __init__(self, return_init_result=True, return_write_results=True):
     self.return_init_result = return_init_result
     self.return_write_results = return_write_results
@@ -90,20 +90,19 @@ class WriteToTestSink(PTransform):
     self.label = 'write_to_test_sink'
 
   def expand(self, pcoll):
-    self.last_sink = _TestSink(return_init_result=self.return_init_result,
-                               return_write_results=self.return_write_results)
+    self.last_sink = _TestSink(
+        return_init_result=self.return_init_result,
+        return_write_results=self.return_write_results)
     return pcoll | beam.io.Write(self.last_sink)
 
 
 class WriteTest(unittest.TestCase):
   DATA = ['some data', 'more data', 'another data', 'yet another data']
 
-  def _run_write_test(self,
-                      data,
-                      return_init_result=True,
-                      return_write_results=True):
-    write_to_test_sink = WriteToTestSink(return_init_result,
-                                         return_write_results)
+  def _run_write_test(
+      self, data, return_init_result=True, return_write_results=True):
+    write_to_test_sink = WriteToTestSink(
+        return_init_result, return_write_results)
     with TestPipeline() as p:
       result = p | beam.Create(data) | write_to_test_sink | beam.Map(list)
 

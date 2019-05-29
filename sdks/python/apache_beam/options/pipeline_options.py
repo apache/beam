@@ -41,7 +41,7 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
-    ]
+]
 
 
 def _static_value_provider_of(value_type):
@@ -55,9 +55,11 @@ def _static_value_provider_of(value_type):
     A partially constructed StaticValueProvider in the form of a function.
 
   """
+
   def _f(value):
     _f.__name__ = value_type.__name__
     return StaticValueProvider(value_type, value)
+
   return _f
 
 
@@ -75,6 +77,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
         parser.add_argument('--non_vp_arg')
 
   """
+
   def add_value_provider_argument(self, *args, **kwargs):
     """ValueProvider arguments can be either of type keyword or positional.
     At runtime, even positional arguments will need to be supplied in the
@@ -101,8 +104,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     kwargs['default'] = RuntimeValueProvider(
         option_name=option_name,
         value_type=value_type,
-        default_value=default_value
-    )
+        default_value=default_value)
 
     # have add_argument do most of the work
     self.add_argument(*args, **kwargs)
@@ -153,6 +155,7 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
+
   def __init__(self, flags=None, **kwargs):
     """Initialize an options class.
 
@@ -199,8 +202,8 @@ class PipelineOptions(HasDisplayData):
     for option_name in self._visible_option_list():
       # Note that options specified in kwargs will not be overwritten.
       if option_name not in self._all_options:
-        self._all_options[option_name] = getattr(self._visible_options,
-                                                 option_name)
+        self._all_options[option_name] = getattr(
+            self._visible_options, option_name)
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -265,9 +268,9 @@ class PipelineOptions(HasDisplayData):
     for k in list(result):
       if k in self._all_options:
         result[k] = self._all_options[k]
-      if (drop_default and
-          parser.get_default(k) == result[k] and
-          not isinstance(parser.get_default(k), ValueProvider)):
+      if (drop_default
+          and parser.get_default(k) == result[k]
+          and not isinstance(parser.get_default(k), ValueProvider)):
         del result[k]
 
     return result
@@ -307,19 +310,19 @@ class PipelineOptions(HasDisplayData):
       # backed by the same list across multiple views, and that any overrides of
       # pipeline options already stored in _all_options are preserved.
       if option_name not in self._all_options:
-        self._all_options[option_name] = getattr(view._visible_options,
-                                                 option_name)
+        self._all_options[option_name] = getattr(
+            view._visible_options, option_name)
     # Note that views will still store _all_options of the source object.
     view._all_options = self._all_options
     return view
 
   def _visible_option_list(self):
-    return sorted(option
-                  for option in dir(self._visible_options) if option[0] != '_')
+    return sorted(
+        option for option in dir(self._visible_options) if option[0] != '_')
 
   def __dir__(self):
-    return sorted(dir(type(self)) + list(self.__dict__) +
-                  self._visible_option_list())
+    return sorted(
+        dir(type(self)) + list(self.__dict__) + self._visible_option_list())
 
   def __getattr__(self, name):
     # Special methods which may be accessed before the object is
@@ -329,8 +332,8 @@ class PipelineOptions(HasDisplayData):
     elif name in self._visible_option_list():
       return self._all_options[name]
     else:
-      raise AttributeError("'%s' object has no attribute '%s'" %
-                           (type(self).__name__, name))
+      raise AttributeError(
+          "'%s' object has no attribute '%s'" % (type(self).__name__, name))
 
   def __setattr__(self, name, value):
     if name in ('_flags', '_all_options', '_visible_options'):
@@ -338,13 +341,16 @@ class PipelineOptions(HasDisplayData):
     elif name in self._visible_option_list():
       self._all_options[name] = value
     else:
-      raise AttributeError("'%s' object has no attribute '%s'" %
-                           (type(self).__name__, name))
+      raise AttributeError(
+          "'%s' object has no attribute '%s'" % (type(self).__name__, name))
 
   def __str__(self):
-    return '%s(%s)' % (type(self).__name__,
-                       ', '.join('%s=%s' % (option, getattr(self, option))
-                                 for option in self._visible_option_list()))
+    return '%s(%s)' % (
+        type(self).__name__,
+        ', '.join(
+            '%s=%s' % (option, getattr(self, option))
+            for option in self._visible_option_list()
+        ))
 
 
 class StandardOptions(PipelineOptions):
@@ -355,36 +361,40 @@ class StandardOptions(PipelineOptions):
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--runner',
-        help=('Pipeline runner used to execute the workflow. Valid values are '
-              'DirectRunner, DataflowRunner.'))
+        help=(
+            'Pipeline runner used to execute the workflow. Valid values are '
+            'DirectRunner, DataflowRunner.'
+        ))
     # Whether to enable streaming mode.
-    parser.add_argument('--streaming',
-                        default=False,
-                        action='store_true',
-                        help='Whether to enable streaming mode.')
+    parser.add_argument(
+        '--streaming',
+        default=False,
+        action='store_true',
+        help='Whether to enable streaming mode.')
 
 
 class TypeOptions(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     # TODO(laolu): Add a type inferencing option here once implemented.
-    parser.add_argument('--type_check_strictness',
-                        default='DEFAULT_TO_ANY',
-                        choices=['ALL_REQUIRED', 'DEFAULT_TO_ANY'],
-                        help='The level of exhaustive manual type-hint '
-                        'annotation required')
-    parser.add_argument('--no_pipeline_type_check',
-                        dest='pipeline_type_check',
-                        action='store_false',
-                        help='Disable type checking at pipeline construction '
-                        'time')
-    parser.add_argument('--runtime_type_check',
-                        default=False,
-                        action='store_true',
-                        help='Enable type checking at pipeline execution '
-                        'time. NOTE: only supported with the '
-                        'DirectRunner')
+    parser.add_argument(
+        '--type_check_strictness',
+        default='DEFAULT_TO_ANY',
+        choices=['ALL_REQUIRED', 'DEFAULT_TO_ANY'],
+        help='The level of exhaustive manual type-hint ' 'annotation required',
+    )
+    parser.add_argument(
+        '--no_pipeline_type_check',
+        dest='pipeline_type_check',
+        action='store_false',
+        help='Disable type checking at pipeline construction ' 'time')
+    parser.add_argument(
+        '--runtime_type_check',
+        default=False,
+        action='store_true',
+        help='Enable type checking at pipeline execution '
+        'time. NOTE: only supported with the '
+        'DirectRunner')
 
 
 class DirectOptions(PipelineOptions):
@@ -420,85 +430,96 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument(
         '--dataflow_endpoint',
         default=cls.DATAFLOW_ENDPOINT,
-        help=
-        ('The URL for the Dataflow API. If not set, the default public URL '
-         'will be used.'))
+        help=(
+            'The URL for the Dataflow API. If not set, the default public URL '
+            'will be used.'
+        ))
     # Remote execution must check that this option is not None.
-    parser.add_argument('--project',
-                        default=None,
-                        help='Name of the Cloud project owning the Dataflow '
-                        'job.')
+    parser.add_argument(
+        '--project',
+        default=None,
+        help='Name of the Cloud project owning the Dataflow ' 'job.')
     # Remote execution must check that this option is not None.
-    parser.add_argument('--job_name',
-                        default=None,
-                        help='Name of the Cloud Dataflow job.')
+    parser.add_argument(
+        '--job_name', default=None, help='Name of the Cloud Dataflow job.')
     # Remote execution must check that this option is not None.
-    parser.add_argument('--staging_location',
-                        default=None,
-                        help='GCS path for staging code packages needed by '
-                        'workers.')
+    parser.add_argument(
+        '--staging_location',
+        default=None,
+        help='GCS path for staging code packages needed by ' 'workers.')
     # Remote execution must check that this option is not None.
     # If staging_location is not set, it defaults to temp_location.
-    parser.add_argument('--temp_location',
-                        default=None,
-                        help='GCS path for saving temporary workflow jobs.')
+    parser.add_argument(
+        '--temp_location',
+        default=None,
+        help='GCS path for saving temporary workflow jobs.')
     # The Cloud Dataflow service does not yet honor this setting. However, once
     # service support is added then users of this SDK will be able to control
     # the region. Default is up to the Dataflow service. See
     # https://cloud.google.com/compute/docs/regions-zones/regions-zones for a
     # list of valid options/
-    parser.add_argument('--region',
-                        default='us-central1',
-                        help='The Google Compute Engine region for creating '
-                        'Dataflow job.')
-    parser.add_argument('--service_account_email',
-                        default=None,
-                        help='Identity to run virtual machines as.')
+    parser.add_argument(
+        '--region',
+        default='us-central1',
+        help='The Google Compute Engine region for creating ' 'Dataflow job.',
+    )
+    parser.add_argument(
+        '--service_account_email',
+        default=None,
+        help='Identity to run virtual machines as.')
     parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
     # Option to run templated pipelines
-    parser.add_argument('--template_location',
-                        default=None,
-                        help='Save job to specified local or GCS location.')
-    parser.add_argument('--label', '--labels',
-                        dest='labels',
-                        action='append',
-                        default=None,
-                        help='Labels to be applied to this Dataflow job. '
-                        'Labels are key value pairs separated by = '
-                        '(e.g. --label key=value).')
-    parser.add_argument('--update',
-                        default=False,
-                        action='store_true',
-                        help='Update an existing streaming Cloud Dataflow job. '
-                        'Experimental. '
-                        'See https://cloud.google.com/dataflow/pipelines/'
-                        'updating-a-pipeline')
-    parser.add_argument('--enable_streaming_engine',
-                        default=False,
-                        action='store_true',
-                        help='Enable Windmill Service for this Dataflow job. ')
-    parser.add_argument('--dataflow_kms_key',
-                        default=None,
-                        help='Set a Google Cloud KMS key name to be used in '
-                        'Dataflow state operations (GBK, Streaming).')
-    parser.add_argument('--flexrs_goal',
-                        default=None,
-                        choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
-                        help='Set the Flexible Resource Scheduling mode')
+    parser.add_argument(
+        '--template_location',
+        default=None,
+        help='Save job to specified local or GCS location.')
+    parser.add_argument(
+        '--label',
+        '--labels',
+        dest='labels',
+        action='append',
+        default=None,
+        help='Labels to be applied to this Dataflow job. '
+        'Labels are key value pairs separated by = '
+        '(e.g. --label key=value).')
+    parser.add_argument(
+        '--update',
+        default=False,
+        action='store_true',
+        help='Update an existing streaming Cloud Dataflow job. '
+        'Experimental. '
+        'See https://cloud.google.com/dataflow/pipelines/'
+        'updating-a-pipeline')
+    parser.add_argument(
+        '--enable_streaming_engine',
+        default=False,
+        action='store_true',
+        help='Enable Windmill Service for this Dataflow job. ')
+    parser.add_argument(
+        '--dataflow_kms_key',
+        default=None,
+        help='Set a Google Cloud KMS key name to be used in '
+        'Dataflow state operations (GBK, Streaming).')
+    parser.add_argument(
+        '--flexrs_goal',
+        default=None,
+        choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
+        help='Set the Flexible Resource Scheduling mode')
 
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
       errors.extend(validator.validate_gcs_path(self, 'temp_location'))
-      if getattr(self, 'staging_location',
-                 None) or getattr(self, 'temp_location', None) is None:
+      if (getattr(self, 'staging_location', None)
+          or getattr(self, 'temp_location', None) is None):
         errors.extend(validator.validate_gcs_path(self, 'staging_location'))
 
     if self.view_as(DebugOptions).dataflow_job_file:
       if self.view_as(GoogleCloudOptions).template_location:
-        errors.append('--dataflow_job_file and --template_location '
-                      'are mutually exclusive.')
+        errors.append(
+            '--dataflow_job_file and --template_location '
+            'are mutually exclusive.')
 
     return errors
 
@@ -511,18 +532,11 @@ class HadoopFileSystemOptions(PipelineOptions):
     parser.add_argument(
         '--hdfs_host',
         default=None,
-        help=
-        ('Hostname or address of the HDFS namenode.'))
+        help='Hostname or address of the HDFS namenode.')
     parser.add_argument(
-        '--hdfs_port',
-        default=None,
-        help=
-        ('Port of the HDFS namenode.'))
+        '--hdfs_port', default=None, help='Port of the HDFS namenode.')
     parser.add_argument(
-        '--hdfs_user',
-        default=None,
-        help=
-        ('HDFS username to use.'))
+        '--hdfs_user', default=None, help='HDFS username to use.')
 
   def validate(self, validator):
     errors = []
@@ -541,55 +555,61 @@ class WorkerOptions(PipelineOptions):
         '--num_workers',
         type=int,
         default=None,
-        help=
-        ('Number of workers to use when executing the Dataflow job. If not '
-         'set, the Dataflow service will use a reasonable default.'))
+        help=(
+            'Number of workers to use when executing the Dataflow job. If not '
+            'set, the Dataflow service will use a reasonable default.'
+        ))
     parser.add_argument(
         '--max_num_workers',
         type=int,
         default=None,
-        help=
-        ('Maximum number of workers to use when executing the Dataflow job.'))
+        help=(
+            'Maximum number of workers to use when executing the Dataflow job.'
+        ))
     parser.add_argument(
         '--autoscaling_algorithm',
         type=str,
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
-        help=
-        ('If and how to autoscale the workerpool.'))
+        help='If and how to autoscale the workerpool.')
     parser.add_argument(
         '--worker_machine_type',
         dest='machine_type',
         default=None,
-        help=('Machine type to create Dataflow worker VMs as. See '
-              'https://cloud.google.com/compute/docs/machine-types '
-              'for a list of valid options. If not set, '
-              'the Dataflow service will choose a reasonable '
-              'default.'))
+        help=(
+            'Machine type to create Dataflow worker VMs as. See '
+            'https://cloud.google.com/compute/docs/machine-types '
+            'for a list of valid options. If not set, '
+            'the Dataflow service will choose a reasonable '
+            'default.'
+        ))
     parser.add_argument(
         '--disk_size_gb',
         type=int,
         default=None,
-        help=
-        ('Remote worker disk size, in gigabytes, or 0 to use the default size. '
-         'If not set, the Dataflow service will use a reasonable default.'))
+        help=(
+            'Remote worker disk size, in gigabytes, or 0 to use the default size. '
+            'If not set, the Dataflow service will use a reasonable default.'
+        ))
     parser.add_argument(
         '--worker_disk_type',
         dest='disk_type',
         default=None,
-        help=('Specifies what type of persistent disk should be used.'))
+        help='Specifies what type of persistent disk should be used.')
     parser.add_argument(
         '--zone',
         default=None,
         help=(
             'GCE availability zone for launching workers. Default is up to the '
-            'Dataflow service.'))
+            'Dataflow service.'
+        ))
     parser.add_argument(
         '--network',
         default=None,
         help=(
             'GCE network for launching workers. Default is up to the Dataflow '
-            'service.'))
+            'service.'
+        ))
     parser.add_argument(
         '--subnetwork',
         default=None,
@@ -598,14 +618,17 @@ class WorkerOptions(PipelineOptions):
             'Dataflow service. Expected format is '
             'regions/REGION/subnetworks/SUBNETWORK or the fully qualified '
             'subnetwork name. For more information, see '
-            'https://cloud.google.com/compute/docs/vpc/'))
+            'https://cloud.google.com/compute/docs/vpc/'
+        ))
     parser.add_argument(
         '--worker_harness_container_image',
         default=None,
-        help=('Docker registry location of container image to use for the '
-              'worker harness. Default is the container for the version of the '
-              'SDK. Note: currently, only approved Google Cloud Dataflow '
-              'container images may be used here.'))
+        help=(
+            'Docker registry location of container image to use for the '
+            'worker harness. Default is the container for the version of the '
+            'SDK. Note: currently, only approved Google Cloud Dataflow '
+            'container images may be used here.'
+        ))
     parser.add_argument(
         '--use_public_ips',
         default=None,
@@ -616,21 +639,20 @@ class WorkerOptions(PipelineOptions):
         dest='use_public_ips',
         default=None,
         action='store_false',
-        help='Whether to assign only private IP addresses to the worker VMs.')
+        help='Whether to assign only private IP addresses to the worker VMs.',
+    )
     parser.add_argument(
         '--min_cpu_platform',
         dest='min_cpu_platform',
         type=str,
-        help='GCE minimum CPU platform. Default is determined by GCP.'
-    )
+        help='GCE minimum CPU platform. Default is determined by GCP.')
     parser.add_argument(
         '--dataflow_worker_jar',
         dest='dataflow_worker_jar',
         type=str,
         help='Dataflow worker jar file. If specified, the jar file is staged '
-             'in GCS, then gets loaded by workers. End users usually '
-             'should not use this feature.'
-    )
+        'in GCS, then gets loaded by workers. End users usually '
+        'should not use this feature.')
 
   def validate(self, validator):
     errors = []
@@ -641,21 +663,23 @@ class WorkerOptions(PipelineOptions):
 
 
 class DebugOptions(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--dataflow_job_file',
-                        default=None,
-                        help='Debug file to write the workflow specification.')
     parser.add_argument(
-        '--experiment', '--experiments',
+        '--dataflow_job_file',
+        default=None,
+        help='Debug file to write the workflow specification.')
+    parser.add_argument(
+        '--experiment',
+        '--experiments',
         dest='experiments',
         action='append',
         default=None,
-        help=
-        ('Runners may provide a number of experimental features that can be '
-         'enabled with this flag. Please sync with the owners of the runner '
-         'before enabling any experiments.'))
+        help=(
+            'Runners may provide a number of experimental features that can be '
+            'enabled with this flag. Please sync with the owners of the runner '
+            'before enabling any experiments.'
+        ))
 
   def add_experiment(self, experiment):
     # pylint: disable=access-member-before-definition
@@ -676,167 +700,195 @@ class DebugOptions(PipelineOptions):
 
 
 class ProfilingOptions(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--profile_cpu',
-                        action='store_true',
-                        help='Enable work item CPU profiling.')
-    parser.add_argument('--profile_memory',
-                        action='store_true',
-                        help='Enable work item heap profiling.')
-    parser.add_argument('--profile_location',
-                        default=None,
-                        help='path for saving profiler data.')
-    parser.add_argument('--profile_sample_rate',
-                        type=float,
-                        default=1.0,
-                        help='A number between 0 and 1 indicating the ratio '
-                        'of bundles that should be profiled.')
+    parser.add_argument(
+        '--profile_cpu',
+        action='store_true',
+        help='Enable work item CPU profiling.')
+    parser.add_argument(
+        '--profile_memory',
+        action='store_true',
+        help='Enable work item heap profiling.')
+    parser.add_argument(
+        '--profile_location',
+        default=None,
+        help='path for saving profiler data.')
+    parser.add_argument(
+        '--profile_sample_rate',
+        type=float,
+        default=1.0,
+        help='A number between 0 and 1 indicating the ratio '
+        'of bundles that should be profiled.')
 
 
 class SetupOptions(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     # Options for installing dependencies in the worker.
     parser.add_argument(
         '--requirements_file',
         default=None,
-        help=
-        ('Path to a requirements file containing package dependencies. '
-         'Typically it is produced by a pip freeze command. More details: '
-         'https://pip.pypa.io/en/latest/reference/pip_freeze.html. '
-         'If used, all the packages specified will be downloaded, '
-         'cached (use --requirements_cache to change default location), '
-         'and then staged so that they can be automatically installed in '
-         'workers during startup. The cache is refreshed as needed '
-         'avoiding extra downloads for existing packages. Typically the '
-         'file is named requirements.txt.'))
+        help=(
+            'Path to a requirements file containing package dependencies. '
+            'Typically it is produced by a pip freeze command. More details: '
+            'https://pip.pypa.io/en/latest/reference/pip_freeze.html. '
+            'If used, all the packages specified will be downloaded, '
+            'cached (use --requirements_cache to change default location), '
+            'and then staged so that they can be automatically installed in '
+            'workers during startup. The cache is refreshed as needed '
+            'avoiding extra downloads for existing packages. Typically the '
+            'file is named requirements.txt.'
+        ))
     parser.add_argument(
         '--requirements_cache',
         default=None,
-        help=
-        ('Path to a folder to cache the packages specified in '
-         'the requirements file using the --requirements_file option.'))
+        help=(
+            'Path to a folder to cache the packages specified in '
+            'the requirements file using the --requirements_file option.'
+        ))
     parser.add_argument(
         '--setup_file',
         default=None,
-        help=
-        ('Path to a setup Python file containing package dependencies. If '
-         'specified, the file\'s containing folder is assumed to have the '
-         'structure required for a setuptools setup package. The file must be '
-         'named setup.py. More details: '
-         'https://pythonhosted.org/an_example_pypi_project/setuptools.html '
-         'During job submission a source distribution will be built and the '
-         'worker will install the resulting package before running any custom '
-         'code.'))
+        help=(
+            'Path to a setup Python file containing package dependencies. If '
+            'specified, the file\'s containing folder is assumed to have the '
+            'structure required for a setuptools setup package. The file must be '
+            'named setup.py. More details: '
+            'https://pythonhosted.org/an_example_pypi_project/setuptools.html '
+            'During job submission a source distribution will be built and the '
+            'worker will install the resulting package before running any custom '
+            'code.'
+        ))
     parser.add_argument(
-        '--beam_plugin', '--beam_plugin',
+        '--beam_plugin',
+        '--beam_plugin',
         dest='beam_plugins',
         action='append',
         default=None,
-        help=
-        ('Bootstrap the python process before executing any code by importing '
-         'all the plugins used in the pipeline. Please pass a comma separated'
-         'list of import paths to be included. This is currently an '
-         'experimental flag and provides no stability. Multiple '
-         '--beam_plugin options can be specified if more than one plugin '
-         'is needed.'))
+        help=(
+            'Bootstrap the python process before executing any code by importing '
+            'all the plugins used in the pipeline. Please pass a comma separated'
+            'list of import paths to be included. This is currently an '
+            'experimental flag and provides no stability. Multiple '
+            '--beam_plugin options can be specified if more than one plugin '
+            'is needed.'
+        ))
     parser.add_argument(
         '--save_main_session',
         default=False,
         action='store_true',
-        help=
-        ('Save the main session state so that pickled functions and classes '
-         'defined in __main__ (e.g. interactive session) can be unpickled. '
-         'Some workflows do not need the session state if for instance all '
-         'their functions/classes are defined in proper modules (not __main__)'
-         ' and the modules are importable in the worker. '))
+        help=(
+            'Save the main session state so that pickled functions and classes '
+            'defined in __main__ (e.g. interactive session) can be unpickled. '
+            'Some workflows do not need the session state if for instance all '
+            'their functions/classes are defined in proper modules (not __main__)'
+            ' and the modules are importable in the worker. '
+        ))
     parser.add_argument(
         '--sdk_location',
         default='default',
-        help=
-        ('Override the default location from where the Beam SDK is downloaded. '
-         'It can be a URL, a GCS path, or a local path to an SDK tarball. '
-         'Workflow submissions will download or copy an SDK tarball from here. '
-         'If set to the string "default", a standard SDK location is used. If '
-         'empty, no SDK is copied.'))
+        help=(
+            'Override the default location from where the Beam SDK is downloaded. '
+            'It can be a URL, a GCS path, or a local path to an SDK tarball. '
+            'Workflow submissions will download or copy an SDK tarball from here. '
+            'If set to the string "default", a standard SDK location is used. If '
+            'empty, no SDK is copied.'
+        ))
     parser.add_argument(
-        '--extra_package', '--extra_packages',
+        '--extra_package',
+        '--extra_packages',
         dest='extra_packages',
         action='append',
         default=None,
-        help=
-        ('Local path to a Python package file. The file is expected to be (1) '
-         'a package tarball (".tar"), (2) a compressed package tarball '
-         '(".tar.gz"), (3) a Wheel file (".whl") or (4) a compressed package '
-         'zip file (".zip") which can be installed using the "pip install" '
-         'command  of the standard pip package. Multiple --extra_package '
-         'options can be specified if more than one package is needed. During '
-         'job submission, the files will be staged in the staging area '
-         '(--staging_location option) and the workers will install them in '
-         'same order they were specified on the command line.'))
+        help=(
+            'Local path to a Python package file. The file is expected to be (1) '
+            'a package tarball (".tar"), (2) a compressed package tarball '
+            '(".tar.gz"), (3) a Wheel file (".whl") or (4) a compressed package '
+            'zip file (".zip") which can be installed using the "pip install" '
+            'command  of the standard pip package. Multiple --extra_package '
+            'options can be specified if more than one package is needed. During '
+            'job submission, the files will be staged in the staging area '
+            '(--staging_location option) and the workers will install them in '
+            'same order they were specified on the command line.'
+        ))
 
 
 class PortableOptions(PipelineOptions):
   """Portable options are common options expected to be understood by most of
   the portable runners.
   """
+
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--job_endpoint',
-                        default=None,
-                        help=
-                        ('Job service endpoint to use. Should be in the form '
-                         'of address and port, e.g. localhost:3000'))
     parser.add_argument(
-        '--environment_type', default=None,
-        help=('Set the default environment type for running '
-              'user code. Possible options are DOCKER and PROCESS.'))
+        '--job_endpoint',
+        default=None,
+        help=(
+            'Job service endpoint to use. Should be in the form '
+            'of address and port, e.g. localhost:3000'
+        ))
     parser.add_argument(
-        '--environment_config', default=None,
-        help=('Set environment configuration for running the user code.\n For '
-              'DOCKER: Url for the docker image.\n For PROCESS: json of the '
-              'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
-              '"<process to execute>", "env":{"<Environment variables 1>": '
-              '"<ENV_VAL>"} }. All fields in the json are optional except '
-              'command.'))
+        '--environment_type',
+        default=None,
+        help=(
+            'Set the default environment type for running '
+            'user code. Possible options are DOCKER and PROCESS.'
+        ))
     parser.add_argument(
-        '--sdk_worker_parallelism', default=0,
-        help=('Sets the number of sdk worker processes that will run on each '
-              'worker node. Default is 0. If 0, it will be automatically set '
-              'by the runner by looking at different parameters (e.g. number '
-              'of CPU cores on the worker machine or configuration).'))
+        '--environment_config',
+        default=None,
+        help=(
+            'Set environment configuration for running the user code.\n For '
+            'DOCKER: Url for the docker image.\n For PROCESS: json of the '
+            'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
+            '"<process to execute>", "env":{"<Environment variables 1>": '
+            '"<ENV_VAL>"} }. All fields in the json are optional except '
+            'command.'
+        ))
     parser.add_argument(
-        '--environment_cache_millis', default=0,
-        help=('Duration in milliseconds for environment cache within a job. '
-              '0 means no caching.'))
+        '--sdk_worker_parallelism',
+        default=0,
+        help=(
+            'Sets the number of sdk worker processes that will run on each '
+            'worker node. Default is 0. If 0, it will be automatically set '
+            'by the runner by looking at different parameters (e.g. number '
+            'of CPU cores on the worker machine or configuration).'
+        ))
+    parser.add_argument(
+        '--environment_cache_millis',
+        default=0,
+        help=(
+            'Duration in milliseconds for environment cache within a job. '
+            '0 means no caching.'
+        ))
 
 
 class TestOptions(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     # Options for e2e test pipeline.
     parser.add_argument(
         '--on_success_matcher',
         default=None,
-        help=('Verify state/output of e2e test pipeline. This is pickled '
-              'version of the matcher which should extends '
-              'hamcrest.core.base_matcher.BaseMatcher.'))
+        help=(
+            'Verify state/output of e2e test pipeline. This is pickled '
+            'version of the matcher which should extends '
+            'hamcrest.core.base_matcher.BaseMatcher.'
+        ))
     parser.add_argument(
         '--dry_run',
         default=False,
-        help=('Used in unit testing runners without submitting the '
-              'actual job.'))
+        help=(
+            'Used in unit testing runners without submitting the ' 'actual job.'
+        ))
     parser.add_argument(
         '--wait_until_finish_duration',
         default=None,
         type=int,
         help='The time to wait (in milliseconds) for test pipeline to finish. '
-             'If it is set to None, it will wait indefinitely until the job '
-             'is finished.')
+        'If it is set to None, it will wait indefinitely until the job '
+        'is finished.')
 
   def validate(self, validator):
     errors = []
@@ -846,7 +898,6 @@ class TestOptions(PipelineOptions):
 
 
 class TestDataflowOptions(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     # This option is passed to Dataflow Runner's Pub/Sub client. The camelCase
@@ -855,7 +906,7 @@ class TestDataflowOptions(PipelineOptions):
         '--pubsub_root_url',
         dest='pubsubRootUrl',
         default=None,
-        help='Root URL for use with the Google Cloud Pub/Sub API.',)
+        help='Root URL for use with the Google Cloud Pub/Sub API.')
 
 
 # TODO(silviuc): Add --files_to_stage option.
@@ -876,6 +927,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
+
   overrides = []
 
   def __init__(self, **options):
@@ -888,7 +940,6 @@ class OptionsContext(object):
     self.overrides.pop()
 
   def __call__(self, f, *args, **kwargs):
-
     def wrapper(*args, **kwargs):
       with self:
         f(*args, **kwargs)

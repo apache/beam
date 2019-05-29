@@ -56,9 +56,12 @@ class WordCountIT(unittest.TestCase):
     extra_opts = {}
 
     # Set extra options to the pipeline for test purpose
-    test_output = '/'.join([test_pipeline.get_option('output'),
-                            str(int(time.time() * 1000)),
-                            'results'])
+    test_output = '/'.join(
+        [
+            test_pipeline.get_option('output'),
+            str(int(time.time() * 1000)),
+            'results',
+        ])
     extra_opts['output'] = test_output
 
     test_input = test_pipeline.get_option('input')
@@ -67,12 +70,14 @@ class WordCountIT(unittest.TestCase):
 
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')
     sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
-    expect_checksum = (test_pipeline.get_option('expect_checksum') or
-                       self.DEFAULT_CHECKSUM)
-    pipeline_verifiers = [PipelineStateMatcher(),
-                          FileChecksumMatcher(test_output + '*-of-*',
-                                              expect_checksum,
-                                              sleep_secs)]
+    expect_checksum = (
+        test_pipeline.get_option('expect_checksum') or self.DEFAULT_CHECKSUM)
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        FileChecksumMatcher(
+            test_output + '*-of-*', expect_checksum, sleep_secs
+        ),
+    ]
     extra_opts['on_success_matcher'] = all_of(*pipeline_verifiers)
     extra_opts.update(opts)
 

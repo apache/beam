@@ -48,15 +48,16 @@ def get_julia_set_point_color(element, c, n, max_iterations):
 
 def generate_julia_set_colors(pipeline, c, n, max_iterations):
   """Compute julia set coordinates for each point in our set."""
+
   def point_set(n):
     for x in range(n):
       for y in range(n):
         yield (x, y)
 
-  julia_set_colors = (pipeline
-                      | 'add points' >> beam.Create(point_set(n))
-                      | beam.Map(
-                          get_julia_set_point_color, c, n, max_iterations))
+  julia_set_colors = (
+      pipeline
+      | 'add points' >> beam.Create(point_set(n))
+      | beam.Map(get_julia_set_point_color, c, n, max_iterations))
 
   return julia_set_colors
 
@@ -64,6 +65,7 @@ def generate_julia_set_colors(pipeline, c, n, max_iterations):
 def generate_julia_set_visualization(data, n, max_iterations):
   """Generate the pixel matrix for rendering the julia set as an image."""
   import numpy as np  # pylint: disable=wrong-import-order, wrong-import-position
+
   colors = []
   for r in range(0, 256, 16):
     for g in range(0, 256, 16):
@@ -79,32 +81,38 @@ def generate_julia_set_visualization(data, n, max_iterations):
 
 def save_julia_set_visualization(out_file, image_array):
   """Save the fractal image of our julia set as a png."""
-  from matplotlib import pyplot as plt  # pylint: disable=wrong-import-order, wrong-import-position
+  from matplotlib import (
+      pyplot as plt,
+  )  # pylint: disable=wrong-import-order, wrong-import-position
+
   plt.imsave(out_file, image_array, format='png')
 
 
 def run(argv=None):  # pylint: disable=missing-docstring
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--grid_size',
-                      dest='grid_size',
-                      default=1000,
-                      help='Size of the NxN matrix')
+  parser.add_argument(
+      '--grid_size',
+      dest='grid_size',
+      default=1000,
+      help='Size of the NxN matrix')
   parser.add_argument(
       '--coordinate_output',
       dest='coordinate_output',
       required=True,
       help='Output file to write the color coordinates of the image to.')
-  parser.add_argument('--image_output',
-                      dest='image_output',
-                      default=None,
-                      help='Output file to write the resulting image to.')
+  parser.add_argument(
+      '--image_output',
+      dest='image_output',
+      default=None,
+      help='Output file to write the resulting image to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
     n = int(known_args.grid_size)
 
-    coordinates = generate_julia_set_colors(p, complex(-.62772, .42193), n, 100)
+    coordinates = generate_julia_set_colors(
+        p, complex(-0.62772, 0.42193), n, 100)
 
     def x_coord_key(x_y_i):
       (x, y, i) = x_y_i
@@ -113,12 +121,15 @@ def run(argv=None):  # pylint: disable=missing-docstring
     # Group each coordinate triplet by its x value, then write the coordinates
     # to the output file with an x-coordinate grouping per line.
     # pylint: disable=expression-not-assigned
-    (coordinates
-     | 'x coord key' >> beam.Map(x_coord_key)
-     | 'x coord' >> beam.GroupByKey()
-     | 'format' >> beam.Map(
-         lambda k_coords: ' '.join('(%s, %s, %s)' % c for c in k_coords[1]))
-     | WriteToText(known_args.coordinate_output))
+    (
+        coordinates
+        | 'x coord key' >> beam.Map(x_coord_key)
+        | 'x coord' >> beam.GroupByKey()
+        | 'format'
+        >> beam.Map(
+            lambda k_coords: ' '.join('(%s, %s, %s)' % c for c in k_coords[1])
+        )
+        | WriteToText(known_args.coordinate_output))
 
     # Optionally render the image and save it to a file.
     # TODO(silviuc): Add this functionality.

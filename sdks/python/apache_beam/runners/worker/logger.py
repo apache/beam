@@ -35,7 +35,6 @@ from apache_beam.runners.worker import statesampler
 # context information that changes while work items get executed:
 # work_item_id, step_name, stage_name.
 class _PerThreadWorkerData(threading.local):
-
   def __init__(self):
     super(_PerThreadWorkerData, self).__init__()
     # in the list, as going up and down all the way to zero incurs several
@@ -118,7 +117,8 @@ class JsonLogFormatter(logging.Formatter):
     output = {}
     output['timestamp'] = {
         'seconds': int(record.created),
-        'nanos': int(record.msecs * 1000000)}
+        'nanos': int(record.msecs * 1000000),
+    }
     # ERROR. INFO, DEBUG log levels translate into the same for severity
     # property. WARNING becomes WARN.
     output['severity'] = (
@@ -161,7 +161,9 @@ class JsonLogFormatter(logging.Formatter):
     # file and the function name where the logging happened to make it easier
     # to identify who generated the record.
     output['logger'] = '%s:%s:%s' % (
-        record.name, record.filename, record.funcName)
+        record.name,
+        record.filename,
+        record.funcName)
     # Add exception information if any is available.
     if record.exc_info:
       output['exception'] = ''.join(

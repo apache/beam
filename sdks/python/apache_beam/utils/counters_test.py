@@ -26,63 +26,59 @@ from apache_beam.utils.counters import CounterName
 
 
 class CounterNameTest(unittest.TestCase):
-
   def test_name_string_representation(self):
-    counter_name = CounterName('counter_name',
-                               'stage_name',
-                               'step_name')
+    counter_name = CounterName('counter_name', 'stage_name', 'step_name')
 
     # This string representation is utilized by the worker to report progress.
     # Change only if the worker code has also been changed.
     self.assertEqual('stage_name-step_name-counter_name', str(counter_name))
-    self.assertIn('<CounterName<stage_name-step_name-counter_name> at 0x',
-                  repr(counter_name))
+    self.assertIn(
+        '<CounterName<stage_name-step_name-counter_name> at 0x',
+        repr(counter_name))
 
   def test_equal_objects(self):
-    self.assertEqual(CounterName('counter_name',
-                                 'stage_name',
-                                 'step_name'),
-                     CounterName('counter_name',
-                                 'stage_name',
-                                 'step_name'))
-    self.assertNotEqual(CounterName('counter_name',
-                                    'stage_name',
-                                    'step_name'),
-                        CounterName('counter_name',
-                                    'stage_name',
-                                    'step_nam'))
+    self.assertEqual(
+        CounterName('counter_name', 'stage_name', 'step_name'),
+        CounterName('counter_name', 'stage_name', 'step_name'))
+    self.assertNotEqual(
+        CounterName('counter_name', 'stage_name', 'step_name'),
+        CounterName('counter_name', 'stage_name', 'step_nam'))
 
     # Testing objects with an IOTarget.
-    self.assertEqual(CounterName('counter_name',
-                                 'stage_name',
-                                 'step_name',
-                                 io_target=counters.side_input_id(1, 's9')),
-                     CounterName('counter_name',
-                                 'stage_name',
-                                 'step_name',
-                                 io_target=counters.side_input_id(1, 's9')))
-    self.assertNotEqual(CounterName('counter_name',
-                                    'stage_name',
-                                    'step_name',
-                                    io_target=counters.side_input_id(1, 's')),
-                        CounterName('counter_name',
-                                    'stage_name',
-                                    'step_name',
-                                    io_target=counters.side_input_id(1, 's9')))
+    self.assertEqual(
+        CounterName(
+            'counter_name',
+            'stage_name',
+            'step_name',
+            io_target=counters.side_input_id(1, 's9'),
+        ),
+        CounterName(
+            'counter_name',
+            'stage_name',
+            'step_name',
+            io_target=counters.side_input_id(1, 's9'),
+        ))
+    self.assertNotEqual(
+        CounterName(
+            'counter_name',
+            'stage_name',
+            'step_name',
+            io_target=counters.side_input_id(1, 's'),
+        ),
+        CounterName(
+            'counter_name',
+            'stage_name',
+            'step_name',
+            io_target=counters.side_input_id(1, 's9'),
+        ))
 
   def test_hash_two_objects(self):
-    self.assertEqual(hash(CounterName('counter_name',
-                                      'stage_name',
-                                      'step_name')),
-                     hash(CounterName('counter_name',
-                                      'stage_name',
-                                      'step_name')))
-    self.assertNotEqual(hash(CounterName('counter_name',
-                                         'stage_name',
-                                         'step_name')),
-                        hash(CounterName('counter_name',
-                                         'stage_name',
-                                         'step_nam')))
+    self.assertEqual(
+        hash(CounterName('counter_name', 'stage_name', 'step_name')),
+        hash(CounterName('counter_name', 'stage_name', 'step_name')))
+    self.assertNotEqual(
+        hash(CounterName('counter_name', 'stage_name', 'step_name')),
+        hash(CounterName('counter_name', 'stage_name', 'step_nam')))
 
 
 if __name__ == '__main__':

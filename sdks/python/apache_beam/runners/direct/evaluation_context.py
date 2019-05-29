@@ -53,7 +53,6 @@ class _ExecutionContext(object):
 
 
 class _SideInputView(object):
-
   def __init__(self, view):
     self._view = view
     self.blocked_tasks = collections.deque()
@@ -62,8 +61,9 @@ class _SideInputView(object):
     self.watermark = None
 
   def __repr__(self):
-    elements_string = (', '.join(str(elm) for elm in self.elements)
-                       if self.elements else '[]')
+    elements_string = (
+        ', '.join(str(elm) for elm in self.elements) if self.elements else '[]'
+    )
     return '_SideInputView(elements=%s)' % elements_string
 
 
@@ -85,8 +85,10 @@ class _SideInputsContainer(object):
       self._transform_to_side_inputs[side.pvalue.producer].append(side)
 
   def __repr__(self):
-    views_string = (', '.join(str(elm) for elm in self._views.values())
-                    if self._views else '[]')
+    views_string = (
+        ', '.join(str(elm) for elm in self._views.values())
+        if self._views
+        else '[]')
     return '_SideInputsContainer(_views=%s)' % views_string
 
   def get_value_or_block_until_ready(self, side_input, task, block_until):
@@ -118,9 +120,8 @@ class _SideInputsContainer(object):
       view = self._views[side_input]
       view.elements.extend(values)
 
-  def update_watermarks_for_transform_and_unblock_tasks(self,
-                                                        ptransform,
-                                                        watermark):
+  def update_watermarks_for_transform_and_unblock_tasks(
+      self, ptransform, watermark):
     """Updates _SideInputsContainer after a watermark update and unbloks tasks.
 
     It traverses the list of side inputs per PTransform and calls
@@ -137,12 +138,12 @@ class _SideInputsContainer(object):
     for side in self._transform_to_side_inputs[ptransform]:
       unblocked_tasks.extend(
           self._update_watermarks_for_side_input_and_unblock_tasks(
-              side, watermark))
+              side, watermark)
+)
     return unblocked_tasks
 
-  def _update_watermarks_for_side_input_and_unblock_tasks(self,
-                                                          side_input,
-                                                          watermark):
+  def _update_watermarks_for_side_input_and_unblock_tasks(
+      self, side_input, watermark):
     """Helps update _SideInputsContainer after a watermark update.
 
     For each view of the side input, it updates the value of the watermark
@@ -184,9 +185,8 @@ class _SideInputsContainer(object):
     Raises:
       ValueError: If values cannot be converted into the requested form.
     """
-    return sideinputs.SideInputMap(type(side_input),
-                                   side_input._view_options(),
-                                   values)
+    return sideinputs.SideInputMap(
+        type(side_input), side_input._view_options(), values)
 
 
 class EvaluationContext(object):
@@ -210,8 +210,15 @@ class EvaluationContext(object):
   global watermarks, and executing any callbacks that can be executed.
   """
 
-  def __init__(self, pipeline_options, bundle_factory, root_transforms,
-               value_to_consumers, step_names, views, clock):
+  def __init__(
+      self,
+      pipeline_options,
+      bundle_factory,
+      root_transforms,
+      value_to_consumers,
+      step_names,
+      views,
+      clock):
     self.pipeline_options = pipeline_options
     self._bundle_factory = bundle_factory
     self._root_transforms = root_transforms
@@ -225,8 +232,8 @@ class EvaluationContext(object):
         root_transforms, value_to_consumers)
     self._side_inputs_container = _SideInputsContainer(views)
     self._watermark_manager = WatermarkManager(
-        clock, root_transforms, value_to_consumers,
-        self._transform_keyed_states)
+        clock, root_transforms, value_to_consumers, self._transform_keyed_states
+    )
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
     self._metrics = DirectMetrics()
@@ -253,8 +260,7 @@ class EvaluationContext(object):
   def is_root_transform(self, applied_ptransform):
     return applied_ptransform in self._root_transforms
 
-  def handle_result(
-      self, completed_bundle, completed_timers, result):
+  def handle_result(self, completed_bundle, completed_timers, result):
     """Handle the provided result produced after evaluating the input bundle.
 
     Handle the provided TransformResult, produced after evaluating
@@ -275,19 +281,22 @@ class EvaluationContext(object):
     """
     with self._lock:
       committed_bundles, unprocessed_bundles = self._commit_bundles(
-          result.uncommitted_output_bundles,
-          result.unprocessed_bundles)
+          result.uncommitted_output_bundles, result.unprocessed_bundles)
 
-      self._metrics.commit_logical(completed_bundle,
-                                   result.logical_metric_updates)
+      self._metrics.commit_logical(
+          completed_bundle, result.logical_metric_updates)
 
       # If the result is for a view, update side inputs container.
       self._update_side_inputs_container(committed_bundles, result)
 
       # Tasks generated from unblocked side inputs as the watermark progresses.
       tasks = self._watermark_manager.update_watermarks(
-          completed_bundle, result.transform, completed_timers,
-          committed_bundles, unprocessed_bundles, result.keyed_watermark_holds,
+          completed_bundle,
+          result.transform,
+          completed_timers,
+          committed_bundles,
+          unprocessed_bundles,
+          result.keyed_watermark_holds,
           self._side_inputs_container)
       self._pending_unblocked_tasks.extend(tasks)
 
@@ -313,12 +322,12 @@ class EvaluationContext(object):
         and result.uncommitted_output_bundles[0].pcollection
         in self._pcollection_to_views):
       for view in self._pcollection_to_views[
-          result.uncommitted_output_bundles[0].pcollection]:
+          result.uncommitted_output_bundles[0].pcollection
+      ]:
         for committed_bundle in committed_bundles:
           # side_input must be materialized.
           self._side_inputs_container.add_values(
-              view,
-              committed_bundle.get_elements_iterable(make_copy=True))
+              view, committed_bundle.get_elements_iterable(make_copy=True))
 
   def get_aggregator_values(self, aggregator_or_name):
     return self._counter_factory.get_aggregator_values(aggregator_or_name)

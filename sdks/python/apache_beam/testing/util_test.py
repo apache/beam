@@ -33,7 +33,6 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 class UtilTest(unittest.TestCase):
-
   def test_assert_that_passes(self):
     with TestPipeline() as p:
       assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
@@ -60,34 +59,38 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
   def test_reified_value_passes(self):
-    expected = [TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()])
-                for v in [1, 2, 3]]
+    expected = [
+        TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()]) for v in [1, 2, 3]
+    ]
     with TestPipeline() as p:
       assert_that(p | Create([2, 3, 1]), equal_to(expected), reify_windows=True)
 
   def test_reified_value_assert_fail_unmatched_value(self):
-    expected = [TestWindowedValue(v + 1, MIN_TIMESTAMP, [GlobalWindow()])
-                for v in [1, 2, 3]]
+    expected = [
+        TestWindowedValue(v + 1, MIN_TIMESTAMP, [GlobalWindow()])
+        for v in [1, 2, 3]
+    ]
     with self.assertRaises(Exception):
       with TestPipeline() as p:
-        assert_that(p | Create([2, 3, 1]), equal_to(expected),
-                    reify_windows=True)
+        assert_that(
+            p | Create([2, 3, 1]), equal_to(expected), reify_windows=True)
 
   def test_reified_value_assert_fail_unmatched_timestamp(self):
-    expected = [TestWindowedValue(v, 1, [GlobalWindow()])
-                for v in [1, 2, 3]]
+    expected = [TestWindowedValue(v, 1, [GlobalWindow()]) for v in [1, 2, 3]]
     with self.assertRaises(Exception):
       with TestPipeline() as p:
-        assert_that(p | Create([2, 3, 1]), equal_to(expected),
-                    reify_windows=True)
+        assert_that(
+            p | Create([2, 3, 1]), equal_to(expected), reify_windows=True)
 
   def test_reified_value_assert_fail_unmatched_window(self):
-    expected = [TestWindowedValue(v, MIN_TIMESTAMP, [IntervalWindow(0, 1)])
-                for v in [1, 2, 3]]
+    expected = [
+        TestWindowedValue(v, MIN_TIMESTAMP, [IntervalWindow(0, 1)])
+        for v in [1, 2, 3]
+    ]
     with self.assertRaises(Exception):
       with TestPipeline() as p:
-        assert_that(p | Create([2, 3, 1]), equal_to(expected),
-                    reify_windows=True)
+        assert_that(
+            p | Create([2, 3, 1]), equal_to(expected), reify_windows=True)
 
   def test_assert_that_fails_on_empty_input(self):
     with self.assertRaises(Exception):

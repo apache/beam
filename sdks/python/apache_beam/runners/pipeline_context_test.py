@@ -26,7 +26,6 @@ from apache_beam.runners import pipeline_context
 
 
 class PipelineContextTest(unittest.TestCase):
-
   def test_deduplication(self):
     context = pipeline_context.PipelineContext()
     bytes_coder_ref = context.coders.get_id(coders.BytesCoder())
@@ -48,11 +47,9 @@ class PipelineContextTest(unittest.TestCase):
     proto = context.to_runner_api()
     context2 = pipeline_context.PipelineContext.from_runner_api(proto)
     self.assertEqual(
-        coders.FloatCoder(),
-        context2.coders.get_by_id(float_coder_ref))
+        coders.FloatCoder(), context2.coders.get_by_id(float_coder_ref))
     self.assertEqual(
-        coders.BytesCoder(),
-        context2.coders.get_by_id(bytes_coder_ref))
+        coders.BytesCoder(), context2.coders.get_by_id(bytes_coder_ref))
 
 
 if __name__ == '__main__':

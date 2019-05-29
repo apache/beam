@@ -62,6 +62,7 @@ class TransformNames(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Transform strings as they are expected in the CloudWorkflow protos."""
+
   COLLECTION_TO_SINGLETON = 'CollectionToSingleton'
   COMBINE = 'CombineValues'
   CREATE_PCOLLECTION = 'CreateCollection'
@@ -76,6 +77,7 @@ class PropertyNames(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Property strings as they are expected in the CloudWorkflow protos."""
+
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
   BIGQUERY_EXPORT_FORMAT = 'bigquery_export_format'

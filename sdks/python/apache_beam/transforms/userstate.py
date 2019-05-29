@@ -57,7 +57,8 @@ class BagStateSpec(StateSpec):
   def to_runner_api(self, context):
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
-            element_coder_id=context.coders.get_id(self.coder)))
+            element_coder_id=context.coders.get_id(self.coder))
+)
 
 
 class CombiningValueStateSpec(StateSpec):
@@ -80,6 +81,7 @@ class CombiningValueStateSpec(StateSpec):
     """
     # Avoid circular import.
     from apache_beam.transforms.core import CombineFn
+
     # We want the coder to be optional, but unfortunately it comes
     # before the non-optional combine_fn parameter, which we can't
     # change for backwards compatibility reasons.
@@ -105,7 +107,8 @@ class CombiningValueStateSpec(StateSpec):
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
-            accumulator_coder_id=context.coders.get_id(self.coder)))
+            accumulator_coder_id=context.coders.get_id(self.coder))
+)
 
 
 class TimerSpec(object):
@@ -125,7 +128,8 @@ class TimerSpec(object):
     return beam_runner_api_pb2.TimerSpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_coder_id=context.coders.get_id(
-            coders._TimerCoder(coders.SingletonCoder(None))))
+            coders._TimerCoder(coders.SingletonCoder(None))
+        ))
 
 
 def on_timer(timer_spec):
@@ -180,12 +184,13 @@ def get_dofn_specs(dofn):
     if not isinstance(getattr(dofn, method_name, None), types.MethodType):
       continue
     method = MethodWrapper(dofn, method_name)
-    param_ids = [d.param_id for d in method.defaults
-                 if isinstance(d, _DoFnParam)]
+    param_ids = [
+        d.param_id for d in method.defaults if isinstance(d, _DoFnParam)
+    ]
     if len(param_ids) != len(set(param_ids)):
       raise ValueError(
-          'DoFn %r has duplicate %s method parameters: %s.' % (
-              dofn, method_name, param_ids))
+          'DoFn %r has duplicate %s method parameters: %s.'
+          % (dofn, method_name, param_ids))
     for d in method.defaults:
       if isinstance(d, _StateDoFnParam):
         all_state_specs.add(d.state_spec)
@@ -212,26 +217,29 @@ def validate_stateful_dofn(dofn):
   # Reject DoFns that have multiple state or timer specs with the same name.
   if len(all_state_specs) != len(set(s.name for s in all_state_specs)):
     raise ValueError(
-        'DoFn %r has multiple StateSpecs with the same name: %s.' % (
-            dofn, all_state_specs))
+        'DoFn %r has multiple StateSpecs with the same name: %s.'
+        % (dofn, all_state_specs))
   if len(all_timer_specs) != len(set(s.name for s in all_timer_specs)):
     raise ValueError(
-        'DoFn %r has multiple TimerSpecs with the same name: %s.' % (
-            dofn, all_timer_specs))
+        'DoFn %r has multiple TimerSpecs with the same name: %s.'
+        % (dofn, all_timer_specs))
 
   # Reject DoFns that use timer specs without corresponding timer callbacks.
   for timer_spec in all_timer_specs:
     if not timer_spec._attached_callback:
       raise ValueError(
-          ('DoFn %r has a TimerSpec without an associated on_timer '
-           'callback: %s.') % (dofn, timer_spec))
+          (
+              'DoFn %r has a TimerSpec without an associated on_timer '
+              'callback: %s.')
+          % (dofn, timer_spec))
     method_name = timer_spec._attached_callback.__name__
-    if (timer_spec._attached_callback !=
-        getattr(dofn, method_name, None).__func__):
+    if (timer_spec._attached_callback
+        != getattr(dofn, method_name, None).__func__):
       raise ValueError(
-          ('The on_timer callback for %s is not the specified .%s method '
-           'for DoFn %r (perhaps it was overwritten?).') % (
-               timer_spec, method_name, dofn))
+          (
+              'The on_timer callback for %s is not the specified .%s method '
+              'for DoFn %r (perhaps it was overwritten?).')
+          % (timer_spec, method_name, dofn))
 
 
 class RuntimeTimer(object):
@@ -262,8 +270,8 @@ class RuntimeState(object):
     if isinstance(state_spec, BagStateSpec):
       return BagRuntimeState(state_spec, state_tag, current_value_accessor)
     elif isinstance(state_spec, CombiningValueStateSpec):
-      return CombiningValueRuntimeState(state_spec, state_tag,
-                                        current_value_accessor)
+      return CombiningValueRuntimeState(
+          state_spec, state_tag, current_value_accessor)
     else:
       raise ValueError('Invalid state spec: %s' % state_spec)
 

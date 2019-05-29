@@ -61,7 +61,6 @@ def pop_three(state, unused_arg):
 
 
 def push_value(v):
-
   def pusher(state, unused_arg):
     state.stack.append(v)
 
@@ -154,8 +153,9 @@ def binary_subscr(state, unused_arg):
   base = state.stack.pop()
   if base in (str, unicode):
     out = base
-  elif (isinstance(index, Const) and isinstance(index.value, int)
-        and isinstance(base, typehints.TupleHint.TupleConstraint)):
+  elif (isinstance(index, Const)
+      and isinstance(index.value, int)
+      and isinstance(base, typehints.TupleHint.TupleConstraint)):
     const_index = index.value
     if -len(base.tuple_types) < const_index < len(base.tuple_types):
       out = base.tuple_types[const_index]
@@ -204,8 +204,9 @@ print_newline = nop
 # continue_loop
 def list_append(state, arg):
   new_element_type = Const.unwrap(state.stack.pop())
-  state.stack[-arg] = List[Union[element_type(state.stack[-arg]),
-                                 new_element_type]]
+  state.stack[-arg] = List[
+      Union[element_type(state.stack[-arg]), new_element_type]
+  ]
 
 
 load_locals = push_value(Dict[str, Any])
@@ -234,7 +235,7 @@ def unpack_sequence(state, arg):
     except TypeError:
       unpacked = [Any] * arg
   elif (isinstance(t, typehints.TupleHint.TupleConstraint)
-        and len(t.tuple_types) == arg):
+      and len(t.tuple_types) == arg):
     unpacked = list(t.tuple_types)
   else:
     unpacked = [element_type(t)] * arg
@@ -283,14 +284,13 @@ def load_attr(state, arg):
   name = state.get_name(arg)
   if isinstance(o, Const) and hasattr(o.value, name):
     state.stack.append(Const(getattr(o.value, name)))
-  elif (inspect.isclass(o) and
-        isinstance(getattr(o, name, None),
-                   (types.MethodType, types.FunctionType))):
+  elif inspect.isclass(o) and isinstance(
+      getattr(o, name, None), (types.MethodType, types.FunctionType)):
     # TODO(luke-zhu): Support other callable objects
     if sys.version_info[0] == 2:
       func = getattr(o, name).__func__
     else:
-      func = getattr(o, name) # Python 3 has no unbound methods
+      func = getattr(o, name)  # Python 3 has no unbound methods
     state.stack.append(Const(BoundMethod(func, o)))
   else:
     state.stack.append(Any)
@@ -340,6 +340,8 @@ def load_closure(state, unused_arg):
 
 def load_deref(state, arg):
   state.stack.append(state.closure_type(arg))
+
+
 # raise_varargs
 
 
@@ -354,7 +356,7 @@ def make_function(state, arg):
   """Creates a function with the arguments at the top of the stack.
   """
   # TODO(luke-zhu): Handle default argument types
-  globals = state.f.__globals__ # Inherits globals from the current frame
+  globals = state.f.__globals__  # Inherits globals from the current frame
   if sys.version_info[0] == 2:
     func_code = state.stack[-1].value
     func = types.FunctionType(func_code, globals)
@@ -366,7 +368,7 @@ def make_function(state, arg):
 
 
 def make_closure(state, arg):
-  state.stack[-arg - 2:] = [Any]  # a callable
+  state.stack[-arg - 2 :] = [Any]  # a callable
 
 
 def build_slice(state, arg):

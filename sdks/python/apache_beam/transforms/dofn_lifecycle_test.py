@@ -35,40 +35,46 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
 
   def setup(self):
     assert not self._setup_called, 'setup should not be called twice'
-    assert self._start_bundle_calls == 0, \
-      'setup should be called before start_bundle'
-    assert self._finish_bundle_calls == 0, \
-      'setup should be called before finish_bundle'
+    assert (
+        self._start_bundle_calls == 0
+    ), 'setup should be called before start_bundle'
+    assert (
+        self._finish_bundle_calls == 0
+    ), 'setup should be called before finish_bundle'
     assert not self._teardown_called, 'setup should be called before teardown'
     self._setup_called = True
 
   def start_bundle(self):
     assert self._setup_called, 'setup should have been called'
-    assert self._start_bundle_calls == self._finish_bundle_calls, \
-      'there should be as many start_bundle calls as finish_bundle calls'
+    assert (
+        self._start_bundle_calls == self._finish_bundle_calls
+    ), 'there should be as many start_bundle calls as finish_bundle calls'
     assert not self._teardown_called, 'teardown should not have been called'
     self._start_bundle_calls += 1
 
   def process(self, element):
     assert self._setup_called, 'setup should have been called'
     assert self._start_bundle_calls > 0, 'start_bundle should have been called'
-    assert self._start_bundle_calls == self._finish_bundle_calls + 1, \
-      'there should be one start_bundle call with no call to finish_bundle'
+    assert (
+        self._start_bundle_calls == self._finish_bundle_calls + 1
+    ), 'there should be one start_bundle call with no call to finish_bundle'
     assert not self._teardown_called, 'teardown should not have been called'
     return [element * element]
 
   def finish_bundle(self):
     assert self._setup_called, 'setup should have been called'
     assert self._start_bundle_calls > 0, 'start_bundle should have been called'
-    assert self._start_bundle_calls == self._finish_bundle_calls + 1, \
-      'there should be one start_bundle call with no call to finish_bundle'
+    assert (
+        self._start_bundle_calls == self._finish_bundle_calls + 1
+    ), 'there should be one start_bundle call with no call to finish_bundle'
     assert not self._teardown_called, 'teardown should not have been called'
     self._finish_bundle_calls += 1
 
   def teardown(self):
     assert self._setup_called, 'setup should have been called'
-    assert self._start_bundle_calls == self._finish_bundle_calls, \
-      'there should be as many start_bundle calls as finish_bundle calls'
+    assert (
+        self._start_bundle_calls == self._finish_bundle_calls
+    ), 'there should be as many start_bundle calls as finish_bundle calls'
     assert not self._teardown_called, 'teardown should not be called twice'
     self._teardown_called = True
 
@@ -77,9 +83,10 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
 class DoFnLifecycleTest(unittest.TestCase):
   def test_dofn_lifecycle(self):
     p = TestPipeline()
-    _ = (p
-         | 'Start' >> beam.Create([1, 2, 3])
-         | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
+    _ = (
+        p
+        | 'Start' >> beam.Create([1, 2, 3])
+        | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
     result = p.run()
     result.wait_until_finish()
     # Assumes that the worker is run in the same process as the test.

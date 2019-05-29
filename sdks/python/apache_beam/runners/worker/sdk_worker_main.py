@@ -44,7 +44,6 @@ from apache_beam.utils import profiler
 
 
 class StatusServer(object):
-
   @classmethod
   def get_thread_dump(cls):
     lines = []
@@ -82,8 +81,10 @@ class StatusServer(object):
 
     self.httpd = httpd = http.server.HTTPServer(
         ('localhost', status_http_port), StatusHttpHandler)
-    logging.info('Status HTTP server running at %s:%s', httpd.server_name,
-                 httpd.server_port)
+    logging.info(
+        'Status HTTP server running at %s:%s',
+        httpd.server_name,
+        httpd.server_port)
 
     httpd.serve_forever()
 
@@ -92,8 +93,9 @@ def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
     logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-    text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
-                      logging_service_descriptor)
+    text_format.Merge(
+        os.environ['LOGGING_API_SERVICE_DESCRIPTOR'], logging_service_descriptor
+    )
 
     # Send all logs to the runner.
     fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
@@ -131,18 +133,20 @@ def main(unused_argv):
         'Could not load main session: %s', exception_details, exc_info=True)
 
   try:
-    logging.info('Python sdk harness started with pipeline_options: %s',
-                 sdk_pipeline_options.get_all_options(drop_default=True))
+    logging.info(
+        'Python sdk harness started with pipeline_options: %s',
+        sdk_pipeline_options.get_all_options(drop_default=True))
     service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-    text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
-                      service_descriptor)
+    text_format.Merge(
+        os.environ['CONTROL_API_SERVICE_DESCRIPTOR'], service_descriptor)
     # TODO(robertwb): Support credentials.
     assert not service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
         control_address=service_descriptor.url,
         worker_count=_get_worker_count(sdk_pipeline_options),
         profiler_factory=profiler.Profile.factory_from_options(
-            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
+            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions)
+        ),
     ).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
@@ -161,11 +165,13 @@ def _parse_pipeline_options(options_json):
   else:
     # Remove extra urn part from the key.
     portable_option_regex = r'^beam:option:(?P<key>.*):v1$'
-    return PipelineOptions.from_dictionary({
-        re.match(portable_option_regex, k).group('key')
-        if re.match(portable_option_regex, k) else k: v
-        for k, v in options.items()
-    })
+    return PipelineOptions.from_dictionary(
+        {
+            re.match(portable_option_regex, k).group('key')
+            if re.match(portable_option_regex, k)
+            else k: v
+            for k, v in options.items()
+        })
 
 
 def _get_worker_count(pipeline_options):
@@ -191,8 +197,9 @@ def _get_worker_count(pipeline_options):
     # There should only be 1 match so returning from the loop
     if re.match(r'worker_threads=', experiment):
       return int(
-          re.match(r'worker_threads=(?P<worker_threads>.*)',
-                   experiment).group('worker_threads'))
+          re.match(r'worker_threads=(?P<worker_threads>.*)', experiment).group(
+              'worker_threads')
+)
 
   return 12
 
@@ -200,14 +207,15 @@ def _get_worker_count(pipeline_options):
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
   if semi_persistent_directory:
-    session_file = os.path.join(semi_persistent_directory, 'staged',
-                                names.PICKLED_MAIN_SESSION_FILE)
+    session_file = os.path.join(
+        semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
     if os.path.isfile(session_file):
       pickler.load_session(session_file)
     else:
       logging.warning(
           'No session file found: %s. Functions defined in __main__ '
-          '(interactive session) may fail.', session_file)
+          '(interactive session) may fail.',
+          session_file)
   else:
     logging.warning(
         'No semi_persistent_directory found: Functions defined in __main__ '

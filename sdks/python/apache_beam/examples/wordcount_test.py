@@ -45,9 +45,7 @@ class WordCountTest(unittest.TestCase):
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'[\w\']+', self.SAMPLE_TEXT, re.UNICODE):
       expected_words[word] += 1
-    wordcount.run([
-        '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path])
+    wordcount.run(['--input=%s*' % temp_path, '--output=%s.result' % temp_path])
     # Parse result file and compare.
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:

@@ -32,16 +32,19 @@ from apache_beam.testing.benchmarks.nexmark.nexmark_util import display
 
 
 def load(raw_events, query_args=None):
-  return (raw_events
-          | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
-          | 'FilterInBids' >> beam.Filter(
-              lambda event: isinstance(event, nexmark_model.Bid))
-          | 'ConvertToEuro' >> beam.Map(
-              lambda bid: nexmark_model.Bid(
-                  bid.auction,
-                  bid.bidder,
-                  (float(bid.price) * 89) // 100,
-                  bid.timestamp,
-                  bid.extra))
-          | 'DisplayQuery1' >> beam.Map(display)
-         )  # pylint: disable=expression-not-assigned
+  return (
+      raw_events
+      | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
+      | 'FilterInBids'
+      >> beam.Filter(lambda event: isinstance(event, nexmark_model.Bid))
+      | 'ConvertToEuro'
+      >> beam.Map(
+          lambda bid: nexmark_model.Bid(
+              bid.auction,
+              bid.bidder,
+              (float(bid.price) * 89) // 100,
+              bid.timestamp,
+              bid.extra)
+)
+      | 'DisplayQuery1' >> beam.Map(display)
+  )  # pylint: disable=expression-not-assigned

@@ -58,7 +58,8 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
       si_counter = opcounters.NoOpTransformIOCounter()
       sources = [
           FakeSource(long_generator(i, input_per_source))
-          for i in range(num_sources)]
+          for i in range(num_sources)
+      ]
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
       start = time.time()
@@ -71,11 +72,9 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
 
   avg_runtime = sum(times) / len(times)
   print("Average runtime:", avg_runtime)
-  print("Time per element:", avg_runtime / (input_per_source *
-                                            num_sources))
+  print("Time per element:", avg_runtime / (input_per_source * num_sources))
 
 
 if __name__ == '__main__':
-  utils.check_compiled(
-      'apache_beam.runners.worker.opcounters')
+  utils.check_compiled('apache_beam.runners.worker.opcounters')
   run_benchmark()

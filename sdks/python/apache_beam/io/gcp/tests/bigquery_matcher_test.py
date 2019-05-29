@@ -44,7 +44,6 @@ except ImportError:
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery, 'Client')
 class BigqueryMatcherTest(unittest.TestCase):
-
   def setUp(self):
     self._mock_result = mock.Mock()
     patch_retry(self, bq_verifier)
@@ -58,18 +57,16 @@ class BigqueryMatcherTest(unittest.TestCase):
     mock_bigquery.return_value.query.return_value = mock_query_result
 
     matcher = bq_verifier.BigqueryMatcher(
-        'mock_project',
-        'mock_query',
-        '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8')
+        'mock_project', 'mock_query', '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8'
+    )
     hc_assert_that(self._mock_result, matcher)
 
   def test_bigquery_matcher_query_error_retry(self, mock_bigquery):
     mock_query = mock_bigquery.return_value.query
     mock_query.side_effect = NotFound('table not found')
 
-    matcher = bq_verifier.BigqueryMatcher('mock_project',
-                                          'mock_query',
-                                          'mock_checksum')
+    matcher = bq_verifier.BigqueryMatcher(
+        'mock_project', 'mock_query', 'mock_checksum')
     with self.assertRaises(NotFound):
       hc_assert_that(self._mock_result, matcher)
     self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
@@ -78,14 +75,14 @@ class BigqueryMatcherTest(unittest.TestCase):
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery_tools, 'BigQueryWrapper')
 class BigqueryTableMatcherTest(unittest.TestCase):
-
   def setUp(self):
     self._mock_result = mock.Mock()
     patch_retry(self, bq_verifier)
 
   def test_bigquery_table_matcher_success(self, mock_bigquery):
-    mock_query_result = mock.Mock(partitioning='a lot of partitioning',
-                                  clustering={'column': 'FRIENDS'})
+    mock_query_result = mock.Mock(
+        partitioning='a lot of partitioning', clustering={'column': 'FRIENDS'}
+    )
 
     mock_bigquery.return_value.get_table.return_value = mock_query_result
 
@@ -93,8 +90,10 @@ class BigqueryTableMatcherTest(unittest.TestCase):
         'mock_project',
         'mock_dataset',
         'mock_table',
-        {'partitioning': 'a lot of partitioning',
-         'clustering': {'column': 'FRIENDS'}})
+        {
+            'partitioning': 'a lot of partitioning',
+            'clustering': {'column': 'FRIENDS'},
+        })
     hc_assert_that(self._mock_result, matcher)
 
   def test_bigquery_table_matcher_query_error_retry(self, mock_bigquery):
@@ -105,8 +104,10 @@ class BigqueryTableMatcherTest(unittest.TestCase):
         'mock_project',
         'mock_dataset',
         'mock_table',
-        {'partitioning': 'a lot of partitioning',
-         'clustering': {'column': 'FRIENDS'}})
+        {
+            'partitioning': 'a lot of partitioning',
+            'clustering': {'column': 'FRIENDS'},
+        })
 
     with self.assertRaises(ValueError):
       hc_assert_that(self._mock_result, matcher)

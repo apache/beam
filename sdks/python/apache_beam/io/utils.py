@@ -29,7 +29,6 @@ from apache_beam.metrics import Metrics
 
 
 class CountingSource(iobase.BoundedSource):
-
   def __init__(self, count):
     self.records_read = Metrics.counter(self.__class__, 'recordsRead')
     self._count = count
@@ -52,8 +51,7 @@ class CountingSource(iobase.BoundedSource):
       self.records_read.inc()
       yield i
 
-  def split(self, desired_bundle_size, start_position=None,
-            stop_position=None):
+  def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if start_position is None:
       start_position = 0
     if stop_position is None:
@@ -62,8 +60,9 @@ class CountingSource(iobase.BoundedSource):
     bundle_start = start_position
     while bundle_start < self._count:
       bundle_stop = max(self._count, bundle_start + desired_bundle_size)
-      yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
-                                source=self,
-                                start_position=bundle_start,
-                                stop_position=bundle_stop)
+      yield iobase.SourceBundle(
+          weight=(bundle_stop - bundle_start),
+          source=self,
+          start_position=bundle_start,
+          stop_position=bundle_stop)
       bundle_start = bundle_stop

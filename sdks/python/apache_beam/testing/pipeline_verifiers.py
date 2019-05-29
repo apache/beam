@@ -38,7 +38,7 @@ __all__ = [
     'PipelineStateMatcher',
     'FileChecksumMatcher',
     'retry_on_io_error_and_server_error',
-    ]
+]
 
 
 try:
@@ -63,20 +63,20 @@ class PipelineStateMatcher(BaseMatcher):
     return pipeline_result.state == self.expected_state
 
   def describe_to(self, description):
-    description \
-      .append_text("Test pipeline expected terminated in state: ") \
-      .append_text(self.expected_state)
+    description.append_text(
+        "Test pipeline expected terminated in state: "
+    ).append_text(self.expected_state)
 
   def describe_mismatch(self, pipeline_result, mismatch_description):
-    mismatch_description \
-      .append_text("Test pipeline job terminated in state: ") \
-      .append_text(pipeline_result.state)
+    mismatch_description.append_text(
+        "Test pipeline job terminated in state: "
+    ).append_text(pipeline_result.state)
 
 
 def retry_on_io_error_and_server_error(exception):
   """Filter allowing retries on file I/O errors and service error."""
-  return isinstance(exception, IOError) or \
-          (HttpError is not None and isinstance(exception, HttpError))
+  return isinstance(exception, IOError) or (
+      HttpError is not None and isinstance(exception, HttpError))
 
 
 class FileChecksumMatcher(BaseMatcher):
@@ -101,9 +101,9 @@ class FileChecksumMatcher(BaseMatcher):
       if isinstance(sleep_secs, int):
         self.sleep_secs = sleep_secs
       else:
-        raise ValueError('Sleep seconds, if received, must be int. '
-                         'But received: %r, %s' % (sleep_secs,
-                                                   type(sleep_secs)))
+        raise ValueError(
+            'Sleep seconds, if received, must be int. '
+            'But received: %r, %s' % (sleep_secs, type(sleep_secs)))
     else:
       self.sleep_secs = None
 
@@ -111,8 +111,8 @@ class FileChecksumMatcher(BaseMatcher):
     self.expected_checksum = expected_checksum
 
   @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry_on_io_error_and_server_error)
+      num_retries=MAX_RETRIES, retry_filter=retry_on_io_error_and_server_error
+  )
   def _read_with_retry(self):
     """Read path with retry if I/O failed"""
     read_lines = []
@@ -121,8 +121,11 @@ class FileChecksumMatcher(BaseMatcher):
     if not matched_path:
       raise IOError('No such file or directory: %s' % self.file_path)
 
-    logging.info('Find %d files in %s: \n%s',
-                 len(matched_path), self.file_path, '\n'.join(matched_path))
+    logging.info(
+        'Find %d files in %s: \n%s',
+        len(matched_path),
+        self.file_path,
+        '\n'.join(matched_path))
     for path in matched_path:
       with FileSystems.open(path, 'r') as f:
         for line in f:
@@ -140,16 +143,17 @@ class FileChecksumMatcher(BaseMatcher):
 
     # Compute checksum
     self.checksum = utils.compute_hash(read_lines)
-    logging.info('Read from given path %s, %d lines, checksum: %s.',
-                 self.file_path, len(read_lines), self.checksum)
+    logging.info(
+        'Read from given path %s, %d lines, checksum: %s.',
+        self.file_path,
+        len(read_lines),
+        self.checksum)
     return self.checksum == self.expected_checksum
 
   def describe_to(self, description):
-    description \
-      .append_text("Expected checksum is ") \
-      .append_text(self.expected_checksum)
+    description.append_text("Expected checksum is ").append_text(
+        self.expected_checksum)
 
   def describe_mismatch(self, pipeline_result, mismatch_description):
-    mismatch_description \
-      .append_text("Actual checksum is ") \
-      .append_text(self.checksum)
+    mismatch_description.append_text("Actual checksum is ").append_text(
+        self.checksum)

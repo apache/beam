@@ -43,16 +43,19 @@ class AutocompleteTest(unittest.TestCase):
       result = words | autocomplete.TopPerPrefix(5)
       # values must be hashable for now
       result = result | beam.Map(lambda k_vs: (k_vs[0], tuple(k_vs[1])))
-      assert_that(result, equal_to(
-          [
-              ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
-              ('to', ((3, 'to'), )),
-              ('th', ((2, 'this'), (1, 'that'))),
-              ('thi', ((2, 'this'), )),
-              ('this', ((2, 'this'), )),
-              ('tha', ((1, 'that'), )),
-              ('that', ((1, 'that'), )),
-          ]))
+      assert_that(
+          result,
+          equal_to(
+              [
+                  ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
+                  ('to', ((3, 'to'),)),
+                  ('th', ((2, 'this'), (1, 'that'))),
+                  ('thi', ((2, 'this'),)),
+                  ('this', ((2, 'this'),)),
+                  ('tha', ((1, 'that'),)),
+                  ('that', ((1, 'that'),)),
+              ]
+          ))
 
   @attr('IT')
   def test_autocomplete_it(self):
@@ -60,11 +63,12 @@ class AutocompleteTest(unittest.TestCase):
       words = p | beam.io.ReadFromText(self.KINGLEAR_INPUT)
       result = words | autocomplete.TopPerPrefix(10)
       # values must be hashable for now
-      result = result | beam.Map(lambda k_vs: [k_vs[0],
-                                               k_vs[1][0][0], k_vs[1][0][1]])
-      checksum = (result
-                  | beam.Map(lambda x: int(compute_hash(x)[:8], 16))
-                  | beam.CombineGlobally(sum))
+      result = result | beam.Map(
+          lambda k_vs: [k_vs[0], k_vs[1][0][0], k_vs[1][0][1]])
+      checksum = (
+          result
+          | beam.Map(lambda x: int(compute_hash(x)[:8], 16))
+          | beam.CombineGlobally(sum))
 
       assert_that(checksum, equal_to([self.KINGLEAR_HASH_SUM]))
 

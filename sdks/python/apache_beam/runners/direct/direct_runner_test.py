@@ -39,14 +39,16 @@ from apache_beam.testing.util import equal_to
 
 
 class DirectPipelineResultTest(unittest.TestCase):
-
   def test_waiting_on_result_stops_executor_threads(self):
     pre_test_threads = set(t.ident for t in threading.enumerate())
 
-    for runner in ['DirectRunner', 'BundleBasedDirectRunner',
-                   'SwitchingDirectRunner']:
+    for runner in [
+        'DirectRunner',
+        'BundleBasedDirectRunner',
+        'SwitchingDirectRunner',
+    ]:
       pipeline = test_pipeline.TestPipeline(runner=runner)
-      _ = (pipeline | beam.Create([{'foo': 'bar'}]))
+      _ = pipeline | beam.Create([{'foo': 'bar'}])
       result = pipeline.run()
       result.wait_until_finish()
 
@@ -55,7 +57,6 @@ class DirectPipelineResultTest(unittest.TestCase):
       self.assertEqual(len(new_threads), 0)
 
   def test_direct_runner_metrics(self):
-
     class MyDoFn(beam.DoFn):
       def start_bundle(self):
         count = Metrics.counter(self.__class__, 'bundles')
@@ -75,27 +76,26 @@ class DirectPipelineResultTest(unittest.TestCase):
         return [element]
 
     p = Pipeline(DirectRunner())
-    pcoll = (p | beam.Create([1, 2, 3, 4, 5])
-             | 'Do' >> beam.ParDo(MyDoFn()))
+    pcoll = p | beam.Create([1, 2, 3, 4, 5]) | 'Do' >> beam.ParDo(MyDoFn())
     assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
     result = p.run()
     result.wait_until_finish()
     metrics = result.metrics().query()
-    namespace = '{}.{}'.format(MyDoFn.__module__,
-                               MyDoFn.__name__)
+    namespace = '{}.{}'.format(MyDoFn.__module__, MyDoFn.__name__)
 
     hc.assert_that(
         metrics['counters'],
         hc.contains_inanyorder(
             MetricResult(
-                MetricKey('Do', MetricName(namespace, 'elements')),
-                5, 5),
+                MetricKey('Do', MetricName(namespace, 'elements')), 5, 5
+            ),
             MetricResult(
-                MetricKey('Do', MetricName(namespace, 'bundles')),
-                1, 1),
+                MetricKey('Do', MetricName(namespace, 'bundles')), 1, 1
+            ),
             MetricResult(
-                MetricKey('Do', MetricName(namespace, 'finished_bundles')),
-                1, 1)))
+                MetricKey('Do', MetricName(namespace, 'finished_bundles')), 1, 1
+            ),
+        ))
 
     hc.assert_that(
         metrics['distributions'],
@@ -103,22 +103,21 @@ class DirectPipelineResultTest(unittest.TestCase):
             MetricResult(
                 MetricKey('Do', MetricName(namespace, 'element_dist')),
                 DistributionResult(DistributionData(15, 5, 1, 5)),
-                DistributionResult(DistributionData(15, 5, 1, 5)))))
+                DistributionResult(DistributionData(15, 5, 1, 5)))
+        ))
 
     gauge_result = metrics['gauges'][0]
     hc.assert_that(
         gauge_result.key,
-        hc.equal_to(MetricKey('Do', MetricName(namespace, 'latest_element'))))
+        hc.equal_to(MetricKey('Do', MetricName(namespace, 'latest_element'))),
+    )
     hc.assert_that(gauge_result.committed.value, hc.equal_to(5))
     hc.assert_that(gauge_result.attempted.value, hc.equal_to(5))
 
   def test_create_runner(self):
+    self.assertTrue(isinstance(create_runner('DirectRunner'), DirectRunner))
     self.assertTrue(
-        isinstance(create_runner('DirectRunner'),
-                   DirectRunner))
-    self.assertTrue(
-        isinstance(create_runner('TestDirectRunner'),
-                   TestDirectRunner))
+        isinstance(create_runner('TestDirectRunner'), TestDirectRunner))
 
 
 if __name__ == '__main__':

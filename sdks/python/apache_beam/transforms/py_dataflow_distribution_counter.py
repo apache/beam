@@ -22,13 +22,31 @@ from __future__ import absolute_import
 from builtins import object
 from builtins import range
 
-globals()['INT64_MAX'] = 2**63 - 1
-globals()['INT64_MIN'] = -2**63
+globals()['INT64_MAX'] = 2 ** 63 - 1
+globals()['INT64_MIN'] = -2 ** 63
 
-POWER_TEN = [10e-1, 10e0, 10e1, 10e2, 10e3, 10e4, 10e5,
-             10e6, 10e7, 10e8, 10e9, 10e10, 10e11,
-             10e12, 10e13, 10e14, 10e15, 10e16, 10e17,
-             10e18]
+POWER_TEN = [
+    10e-1,
+    10e0,
+    10e1,
+    10e2,
+    10e3,
+    10e4,
+    10e5,
+    10e6,
+    10e7,
+    10e8,
+    10e9,
+    10e10,
+    10e11,
+    10e12,
+    10e13,
+    10e14,
+    10e15,
+    10e16,
+    10e17,
+    10e18,
+]
 
 
 def get_log10_round_to_floor(element):
@@ -57,6 +75,7 @@ class DataflowDistributionCounter(object):
     distribution(1,2,5 bucketing). Max bucket_index is 58( sys.maxint as input).
     is_cythonized: mark whether DataflowDistributionCounter cythonized.
   """
+
   # Assume the max input is sys.maxint, then the possible max bucket size is 59
   MAX_BUCKET_SIZE = 59
 
@@ -115,8 +134,9 @@ class DataflowDistributionCounter(object):
         last_bucket_offset = index
         break
     histogram.firstBucketOffset = first_bucket_offset
-    histogram.bucketCounts = (
-        self.buckets[first_bucket_offset:last_bucket_offset + 1])
+    histogram.bucketCounts = self.buckets[
+        first_bucket_offset : last_bucket_offset + 1
+    ]
 
   def merge(self, accumulators):
     raise NotImplementedError()

@@ -40,8 +40,8 @@ from apache_beam.transforms import cy_combiners
 # It may represent the consumption of Shuffle IO, or the consumption of
 # side inputs. The way in which each is represented is explained in the
 # documentation of the side_input_id, and shuffle_id functions.
-IOTargetName = namedtuple('IOTargetName', ['requesting_step_name',
-                                           'input_index'])
+IOTargetName = namedtuple(
+    'IOTargetName', ['requesting_step_name', 'input_index'])
 
 
 def side_input_id(step_name, input_index):
@@ -76,28 +76,47 @@ def shuffle_id(step_name):
   return IOTargetName(step_name, None)
 
 
-_CounterName = namedtuple('_CounterName', ['name',
-                                           'stage_name',
-                                           'step_name',
-                                           'system_name',
-                                           'namespace',
-                                           'origin',
-                                           'output_index',
-                                           'io_target'])
+_CounterName = namedtuple(
+    '_CounterName',
+    [
+        'name',
+        'stage_name',
+        'step_name',
+        'system_name',
+        'namespace',
+        'origin',
+        'output_index',
+        'io_target',
+    ])
 
 
 class CounterName(_CounterName):
   """Naming information for a counter."""
+
   SYSTEM = object()
   USER = object()
 
-  def __new__(cls, name, stage_name=None, step_name=None,
-              system_name=None, namespace=None,
-              origin=None, output_index=None, io_target=None):
+  def __new__(
+      cls,
+      name,
+      stage_name=None,
+      step_name=None,
+      system_name=None,
+      namespace=None,
+      origin=None,
+      output_index=None,
+      io_target=None):
     origin = origin or CounterName.SYSTEM
-    return super(CounterName, cls).__new__(cls, name, stage_name, step_name,
-                                           system_name, namespace,
-                                           origin, output_index, io_target)
+    return super(CounterName, cls).__new__(
+        cls,
+        name,
+        stage_name,
+        step_name,
+        system_name,
+        namespace,
+        origin,
+        output_index,
+        io_target)
 
   def __repr__(self):
     return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))
@@ -169,8 +188,10 @@ class Counter(object):
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
-    return '%s %s %s' % (self.name, self.combine_fn.__class__.__name__,
-                         self.value())
+    return '%s %s %s' % (
+        self.name,
+        self.combine_fn.__class__.__name__,
+        self.value())
 
 
 class AccumulatorCombineFnCounter(Counter):

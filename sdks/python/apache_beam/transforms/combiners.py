@@ -48,15 +48,7 @@ from apache_beam.typehints import with_output_types
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
-__all__ = [
-    'Count',
-    'Mean',
-    'Sample',
-    'Top',
-    'ToDict',
-    'ToList',
-    'Latest'
-    ]
+__all__ = ['Count', 'Mean', 'Sample', 'Top', 'ToDict', 'ToList', 'Latest']
 
 # Type variables
 T = TypeVariable('T')
@@ -133,10 +125,14 @@ class Count(object):
 
     def expand(self, pcoll):
       paired_with_void_type = KV[pcoll.element_type, Any]
-      return (pcoll
-              | ('%s:PairWithVoid' % self.label >> core.Map(lambda x: (x, None))
-                 .with_output_types(paired_with_void_type))
-              | core.CombinePerKey(CountCombineFn()))
+      return (
+          pcoll
+          | (
+              '%s:PairWithVoid' % self.label
+              >> core.Map(lambda x: (x, None)).with_output_types(
+                  paired_with_void_type)
+)
+          | core.CombinePerKey(CountCombineFn()))
 
 
 @with_input_types(Any)
@@ -162,6 +158,7 @@ class CountCombineFn(core.CombineFn):
 
 class Top(object):
   """Combiners for obtaining extremal elements."""
+
   # pylint: disable=no-self-argument
 
   class Of(ptransform.PTransform):
@@ -190,8 +187,9 @@ class Top(object):
         **kwargs: as described above.
       """
       if compare:
-        warnings.warn('Compare not available in Python 3, use key instead.',
-                      DeprecationWarning)
+        warnings.warn(
+            'Compare not available in Python 3, use key instead.',
+            DeprecationWarning)
       self._n = n
       self._compare = compare
       self._key = kwargs.pop('key', None)
@@ -227,8 +225,7 @@ class Top(object):
 
     def expand(self, pcoll):
       compare = self._compare
-      if (not self._args and not self._kwargs and
-          pcoll.windowing.is_default()):
+      if not self._args and not self._kwargs and pcoll.windowing.is_default():
         if self._reverse:
           if compare is None or compare is operator.lt:
             compare = operator.gt
@@ -243,13 +240,15 @@ class Top(object):
         # so that downstream is guerenteed to produce non-empty output.
         empty_bundle = pcoll.pipeline | core.Create([(None, [])])
         return (
-            (top_per_bundle, empty_bundle) | core.Flatten()
+            (top_per_bundle, empty_bundle)
+            | core.Flatten()
             | core.GroupByKey()
             | core.ParDo(_MergeTopPerBundle(self._n, compare, self._key)))
       else:
         return pcoll | core.CombineGlobally(
             TopCombineFn(self._n, compare, self._key, self._reverse),
-            *self._args, **self._kwargs)
+            *self._args,
+            **self._kwargs)
 
   class PerKey(ptransform.PTransform):
     """Identifies the compare-most N elements associated with each key.
@@ -259,6 +258,7 @@ class Top(object):
     "greatest" is determined by the comparator function supplied as the compare
     argument in the initializer.
     """
+
     def _py2__init__(self, n, compare=None, *args, **kwargs):
       """Initializer.
 
@@ -277,8 +277,9 @@ class Top(object):
         **kwargs: as described above.
       """
       if compare:
-        warnings.warn('Compare not available in Python 3, use key instead.',
-                      DeprecationWarning)
+        warnings.warn(
+            'Compare not available in Python 3, use key instead.',
+            DeprecationWarning)
       self._n = n
       self._compare = compare
       self._key = kwargs.pop('key', None)
@@ -326,7 +327,8 @@ class Top(object):
       """
       return pcoll | core.CombinePerKey(
           TopCombineFn(self._n, self._compare, self._key, self._reverse),
-          *self._args, **self._kwargs)
+          *self._args,
+          **self._kwargs)
 
   @staticmethod
   @ptransform.ptransform_fn
@@ -385,8 +387,7 @@ class _TopPerBundle(core.DoFn):
       yield window.GlobalWindows.windowed_value(
           (None, [wrapper.value for wrapper in self._heap]))
     else:
-      yield window.GlobalWindows.windowed_value(
-          (None, self._heap))
+      yield window.GlobalWindows.windowed_value((None, self._heap))
 
 
 @with_input_types(KV[None, Iterable[List[T]]])
@@ -405,7 +406,8 @@ class _MergeTopPerBundle(core.DoFn):
         if self._less_than or self._key:
           heap = [
               cy_combiners.ComparableValue(element, self._less_than, self._key)
-              for element in bundle]
+              for element in bundle
+          ]
         else:
           heap = bundle
         continue
@@ -490,11 +492,14 @@ class TopCombineFn(core.CombineFn):
       return heap
 
   def display_data(self):
-    return {'n': self._n,
-            'compare': DisplayDataItem(self._compare.__name__
-                                       if hasattr(self._compare, '__name__')
-                                       else self._compare.__class__.__name__)
-                       .drop_if_none()}
+    return {
+        'n': self._n,
+        'compare': DisplayDataItem(
+            self._compare.__name__
+            if hasattr(self._compare, '__name__')
+            else self._compare.__class__.__name__
+        ).drop_if_none(),
+    }
 
   # The accumulator type is a tuple
   # (bool, Union[List[T], List[ComparableValue[T]])
@@ -526,7 +531,8 @@ class TopCombineFn(core.CombineFn):
 
     comparable = (
         cy_combiners.ComparableValue(element, self._less_than, self._key)
-        if holds_comparables else element)
+        if holds_comparables
+        else element)
 
     if len(heap) < self._n:
       heapq.heappush(heap, comparable)
@@ -600,7 +606,6 @@ class Largest(TopCombineFn):
 
 
 class Smallest(TopCombineFn):
-
   def __init__(self, n):
     super(Smallest, self).__init__(n, reverse=True)
 
@@ -610,6 +615,7 @@ class Smallest(TopCombineFn):
 
 class Sample(object):
   """Combiners for sampling n elements without replacement."""
+
   # pylint: disable=no-self-argument
 
   class FixedSizeGlobally(ptransform.PTransform):
@@ -677,29 +683,32 @@ class SampleCombineFn(core.CombineFn):
 
 
 class _TupleCombineFnBase(core.CombineFn):
-
   def __init__(self, *combiners):
     self._combiners = [core.CombineFn.maybe_from_callable(c) for c in combiners]
     self._named_combiners = combiners
 
   def display_data(self):
-    combiners = [c.__name__ if hasattr(c, '__name__') else c.__class__.__name__
-                 for c in self._named_combiners]
+    combiners = [
+        c.__name__ if hasattr(c, '__name__') else c.__class__.__name__
+        for c in self._named_combiners
+    ]
     return {'combiners': str(combiners)}
 
   def create_accumulator(self):
     return [c.create_accumulator() for c in self._combiners]
 
   def merge_accumulators(self, accumulators):
-    return [c.merge_accumulators(a)
-            for c, a in zip(self._combiners, zip(*accumulators))]
+    return [
+        c.merge_accumulators(a)
+        for c, a in zip(self._combiners, zip(*accumulators))
+    ]
 
   def compact(self, accumulator):
     return [c.compact(a) for c, a in zip(self._combiners, accumulator)]
 
   def extract_output(self, accumulator):
-    return tuple([c.extract_output(a)
-                  for c, a in zip(self._combiners, accumulator)])
+    return tuple(
+        [c.extract_output(a) for c, a in zip(self._combiners, accumulator)])
 
 
 class TupleCombineFn(_TupleCombineFnBase):
@@ -711,8 +720,10 @@ class TupleCombineFn(_TupleCombineFnBase):
   """
 
   def add_input(self, accumulator, element):
-    return [c.add_input(a, e)
-            for c, a, e in zip(self._combiners, accumulator, element)]
+    return [
+        c.add_input(a, e)
+        for c, a, e in zip(self._combiners, accumulator, element)
+    ]
 
   def with_common_input(self):
     return SingleInputTupleCombineFn(*self._combiners)
@@ -727,14 +738,17 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
   """
 
   def add_input(self, accumulator, element):
-    return [c.add_input(a, element)
-            for c, a in zip(self._combiners, accumulator)]
+    return [
+        c.add_input(a, element) for c, a in zip(self._combiners, accumulator)
+    ]
 
 
 class ToList(ptransform.PTransform):
   """A global CombineFn that condenses a PCollection into a single list."""
 
-  def __init__(self, label='ToList'):  # pylint: disable=useless-super-delegation
+  def __init__(
+      self, label='ToList'
+  ):  # pylint: disable=useless-super-delegation
     super(ToList, self).__init__(label)
 
   def expand(self, pcoll):
@@ -768,7 +782,9 @@ class ToDict(ptransform.PTransform):
   will be present in the resulting dict.
   """
 
-  def __init__(self, label='ToDict'):  # pylint: disable=useless-super-delegation
+  def __init__(
+      self, label='ToDict'
+  ):  # pylint: disable=useless-super-delegation
     super(ToDict, self).__init__(label)
 
   def expand(self, pcoll):
@@ -878,10 +894,11 @@ class Latest(object):
       return [(element, timestamp)]
 
     def expand(self, pcoll):
-      return (pcoll
-              | core.ParDo(self.add_timestamp)
-              .with_output_types(Tuple[T, TimestampType])
-              | core.CombineGlobally(LatestCombineFn()))
+      return (
+          pcoll
+          | core.ParDo(self.add_timestamp).with_output_types(
+              Tuple[T, TimestampType])
+          | core.CombineGlobally(LatestCombineFn()))
 
   @with_input_types(KV[K, V])
   @with_output_types(KV[K, V])
@@ -895,10 +912,11 @@ class Latest(object):
       return [(key, (value, timestamp))]
 
     def expand(self, pcoll):
-      return (pcoll
-              | core.ParDo(self.add_timestamp)
-              .with_output_types(KV[K, Tuple[T, TimestampType]])
-              | core.CombinePerKey(LatestCombineFn()))
+      return (
+          pcoll
+          | core.ParDo(self.add_timestamp).with_output_types(
+              KV[K, Tuple[T, TimestampType]])
+          | core.CombinePerKey(LatestCombineFn()))
 
 
 @with_input_types(Tuple[T, TimestampType])

@@ -34,12 +34,14 @@ class DockerizedJobServer(object):
    Spins up the JobServer in a docker container for local execution
   """
 
-  def __init__(self, job_host="localhost",
-               job_port=None,
-               artifact_port=None,
-               expansion_port=None,
-               harness_port_range=(8100, 8200),
-               max_connection_retries=5):
+  def __init__(
+      self,
+      job_host="localhost",
+      job_port=None,
+      artifact_port=None,
+      expansion_port=None,
+      harness_port_range=(8100, 8200),
+      max_connection_retries=5):
     self.job_host = job_host
     self.job_port = job_port
     self.expansion_port = expansion_port
@@ -51,24 +53,38 @@ class DockerizedJobServer(object):
 
   def start(self):
     # TODO This is hardcoded to Flink at the moment but should be changed
-    job_server_image_name = os.environ['USER'] + \
-        "-docker-apache.bintray.io/beam/flink-job-server:latest"
+    job_server_image_name = (
+        os.environ['USER']
+        + "-docker-apache.bintray.io/beam/flink-job-server:latest")
     docker_path = check_output(['which', 'docker']).strip()
-    cmd = ["docker", "run",
-           # We mount the docker binary and socket to be able to spin up
-           # "sibling" containers for the SDK harness.
-           "-v", ':'.join([docker_path, "/bin/docker"]),
-           "-v", "/var/run/docker.sock:/var/run/docker.sock"]
+    cmd = [
+        "docker",
+        "run",
+        # We mount the docker binary and socket to be able to spin up
+        # "sibling" containers for the SDK harness.
+        "-v",
+        ':'.join([docker_path, "/bin/docker"]),
+        "-v",
+        "/var/run/docker.sock:/var/run/docker.sock",
+    ]
 
-    self.job_port, self.artifact_port, self.expansion_port = \
-      DockerizedJobServer._pick_port(self.job_port,
-                                     self.artifact_port,
-                                     self.expansion_port)
+    (
+        self.job_port,
+        self.artifact_port,
+        self.expansion_port,
+    ) = DockerizedJobServer._pick_port(
+        self.job_port, self.artifact_port, self.expansion_port)
 
-    args = ['--job-host', self.job_host,
-            '--job-port', str(self.job_port),
-            '--artifact-port', str(self.artifact_port),
-            '--expansion-port', str(self.expansion_port)]
+    args = [
+        '--job-host',
+        self.job_host,
+        '--job-port',
+        str(self.job_port),
+        '--artifact-port',
+        str(self.artifact_port),
+        '--expansion-port',
+        str(self.expansion_port),
+    ]
 
     if sys.platform == "darwin":
       # Docker-for-Mac doesn't support host networking, so we need to explictly
@@ -79,8 +95,12 @@ class DockerizedJobServer(object):
       cmd += ["-p", "{}:{}".format(self.job_port, self.job_port)]
       cmd += ["-p", "{}:{}".format(self.artifact_port, self.artifact_port)]
       cmd += ["-p", "{}:{}".format(self.expansion_port, self.expansion_port)]
-      cmd += ["-p", "{0}-{1}:{0}-{1}".format(
-          self.harness_port_range[0], self.harness_port_range[1])]
+      cmd += [
+          "-p",
+          "{0}-{1}:{0}-{1}".format(
+              self.harness_port_range[0], self.harness_port_range[1]
+          ),
+      ]
     else:
       # This shouldn't be set for MacOS because it detroys port forwardings,
       # even though host networking is not supported on MacOS.
@@ -105,8 +125,9 @@ class DockerizedJobServer(object):
       if not self.docker_process:
         return
       num_retries = 0
-      while self.docker_process.poll() is None and \
-              num_retries < self.max_connection_retries:
+      while (
+          self.docker_process.poll() is None
+          and num_retries < self.max_connection_retries):
         logging.debug("Sending SIGINT to job_server container")
         self.docker_process.send_signal(signal.SIGINT)
         num_retries += 1

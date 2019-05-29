@@ -47,8 +47,9 @@ class FlinkStreamingImpulseSource(PTransform):
     return bytes
 
   def to_runner_api_parameter(self, context):
-    assert isinstance(self, FlinkStreamingImpulseSource), \
-      "expected instance of StreamingImpulseSource, but got %s" % self.__class__
+    assert isinstance(self, FlinkStreamingImpulseSource), (
+        "expected instance of StreamingImpulseSource, but got %s"
+        % self.__class__)
     return (self.URN, json.dumps(self.config))
 
   def set_interval_ms(self, interval_ms):

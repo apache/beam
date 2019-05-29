@@ -54,7 +54,7 @@ class FnApiLogRecordHandler(logging.Handler):
       logging.ERROR: beam_fn_api_pb2.LogEntry.Severity.ERROR,
       logging.WARNING: beam_fn_api_pb2.LogEntry.Severity.WARN,
       logging.INFO: beam_fn_api_pb2.LogEntry.Severity.INFO,
-      logging.DEBUG: beam_fn_api_pb2.LogEntry.Severity.DEBUG
+      logging.DEBUG: beam_fn_api_pb2.LogEntry.Severity.DEBUG,
   }
 
   def __init__(self, log_service_descriptor):
@@ -136,8 +136,9 @@ class FnApiLogRecordHandler(logging.Handler):
       # Loop for reconnection.
       log_control_iterator = self.connect()
       if self._dropped_logs > 0:
-        logging.warn("Dropped %d logs while logging client disconnected",
-                     self._dropped_logs)
+        logging.warn(
+            "Dropped %d logs while logging client disconnected",
+            self._dropped_logs)
         self._dropped_logs = 0
       try:
         for _ in log_control_iterator:
@@ -147,7 +148,8 @@ class FnApiLogRecordHandler(logging.Handler):
         # iterator is closed
         return
       except Exception as ex:
-        print("Logging client failed: {}... resetting".format(ex),
-              file=sys.stderr)
+        print(
+            "Logging client failed: {}... resetting".format(ex), file=sys.stderr
+        )
         # Wait a bit before trying a reconnect
-        time.sleep(0.5) # 0.5 seconds
+        time.sleep(0.5)  # 0.5 seconds

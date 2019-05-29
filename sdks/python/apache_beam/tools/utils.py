@@ -44,8 +44,8 @@ def check_compiled(module):
 
 
 class BenchmarkConfig(
-    collections.namedtuple(
-        "BenchmarkConfig", ["benchmark", "size", "num_runs"])):
+    collections.namedtuple("BenchmarkConfig", ["benchmark", "size", "num_runs"])
+):
   """
   Attributes:
     benchmark: a callable that takes an int argument - benchmark size,
@@ -107,8 +107,9 @@ def run_benchmarks(benchmark_suite, verbose=True):
       cost_series[name].append(time_cost)
       if verbose:
         per_element_cost = time_cost / size
-        print("%s: run %d of %d, per element time cost: %g sec" % (
-            name, run_id + 1, num_runs, per_element_cost))
+        print(
+            "%s: run %d of %d, per element time cost: %g sec"
+            % (name, run_id + 1, num_runs, per_element_cost))
     if verbose:
       print("")
 
@@ -121,8 +122,12 @@ def run_benchmarks(benchmark_suite, verbose=True):
           numpy.median(cost_series[name]) / benchmark_config.size)
       std = numpy.std(cost_series[name]) / benchmark_config.size
 
-      print("%s: per element median time cost: %g sec, relative std: %.2f%%" % (
-          name.ljust(pad_length, " "), per_element_median_cost,
-          std * 100 / per_element_median_cost))
+      print(
+          "%s: per element median time cost: %g sec, relative std: %.2f%%"
+          % (
+              name.ljust(pad_length, " "),
+              per_element_median_cost,
+              std * 100 / per_element_median_cost)
+)
 
   return cost_series

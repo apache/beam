@@ -32,9 +32,7 @@ from apache_beam import typehints
 from apache_beam.transforms.core import *
 from apache_beam.transforms.ptransform import PTransform
 
-__all__ = [
-    'ApproximateUnique',
-]
+__all__ = ['ApproximateUnique']
 
 # Type variables
 T = typehints.TypeVariable('T')
@@ -50,13 +48,16 @@ class ApproximateUnique(object):
   """
 
   _NO_VALUE_ERR_MSG = 'Either size or error should be set. Received {}.'
-  _MULTI_VALUE_ERR_MSG = 'Either size or error should be set. ' \
-                         'Received {size = %s, error = %s}.'
-  _INPUT_SIZE_ERR_MSG = 'ApproximateUnique needs a size >= 16 for an error ' \
-                        '<= 0.50. In general, the estimation error is about ' \
-                        '2 / sqrt(sample_size). Received {size = %s}.'
-  _INPUT_ERROR_ERR_MSG = 'ApproximateUnique needs an estimation error ' \
-                         'between 0.01 and 0.50. Received {error = %s}.'
+  _MULTI_VALUE_ERR_MSG = (
+      'Either size or error should be set. ' 'Received {size = %s, error = %s}.'
+  )
+  _INPUT_SIZE_ERR_MSG = (
+      'ApproximateUnique needs a size >= 16 for an error '
+      '<= 0.50. In general, the estimation error is about '
+      '2 / sqrt(sample_size). Received {size = %s}.')
+  _INPUT_ERROR_ERR_MSG = (
+      'ApproximateUnique needs an estimation error '
+      'between 0.01 and 0.50. Received {error = %s}.')
 
   @staticmethod
   def parse_input_params(size=None, error=None):
@@ -80,12 +81,12 @@ class ApproximateUnique(object):
       raise ValueError(ApproximateUnique._NO_VALUE_ERR_MSG)
     elif size is not None:
       if not isinstance(size, int) or size < 16:
-        raise ValueError(ApproximateUnique._INPUT_SIZE_ERR_MSG % (size))
+        raise ValueError(ApproximateUnique._INPUT_SIZE_ERR_MSG % size)
       else:
         return size
     else:
       if error < 0.01 or error > 0.5:
-        raise ValueError(ApproximateUnique._INPUT_ERROR_ERR_MSG % (error))
+        raise ValueError(ApproximateUnique._INPUT_ERROR_ERR_MSG % error)
       else:
         return ApproximateUnique._get_sample_size_from_est_error(error)
 
@@ -96,7 +97,7 @@ class ApproximateUnique(object):
 
     Calculate sample size from estimation error
     """
-    #math.ceil in python2.7 returns a float, while it returns an int in python3.
+    # math.ceil in python2.7 returns a float, while it returns an int in python3.
     return int(math.ceil(4.0 / math.pow(est_err, 2.0)))
 
   @typehints.with_input_types(T)
@@ -109,10 +110,9 @@ class ApproximateUnique(object):
 
     def expand(self, pcoll):
       coder = coders.registry.get_coder(pcoll)
-      return pcoll \
-             | 'CountGlobalUniqueValues' \
-             >> (CombineGlobally(ApproximateUniqueCombineFn(self._sample_size,
-                                                            coder)))
+      return pcoll | 'CountGlobalUniqueValues' >> (
+          CombineGlobally(ApproximateUniqueCombineFn(self._sample_size, coder))
+      )
 
   @typehints.with_input_types(typehints.KV[K, V])
   @typehints.with_output_types(typehints.KV[K, int])
@@ -124,10 +124,8 @@ class ApproximateUnique(object):
 
     def expand(self, pcoll):
       coder = coders.registry.get_coder(pcoll)
-      return pcoll \
-             | 'CountPerKeyUniqueValues' \
-             >> (CombinePerKey(ApproximateUniqueCombineFn(self._sample_size,
-                                                          coder)))
+      return pcoll | 'CountPerKeyUniqueValues' >> (
+          CombinePerKey(ApproximateUniqueCombineFn(self._sample_size, coder)))
 
 
 class _LargestUnique(object):
@@ -135,6 +133,7 @@ class _LargestUnique(object):
   An object to keep samples and calculate sample hash space. It is an
   accumulator of a combine function.
   """
+
   _HASH_SPACE_SIZE = 2.0 * sys.maxsize
 
   def __init__(self, sample_size):
@@ -191,10 +190,11 @@ class _LargestUnique(object):
       return len(self._sample_heap)
     else:
       sample_space_size = sys.maxsize - 1.0 * self._min_hash
-      est = (math.log1p(-self._sample_size / sample_space_size)
-             / math.log1p(-1 / sample_space_size)
-             * self._HASH_SPACE_SIZE
-             / sample_space_size)
+      est = (
+          math.log1p(-self._sample_size / sample_space_size)
+          / math.log1p(-1 / sample_space_size)
+          * self._HASH_SPACE_SIZE
+          / sample_space_size)
 
       return round(est)
 

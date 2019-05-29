@@ -122,8 +122,8 @@ class SideInputReadCounter(TransformIOCounter):
   not be the only step that spends time reading from this side input.
   """
 
-  def __init__(self, counter_factory, state_sampler, declaring_step,
-               input_index):
+  def __init__(
+      self, counter_factory, state_sampler, declaring_step, input_index):
     """Create a side input read counter.
 
     Args:
@@ -150,14 +150,13 @@ class SideInputReadCounter(TransformIOCounter):
   def _update_counters_for_requesting_step(self, step_name):
     side_input_id = counters.side_input_id(step_name, self.input_index)
     self.scoped_state = self._state_sampler.scoped_state(
-        self.declaring_step,
-        'read-sideinput',
-        io_target=side_input_id)
+        self.declaring_step, 'read-sideinput', io_target=side_input_id)
     self.bytes_read_counter = self._counter_factory.get_counter(
         CounterName(
             'read-sideinput-byte-count',
             step_name=self.declaring_step,
-            io_target=side_input_id),
+            io_target=side_input_id,
+        ),
         Counter.SUM)
 
 
@@ -207,11 +206,12 @@ class OperationCounters(object):
         accumulator.update(size)
       else:
         accumulator.update(inner_coder_impl.estimate_size(value))
+
     return _observable_callback_inner
 
   def do_sample(self, windowed_value):
-    size, observables = (
-        self.coder_impl.get_estimated_size_and_observables(windowed_value))
+    size, observables = self.coder_impl.get_estimated_size_and_observables(
+        windowed_value)
     if not observables:
       self.current_size = size
     else:
@@ -219,8 +219,8 @@ class OperationCounters(object):
       self.active_accumulator.update(size)
       for observable, inner_coder_impl in observables:
         observable.register_observer(
-            self._observable_callback(
-                inner_coder_impl, self.active_accumulator))
+            self._observable_callback(inner_coder_impl, self.active_accumulator)
+        )
 
   def update_collect(self):
     """Collects the accumulated size estimates.
@@ -298,9 +298,12 @@ class OperationCounters(object):
     self._sample_counter = 0
 
   def __str__(self):
-    return '<%s [%s]>' % (self.__class__.__name__,
-                          ', '.join([str(x) for x in self.__iter__()]))
+    return '<%s [%s]>' % (
+        self.__class__.__name__,
+        ', '.join([str(x) for x in self.__iter__()]))
 
   def __repr__(self):
-    return '<%s %s at %s>' % (self.__class__.__name__,
-                              [x for x in self.__iter__()], hex(id(self)))
+    return '<%s %s at %s>' % (
+        self.__class__.__name__,
+        [x for x in self.__iter__()],
+        hex(id(self)))

@@ -44,20 +44,22 @@ class GameStatsTest(unittest.TestCase):
   ]
 
   def create_data(self, p):
-    return (p
-            | beam.Create(GameStatsTest.SAMPLE_DATA)
-            | beam.ParDo(game_stats.ParseGameEventFn())
-            | beam.Map(lambda elem:\
-                       beam.window.TimestampedValue(elem, elem['timestamp'])))
-
+    return (
+        p
+        | beam.Create(GameStatsTest.SAMPLE_DATA)
+        | beam.ParDo(game_stats.ParseGameEventFn())
+        | beam.Map(
+            lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])
+        )
+)
   def test_spammy_users(self):
     with TestPipeline() as p:
       result = (
           self.create_data(p)
           | beam.Map(lambda elem: (elem['user'], elem['score']))
           | game_stats.CalculateSpammyUsers())
-      assert_that(result, equal_to([
-          ('robot1_team1', 9000), ('robot2_team2', 9001)]))
+      assert_that(
+          result, equal_to([('robot1_team1', 9000), ('robot2_team2', 9001)]))
 
   def test_game_stats_sessions(self):
     session_gap = 5 * 60
@@ -66,15 +68,18 @@ class GameStatsTest(unittest.TestCase):
       result = (
           self.create_data(p)
           | beam.Map(lambda elem: (elem['user'], elem['score']))
-          | 'WindowIntoSessions' >> beam.WindowInto(
+          | 'WindowIntoSessions'
+          >> beam.WindowInto(
               beam.window.Sessions(session_gap),
               timestamp_combiner=beam.window.TimestampCombiner.OUTPUT_AT_EOW)
           | beam.CombinePerKey(lambda _: None)
           | beam.ParDo(game_stats.UserSessionActivity())
-          | 'WindowToExtractSessionMean' >> beam.WindowInto(
+          | 'WindowToExtractSessionMean'
+          >> beam.WindowInto(
               beam.window.FixedWindows(user_activity_window_duration))
-          | beam.CombineGlobally(beam.combiners.MeanCombineFn())\
-              .without_defaults())
+          | beam.CombineGlobally(
+              beam.combiners.MeanCombineFn()
+          ).without_defaults())
       assert_that(result, equal_to([300.0, 300.0, 300.0]))
 
 

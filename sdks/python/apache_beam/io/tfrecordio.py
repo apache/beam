@@ -44,19 +44,25 @@ def _default_crc32c_fn(value):
   if not _default_crc32c_fn.fn:
     try:
       import snappy  # pylint: disable=import-error
+
       # Support multiple versions of python-snappy:
       # https://github.com/andrix/python-snappy/pull/53
       if getattr(snappy, '_crc32c', None):
-        _default_crc32c_fn.fn = snappy._crc32c  # pylint: disable=protected-access
+        _default_crc32c_fn.fn = (
+            snappy._crc32c
+        )  # pylint: disable=protected-access
       elif getattr(snappy, '_snappy', None):
-        _default_crc32c_fn.fn = snappy._snappy._crc32c  # pylint: disable=protected-access
+        _default_crc32c_fn.fn = (
+            snappy._snappy._crc32c
+        )  # pylint: disable=protected-access
     except ImportError:
       pass
 
     if not _default_crc32c_fn.fn:
-      logging.warning('Couldn\'t find python-snappy so the implementation of '
-                      '_TFRecordUtil._masked_crc32c is not as fast as it could '
-                      'be.')
+      logging.warning(
+          'Couldn\'t find python-snappy so the implementation of '
+          '_TFRecordUtil._masked_crc32c is not as fast as it could '
+          'be.')
       _default_crc32c_fn.fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
   return _default_crc32c_fn.fn(value)
 
@@ -87,7 +93,7 @@ class _TFRecordUtil(object):
     """
 
     crc = crc32c_fn(value)
-    return (((crc >> 15) | (crc << 17)) + 0xa282ead8) & 0xffffffff
+    return (((crc >> 15) | (crc << 17)) + 0xA282EAD8) & 0xFFFFFFFF
 
   @staticmethod
   def encoded_num_bytes(record):
@@ -104,12 +110,15 @@ class _TFRecordUtil(object):
       value: A bytes object representing content of the record.
     """
     encoded_length = struct.pack(b'<Q', len(value))
-    file_handle.write(b''.join([
-        encoded_length,
-        struct.pack(b'<I', cls._masked_crc32c(encoded_length)),
-        value,
-        struct.pack(b'<I', cls._masked_crc32c(value))
-    ]))
+    file_handle.write(
+        b''.join(
+            [
+                encoded_length,
+                struct.pack(b'<I', cls._masked_crc32c(encoded_length)),
+                value,
+                struct.pack(b'<I', cls._masked_crc32c(value)),
+            ])
+)
 
   @classmethod
   def read_record(cls, file_handle):
@@ -129,25 +138,29 @@ class _TFRecordUtil(object):
 
     # Validate all length related payloads.
     if len(buf) != buf_length_expected:
-      raise ValueError('Not a valid TFRecord. Fewer than %d bytes: %s' %
-                       (buf_length_expected, codecs.encode(buf, 'hex')))
+      raise ValueError(
+          'Not a valid TFRecord. Fewer than %d bytes: %s'
+          % (buf_length_expected, codecs.encode(buf, 'hex')))
     length, length_mask_expected = struct.unpack('<QI', buf)
     length_mask_actual = cls._masked_crc32c(buf[:8])
     if length_mask_actual != length_mask_expected:
-      raise ValueError('Not a valid TFRecord. Mismatch of length mask: %s' %
-                       codecs.encode(buf, 'hex'))
+      raise ValueError(
+          'Not a valid TFRecord. Mismatch of length mask: %s'
+          % codecs.encode(buf, 'hex'))
 
     # Validate all data related payloads.
     buf_length_expected = length + 4
     buf = file_handle.read(buf_length_expected)
     if len(buf) != buf_length_expected:
-      raise ValueError('Not a valid TFRecord. Fewer than %d bytes: %s' %
-                       (buf_length_expected, codecs.encode(buf, 'hex')))
+      raise ValueError(
+          'Not a valid TFRecord. Fewer than %d bytes: %s'
+          % (buf_length_expected, codecs.encode(buf, 'hex')))
     data, data_mask_expected = struct.unpack('<%dsI' % length, buf)
     data_mask_actual = cls._masked_crc32c(data)
     if data_mask_actual != data_mask_expected:
-      raise ValueError('Not a valid TFRecord. Mismatch of data mask: %s' %
-                       codecs.encode(buf, 'hex'))
+      raise ValueError(
+          'Not a valid TFRecord. Mismatch of data mask: %s'
+          % codecs.encode(buf, 'hex'))
 
     # All validation checks passed.
     return data
@@ -160,11 +173,7 @@ class _TFRecordSource(FileBasedSource):
     https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
 
-  def __init__(self,
-               file_pattern,
-               coder,
-               compression_type,
-               validate):
+  def __init__(self, file_pattern, coder, compression_type, validate):
     """Initialize a TFRecordSource.  See ReadFromTFRecord for details."""
     super(_TFRecordSource, self).__init__(
         file_pattern=file_pattern,
@@ -175,8 +184,8 @@ class _TFRecordSource(FileBasedSource):
 
   def read_records(self, file_name, offset_range_tracker):
     if offset_range_tracker.start_position():
-      raise ValueError('Start position not 0:%s' %
-                       offset_range_tracker.start_position())
+      raise ValueError(
+          'Start position not 0:%s' % offset_range_tracker.start_position())
 
     current_offset = offset_range_tracker.start_position()
     with self.open_file(file_name) as file_handle:
@@ -195,8 +204,7 @@ def _create_tfrecordio_source(
     file_pattern=None, coder=None, compression_type=None):
   # We intentionally disable validation for ReadAll pattern so that reading does
   # not fail for globs (elements) that are empty.
-  return _TFRecordSource(file_pattern, coder, compression_type,
-                         validate=False)
+  return _TFRecordSource(file_pattern, coder, compression_type, validate=False)
 
 
 class ReadAllFromTFRecord(PTransform):
@@ -219,13 +227,16 @@ class ReadAllFromTFRecord(PTransform):
     """
     super(ReadAllFromTFRecord, self).__init__(**kwargs)
     source_from_file = partial(
-        _create_tfrecordio_source, compression_type=compression_type,
+        _create_tfrecordio_source,
+        compression_type=compression_type,
         coder=coder)
     # Desired and min bundle sizes do not matter since TFRecord files are
     # unsplittable.
     self._read_all_files = ReadAllFiles(
-        splittable=False, compression_type=compression_type,
-        desired_bundle_size=0, min_bundle_size=0,
+        splittable=False,
+        compression_type=compression_type,
+        desired_bundle_size=0,
+        min_bundle_size=0,
         source_from_file=source_from_file)
 
   def expand(self, pvalue):
@@ -235,12 +246,13 @@ class ReadAllFromTFRecord(PTransform):
 class ReadFromTFRecord(PTransform):
   """Transform for reading TFRecord sources."""
 
-  def __init__(self,
-               file_pattern,
-               coder=coders.BytesCoder(),
-               compression_type=CompressionTypes.AUTO,
-               validate=True,
-               **kwargs):
+  def __init__(
+      self,
+      file_pattern,
+      coder=coders.BytesCoder(),
+      compression_type=CompressionTypes.AUTO,
+      validate=True,
+      **kwargs):
     """Initialize a ReadFromTFRecord transform.
 
     Args:
@@ -258,8 +270,8 @@ class ReadFromTFRecord(PTransform):
       A ReadFromTFRecord transform object.
     """
     super(ReadFromTFRecord, self).__init__(**kwargs)
-    self._source = _TFRecordSource(file_pattern, coder, compression_type,
-                                   validate)
+    self._source = _TFRecordSource(
+        file_pattern, coder, compression_type, validate)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
@@ -272,8 +284,14 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
     https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
 
-  def __init__(self, file_path_prefix, coder, file_name_suffix, num_shards,
-               shard_name_template, compression_type):
+  def __init__(
+      self,
+      file_path_prefix,
+      coder,
+      file_name_suffix,
+      num_shards,
+      shard_name_template,
+      compression_type):
     """Initialize a TFRecordSink. See WriteToTFRecord for details."""
 
     super(_TFRecordSink, self).__init__(
@@ -292,14 +310,15 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
 class WriteToTFRecord(PTransform):
   """Transform for writing to TFRecord sinks."""
 
-  def __init__(self,
-               file_path_prefix,
-               coder=coders.BytesCoder(),
-               file_name_suffix='',
-               num_shards=0,
-               shard_name_template=None,
-               compression_type=CompressionTypes.AUTO,
-               **kwargs):
+  def __init__(
+      self,
+      file_path_prefix,
+      coder=coders.BytesCoder(),
+      file_name_suffix='',
+      num_shards=0,
+      shard_name_template=None,
+      compression_type=CompressionTypes.AUTO,
+      **kwargs):
     """Initialize WriteToTFRecord transform.
 
     Args:
@@ -327,9 +346,13 @@ class WriteToTFRecord(PTransform):
       A WriteToTFRecord transform object.
     """
     super(WriteToTFRecord, self).__init__(**kwargs)
-    self._sink = _TFRecordSink(file_path_prefix, coder, file_name_suffix,
-                               num_shards, shard_name_template,
-                               compression_type)
+    self._sink = _TFRecordSink(
+        file_path_prefix,
+        coder,
+        file_name_suffix,
+        num_shards,
+        shard_name_template,
+        compression_type)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

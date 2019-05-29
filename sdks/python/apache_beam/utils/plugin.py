@@ -41,6 +41,8 @@ class BeamPlugin(object):
   @classmethod
   def get_all_plugin_paths(cls):
     """Get full import paths of the BeamPlugin subclass."""
+
     def fullname(o):
       return o.__module__ + "." + o.__name__
+
     return [fullname(o) for o in cls.get_all_subclasses()]

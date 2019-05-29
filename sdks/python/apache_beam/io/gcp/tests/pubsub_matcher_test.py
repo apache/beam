@@ -42,7 +42,6 @@ except ImportError:
 @mock.patch('time.sleep', return_value=None)
 @mock.patch('google.cloud.pubsub.SubscriberClient')
 class PubSubMatcherTest(unittest.TestCase):
-
   @classmethod
   def setUpClass(cls):
     # Method has been renamed in Python 3
@@ -54,8 +53,11 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def init_matcher(self, with_attributes=False, strip_attributes=None):
     self.pubsub_matcher = PubSubMessageMatcher(
-        'mock_project', 'mock_sub_name', ['mock_expected_msg'],
-        with_attributes=with_attributes, strip_attributes=strip_attributes)
+        'mock_project',
+        'mock_sub_name',
+        ['mock_expected_msg'],
+        with_attributes=with_attributes,
+        strip_attributes=strip_attributes)
 
   def test_message_matcher_success(self, mock_get_sub, unsued_mock):
     self.init_matcher()
@@ -94,26 +96,31 @@ class PubSubMatcherTest(unittest.TestCase):
     self.assertEqual(mock_sub.acknowledge.call_count, 1)
 
   def test_message_matcher_strip_success(self, mock_get_sub, unsued_mock):
-    self.init_matcher(with_attributes=True,
-                      strip_attributes=['id', 'timestamp'])
+    self.init_matcher(
+        with_attributes=True, strip_attributes=['id', 'timestamp'])
     self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
     mock_sub = mock_get_sub.return_value
-    mock_sub.pull.side_effect = [create_pull_response([
-        PullResponseMessage(b'a', {'id': 'foo', 'timestamp': 'bar', 'k': 'v'})
-    ])]
+    mock_sub.pull.side_effect = [
+        create_pull_response(
+            [
+                PullResponseMessage(
+                    b'a', {'id': 'foo', 'timestamp': 'bar', 'k': 'v'})
+            ])
+    ]
     hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
     self.assertEqual(mock_sub.acknowledge.call_count, 1)
 
   def test_message_matcher_strip_fail(self, mock_get_sub, unsued_mock):
-    self.init_matcher(with_attributes=True,
-                      strip_attributes=['id', 'timestamp'])
+    self.init_matcher(
+        with_attributes=True, strip_attributes=['id', 'timestamp'])
     self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
     mock_sub = mock_get_sub.return_value
     # Message is missing attribute 'timestamp'.
-    mock_sub.pull.side_effect = [create_pull_response([
-        PullResponseMessage(b'a', {'id': 'foo', 'k': 'v'})
-    ])]
+    mock_sub.pull.side_effect = [
+        create_pull_response(
+            [PullResponseMessage(b'a', {'id': 'foo', 'k': 'v'})])
+    ]
     with self.assertRaisesRegexp(AssertionError, r'Stripped attributes'):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
@@ -124,8 +131,8 @@ class PubSubMatcherTest(unittest.TestCase):
     self.pubsub_matcher.expected_msg = ['a']
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
-        create_pull_response([PullResponseMessage(b'c', {}),
-                              PullResponseMessage(b'd', {})]),
+        create_pull_response(
+            [PullResponseMessage(b'c', {}), PullResponseMessage(b'd', {})])
     ]
     with self.assertRaises(AssertionError) as error:
       hc_assert_that(self.mock_presult, self.pubsub_matcher)

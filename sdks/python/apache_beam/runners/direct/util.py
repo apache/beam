@@ -28,9 +28,14 @@ from builtins import object
 class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
-  def __init__(self, transform_evaluator, uncommitted_output_bundles,
-               unprocessed_bundles, counters, keyed_watermark_holds,
-               undeclared_tag_values=None):
+  def __init__(
+      self,
+      transform_evaluator,
+      uncommitted_output_bundles,
+      unprocessed_bundles,
+      counters,
+      keyed_watermark_holds,
+      undeclared_tag_values=None):
     self.transform = transform_evaluator._applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundles = unprocessed_bundles
@@ -64,13 +69,16 @@ class TimerFiring(object):
     self.timestamp = timestamp
 
   def __repr__(self):
-    return 'TimerFiring(%r, %r, %s, %s)' % (self.encoded_key,
-                                            self.name, self.time_domain,
-                                            self.timestamp)
+    return 'TimerFiring(%r, %r, %s, %s)' % (
+        self.encoded_key,
+        self.name,
+        self.time_domain,
+        self.timestamp)
 
 
 class KeyedWorkItem(object):
   """A keyed item that can either be a timer firing or a list of elements."""
+
   def __init__(self, encoded_key, timer_firings=None, elements=None):
     self.encoded_key = encoded_key
     self.timer_firings = timer_firings or []

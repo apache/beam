@@ -62,14 +62,15 @@ class FileBasedSink(iobase.Sink):
   _MAX_RENAME_THREADS = 64
   __hash__ = None
 
-  def __init__(self,
-               file_path_prefix,
-               coder,
-               file_name_suffix='',
-               num_shards=0,
-               shard_name_template=None,
-               mime_type='application/octet-stream',
-               compression_type=CompressionTypes.AUTO):
+  def __init__(
+      self,
+      file_path_prefix,
+      coder,
+      file_name_suffix='',
+      num_shards=0,
+      shard_name_template=None,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     """
      Raises:
       ~exceptions.TypeError: if file path parameters are not a :class:`str` or
@@ -80,15 +81,18 @@ class FileBasedSink(iobase.Sink):
         format.
     """
     if not isinstance(file_path_prefix, ((str, unicode), ValueProvider)):
-      raise TypeError('file_path_prefix must be a string or ValueProvider;'
-                      'got %r instead' % file_path_prefix)
+      raise TypeError(
+          'file_path_prefix must be a string or ValueProvider;'
+          'got %r instead' % file_path_prefix)
     if not isinstance(file_name_suffix, ((str, unicode), ValueProvider)):
-      raise TypeError('file_name_suffix must be a string or ValueProvider;'
-                      'got %r instead' % file_name_suffix)
+      raise TypeError(
+          'file_name_suffix must be a string or ValueProvider;'
+          'got %r instead' % file_name_suffix)
 
     if not CompressionTypes.is_valid_compression_type(compression_type):
-      raise TypeError('compression_type must be CompressionType object but '
-                      'was %s' % type(compression_type))
+      raise TypeError(
+          'compression_type must be CompressionType object but '
+          'was %s' % type(compression_type))
     if shard_name_template is None:
       shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
     elif shard_name_template == '':
@@ -108,16 +112,20 @@ class FileBasedSink(iobase.Sink):
     self.mime_type = mime_type
 
   def display_data(self):
-    return {'shards':
-            DisplayDataItem(self.num_shards,
-                            label='Number of Shards').drop_if_default(0),
-            'compression':
-            DisplayDataItem(str(self.compression_type)),
-            'file_pattern':
-            DisplayDataItem('{}{}{}'.format(self.file_path_prefix,
-                                            self.shard_name_format,
-                                            self.file_name_suffix),
-                            label='File Pattern')}
+    return {
+        'shards': DisplayDataItem(
+            self.num_shards, label='Number of Shards'
+        ).drop_if_default(0),
+        'compression': DisplayDataItem(str(self.compression_type)),
+        'file_pattern': DisplayDataItem(
+            '{}{}{}'.format(
+                self.file_path_prefix,
+                self.shard_name_format,
+                self.file_name_suffix,
+            ),
+            label='File Pattern',
+        ),
+    }
 
   @check_accessible(['file_path_prefix'])
   def open(self, temp_path):
@@ -165,11 +173,14 @@ class FileBasedSink(iobase.Sink):
       # Trying to re-split the base_path to check if it's a root.
       new_base_path, _ = FileSystems.split(base_path)
       if base_path == new_base_path:
-        raise ValueError('Cannot create a temporary directory for root path '
-                         'prefix %s. Please specify a file path prefix with '
-                         'at least two components.' % file_path_prefix)
-    path_components = [base_path,
-                       'beam-temp-' + last_component + '-' + uuid.uuid1().hex]
+        raise ValueError(
+            'Cannot create a temporary directory for root path '
+            'prefix %s. Please specify a file path prefix with '
+            'at least two components.' % file_path_prefix)
+    path_components = [
+        base_path,
+        'beam-temp-' + last_component + '-' + uuid.uuid1().hex,
+    ]
     return FileSystems.join(*path_components)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
@@ -180,37 +191,42 @@ class FileBasedSink(iobase.Sink):
     # file_name_suffix.
     file_path_prefix = self.file_path_prefix.get()
     file_name_suffix = self.file_name_suffix.get()
-    suffix = (
-        '.' + os.path.basename(file_path_prefix) + file_name_suffix)
+    suffix = '.' + os.path.basename(file_path_prefix) + file_name_suffix
     return FileBasedSinkWriter(self, os.path.join(init_result, uid) + suffix)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def _get_final_name(self, shard_num, num_shards):
-    return ''.join([
-        self.file_path_prefix.get(),
-        self.shard_name_format % dict(shard_num=shard_num,
-                                      num_shards=num_shards),
-        self.file_name_suffix.get()
-    ])
+    return ''.join(
+        [
+            self.file_path_prefix.get(),
+            self.shard_name_format
+            % dict(shard_num=shard_num, num_shards=num_shards),
+            self.file_name_suffix.get(),
+        ])
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def _get_final_name_glob(self, num_shards):
-    return ''.join([
-        self.file_path_prefix.get(),
-        self.shard_name_glob_format % dict(num_shards=num_shards),
-        self.file_name_suffix.get()
-    ])
+    return ''.join(
+        [
+            self.file_path_prefix.get(),
+            self.shard_name_glob_format % dict(num_shards=num_shards),
+            self.file_name_suffix.get(),
+        ])
 
   def pre_finalize(self, init_result, writer_results):
     num_shards = len(list(writer_results))
     dst_glob = self._get_final_name_glob(num_shards)
-    dst_glob_files = [file_metadata.path
-                      for mr in FileSystems.match([dst_glob])
-                      for file_metadata in mr.metadata_list]
+    dst_glob_files = [
+        file_metadata.path
+        for mr in FileSystems.match([dst_glob])
+        for file_metadata in mr.metadata_list
+    ]
 
     if dst_glob_files:
-      logging.warn('Deleting %d existing files in target path matching: %s',
-                   len(dst_glob_files), self.shard_name_glob_format)
+      logging.warn(
+          'Deleting %d existing files in target path matching: %s',
+          len(dst_glob_files),
+          self.shard_name_glob_format)
       FileSystems.delete(dst_glob_files)
 
   def _check_state_for_finalize_write(self, writer_results, num_shards):
@@ -229,12 +245,14 @@ class FileBasedSink(iobase.Sink):
 
     src_glob = FileSystems.join(FileSystems.split(writer_results[0])[0], '*')
     dst_glob = self._get_final_name_glob(num_shards)
-    src_glob_files = set(file_metadata.path
-                         for mr in FileSystems.match([src_glob])
-                         for file_metadata in mr.metadata_list)
-    dst_glob_files = set(file_metadata.path
-                         for mr in FileSystems.match([dst_glob])
-                         for file_metadata in mr.metadata_list)
+    src_glob_files = set(
+        file_metadata.path
+        for mr in FileSystems.match([src_glob])
+        for file_metadata in mr.metadata_list)
+    dst_glob_files = set(
+        file_metadata.path
+        for mr in FileSystems.match([dst_glob])
+        for file_metadata in mr.metadata_list)
 
     src_files = []
     dst_files = []
@@ -246,14 +264,15 @@ class FileBasedSink(iobase.Sink):
       src_exists = src in src_glob_files
       dst_exists = dst in dst_glob_files
       if not src_exists and not dst_exists:
-        raise BeamIOError('src and dst files do not exist. src: %s, dst: %s' % (
-            src, dst))
+        raise BeamIOError(
+            'src and dst files do not exist. src: %s, dst: %s' % (src, dst))
       if not src_exists and dst_exists:
         logging.debug('src: %s -> dst: %s already renamed, skipping', src, dst)
         num_skipped += 1
         continue
-      if (src_exists and dst_exists and
-          FileSystems.checksum(src) == FileSystems.checksum(dst)):
+      if (src_exists
+          and dst_exists
+          and FileSystems.checksum(src) == FileSystems.checksum(dst)):
         logging.debug('src: %s == dst: %s, deleting src', src, dst)
         delete_files.append(src)
         continue
@@ -263,13 +282,17 @@ class FileBasedSink(iobase.Sink):
     return src_files, dst_files, delete_files, num_skipped
 
   @check_accessible(['file_path_prefix'])
-  def finalize_write(self, init_result, writer_results,
-                     unused_pre_finalize_results):
+  def finalize_write(
+      self, init_result, writer_results, unused_pre_finalize_results):
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
 
-    src_files, dst_files, delete_files, num_skipped = (
-        self._check_state_for_finalize_write(writer_results, num_shards))
+    (
+        src_files,
+        dst_files,
+        delete_files,
+        num_skipped,
+    ) = self._check_state_for_finalize_write(writer_results, num_shards)
     num_skipped += len(delete_files)
     FileSystems.delete(delete_files)
     num_shards_to_finalize = len(src_files)
@@ -277,16 +300,22 @@ class FileBasedSink(iobase.Sink):
     num_threads = max(1, min_threads)
 
     chunk_size = FileSystems.get_chunk_size(self.file_path_prefix.get())
-    source_file_batch = [src_files[i:i + chunk_size]
-                         for i in range(0, len(src_files), chunk_size)]
-    destination_file_batch = [dst_files[i:i + chunk_size]
-                              for i in range(0, len(dst_files), chunk_size)]
+    source_file_batch = [
+        src_files[i : i + chunk_size]
+        for i in range(0, len(src_files), chunk_size)
+    ]
+    destination_file_batch = [
+        dst_files[i : i + chunk_size]
+        for i in range(0, len(dst_files), chunk_size)
+    ]
 
     if num_shards_to_finalize:
       logging.info(
           'Starting finalize_write threads with num_shards: %d (skipped: %d), '
           'batches: %d, num_threads: %d',
-          num_shards_to_finalize, num_skipped, len(source_file_batch),
+          num_shards_to_finalize,
+          num_skipped,
+          len(source_file_batch),
           num_threads)
       start_time = time.time()
 
@@ -303,19 +332,24 @@ class FileBasedSink(iobase.Sink):
             raise
           for (src, dst), exception in iteritems(exp.exception_details):
             if exception:
-              logging.error(('Exception in _rename_batch. src: %s, '
-                             'dst: %s, err: %s'), src, dst, exception)
+              logging.error(
+                  ('Exception in _rename_batch. src: %s, ' 'dst: %s, err: %s'),
+                  src,
+                  dst,
+                  exception)
               exceptions.append(exception)
             else:
               logging.debug('Rename successful: %s -> %s', src, dst)
           return exceptions
 
       exception_batches = util.run_using_threadpool(
-          _rename_batch, list(zip(source_file_batch, destination_file_batch)),
+          _rename_batch,
+          list(zip(source_file_batch, destination_file_batch)),
           num_threads)
 
-      all_exceptions = [e for exception_batch in exception_batches
-                        for e in exception_batch]
+      all_exceptions = [
+          e for exception_batch in exception_batches for e in exception_batch
+      ]
       if all_exceptions:
         raise Exception(
             'Encountered exceptions in finalize_write: %s' % all_exceptions)
@@ -323,12 +357,15 @@ class FileBasedSink(iobase.Sink):
       for final_name in dst_files:
         yield final_name
 
-      logging.info('Renamed %d shards in %.2f seconds.', num_shards_to_finalize,
-                   time.time() - start_time)
+      logging.info(
+          'Renamed %d shards in %.2f seconds.',
+          num_shards_to_finalize,
+          time.time() - start_time)
     else:
       logging.warning(
           'No shards found to finalize. num_shards: %d, skipped: %d',
-          num_shards, num_skipped)
+          num_shards,
+          num_skipped)
 
     try:
       FileSystems.delete([init_result])
@@ -351,8 +388,8 @@ class FileBasedSink(iobase.Sink):
     match = re.search('S+', shard_name_template)
     if match is None:
       raise ValueError(
-          "Shard number pattern S+ not found in shard_name_template: %s" %
-          shard_name_template)
+          "Shard number pattern S+ not found in shard_name_template: %s"
+          % shard_name_template)
     shard_name_format = shard_name_template.replace(
         match.group(0), '%%(shard_num)0%dd' % len(match.group(0)))
     return FileBasedSink._template_replace_num_shards(shard_name_format)
@@ -364,8 +401,8 @@ class FileBasedSink(iobase.Sink):
     match = re.search('S+', shard_name_template)
     if match is None:
       raise ValueError(
-          "Shard number pattern S+ not found in shard_name_template: %s" %
-          shard_name_template)
+          "Shard number pattern S+ not found in shard_name_template: %s"
+          % shard_name_template)
     shard_name_format = shard_name_template.replace(match.group(0), '*')
     return FileBasedSink._template_replace_num_shards(shard_name_format)
 

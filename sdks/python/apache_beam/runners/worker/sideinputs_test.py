@@ -36,7 +36,6 @@ def strip_windows(iterator):
 
 
 class FakeSource(object):
-
   def __init__(self, items, notify_observers=False):
     self.items = items
     self._should_notify_observers = notify_observers
@@ -46,7 +45,6 @@ class FakeSource(object):
 
 
 class FakeSourceReader(observable.ObservableMixin):
-
   def __init__(self, items, notify_observers=False):
     super(FakeSourceReader, self).__init__()
     self.items = items
@@ -73,11 +71,8 @@ class FakeSourceReader(observable.ObservableMixin):
 
 
 class PrefetchingSourceIteratorTest(unittest.TestCase):
-
   def test_single_source_iterator_fn(self):
-    sources = [
-        FakeSource([0, 1, 2, 3, 4, 5]),
-    ]
+    sources = [FakeSource([0, 1, 2, 3, 4, 5])]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=2)
     assert list(strip_windows(iterator_fn())) == list(range(6))
@@ -85,9 +80,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
   def test_bytes_read_are_reported(self):
     mock_read_counter = mock.MagicMock()
     source_records = ['a', 'b', 'c', 'd']
-    sources = [
-        FakeSource(source_records, notify_observers=True),
-    ]
+    sources = [FakeSource(source_records, notify_observers=True)]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=3, read_counter=mock_read_counter)
     assert list(strip_windows(iterator_fn())) == source_records
@@ -123,9 +116,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
       yield 0
       raise MyException('I am an exception!')
 
-    sources = [
-        FakeSource(exception_generator()),
-    ]
+    sources = [FakeSource(exception_generator())]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(sources)
     seen = set()
     with self.assertRaises(MyException):
@@ -163,11 +154,11 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
 
 
 class EmulatedCollectionsTest(unittest.TestCase):
-
   def test_emulated_iterable(self):
     def _iterable_fn():
       for i in range(10):
         yield i
+
     iterable = sideinputs.EmulatedIterable(_iterable_fn)
     # Check that multiple iterations are supported.
     for _ in range(0, 5):
@@ -181,6 +172,7 @@ class EmulatedCollectionsTest(unittest.TestCase):
     def _iterable_fn():
       for i in range(10):
         yield ('%d' % i) * (200 * 1024 * 1024)
+
     iterable = sideinputs.EmulatedIterable(_iterable_fn)
     # Check that multiple iterations are supported.
     for _ in range(0, 3):

@@ -37,34 +37,46 @@ from apache_beam.utils import proto_utils
 # This module is experimental. No backwards-compatibility guarantees.
 
 
-KNOWN_COMPOSITES = frozenset([
-    common_urns.primitives.GROUP_BY_KEY.urn,
-    common_urns.composites.COMBINE_PER_KEY.urn,
-    common_urns.primitives.PAR_DO.urn,  # After SDF expansion.
-])
+KNOWN_COMPOSITES = frozenset(
+    [
+        common_urns.primitives.GROUP_BY_KEY.urn,
+        common_urns.composites.COMBINE_PER_KEY.urn,
+        common_urns.primitives.PAR_DO.urn,  # After SDF expansion.
+    ])
 
-COMBINE_URNS = frozenset([
-    common_urns.composites.COMBINE_PER_KEY.urn,
-    common_urns.combine_components.COMBINE_PGBKCV.urn,
-    common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
-    common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn])
+COMBINE_URNS = frozenset(
+    [
+        common_urns.composites.COMBINE_PER_KEY.urn,
+        common_urns.combine_components.COMBINE_PGBKCV.urn,
+        common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
+        common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn,
+    ])
 
-PAR_DO_URNS = frozenset([
-    common_urns.primitives.PAR_DO.urn,
-    common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
-    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
-    common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
-    common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
-    common_urns.sdf_components.PROCESS_ELEMENTS.urn])
+PAR_DO_URNS = frozenset(
+    [
+        common_urns.primitives.PAR_DO.urn,
+        common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
+        common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+        common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
+        common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+        common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+    ])
 
 IMPULSE_BUFFER = b'impulse'
 
 
 class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
-  def __init__(self, name, transforms,
-               downstream_side_inputs=None, must_follow=frozenset(),
-               parent=None, environment=None, forced_root=False):
+
+  def __init__(
+      self,
+      name,
+      transforms,
+      downstream_side_inputs=None,
+      must_follow=frozenset(),
+      parent=None,
+      environment=None,
+      forced_root=False):
     self.name = name
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
@@ -87,8 +99,12 @@ class Stage(object):
           str(si) for si in self.downstream_side_inputs)
     return "%s\n  %s\n  must follow: %s\n  downstream_side_inputs: %s" % (
         self.name,
-        '\n'.join(["%s:%s" % (transform.unique_name, transform.spec.urn)
-                   for transform in self.transforms]),
+        '\n'.join(
+            [
+                "%s:%s" % (transform.unique_name, transform.spec.urn)
+                for transform in self.transforms
+            ]
+        ),
         must_follow,
         downstream_side_inputs)
 
@@ -113,9 +129,9 @@ class Stage(object):
       return env1
     else:
       if env1 != env2:
-        raise ValueError("Incompatible environments: '%s' != '%s'" % (
-            str(env1).replace('\n', ' '),
-            str(env2).replace('\n', ' ')))
+        raise ValueError(
+            "Incompatible environments: '%s' != '%s'"
+            % (str(env1).replace('\n', ' '), str(env2).replace('\n', ' ')))
       return env1
 
   def can_fuse(self, consumer, context):
@@ -141,13 +157,15 @@ class Stage(object):
         union(self.downstream_side_inputs, other.downstream_side_inputs),
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
-            self.environment, other.environment),
+            self.environment, other.environment
+        ),
         parent=self.parent if self.parent == other.parent else None,
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
-    return any(transform.spec.urn in context.known_runner_urns
-               for transform in self.transforms)
+    return any(
+        transform.spec.urn in context.known_runner_urns
+        for transform in self.transforms)
 
   def side_inputs(self):
     for transform in self.transforms:
@@ -193,8 +211,11 @@ class Stage(object):
       all_outputs = set(
           pcoll for t in self.transforms for pcoll in t.outputs.values())
       internal_transforms = set(id(t) for t in self.transforms)
-      external_outputs = [pcoll for pcoll in all_outputs
-                          if all_consumers[pcoll] - internal_transforms]
+      external_outputs = [
+          pcoll
+          for pcoll in all_outputs
+          if all_consumers[pcoll] - internal_transforms
+      ]
 
       stage_components = beam_runner_api_pb2.Components()
       stage_components.CopyFrom(components)
@@ -221,18 +242,18 @@ class Stage(object):
           for tag in payload.side_inputs.keys():
             side_inputs.append(
                 beam_runner_api_pb2.ExecutableStagePayload.SideInputId(
-                    transform_id=transform_id,
-                    local_name=tag))
+                    transform_id=transform_id, local_name=tag)
+)
           for tag in payload.state_specs.keys():
             user_states.append(
                 beam_runner_api_pb2.ExecutableStagePayload.UserStateId(
-                    transform_id=transform_id,
-                    local_name=tag))
+                    transform_id=transform_id, local_name=tag)
+)
           for tag in payload.timer_specs.keys():
             timers.append(
                 beam_runner_api_pb2.ExecutableStagePayload.TimerId(
-                    transform_id=transform_id,
-                    local_name=tag))
+                    transform_id=transform_id, local_name=tag)
+)
           main_inputs.update(
               pcoll_id
               for tag, pcoll_id in transform.inputs.items()
@@ -242,11 +263,20 @@ class Stage(object):
         stage_components.transforms[transform_id].CopyFrom(transform)
 
       main_input_id = only_element(main_inputs - all_outputs)
-      named_inputs = dict({
-          '%s:%s' % (side.transform_id, side.local_name):
-          stage_components.transforms[side.transform_id].inputs[side.local_name]
-          for side in side_inputs
-      }, main_input=main_input_id)
+      named_inputs = dict(
+          {
+              '%s:%s'
+              % (
+                  side.transform_id,
+                  side.local_name,
+              ): stage_components.transforms[
+                  side.transform_id
+              ].inputs[
+                  side.local_name
+              ]
+              for side in side_inputs
+          },
+          main_input=main_input_id)
       payload = beam_runner_api_pb2.ExecutableStagePayload(
           environment=components.environments[self.environment],
           input=main_input_id,
@@ -261,10 +291,13 @@ class Stage(object):
           unique_name=unique_name(None, self.name),
           spec=beam_runner_api_pb2.FunctionSpec(
               urn='beam:runner:executable_stage:v1',
-              payload=payload.SerializeToString()),
+              payload=payload.SerializeToString(),
+          ),
           inputs=named_inputs,
-          outputs={'output_%d' % ix: pcoll
-                   for ix, pcoll in enumerate(external_outputs)})
+          outputs={
+              'output_%d' % ix: pcoll
+              for ix, pcoll in enumerate(external_outputs)
+          })
 
 
 def memoize_on_instance(f):
@@ -320,7 +353,8 @@ class TransformContext(object):
       return new_coder_id
     else:
       new_component_ids = [
-          self.with_state_iterables(c) for c in coder.component_coder_ids]
+          self.with_state_iterables(c) for c in coder.component_coder_ids
+      ]
       if new_component_ids == coder.component_coder_ids:
         return coder_id
       else:
@@ -328,8 +362,8 @@ class TransformContext(object):
             self.components.coders, coder_id + '_state_backed')
         self.components.coders[new_coder_id].CopyFrom(
             beam_runner_api_pb2.Coder(
-                spec=coder.spec,
-                component_coder_ids=new_component_ids))
+                spec=coder.spec, component_coder_ids=new_component_ids)
+)
         return new_coder_id
 
   @memoize_on_instance
@@ -347,7 +381,8 @@ class TransformContext(object):
       return coder_id, self.bytes_coder_id
     elif coder.spec.spec.urn in self._KNOWN_CODER_URNS:
       new_component_ids = [
-          self.length_prefixed_coder(c) for c in coder.component_coder_ids]
+          self.length_prefixed_coder(c) for c in coder.component_coder_ids
+      ]
       if new_component_ids == coder.component_coder_ids:
         new_coder_id = coder_id
       else:
@@ -355,18 +390,17 @@ class TransformContext(object):
             self.components.coders, coder_id + '_length_prefixed')
         self.components.coders[new_coder_id].CopyFrom(
             beam_runner_api_pb2.Coder(
-                spec=coder.spec,
-                component_coder_ids=new_component_ids))
+                spec=coder.spec, component_coder_ids=new_component_ids)
+)
       safe_component_ids = [self.safe_coders[c] for c in new_component_ids]
       if safe_component_ids == coder.component_coder_ids:
         safe_coder_id = coder_id
       else:
-        safe_coder_id = unique_name(
-            self.components.coders, coder_id + '_safe')
+        safe_coder_id = unique_name(self.components.coders, coder_id + '_safe')
         self.components.coders[safe_coder_id].CopyFrom(
             beam_runner_api_pb2.Coder(
-                spec=coder.spec,
-                component_coder_ids=safe_component_ids))
+                spec=coder.spec, component_coder_ids=safe_component_ids)
+)
       return new_coder_id, safe_coder_id
     else:
       new_coder_id = unique_name(
@@ -375,14 +409,17 @@ class TransformContext(object):
           beam_runner_api_pb2.Coder(
               spec=beam_runner_api_pb2.SdkFunctionSpec(
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.coders.LENGTH_PREFIX.urn)),
-              component_coder_ids=[coder_id]))
+                      urn=common_urns.coders.LENGTH_PREFIX.urn)
+              ),
+              component_coder_ids=[coder_id])
+)
       return new_coder_id, self.bytes_coder_id
 
   def length_prefix_pcoll_coders(self, pcoll_id):
-    self.components.pcollections[pcoll_id].coder_id = (
-        self.length_prefixed_coder(
-            self.components.pcollections[pcoll_id].coder_id))
+    self.components.pcollections[
+        pcoll_id
+    ].coder_id = self.length_prefixed_coder(
+        self.components.pcollections[pcoll_id].coder_id)
 
 
 def leaf_transform_stages(
@@ -401,8 +438,7 @@ def leaf_transform_stages(
         yield stage
 
 
-def pipeline_from_stages(
-    pipeline_proto, stages, known_runner_urns, partial):
+def pipeline_from_stages(pipeline_proto, stages, known_runner_urns, partial):
 
   # In case it was a generator that mutates components as it
   # produces outputs (as is the case with most transformations).
@@ -456,10 +492,8 @@ def pipeline_from_stages(
   return new_proto
 
 
-def create_and_optimize_stages(pipeline_proto,
-                               phases,
-                               known_runner_urns,
-                               use_state_iterables=False):
+def create_and_optimize_stages(
+    pipeline_proto, phases, known_runner_urns, use_state_iterables=False):
   """Create a set of stages given a pipeline proto, and set of optimizations.
 
   Args:
@@ -480,10 +514,12 @@ def create_and_optimize_stages(pipeline_proto,
       use_state_iterables=use_state_iterables)
 
   # Initial set of stages are singleton leaf transforms.
-  stages = list(leaf_transform_stages(
-      pipeline_proto.root_transform_ids,
-      pipeline_proto.components,
-      union(known_runner_urns, KNOWN_COMPOSITES)))
+  stages = list(
+      leaf_transform_stages(
+          pipeline_proto.root_transform_ids,
+          pipeline_proto.components,
+          union(known_runner_urns, KNOWN_COMPOSITES))
+)
 
   # Apply each phase in order.
   for phase in phases:
@@ -497,16 +533,9 @@ def create_and_optimize_stages(pipeline_proto,
 
 
 def optimize_pipeline(
-    pipeline_proto,
-    phases,
-    known_runner_urns,
-    partial=False,
-    **kwargs):
+    pipeline_proto, phases, known_runner_urns, partial=False, **kwargs):
   unused_context, stages = create_and_optimize_stages(
-      pipeline_proto,
-      phases,
-      known_runner_urns,
-      **kwargs)
+      pipeline_proto, phases, known_runner_urns, **kwargs)
   return pipeline_from_stages(
       pipeline_proto, stages, known_runner_urns, partial)
 
@@ -551,8 +580,8 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
                 downstream_side_inputs, frozenset([output]))
           for consumer in consumers[output]:
             downstream_side_inputs = union(
-                downstream_side_inputs,
-                compute_downstream_side_inputs(consumer))
+                downstream_side_inputs, compute_downstream_side_inputs(consumer)
+            )
       downstream_side_inputs_by_stage[stage] = downstream_side_inputs
     return downstream_side_inputs_by_stage[stage]
 
@@ -597,10 +626,12 @@ def lift_combiners(stages, context):
       combine_payload = proto_utils.parse_Bytes(
           transform.spec.payload, beam_runner_api_pb2.CombinePayload)
 
-      input_pcoll = context.components.pcollections[only_element(
-          list(transform.inputs.values()))]
-      output_pcoll = context.components.pcollections[only_element(
-          list(transform.outputs.values()))]
+      input_pcoll = context.components.pcollections[
+          only_element(list(transform.inputs.values()))
+      ]
+      output_pcoll = context.components.pcollections[
+          only_element(list(transform.outputs.values()))
+      ]
 
       element_coder_id = input_pcoll.coder_id
       element_coder = context.components.coders[element_coder_id]
@@ -610,7 +641,8 @@ def lift_combiners(stages, context):
       key_accumulator_coder = beam_runner_api_pb2.Coder(
           spec=beam_runner_api_pb2.SdkFunctionSpec(
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.coders.KV.urn)),
+                  urn=common_urns.coders.KV.urn)
+          ),
           component_coder_ids=[key_coder_id, accumulator_coder_id])
       key_accumulator_coder_id = context.add_or_get_coder_id(
           key_accumulator_coder)
@@ -618,7 +650,8 @@ def lift_combiners(stages, context):
       accumulator_iter_coder = beam_runner_api_pb2.Coder(
           spec=beam_runner_api_pb2.SdkFunctionSpec(
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.coders.ITERABLE.urn)),
+                  urn=common_urns.coders.ITERABLE.urn)
+          ),
           component_coder_ids=[accumulator_coder_id])
       accumulator_iter_coder_id = context.add_or_get_coder_id(
           accumulator_iter_coder)
@@ -626,7 +659,8 @@ def lift_combiners(stages, context):
       key_accumulator_iter_coder = beam_runner_api_pb2.Coder(
           spec=beam_runner_api_pb2.SdkFunctionSpec(
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.coders.KV.urn)),
+                  urn=common_urns.coders.KV.urn)
+          ),
           component_coder_ids=[key_coder_id, accumulator_iter_coder_id])
       key_accumulator_iter_coder_id = context.add_or_get_coder_id(
           key_accumulator_iter_coder)
@@ -638,7 +672,8 @@ def lift_combiners(stages, context):
               unique_name=transform.unique_name + '/Precombine.out',
               coder_id=key_accumulator_coder_id,
               windowing_strategy_id=input_pcoll.windowing_strategy_id,
-              is_bounded=input_pcoll.is_bounded))
+              is_bounded=input_pcoll.is_bounded)
+)
 
       grouped_pcoll_id = unique_name(
           context.components.pcollections, 'pcollection')
@@ -647,7 +682,8 @@ def lift_combiners(stages, context):
               unique_name=transform.unique_name + '/Group.out',
               coder_id=key_accumulator_iter_coder_id,
               windowing_strategy_id=output_pcoll.windowing_strategy_id,
-              is_bounded=output_pcoll.is_bounded))
+              is_bounded=output_pcoll.is_bounded)
+)
 
       merged_pcoll_id = unique_name(
           context.components.pcollections, 'pcollection')
@@ -656,7 +692,8 @@ def lift_combiners(stages, context):
               unique_name=transform.unique_name + '/Merge.out',
               coder_id=key_accumulator_coder_id,
               windowing_strategy_id=output_pcoll.windowing_strategy_id,
-              is_bounded=output_pcoll.is_bounded))
+              is_bounded=output_pcoll.is_bounded)
+)
 
       def make_stage(base_stage, transform):
         return Stage(
@@ -672,42 +709,47 @@ def lift_combiners(stages, context):
           beam_runner_api_pb2.PTransform(
               unique_name=transform.unique_name + '/Precombine',
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.combine_components
-                  .COMBINE_PER_KEY_PRECOMBINE.urn,
-                  payload=transform.spec.payload),
+                  urn=common_urns.combine_components.COMBINE_PER_KEY_PRECOMBINE.urn,
+                  payload=transform.spec.payload,
+              ),
               inputs=transform.inputs,
-              outputs={'out': precombined_pcoll_id}))
+              outputs={'out': precombined_pcoll_id},
+          ))
 
       yield make_stage(
           stage,
           beam_runner_api_pb2.PTransform(
               unique_name=transform.unique_name + '/Group',
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.primitives.GROUP_BY_KEY.urn),
+                  urn=common_urns.primitives.GROUP_BY_KEY.urn
+              ),
               inputs={'in': precombined_pcoll_id},
-              outputs={'out': grouped_pcoll_id}))
+              outputs={'out': grouped_pcoll_id},
+          ))
 
       yield make_stage(
           stage,
           beam_runner_api_pb2.PTransform(
               unique_name=transform.unique_name + '/Merge',
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.combine_components
-                  .COMBINE_PER_KEY_MERGE_ACCUMULATORS.urn,
-                  payload=transform.spec.payload),
+                  urn=common_urns.combine_components.COMBINE_PER_KEY_MERGE_ACCUMULATORS.urn,
+                  payload=transform.spec.payload,
+              ),
               inputs={'in': grouped_pcoll_id},
-              outputs={'out': merged_pcoll_id}))
+              outputs={'out': merged_pcoll_id},
+          ))
 
       yield make_stage(
           stage,
           beam_runner_api_pb2.PTransform(
               unique_name=transform.unique_name + '/ExtractOutputs',
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.combine_components
-                  .COMBINE_PER_KEY_EXTRACT_OUTPUTS.urn,
-                  payload=transform.spec.payload),
+                  urn=common_urns.combine_components.COMBINE_PER_KEY_EXTRACT_OUTPUTS.urn,
+                  payload=transform.spec.payload,
+              ),
               inputs={'in': merged_pcoll_id},
-              outputs=transform.outputs))
+              outputs=transform.outputs,
+          ))
 
     else:
       yield stage
@@ -763,31 +805,40 @@ def expand_sdf(stages, context):
               parent=base_stage,
               environment=base_stage.environment)
 
-        main_input_tag = only_element(tag for tag in transform.inputs.keys()
-                                      if tag not in pardo_payload.side_inputs)
+        main_input_tag = only_element(
+            tag
+            for tag in transform.inputs.keys()
+            if tag not in pardo_payload.side_inputs)
         main_input_id = transform.inputs[main_input_tag]
         element_coder_id = context.components.pcollections[
-            main_input_id].coder_id
+            main_input_id
+        ].coder_id
         # KV[element, restriction]
         paired_coder_id = context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
                 spec=beam_runner_api_pb2.SdkFunctionSpec(
                     spec=beam_runner_api_pb2.FunctionSpec(
-                        urn=common_urns.coders.KV.urn)),
-                component_coder_ids=[element_coder_id,
-                                     pardo_payload.restriction_coder_id]))
+                        urn=common_urns.coders.KV.urn)
+                ),
+                component_coder_ids=[
+                    element_coder_id,
+                    pardo_payload.restriction_coder_id,
+                ])
+)
         # KV[KV[element, restriction], double]
         sized_coder_id = context.add_or_get_coder_id(
             beam_runner_api_pb2.Coder(
                 spec=beam_runner_api_pb2.SdkFunctionSpec(
                     spec=beam_runner_api_pb2.FunctionSpec(
-                        urn=common_urns.coders.KV.urn)),
+                        urn=common_urns.coders.KV.urn)
+                ),
                 component_coder_ids=[
                     paired_coder_id,
                     context.add_or_get_coder_id(
-                        coders.FloatCoder().to_runner_api(None),
-                        'doubles_coder')
-                ]))
+                        coders.FloatCoder().to_runner_api(None), 'doubles_coder'
+                    ),
+                ])
+)
 
         paired_pcoll_id = copy_like(
             context.components.pcollections,
@@ -837,11 +888,10 @@ def expand_sdf(stages, context):
             context.components.transforms,
             transform,
             unique_name=transform.unique_name + '/Process',
-            urn=
-            common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS
-            .urn,
+            urn=common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
             inputs=dict(
-                transform.inputs, **{main_input_tag: reshuffle_pcoll_id}))
+                transform.inputs, **{main_input_tag: reshuffle_pcoll_id}
+            ))
 
         yield make_stage(stage, pair_transform_id)
         split_stage = make_stage(stage, split_transform_id)
@@ -868,8 +918,9 @@ def expand_gbk(stages, pipeline_context):
       for pcoll_id in transform.outputs.values():
         if pipeline_context.use_state_iterables:
           pipeline_context.components.pcollections[
-              pcoll_id].coder_id = pipeline_context.with_state_iterables(
-                  pipeline_context.components.pcollections[pcoll_id].coder_id)
+              pcoll_id
+          ].coder_id = pipeline_context.with_state_iterables(
+              pipeline_context.components.pcollections[pcoll_id].coder_id)
         pipeline_context.length_prefix_pcoll_coders(pcoll_id)
 
       # This is used later to correlate the read and write.
@@ -881,24 +932,30 @@ def expand_gbk(stages, pipeline_context):
       grouping_buffer = create_buffer_id(transform_id, kind='group')
       gbk_write = Stage(
           transform.unique_name + '/Write',
-          [beam_runner_api_pb2.PTransform(
-              unique_name=transform.unique_name + '/Write',
-              inputs=transform.inputs,
-              spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=bundle_processor.DATA_OUTPUT_URN,
-                  payload=grouping_buffer))],
+          [
+              beam_runner_api_pb2.PTransform(
+                  unique_name=transform.unique_name + '/Write',
+                  inputs=transform.inputs,
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=bundle_processor.DATA_OUTPUT_URN,
+                      payload=grouping_buffer,
+                  ))
+          ],
           downstream_side_inputs=frozenset(),
           must_follow=stage.must_follow)
       yield gbk_write
 
       yield Stage(
           transform.unique_name + '/Read',
-          [beam_runner_api_pb2.PTransform(
-              unique_name=transform.unique_name + '/Read',
-              outputs=transform.outputs,
-              spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=bundle_processor.DATA_INPUT_URN,
-                  payload=grouping_buffer))],
+          [
+              beam_runner_api_pb2.PTransform(
+                  unique_name=transform.unique_name + '/Read',
+                  outputs=transform.outputs,
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=bundle_processor.DATA_INPUT_URN,
+                      payload=grouping_buffer,
+                  ))
+          ],
           downstream_side_inputs=stage.downstream_side_inputs,
           must_follow=union(frozenset([gbk_write]), stage.must_follow))
     else:
@@ -927,18 +984,21 @@ def fix_flatten_coders(stages, pipeline_context):
               transform.unique_name + '/Transcode/' + local_in)
           yield Stage(
               transcode_name,
-              [beam_runner_api_pb2.PTransform(
-                  unique_name=transcode_name,
-                  inputs={local_in: pcoll_in},
-                  outputs={'out': transcoded_pcollection},
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.IDENTITY_DOFN_URN))],
+              [
+                  beam_runner_api_pb2.PTransform(
+                      unique_name=transcode_name,
+                      inputs={local_in: pcoll_in},
+                      outputs={'out': transcoded_pcollection},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.IDENTITY_DOFN_URN
+                      ))
+              ],
               downstream_side_inputs=frozenset(),
               must_follow=stage.must_follow)
-          pcollections[transcoded_pcollection].CopyFrom(
-              pcollections[pcoll_in])
-          pcollections[transcoded_pcollection].unique_name = (
-              transcoded_pcollection)
+          pcollections[transcoded_pcollection].CopyFrom(pcollections[pcoll_in])
+          pcollections[
+              transcoded_pcollection
+          ].unique_name = transcoded_pcollection
           pcollections[transcoded_pcollection].coder_id = output_coder_id
           transform.inputs[local_in] = transcoded_pcollection
 
@@ -962,12 +1022,14 @@ def sink_flattens(stages, pipeline_context):
       for local_in, pcoll_in in transform.inputs.items():
         flatten_write = Stage(
             transform.unique_name + '/Write/' + local_in,
-            [beam_runner_api_pb2.PTransform(
-                unique_name=transform.unique_name + '/Write/' + local_in,
-                inputs={local_in: pcoll_in},
-                spec=beam_runner_api_pb2.FunctionSpec(
-                    urn=bundle_processor.DATA_OUTPUT_URN,
-                    payload=buffer_id))],
+            [
+                beam_runner_api_pb2.PTransform(
+                    unique_name=transform.unique_name + '/Write/' + local_in,
+                    inputs={local_in: pcoll_in},
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=bundle_processor.DATA_OUTPUT_URN, payload=buffer_id
+                    ))
+            ],
             downstream_side_inputs=frozenset(),
             must_follow=stage.must_follow)
         flatten_writes.append(flatten_write)
@@ -975,12 +1037,14 @@ def sink_flattens(stages, pipeline_context):
 
       yield Stage(
           transform.unique_name + '/Read',
-          [beam_runner_api_pb2.PTransform(
-              unique_name=transform.unique_name + '/Read',
-              outputs=transform.outputs,
-              spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=bundle_processor.DATA_INPUT_URN,
-                  payload=buffer_id))],
+          [
+              beam_runner_api_pb2.PTransform(
+                  unique_name=transform.unique_name + '/Read',
+                  outputs=transform.outputs,
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=bundle_processor.DATA_INPUT_URN, payload=buffer_id
+                  ))
+          ],
           downstream_side_inputs=stage.downstream_side_inputs,
           must_follow=union(frozenset(flatten_writes), stage.must_follow))
 
@@ -1041,23 +1105,28 @@ def greedily_fuse(stages, pipeline_context):
         if write_pcoll is None:
           write_pcoll = Stage(
               pcoll + '/Write',
-              [beam_runner_api_pb2.PTransform(
-                  unique_name=pcoll + '/Write',
-                  inputs={'in': pcoll},
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.DATA_OUTPUT_URN,
-                      payload=buffer_id))],
+              [
+                  beam_runner_api_pb2.PTransform(
+                      unique_name=pcoll + '/Write',
+                      inputs={'in': pcoll},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.DATA_OUTPUT_URN,
+                          payload=buffer_id,
+                      ))
+              ],
               downstream_side_inputs=producer.downstream_side_inputs)
           fuse(producer, write_pcoll)
         if consumer.has_as_main_input(pcoll):
           read_pcoll = Stage(
               pcoll + '/Read',
-              [beam_runner_api_pb2.PTransform(
-                  unique_name=pcoll + '/Read',
-                  outputs={'out': pcoll},
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.DATA_INPUT_URN,
-                      payload=buffer_id))],
+              [
+                  beam_runner_api_pb2.PTransform(
+                      unique_name=pcoll + '/Read',
+                      outputs={'out': pcoll},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.DATA_INPUT_URN, payload=buffer_id
+                      ))
+              ],
               downstream_side_inputs=consumer.downstream_side_inputs,
               must_follow=frozenset([write_pcoll]))
           fuse(read_pcoll, consumer)
@@ -1067,8 +1136,10 @@ def greedily_fuse(stages, pipeline_context):
 
   # Everything that was originally a stage or a replacement, but wasn't
   # replaced, should be in the final graph.
-  final_stages = frozenset(stages).union(list(replacements.values()))\
-      .difference(list(replacements))
+  final_stages = (
+      frozenset(stages)
+      .union(list(replacements.values()))
+      .difference(list(replacements)))
 
   for stage in final_stages:
     # Update all references to their final values before throwing
@@ -1094,7 +1165,8 @@ def read_to_impulse(stages, pipeline_context):
                 unique_name=impulse_pc,
                 coder_id=pipeline_context.bytes_coder_id,
                 windowing_strategy_id=read_pc_proto.windowing_strategy_id,
-                is_bounded=read_pc_proto.is_bounded))
+                is_bounded=read_pc_proto.is_bounded)
+)
         stage.transforms.remove(transform)
         # TODO(robertwb): If this goes multi-process before fn-api
         # read is default, expand into split + reshuffle + read.
@@ -1102,16 +1174,20 @@ def read_to_impulse(stages, pipeline_context):
             beam_runner_api_pb2.PTransform(
                 unique_name=transform.unique_name + '/Impulse',
                 spec=beam_runner_api_pb2.FunctionSpec(
-                    urn=common_urns.primitives.IMPULSE.urn),
-                outputs={'out': impulse_pc}))
+                    urn=common_urns.primitives.IMPULSE.urn
+                ),
+                outputs={'out': impulse_pc})
+)
         stage.transforms.append(
             beam_runner_api_pb2.PTransform(
                 unique_name=transform.unique_name,
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=python_urns.IMPULSE_READ_TRANSFORM,
-                    payload=transform.spec.payload),
+                    payload=transform.spec.payload,
+                ),
                 inputs={'in': impulse_pc},
-                outputs={'out': read_pc}))
+                outputs={'out': read_pc})
+)
 
     yield stage
 
@@ -1126,9 +1202,10 @@ def impulse_to_input(stages, pipeline_context):
             beam_runner_api_pb2.PTransform(
                 unique_name=transform.unique_name,
                 spec=beam_runner_api_pb2.FunctionSpec(
-                    urn=bundle_processor.DATA_INPUT_URN,
-                    payload=IMPULSE_BUFFER),
-                outputs=transform.outputs))
+                    urn=bundle_processor.DATA_INPUT_URN, payload=IMPULSE_BUFFER
+                ),
+                outputs=transform.outputs)
+)
     yield stage
 
 
@@ -1152,8 +1229,9 @@ def extract_impulse_stages(stages, pipeline_context):
 def remove_data_plane_ops(stages, pipeline_context):
   for stage in stages:
     for transform in list(stage.transforms):
-      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
-                                bundle_processor.DATA_OUTPUT_URN):
+      if transform.spec.urn in (
+          bundle_processor.DATA_INPUT_URN,
+          bundle_processor.DATA_OUTPUT_URN):
         stage.transforms.remove(transform)
 
     if stage.transforms:
@@ -1177,19 +1255,23 @@ def inject_timer_pcollections(stages, pipeline_context):
           if len(transform.inputs) > 1:
             raise NotImplementedError('Timers and side inputs.')
           input_pcoll = pipeline_context.components.pcollections[
-              next(iter(transform.inputs.values()))]
+              next(iter(transform.inputs.values()))
+          ]
           # Create the appropriate coder for the timer PCollection.
           key_coder_id = input_pcoll.coder_id
           if (pipeline_context.components.coders[key_coder_id].spec.spec.urn
               == common_urns.coders.KV.urn):
             key_coder_id = pipeline_context.components.coders[
-                key_coder_id].component_coder_ids[0]
+                key_coder_id
+            ].component_coder_ids[0]
           key_timer_coder_id = pipeline_context.add_or_get_coder_id(
               beam_runner_api_pb2.Coder(
                   spec=beam_runner_api_pb2.SdkFunctionSpec(
                       spec=beam_runner_api_pb2.FunctionSpec(
-                          urn=common_urns.coders.KV.urn)),
-                  component_coder_ids=[key_coder_id, spec.timer_coder_id]))
+                          urn=common_urns.coders.KV.urn)
+                  ),
+                  component_coder_ids=[key_coder_id, spec.timer_coder_id])
+)
           # Inject the read and write pcollections.
           timer_read_pcoll = unique_name(
               pipeline_context.components.pcollections,
@@ -1202,21 +1284,24 @@ def inject_timer_pcollections(stages, pipeline_context):
                   unique_name=timer_read_pcoll,
                   coder_id=key_timer_coder_id,
                   windowing_strategy_id=input_pcoll.windowing_strategy_id,
-                  is_bounded=input_pcoll.is_bounded))
+                  is_bounded=input_pcoll.is_bounded)
+)
           pipeline_context.components.pcollections[timer_write_pcoll].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=timer_write_pcoll,
                   coder_id=key_timer_coder_id,
                   windowing_strategy_id=input_pcoll.windowing_strategy_id,
-                  is_bounded=input_pcoll.is_bounded))
+                  is_bounded=input_pcoll.is_bounded)
+)
           stage.transforms.append(
               beam_runner_api_pb2.PTransform(
                   unique_name=timer_read_pcoll + '/Read',
                   outputs={'out': timer_read_pcoll},
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      payload=create_buffer_id(
-                          timer_read_pcoll, kind='timers'))))
+                      payload=create_buffer_id(timer_read_pcoll, kind='timers'),
+                  ))
+)
           stage.transforms.append(
               beam_runner_api_pb2.PTransform(
                   unique_name=timer_write_pcoll + '/Write',
@@ -1224,7 +1309,10 @@ def inject_timer_pcollections(stages, pipeline_context):
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_OUTPUT_URN,
                       payload=create_buffer_id(
-                          timer_write_pcoll, kind='timers'))))
+                          timer_write_pcoll, kind='timers'
+                      ),
+                  ))
+)
           assert tag not in transform.inputs
           transform.inputs[tag] = timer_read_pcoll
           assert tag not in transform.outputs
@@ -1249,6 +1337,7 @@ def sort_stages(stages, pipeline_context):
       for prev in stage.must_follow:
         process(prev)
       ordered.append(stage)
+
   for stage in stages:
     process(stage)
   return ordered
@@ -1261,14 +1350,15 @@ def window_pcollection_coders(stages, pipeline_context):
   PCollections.
   TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
   """
+
   def windowed_coder_id(coder_id, window_coder_id):
     proto = beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
-                urn=common_urns.coders.WINDOWED_VALUE.urn)),
+                urn=common_urns.coders.WINDOWED_VALUE.urn)
+        ),
         component_coder_ids=[coder_id, window_coder_id])
-    return pipeline_context.add_or_get_coder_id(
-        proto, coder_id + '_windowed')
+    return pipeline_context.add_or_get_coder_id(proto, coder_id + '_windowed')
 
   for pcoll in pipeline_context.components.pcollections.values():
     if (pipeline_context.components.coders[pcoll.coder_id].spec.spec.urn
@@ -1276,10 +1366,10 @@ def window_pcollection_coders(stages, pipeline_context):
       new_coder_id = windowed_coder_id(
           pcoll.coder_id,
           pipeline_context.components.windowing_strategies[
-              pcoll.windowing_strategy_id].window_coder_id)
+              pcoll.windowing_strategy_id
+          ].window_coder_id)
       if pcoll.coder_id in pipeline_context.safe_coders:
-        new_coder_id = pipeline_context.length_prefixed_coder(
-            new_coder_id)
+        new_coder_id = pipeline_context.length_prefixed_coder(new_coder_id)
       pcoll.coder_id = new_coder_id
 
   return stages
@@ -1315,7 +1405,7 @@ def unique_name(existing, prefix):
 
 
 def only_element(iterable):
-  element, = iterable
+  (element,) = iterable
   return element
 
 

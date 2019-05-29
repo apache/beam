@@ -66,11 +66,13 @@ def run(p, input_file, output_file):
   # Read the text file[pattern] into a PCollection.
   lines = p | 'read' >> ReadFromText(input_file)
 
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(bytes))
-            | 'count' >> beam.ExternalTransform(
-                'pytest:beam:transforms:count', None, EXPANSION_SERVICE_ADDR))
+  counts = (
+      lines
+      | 'split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(bytes))
+      | 'count'
+      >> beam.ExternalTransform(
+          'pytest:beam:transforms:count', None, EXPANSION_SERVICE_ADDR)
+)
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
@@ -91,25 +93,29 @@ def main():
   logging.getLogger().setLevel(logging.INFO)
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
-  parser.add_argument('--expansion_service_jar',
-                      dest='expansion_service_jar',
-                      required=True,
-                      help='Jar file for expansion service')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
+  parser.add_argument(
+      '--expansion_service_jar',
+      dest='expansion_service_jar',
+      required=True,
+      help='Jar file for expansion service')
 
   known_args, pipeline_args = parser.parse_known_args()
 
   pipeline_options = PipelineOptions(pipeline_args)
   assert (
       pipeline_options.view_as(StandardOptions).runner.lower()
-      == "portablerunner"), "Only PortableRunner is supported."
+      == "portablerunner"
+  ), "Only PortableRunner is supported."
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -119,9 +125,13 @@ def main():
   p.runner.init_dockerized_job_server()
 
   try:
-    server = subprocess.Popen([
-        'java', '-jar', known_args.expansion_service_jar,
-        EXPANSION_SERVICE_PORT])
+    server = subprocess.Popen(
+        [
+            'java',
+            '-jar',
+            known_args.expansion_service_jar,
+            EXPANSION_SERVICE_PORT,
+        ])
 
     with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
       grpc.channel_ready_future(channel).result()

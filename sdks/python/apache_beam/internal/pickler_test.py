@@ -27,7 +27,6 @@ from apache_beam.internal.pickler import loads
 
 
 class PicklerTest(unittest.TestCase):
-
   def test_basics(self):
     self.assertEquals([1, 'a', (u'z',)], loads(dumps([1, 'a', (u'z',)])))
     fun = lambda x: 'xyz-%s' % x
@@ -54,37 +53,35 @@ class PicklerTest(unittest.TestCase):
   def test_class(self):
     """Tests that a class object is pickled correctly."""
     self.assertEquals(
-        ['abc', 'def'],
-        loads(dumps(module_test.Xyz))().foo('abc def'))
+        ['abc', 'def'], loads(dumps(module_test.Xyz))().foo('abc def'))
 
   def test_object(self):
     """Tests that a class instance is pickled correctly."""
     self.assertEquals(
-        ['abc', 'def'],
-        loads(dumps(module_test.XYZ_OBJECT)).foo('abc def'))
+        ['abc', 'def'], loads(dumps(module_test.XYZ_OBJECT)).foo('abc def'))
 
   def test_nested_class(self):
     """Tests that a nested class object is pickled correctly."""
     self.assertEquals(
-        'X:abc',
-        loads(dumps(module_test.TopClass.NestedClass('abc'))).datum)
+        'X:abc', loads(dumps(module_test.TopClass.NestedClass('abc'))).datum)
     self.assertEquals(
         'Y:abc',
-        loads(dumps(module_test.TopClass.MiddleClass.NestedClass('abc'))).datum)
+        loads(dumps(module_test.TopClass.MiddleClass.NestedClass('abc'))).datum,
+    )
 
   def test_dynamic_class(self):
     """Tests that a nested class object is pickled correctly."""
     self.assertEquals(
-        'Z:abc',
-        loads(dumps(module_test.create_class('abc'))).get())
+        'Z:abc', loads(dumps(module_test.create_class('abc'))).get())
 
   def test_generators(self):
     with self.assertRaises(TypeError):
       dumps((_ for _ in range(10)))
 
   def test_recursive_class(self):
-    self.assertEquals('RecursiveClass:abc',
-                      loads(dumps(module_test.RecursiveClass('abc').datum)))
+    self.assertEquals(
+        'RecursiveClass:abc',
+        loads(dumps(module_test.RecursiveClass('abc').datum)))
 
 
 if __name__ == '__main__':

@@ -31,7 +31,6 @@ from apache_beam.runners.worker import log_handler
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
   def __init__(self):
     self.log_records_received = []
 
@@ -44,7 +43,6 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
 
 class FnApiLogRecordHandlerTest(unittest.TestCase):
-
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
     self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -77,12 +75,13 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     num_received_log_entries = 0
     for outer in self.test_logging_service.log_records_received:
       for log_entry in outer.log_entries:
-        self.assertEqual(beam_fn_api_pb2.LogEntry.Severity.INFO,
-                         log_entry.severity)
-        self.assertEqual('%s: %s' % (msg, num_received_log_entries),
-                         log_entry.message)
-        self.assertEqual(u'log_handler_test._verify_fn_log_handler',
-                         log_entry.log_location)
+        self.assertEqual(
+            beam_fn_api_pb2.LogEntry.Severity.INFO, log_entry.severity)
+        self.assertEqual(
+            '%s: %s' % (msg, num_received_log_entries), log_entry.message)
+        self.assertEqual(
+            u'log_handler_test._verify_fn_log_handler', log_entry.log_location
+        )
         self.assertGreater(log_entry.timestamp.seconds, 0)
         self.assertGreaterEqual(log_entry.timestamp.nanos, 0)
         num_received_log_entries += 1
@@ -94,13 +93,15 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
 data = {
     'one_batch': log_handler.FnApiLogRecordHandler._MAX_BATCH_SIZE - 47,
     'exact_multiple': log_handler.FnApiLogRecordHandler._MAX_BATCH_SIZE,
-    'multi_batch': log_handler.FnApiLogRecordHandler._MAX_BATCH_SIZE * 3 + 47
+    'multi_batch': log_handler.FnApiLogRecordHandler._MAX_BATCH_SIZE * 3 + 47,
 }
 
 
 def _create_test(name, num_logs):
-  setattr(FnApiLogRecordHandlerTest, 'test_%s' % name,
-          lambda self: self._verify_fn_log_handler(num_logs))
+  setattr(
+      FnApiLogRecordHandlerTest,
+      'test_%s' % name,
+      lambda self: self._verify_fn_log_handler(num_logs))
 
 
 for test_name, num_logs_entries in data.items():

@@ -53,8 +53,13 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
       for ix in range(num_maps):
         pc = pc | 'Map%d' % ix >> beam.FlatMap(lambda x: (None,))
     timings[num_elements] = time.time() - start
-    print("%6d element%s %g sec" % (
-        num_elements, " " if num_elements == 1 else "s", timings[num_elements]))
+    print(
+        "%6d element%s %g sec"
+        % (
+            num_elements,
+            " " if num_elements == 1 else "s",
+            timings[num_elements])
+)
 
   print()
   # pylint: disable=unused-variable
@@ -62,7 +67,7 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
       *list(zip(*list(timings.items()))))
   print("Fixed cost  ", intercept)
   print("Per-element ", gradient / num_maps)
-  print("R^2         ", r_value**2)
+  print("R^2         ", r_value ** 2)
 
 
 if __name__ == '__main__':

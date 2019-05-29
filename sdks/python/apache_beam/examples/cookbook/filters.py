@@ -51,10 +51,8 @@ def filter_cold_days(input_data, month_filter):
   # Project to only the desired fields from a complete input row.
   # E.g., SELECT f1, f2, f3, ... FROM InputTable.
   projection_fields = ['year', 'month', 'day', 'mean_temp']
-  fields_of_interest = (
-      input_data
-      | 'Projected' >> beam.Map(
-          lambda row: {f: row[f] for f in projection_fields}))
+  fields_of_interest = input_data | 'Projected' >> beam.Map(
+      lambda row: {f: row[f] for f in projection_fields})
 
   # Compute the global mean temperature.
   global_mean = AsSingleton(
@@ -67,23 +65,23 @@ def filter_cold_days(input_data, month_filter):
   return (
       fields_of_interest
       | 'DesiredMonth' >> beam.Filter(lambda row: row['month'] == month_filter)
-      | 'BelowMean' >> beam.Filter(
-          lambda row, mean: row['mean_temp'] < mean, global_mean))
+      | 'BelowMean'
+      >> beam.Filter(lambda row, mean: row['mean_temp'] < mean, global_mean))
 
 
 def run(argv=None):
   """Constructs and runs the example filtering pipeline."""
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      help='BigQuery table to read from.',
-                      default='clouddataflow-readonly:samples.weather_stations')
-  parser.add_argument('--output',
-                      required=True,
-                      help='BigQuery table to write to.')
-  parser.add_argument('--month_filter',
-                      default=7,
-                      help='Numeric value of month to filter on.')
+  parser.add_argument(
+      '--input',
+      help='BigQuery table to read from.',
+      default='clouddataflow-readonly:samples.weather_stations')
+  parser.add_argument(
+      '--output', required=True, help='BigQuery table to write to.')
+  parser.add_argument(
+      '--month_filter', default=7, help='Numeric value of month to filter on.'
+  )
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
@@ -91,12 +89,15 @@ def run(argv=None):
     input_data = p | beam.io.Read(beam.io.BigQuerySource(known_args.input))
 
     # pylint: disable=expression-not-assigned
-    (filter_cold_days(input_data, known_args.month_filter)
-     | 'SaveToBQ' >> beam.io.WriteToBigQuery(
-         known_args.output,
-         schema='year:INTEGER,month:INTEGER,day:INTEGER,mean_temp:FLOAT',
-         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
+    (
+        filter_cold_days(input_data, known_args.month_filter)
+        | 'SaveToBQ'
+        >> beam.io.WriteToBigQuery(
+            known_args.output,
+            schema='year:INTEGER,month:INTEGER,day:INTEGER,mean_temp:FLOAT',
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)
+)
 
 
 if __name__ == '__main__':

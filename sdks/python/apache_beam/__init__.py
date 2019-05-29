@@ -88,8 +88,8 @@ elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
 else:
   raise RuntimeError(
       'The Apache Beam SDK for Python is only supported on Python 2.7 or '
-      'Python 3. It is not supported on Python [' +
-      str(sys.version_info) + '].')
+      'Python 3. It is not supported on Python [' + str(sys.version_info) + '].'
+  )
 
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler
@@ -100,6 +100,7 @@ from apache_beam import typehints
 from apache_beam import version
 from apache_beam.pipeline import Pipeline
 from apache_beam.transforms import *
+
 # pylint: enable=wrong-import-position
 
 __version__ = version.__version__

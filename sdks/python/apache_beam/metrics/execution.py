@@ -52,6 +52,7 @@ class MetricKey(object):
   and any extra label metadata added by the runner specific metric collection
   service.
   """
+
   def __init__(self, step, metric, labels=None):
     """Initializes ``MetricKey``.
 
@@ -65,9 +66,10 @@ class MetricKey(object):
     self.labels = labels if labels else dict()
 
   def __eq__(self, other):
-    return (self.step == other.step and
-            self.metric == other.metric and
-            self.labels == other.labels)
+    return (
+        self.step == other.step
+        and self.metric == other.metric
+        and self.labels == other.labels)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -96,6 +98,7 @@ class MetricResult(object):
     attempted: The logical updates of the metric. This attribute's type is that
       of metric type result (e.g. int, DistributionResult, GaugeResult).
   """
+
   def __init__(self, key, committed, attempted):
     """Initializes ``MetricResult``.
     Args:
@@ -108,9 +111,10 @@ class MetricResult(object):
     self.attempted = attempted
 
   def __eq__(self, other):
-    return (self.key == other.key and
-            self.committed == other.committed and
-            self.attempted == other.attempted)
+    return (
+        self.key == other.key
+        and self.committed == other.committed
+        and self.attempted == other.attempted)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -140,6 +144,7 @@ class _MetricsEnvironment(object):
   This class is not meant to be instantiated, instead being used to keep
   track of global state.
   """
+
   def __init__(self):
     self.METRICS_SUPPORTED = False
     self._METRICS_SUPPORTED_LOCK = threading.Lock()
@@ -161,6 +166,7 @@ MetricsEnvironment = _MetricsEnvironment()
 
 class MetricsContainer(object):
   """Holds the metrics of a single step and a single bundle."""
+
   def __init__(self, step_name):
     self.step_name = step_name
     self.counters = defaultdict(lambda: CounterCell())
@@ -185,17 +191,23 @@ class MetricsContainer(object):
     """
     if filter is None:
       filter = lambda v: True
-    counters = {MetricKey(self.step_name, k): v.get_cumulative()
-                for k, v in self.counters.items()
-                if filter(v)}
+    counters = {
+        MetricKey(self.step_name, k): v.get_cumulative()
+        for k, v in self.counters.items()
+        if filter(v)
+    }
 
-    distributions = {MetricKey(self.step_name, k): v.get_cumulative()
-                     for k, v in self.distributions.items()
-                     if filter(v)}
+    distributions = {
+        MetricKey(self.step_name, k): v.get_cumulative()
+        for k, v in self.distributions.items()
+        if filter(v)
+    }
 
-    gauges = {MetricKey(self.step_name, k): v.get_cumulative()
-              for k, v in self.gauges.items()
-              if filter(v)}
+    gauges = {
+        MetricKey(self.step_name, k): v.get_cumulative()
+        for k, v in self.gauges.items()
+        if filter(v)
+    }
 
     return MetricUpdates(counters, distributions, gauges)
 
@@ -217,45 +229,57 @@ class MetricsContainer(object):
 
   def to_runner_api(self):
     return (
-        [beam_fn_api_pb2.Metrics.User(
-            metric_name=k.to_runner_api(),
-            counter_data=beam_fn_api_pb2.Metrics.User.CounterData(
-                value=v.get_cumulative()))
-         for k, v in self.counters.items()] +
-        [beam_fn_api_pb2.Metrics.User(
-            metric_name=k.to_runner_api(),
-            distribution_data=v.get_cumulative().to_runner_api())
-         for k, v in self.distributions.items()] +
-        [beam_fn_api_pb2.Metrics.User(
-            metric_name=k.to_runner_api(),
-            gauge_data=v.get_cumulative().to_runner_api())
-         for k, v in self.gauges.items()]
-    )
+        [
+            beam_fn_api_pb2.Metrics.User(
+                metric_name=k.to_runner_api(),
+                counter_data=beam_fn_api_pb2.Metrics.User.CounterData(
+                    value=v.get_cumulative()
+                ))
+            for k, v in self.counters.items()
+        ]
+        + [
+            beam_fn_api_pb2.Metrics.User(
+                metric_name=k.to_runner_api(),
+                distribution_data=v.get_cumulative().to_runner_api())
+            for k, v in self.distributions.items()
+        ]
+        + [
+            beam_fn_api_pb2.Metrics.User(
+                metric_name=k.to_runner_api(),
+                gauge_data=v.get_cumulative().to_runner_api())
+            for k, v in self.gauges.items()
+        ])
 
   def to_runner_api_monitoring_infos(self, transform_id):
     """Returns a list of MonitoringInfos for the metrics in this container."""
     all_user_metrics = []
     for k, v in self.counters.items():
-      all_user_metrics.append(monitoring_infos.int64_user_counter(
-          k.namespace, k.name,
-          v.to_runner_api_monitoring_info(),
-          ptransform=transform_id
-      ))
+      all_user_metrics.append(
+          monitoring_infos.int64_user_counter(
+              k.namespace,
+              k.name,
+              v.to_runner_api_monitoring_info(),
+              ptransform=transform_id)
+)
 
     for k, v in self.distributions.items():
-      all_user_metrics.append(monitoring_infos.int64_user_distribution(
-          k.namespace, k.name,
-          v.get_cumulative().to_runner_api_monitoring_info(),
-          ptransform=transform_id
-      ))
+      all_user_metrics.append(
+          monitoring_infos.int64_user_distribution(
+              k.namespace,
+              k.name,
+              v.get_cumulative().to_runner_api_monitoring_info(),
+              ptransform=transform_id)
+)
 
     for k, v in self.gauges.items():
-      all_user_metrics.append(monitoring_infos.int64_user_gauge(
-          k.namespace, k.name,
-          v.get_cumulative().to_runner_api_monitoring_info(),
-          ptransform=transform_id
-      ))
-    return {monitoring_infos.to_key(mi) : mi for mi in all_user_metrics}
+      all_user_metrics.append(
+          monitoring_infos.int64_user_gauge(
+              k.namespace,
+              k.name,
+              v.get_cumulative().to_runner_api_monitoring_info(),
+              ptransform=transform_id)
+)
+    return {monitoring_infos.to_key(mi): mi for mi in all_user_metrics}
 
   def reset(self):
     for counter in self.counters.values():
@@ -273,6 +297,7 @@ class MetricUpdates(object):
   For Distribution metrics, it is DistributionData, and for Counter metrics,
   it's an int.
   """
+
   def __init__(self, counters=None, distributions=None, gauges=None):
     """Create a MetricUpdates object.
 

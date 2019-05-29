@@ -33,13 +33,19 @@ def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--output_topic', required=True,
-      help=('Output PubSub topic of the form '
-            '"projects/<PROJECT>/topic/<TOPIC>".'))
+      '--output_topic',
+      required=True,
+      help=(
+          'Output PubSub topic of the form '
+          '"projects/<PROJECT>/topic/<TOPIC>".'
+      ))
   parser.add_argument(
-      '--input_subscription', required=True,
-      help=('Input PubSub subscription of the form '
-            '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
+      '--input_subscription',
+      required=True,
+      help=(
+          'Input PubSub subscription of the form '
+          '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'
+      ))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
@@ -80,13 +86,14 @@ def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
 
   # Write to PubSub.
   if runner_name == 'TestDirectRunner':
-    _ = output | beam.io.WriteToPubSub(known_args.output_topic,
-                                       with_attributes=with_attributes)
+    _ = output | beam.io.WriteToPubSub(
+        known_args.output_topic, with_attributes=with_attributes)
   else:
-    _ = output | beam.io.WriteToPubSub(known_args.output_topic,
-                                       id_label=id_label,
-                                       with_attributes=with_attributes,
-                                       timestamp_attribute=timestamp_attribute)
+    _ = output | beam.io.WriteToPubSub(
+        known_args.output_topic,
+        id_label=id_label,
+        with_attributes=with_attributes,
+        timestamp_attribute=timestamp_attribute)
 
   result = p.run()
   result.wait_until_finish()

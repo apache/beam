@@ -30,8 +30,12 @@ from past.builtins import long
 
 from apache_beam.io import iobase
 
-__all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
-           'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
+__all__ = [
+    'OffsetRangeTracker',
+    'LexicographicKeyRangeTracker',
+    'OrderedPositionRangeTracker',
+    'UnsplittableRangeTracker',
+]
 
 
 class OffsetRangeTracker(iobase.RangeTracker):
@@ -86,19 +90,20 @@ class OffsetRangeTracker(iobase.RangeTracker):
     if record_start < self._last_record_start:
       raise ValueError(
           'Trying to return a record [starting at %d] which is before the '
-          'last-returned record [starting at %d]' %
-          (record_start, self._last_record_start))
+          'last-returned record [starting at %d]'
+          % (record_start, self._last_record_start))
 
-    if (split_point and self._offset_of_last_split_point != -1 and
-        record_start == self._offset_of_last_split_point):
+    if (split_point
+        and self._offset_of_last_split_point != -1
+        and record_start == self._offset_of_last_split_point):
       raise ValueError(
           'Record at a split point has same offset as the previous split '
           'point: %d' % record_start)
 
     if not split_point and self._last_record_start == -1:
       raise ValueError(
-          'The first record [starting at %d] must be at a split point' %
-          record_start)
+          'The first record [starting at %d] must be at a split point'
+          % record_start)
 
   def try_claim(self, record_start):
     with self._lock:
@@ -119,39 +124,47 @@ class OffsetRangeTracker(iobase.RangeTracker):
     assert isinstance(split_offset, (int, long))
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
-        logging.debug('refusing to split %r at %d: stop position unspecified',
-                      self, split_offset)
+        logging.debug(
+            'refusing to split %r at %d: stop position unspecified',
+            self,
+            split_offset)
         return
       if self._last_record_start == -1:
-        logging.debug('Refusing to split %r at %d: unstarted', self,
-                      split_offset)
+        logging.debug(
+            'Refusing to split %r at %d: unstarted', self, split_offset)
         return
 
       if split_offset <= self._last_record_start:
         logging.debug(
             'Refusing to split %r at %d: already past proposed stop offset',
-            self, split_offset)
+            self,
+            split_offset)
         return
       if (split_offset < self.start_position()
           or split_offset >= self.stop_position()):
         logging.debug(
             'Refusing to split %r at %d: proposed split position out of range',
-            self, split_offset)
+            self,
+            split_offset)
         return
 
       logging.debug('Agreeing to split %r at %d', self, split_offset)
 
-      split_fraction = (float(split_offset - self._start_offset) / (
-          self._stop_offset - self._start_offset))
+      split_fraction = float(split_offset - self._start_offset) / (
+          self._stop_offset - self._start_offset)
       self._stop_offset = split_offset
 
       return self._stop_offset, split_fraction
 
   def fraction_consumed(self):
     with self._lock:
-      fraction = ((1.0 * (self._last_record_start - self.start_position()) /
-                   (self.stop_position() - self.start_position())) if
-                  self.stop_position() != self.start_position() else 0.0)
+      fraction = (
+          (
+              1.0
+              * (self._last_record_start - self.start_position())
+              / (self.stop_position() - self.start_position()))
+          if self.stop_position() != self.start_position()
+          else 0.0)
 
       # self.last_record_start may become larger than self.end_offset when
       # reading the records since any record that starts before the first 'split
@@ -166,8 +179,11 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise Exception(
           'get_position_for_fraction_consumed is not applicable for an '
           'unbounded range')
-    return int(math.ceil(self.start_position() + fraction * (
-        self.stop_position() - self.start_position())))
+    return int(
+        math.ceil(
+            self.start_position()
+            + fraction * (self.stop_position() - self.start_position()))
+)
 
   def split_points(self):
     with self._lock:
@@ -178,8 +194,8 @@ class OffsetRangeTracker(iobase.RangeTracker):
           if self._split_points_unclaimed_callback
           else iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
       split_points_remaining = (
-          iobase.RangeTracker.SPLIT_POINTS_UNKNOWN if
-          split_points_unclaimed == iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
+          iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
+          if split_points_unclaimed == iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
           else (split_points_unclaimed + 1))
 
       return (split_points_consumed, split_points_remaining)
@@ -216,11 +232,12 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
       if self._last_claim is not self.UNSTARTED and position < self._last_claim:
         raise ValueError(
             "Positions must be claimed in order: "
-            "claim '%s' attempted after claim '%s'" % (
-                position, self._last_claim))
+            "claim '%s' attempted after claim '%s'"
+            % (position, self._last_claim))
       elif self._start_position is not None and position < self._start_position:
-        raise ValueError("Claim '%s' is before start '%s'" % (
-            position, self._start_position))
+        raise ValueError(
+            "Claim '%s' is before start '%s'" % (position, self._start_position)
+        )
       if self._stop_position is None or position < self._stop_position:
         self._last_claim = position
         return True
@@ -233,11 +250,13 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
 
   def try_split(self, position):
     with self._lock:
-      if ((self._stop_position is not None and position >= self._stop_position)
-          or (self._start_position is not None
-              and position <= self._start_position)):
-        raise ValueError("Split at '%s' not in range %s" % (
-            position, [self._start_position, self._stop_position]))
+      if (self._stop_position is not None and position >= self._stop_position
+      ) or (
+          self._start_position is not None and position <= self._start_position
+      ):
+        raise ValueError(
+            "Split at '%s' not in range %s"
+            % (position, [self._start_position, self._stop_position]))
       if self._last_claim is self.UNSTARTED or self._last_claim < position:
         fraction = self.position_to_fraction(
             position, start=self._start_position, end=self._stop_position)
@@ -374,7 +393,7 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
     if key.startswith(start):
       # Higher absolute precision needed for very small values of fixed
       # relative position.
-      prec = max(prec, len(key) - len(key[len(start):].strip(b'\0')) + 7)
+      prec = max(prec, len(key) - len(key[len(start) :].strip(b'\0')) + 7)
     istart = cls._bytestring_to_int(start, prec)
     ikey = cls._bytestring_to_int(key, prec)
     iend = cls._bytestring_to_int(end, prec) if end else 1 << (prec * 8)

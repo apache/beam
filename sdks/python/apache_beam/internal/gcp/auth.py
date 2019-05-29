@@ -90,13 +90,15 @@ class _GCEMetadataCredentials(OAuth2Credentials):
     refresh_time = datetime.datetime.utcnow()
     metadata_root = os.environ.get(
         'GCE_METADATA_ROOT', 'metadata.google.internal')
-    token_url = ('http://{}/computeMetadata/v1/instance/service-accounts/'
-                 'default/token').format(metadata_root)
+    token_url = (
+        'http://{}/computeMetadata/v1/instance/service-accounts/'
+        'default/token'
+    ).format(metadata_root)
     req = Request(token_url, headers={'Metadata-Flavor': 'Google'})
     token_data = json.loads(urlopen(req).read().decode('utf-8'))
     self.access_token = token_data['access_token']
-    self.token_expiry = (refresh_time +
-                         datetime.timedelta(seconds=token_data['expires_in']))
+    self.token_expiry = refresh_time + datetime.timedelta(
+        seconds=token_data['expires_in'])
 
 
 def get_service_credentials():
@@ -117,17 +119,18 @@ def get_service_credentials():
         'https://www.googleapis.com/auth/cloud-platform',
         'https://www.googleapis.com/auth/devstorage.full_control',
         'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/datastore'
+        'https://www.googleapis.com/auth/datastore',
     ]
 
     try:
       credentials = GoogleCredentials.get_application_default()
       credentials = credentials.create_scoped(client_scopes)
-      logging.debug('Connecting using Google Application Default '
-                    'Credentials.')
+      logging.debug(
+          'Connecting using Google Application Default ' 'Credentials.')
       return credentials
     except Exception as e:
       logging.warning(
           'Unable to find default credentials to use: %s\n'
-          'Connecting anonymously.', e)
+          'Connecting anonymously.',
+          e)
       return None

@@ -34,14 +34,10 @@ class LoadTest(unittest.TestCase):
         'keySizeBytes': options.get('key_size'),
         'valueSizeBytes': options.get('value_size'),
         'bundleSizeDistribution': {
-            'type': options.get(
-                'bundle_size_distribution_type', 'const'
-            ),
-            'param': options.get('bundle_size_distribution_param', 0)
+            'type': options.get('bundle_size_distribution_type', 'const'),
+            'param': options.get('bundle_size_distribution_param', 0),
         },
-        'forceNumInitialBundles': options.get(
-            'force_initial_num_bundles', 0
-        )
+        'forceNumInitialBundles': options.get('force_initial_num_bundles', 0),
     }
 
   def setUp(self):
@@ -58,8 +54,7 @@ class LoadTest(unittest.TestCase):
       self.metrics_monitor = MetricsReader(
           project_name=self.pipeline.get_option('project'),
           bq_table=self.metrics_namespace,
-          bq_dataset=self.pipeline.get_option('metrics_dataset'),
-      )
+          bq_dataset=self.pipeline.get_option('metrics_dataset'))
 
   def tearDown(self):
     result = self.pipeline.run()

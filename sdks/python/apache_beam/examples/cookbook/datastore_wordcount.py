@@ -125,6 +125,7 @@ class WordExtractingDoFn(beam.DoFn):
 
 class EntityWrapper(object):
   """Create a Cloud Datastore entity from the given string."""
+
   def __init__(self, namespace, kind, ancestor):
     self._namespace = namespace
     self._kind = kind
@@ -136,8 +137,8 @@ class EntityWrapper(object):
       entity.key.partition_id.namespace_id = self._namespace
 
     # All entities created will have the same ancestor
-    datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
-                                  self._kind, str(uuid.uuid4()))
+    datastore_helper.add_key_path(
+        entity.key, self._kind, self._ancestor, self._kind, str(uuid.uuid4()))
 
     datastore_helper.add_properties(entity, {"content": unicode(content)})
     return entity
@@ -148,12 +149,15 @@ def write_to_datastore(user_options, pipeline_options):
   with beam.Pipeline(options=pipeline_options) as p:
 
     # pylint: disable=expression-not-assigned
-    (p
-     | 'read' >> ReadFromText(user_options.input)
-     | 'create entity' >> beam.Map(
-         EntityWrapper(user_options.namespace, user_options.kind,
-                       user_options.ancestor).make_entity)
-     | 'write to datastore' >> WriteToDatastore(user_options.dataset))
+    (
+        p
+        | 'read' >> ReadFromText(user_options.input)
+        | 'create entity'
+        >> beam.Map(
+            EntityWrapper(
+                user_options.namespace, user_options.kind, user_options.ancestor
+            ).make_entity)
+        | 'write to datastore' >> WriteToDatastore(user_options.dataset))
 
 
 def make_ancestor_query(kind, namespace, ancestor):
@@ -180,8 +184,8 @@ def read_from_datastore(user_options, pipeline_options):
   """Creates a pipeline that reads entities from Cloud Datastore."""
   p = beam.Pipeline(options=pipeline_options)
   # Create a query to read entities from datastore.
-  query = make_ancestor_query(user_options.kind, user_options.namespace,
-                              user_options.ancestor)
+  query = make_ancestor_query(
+      user_options.kind, user_options.namespace, user_options.ancestor)
 
   # Read entities from Cloud Datastore into a PCollection.
   lines = p | 'read from datastore' >> ReadFromDatastore(
@@ -192,12 +196,12 @@ def read_from_datastore(user_options, pipeline_options):
     (word, ones) = word_ones
     return (word, sum(ones))
 
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(count_ones))
+  counts = (
+      lines
+      | 'split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+      | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+      | 'group' >> beam.GroupByKey()
+      | 'count' >> beam.Map(count_ones))
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
@@ -208,8 +212,9 @@ def read_from_datastore(user_options, pipeline_options):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> beam.io.WriteToText(file_path_prefix=user_options.output,
-                                          num_shards=user_options.num_shards)
+  output | 'write' >> beam.io.WriteToText(
+      file_path_prefix=user_options.output, num_shards=user_options.num_shards
+  )
 
   result = p.run()
   # Wait until completion, main thread would access post-completion job results.
@@ -221,37 +226,40 @@ def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--dataset',
-                      dest='dataset',
-                      help='Dataset ID to read from Cloud Datastore.')
-  parser.add_argument('--kind',
-                      dest='kind',
-                      required=True,
-                      help='Datastore Kind')
-  parser.add_argument('--namespace',
-                      dest='namespace',
-                      help='Datastore Namespace')
-  parser.add_argument('--ancestor',
-                      dest='ancestor',
-                      default='root',
-                      help='The ancestor key name for all entities.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
-  parser.add_argument('--read_only',
-                      action='store_true',
-                      help='Read an existing dataset, do not write first')
-  parser.add_argument('--num_shards',
-                      dest='num_shards',
-                      type=int,
-                      # If the system should choose automatically.
-                      default=0,
-                      help='Number of output shards')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--dataset',
+      dest='dataset',
+      help='Dataset ID to read from Cloud Datastore.')
+  parser.add_argument(
+      '--kind', dest='kind', required=True, help='Datastore Kind')
+  parser.add_argument(
+      '--namespace', dest='namespace', help='Datastore Namespace')
+  parser.add_argument(
+      '--ancestor',
+      dest='ancestor',
+      default='root',
+      help='The ancestor key name for all entities.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
+  parser.add_argument(
+      '--read_only',
+      action='store_true',
+      help='Read an existing dataset, do not write first')
+  parser.add_argument(
+      '--num_shards',
+      dest='num_shards',
+      type=int,
+      # If the system should choose automatically.
+      default=0,
+      help='Number of output shards')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this

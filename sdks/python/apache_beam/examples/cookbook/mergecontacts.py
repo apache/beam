@@ -59,13 +59,14 @@ def run(argv=None, assert_results=None):
   parser.add_argument(
       '--input_snailmail',
       required=True,
-      help='Address database, with each line formatted as "name<TAB>address".')
-  parser.add_argument('--output_tsv',
-                      required=True,
-                      help='Tab-delimited output file.')
-  parser.add_argument('--output_stats',
-                      required=True,
-                      help='Output file for statistics about the input.')
+      help='Address database, with each line formatted as "name<TAB>address".',
+  )
+  parser.add_argument(
+      '--output_tsv', required=True, help='Tab-delimited output file.')
+  parser.add_argument(
+      '--output_stats',
+      required=True,
+      help='Output file for statistics about the input.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -77,14 +78,14 @@ def run(argv=None, assert_results=None):
     # escape all quotes/backslashes, and convert it a PCollection of
     # (key, value) pairs.
     def read_kv_textfile(label, textfile):
-      return (p
-              | 'Read: %s' % label >> ReadFromText(textfile)
-              | 'Backslash: %s' % label >> beam.Map(
-                  lambda x: re.sub(r'\\', r'\\\\', x))
-              | 'EscapeQuotes: %s' % label >> beam.Map(
-                  lambda x: re.sub(r'"', r'\"', x))
-              | 'Split: %s' % label >> beam.Map(
-                  lambda x: re.split(r'\t+', x, 1)))
+      return (
+          p
+          | 'Read: %s' % label >> ReadFromText(textfile)
+          | 'Backslash: %s' % label
+          >> beam.Map(lambda x: re.sub(r'\\', r'\\\\', x))
+          | 'EscapeQuotes: %s' % label
+          >> beam.Map(lambda x: re.sub(r'"', r'\"', x))
+          | 'Split: %s' % label >> beam.Map(lambda x: re.split(r'\t+', x, 1)))
 
     # Read input databases.
     email = read_kv_textfile('email', known_args.input_email)
@@ -99,10 +100,12 @@ def run(argv=None, assert_results=None):
     def format_as_tsv(name_email_phone_snailmail):
       (name, (email, phone, snailmail)) = name_email_phone_snailmail
       return '\t'.join(
-          ['"%s"' % name,
-           '"%s"' % ','.join(email),
-           '"%s"' % ','.join(phone),
-           '"%s"' % next(iter(snailmail), '')])
+          [
+              '"%s"' % name,
+              '"%s"' % ','.join(email),
+              '"%s"' % ','.join(phone),
+              '"%s"' % next(iter(snailmail), ''),
+          ])
 
     tsv_lines = grouped | beam.Map(format_as_tsv)
 
@@ -119,9 +122,9 @@ def run(argv=None, assert_results=None):
       (_, (_, _, snailmail)) = name_email_phone_snailmail
       return not next(iter(snailmail), None)
 
-    luddites = grouped | beam.Filter(without_email) # People without email.
-    writers = grouped | beam.Filter(without_phones) # People without phones.
-    nomads = grouped | beam.Filter(without_address) # People without addresses.
+    luddites = grouped | beam.Filter(without_email)  # People without email.
+    writers = grouped | beam.Filter(without_phones)  # People without phones.
+    nomads = grouped | beam.Filter(without_address)  # People without addresses.
 
     num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
     num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()
@@ -134,12 +137,13 @@ def run(argv=None, assert_results=None):
     # TODO(silviuc): Move the assert_results logic to the unit test.
     if assert_results is not None:
       expected_luddites, expected_writers, expected_nomads = assert_results
-      assert_that(num_luddites, equal_to([expected_luddites]),
-                  label='assert:luddites')
-      assert_that(num_writers, equal_to([expected_writers]),
-                  label='assert:writers')
-      assert_that(num_nomads, equal_to([expected_nomads]),
-                  label='assert:nomads')
+      assert_that(
+          num_luddites, equal_to([expected_luddites]), label='assert:luddites'
+      )
+      assert_that(
+          num_writers, equal_to([expected_writers]), label='assert:writers')
+      assert_that(
+          num_nomads, equal_to([expected_nomads]), label='assert:nomads')
 
 
 if __name__ == '__main__':

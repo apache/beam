@@ -72,8 +72,9 @@ class EntityWrapper(object):
 
   def make_entity(self, content):
     """Create entity from given string."""
-    key = Key([self._kind, hashlib.sha1(content.encode('utf-8')).hexdigest()],
-              parent=self._parent_key)
+    key = Key(
+        [self._kind, hashlib.sha1(content.encode('utf-8')).hexdigest()],
+        parent=self._parent_key)
     entity = Entity(key)
     entity.set_properties({'content': str(content)})
     return entity
@@ -84,19 +85,19 @@ def run(argv=None):
 
   parser = argparse.ArgumentParser()
 
-  parser.add_argument('--kind',
-                      dest='kind',
-                      default='writereadtest',
-                      help='Datastore Kind')
-  parser.add_argument('--num_entities',
-                      dest='num_entities',
-                      type=int,
-                      required=True,
-                      help='Number of entities to write')
-  parser.add_argument('--limit',
-                      dest='limit',
-                      type=int,
-                      help='Limit of number of entities to write')
+  parser.add_argument(
+      '--kind', dest='kind', default='writereadtest', help='Datastore Kind')
+  parser.add_argument(
+      '--num_entities',
+      dest='num_entities',
+      type=int,
+      required=True,
+      help='Number of entities to write')
+  parser.add_argument(
+      '--limit',
+      dest='limit',
+      type=int,
+      help='Limit of number of entities to write')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
@@ -112,25 +113,27 @@ def run(argv=None):
   ancestor_key = Key([kind, str(uuid.uuid4())], project=project)
   logging.info('Writing %s entities to %s', num_entities, project)
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-write')
-  _ = (p
-       | 'Input' >> beam.Create(list(range(num_entities)))
-       | 'To String' >> beam.Map(str)
-       | 'To Entity' >> beam.Map(EntityWrapper(kind, ancestor_key).make_entity)
-       | 'Write to Datastore' >> WriteToDatastore(project))
+  _ = (
+      p
+      | 'Input' >> beam.Create(list(range(num_entities)))
+      | 'To String' >> beam.Map(str)
+      | 'To Entity' >> beam.Map(EntityWrapper(kind, ancestor_key).make_entity)
+      | 'Write to Datastore' >> WriteToDatastore(project))
   p.run()
 
   query = Query(kind=kind, project=project, ancestor=ancestor_key)
   # Optional Pipeline 2: If a read limit was provided, read it and confirm
   # that the expected entities were read.
   if known_args.limit is not None:
-    logging.info('Querying a limited set of %s entities and verifying count.',
-                 known_args.limit)
+    logging.info(
+        'Querying a limited set of %s entities and verifying count.',
+        known_args.limit)
     p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-limit')
     query.limit = known_args.limit
     entities = p | 'read from datastore' >> ReadFromDatastore(query)
     assert_that(
-        entities | beam.combiners.Count.Globally(),
-        equal_to([known_args.limit]))
+        entities | beam.combiners.Count.Globally(), equal_to([known_args.limit])
+    )
 
     p.run()
     query.limit = None
@@ -141,8 +144,7 @@ def run(argv=None):
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
   assert_that(
-      entities | beam.combiners.Count.Globally(),
-      equal_to([num_entities]))
+      entities | beam.combiners.Count.Globally(), equal_to([num_entities]))
 
   p.run()
 
@@ -150,9 +152,10 @@ def run(argv=None):
   logging.info('Deleting entities.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-delete')
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
-  _ = (entities
-       | 'To Keys' >> beam.Map(lambda entity: entity.key)
-       | 'delete entities' >> DeleteFromDatastore(project))
+  _ = (
+      entities
+      | 'To Keys' >> beam.Map(lambda entity: entity.key)
+      | 'delete entities' >> DeleteFromDatastore(project))
 
   p.run()
 
@@ -161,9 +164,7 @@ def run(argv=None):
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-deleted')
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
-  assert_that(
-      entities | beam.combiners.Count.Globally(),
-      equal_to([0]))
+  assert_that(entities | beam.combiners.Count.Globally(), equal_to([0]))
 
   p.run()
 

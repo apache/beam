@@ -79,9 +79,7 @@ class BeamFilesystemArtifactService(
             request.metadata.staging_session_token)
         self._mkdir(retrieval_token)
         temp_path = filesystems.FileSystems.join(
-            self._root,
-            retrieval_token,
-            '%x.tmp' % random.getrandbits(128))
+            self._root, retrieval_token, '%x.tmp' % random.getrandbits(128))
         fout = filesystems.FileSystems.create(temp_path)
         hasher = hashlib.sha256()
       else:
@@ -91,8 +89,9 @@ class BeamFilesystemArtifactService(
     data_hash = hasher.hexdigest()
     if metadata.sha256 and metadata.sha256 != data_hash:
       filesystems.FileSystems.delete([temp_path])
-      raise ValueError('Bad metadata hash: %s vs %s' % (
-          metadata.metadata.sha256, data_hash))
+      raise ValueError(
+          'Bad metadata hash: %s vs %s' % (metadata.metadata.sha256, data_hash)
+      )
     filesystems.FileSystems.rename(
         [temp_path], [self._artifact_path(retrieval_token, metadata.name)])
     return beam_artifact_api_pb2.PutArtifactResponse()
@@ -100,21 +99,23 @@ class BeamFilesystemArtifactService(
   def CommitManifest(self, request, context=None):
     retrieval_token = self.retrieval_token(request.staging_session_token)
     with filesystems.FileSystems.create(
-        self._manifest_path(retrieval_token)) as fout:
+        self._manifest_path(retrieval_token)
+    ) as fout:
       fout.write(request.manifest.SerializeToString())
     return beam_artifact_api_pb2.CommitManifestResponse(
         retrieval_token=retrieval_token)
 
   def GetManifest(self, request, context=None):
     with filesystems.FileSystems.open(
-        self._manifest_path(request.retrieval_token)) as fin:
+        self._manifest_path(request.retrieval_token)
+    ) as fin:
       return beam_artifact_api_pb2.GetManifestResponse(
-          manifest=beam_artifact_api_pb2.Manifest.FromString(
-              fin.read()))
+          manifest=beam_artifact_api_pb2.Manifest.FromString(fin.read()))
 
   def GetArtifact(self, request, context=None):
     with filesystems.FileSystems.open(
-        self._artifact_path(request.retrieval_token, request.name)) as fin:
+        self._artifact_path(request.retrieval_token, request.name)
+    ) as fin:
       # This value is not emitted, but lets us yield a single empty
       # chunk on an empty file.
       chunk = True

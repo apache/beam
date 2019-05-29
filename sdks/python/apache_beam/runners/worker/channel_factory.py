@@ -40,5 +40,6 @@ class GRPCChannelFactory(grpc.StreamStreamClientInterceptor):
     if options is None:
       options = []
     return grpc.secure_channel(
-        target, credentials,
+        target,
+        credentials,
         options=options + GRPCChannelFactory.DEFAULT_OPTIONS)

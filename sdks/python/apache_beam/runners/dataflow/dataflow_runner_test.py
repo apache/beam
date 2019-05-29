@@ -40,8 +40,10 @@ from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners import create_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
-from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
-from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.runners.dataflow.dataflow_runner import (
+    DataflowRuntimeException)
+from apache_beam.runners.dataflow.internal.clients import (
+    dataflow as dataflow_api)
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms import window
@@ -69,14 +71,14 @@ class DataflowRunnerTest(unittest.TestCase):
         '--staging_location=ignored',
         '--temp_location=/dev/null',
         '--no_auth=True',
-        '--dry_run=True']
+        '--dry_run=True',
+    ]
 
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     class MockDataflowRunner(object):
-
       def __init__(self, states):
         self.dataflow_client = mock.MagicMock()
         self.job = mock.MagicMock()
@@ -127,8 +129,8 @@ class DataflowRunnerTest(unittest.TestCase):
 
     with mock.patch('time.time', mock.MagicMock(side_effect=[1, 1, 2, 2, 3])):
       with self.assertRaisesRegexp(
-          DataflowRuntimeException,
-          'Dataflow pipeline failed. State: CANCELLED'):
+          DataflowRuntimeException, 'Dataflow pipeline failed. State: CANCELLED'
+      ):
         duration_failed_runner = MockDataflowRunner(
             [values_enum.JOB_STATE_CANCELLED])
         duration_failed_result = DataflowPipelineResult(
@@ -140,7 +142,6 @@ class DataflowRunnerTest(unittest.TestCase):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     class MockDataflowRunner(object):
-
       def __init__(self, state, cancel_result):
         self.dataflow_client = mock.MagicMock()
         self.job = mock.MagicMock()
@@ -169,21 +170,22 @@ class DataflowRunnerTest(unittest.TestCase):
     terminal_result.cancel()
 
   def test_create_runner(self):
+    self.assertTrue(isinstance(create_runner('DataflowRunner'), DataflowRunner))
     self.assertTrue(
-        isinstance(create_runner('DataflowRunner'),
-                   DataflowRunner))
-    self.assertTrue(
-        isinstance(create_runner('TestDataflowRunner'),
-                   TestDataflowRunner))
+        isinstance(create_runner('TestDataflowRunner'), TestDataflowRunner))
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
-    p = Pipeline(remote_runner,
-                 options=PipelineOptions(self.default_properties))
+    p = Pipeline(
+        remote_runner, options=PipelineOptions(self.default_properties))
 
-    (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
-     | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
-     | ptransform.GroupByKey())
+    (
+        p
+        | ptransform.Create(
+            [1, 2, 3]
+        )  # pylint: disable=expression-not-assigned
+        | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+        | ptransform.GroupByKey())
     p.run()
 
   def test_streaming_create_translation(self):
@@ -206,14 +208,14 @@ class DataflowRunnerTest(unittest.TestCase):
     self.default_properties.append("--streaming")
     p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
     _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
-    with self.assertRaisesRegexp(ValueError,
-                                 r'source is not currently available'):
+    with self.assertRaisesRegexp(
+        ValueError, r'source is not currently available'):
       p.run()
 
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
-    p = Pipeline(remote_runner,
-                 options=PipelineOptions(self.default_properties))
+    p = Pipeline(
+        remote_runner, options=PipelineOptions(self.default_properties))
 
     # TODO: Should not subclass ParDo. Switch to PTransform as soon as
     # composite transforms support display data.
@@ -225,9 +227,11 @@ class DataflowRunnerTest(unittest.TestCase):
 
       # Make this a list to be accessible within closure
       def display_data(self):
-        return {'asubcomponent': self.fn,
-                'a_class': SpecialParDo,
-                'a_time': self.now}
+        return {
+            'asubcomponent': self.fn,
+            'a_class': SpecialParDo,
+            'a_time': self.now,
+        }
 
     class SpecialDoFn(beam.DoFn):
       def display_data(self):
@@ -238,46 +242,70 @@ class DataflowRunnerTest(unittest.TestCase):
 
     now = datetime.now()
     # pylint: disable=expression-not-assigned
-    (p | ptransform.Create([1, 2, 3, 4, 5])
-     | 'Do' >> SpecialParDo(SpecialDoFn(), now))
+    (
+        p
+        | ptransform.Create([1, 2, 3, 4, 5])
+        | 'Do' >> SpecialParDo(SpecialDoFn(), now))
 
     p.run()
     job_dict = json.loads(str(remote_runner.job))
-    steps = [step
-             for step in job_dict['steps']
-             if len(step['properties'].get('display_data', [])) > 0]
+    steps = [
+        step
+        for step in job_dict['steps']
+        if len(step['properties'].get('display_data', [])) > 0
+    ]
     step = steps[1]
     disp_data = step['properties']['display_data']
-    disp_data = sorted(disp_data, key=lambda x: x['namespace']+x['key'])
-    nspace = SpecialParDo.__module__+ '.'
-    expected_data = [{'type': 'TIMESTAMP', 'namespace': nspace+'SpecialParDo',
-                      'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
-                      'key': 'a_time'},
-                     {'type': 'STRING', 'namespace': nspace+'SpecialParDo',
-                      'value': nspace+'SpecialParDo', 'key': 'a_class',
-                      'shortValue': 'SpecialParDo'},
-                     {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
-                      'value': 42, 'key': 'dofn_value'}]
-    expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])
+    disp_data = sorted(disp_data, key=lambda x: x['namespace'] + x['key'])
+    nspace = SpecialParDo.__module__ + '.'
+    expected_data = [
+        {
+            'type': 'TIMESTAMP',
+            'namespace': nspace + 'SpecialParDo',
+            'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
+            'key': 'a_time',
+        },
+        {
+            'type': 'STRING',
+            'namespace': nspace + 'SpecialParDo',
+            'value': nspace + 'SpecialParDo',
+            'key': 'a_class',
+            'shortValue': 'SpecialParDo',
+        },
+        {
+            'type': 'INTEGER',
+            'namespace': nspace + 'SpecialDoFn',
+            'value': 42,
+            'key': 'dofn_value',
+        },
+    ]
+    expected_data = sorted(
+        expected_data, key=lambda x: x['namespace'] + x['key'])
     self.assertEqual(len(disp_data), 3)
     self.assertEqual(disp_data, expected_data)
 
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowRunner()
-    p = Pipeline(remote_runner,
-                 options=PipelineOptions([
-                     '--dataflow_endpoint=ignored',
-                     '--job_name=test-job',
-                     '--project=test-project',
-                     '--staging_location=ignored',
-                     '--temp_location=/dev/null',
-                     '--no_auth=True'
-                 ]))
+    p = Pipeline(
+        remote_runner,
+        options=PipelineOptions(
+            [
+                '--dataflow_endpoint=ignored',
+                '--job_name=test-job',
+                '--project=test-project',
+                '--staging_location=ignored',
+                '--temp_location=/dev/null',
+                '--no_auth=True',
+            ]
+        ))
     rows = p | beam.io.Read(beam.io.BigQuerySource('dataset.faketable'))
-    with self.assertRaises(ValueError,
-                           msg=('Coder for the GroupByKey operation'
-                                '"GroupByKey" is not a key-value coder: '
-                                'RowAsDictJsonCoder')):
+    with self.assertRaises(
+        ValueError,
+        msg=(
+            'Coder for the GroupByKey operation'
+            '"GroupByKey" is not a key-value coder: '
+            'RowAsDictJsonCoder'
+        )):
       unused_invalid = rows | beam.GroupByKey()
 
   def test_group_by_key_input_visitor_with_valid_inputs(self):
@@ -292,10 +320,9 @@ class DataflowRunnerTest(unittest.TestCase):
       for pcoll in [pcoll1, pcoll2, pcoll3]:
         applied = AppliedPTransform(None, transform, "label", [pcoll])
         applied.outputs[None] = PCollection(None)
-        DataflowRunner.group_by_key_input_visitor().visit_transform(
-            applied)
-        self.assertEqual(pcoll.element_type,
-                         typehints.KV[typehints.Any, typehints.Any])
+        DataflowRunner.group_by_key_input_visitor().visit_transform(applied)
+        self.assertEqual(
+            pcoll.element_type, typehints.KV[typehints.Any, typehints.Any])
 
   def test_group_by_key_input_visitor_with_invalid_inputs(self):
     p = TestPipeline()
@@ -373,7 +400,8 @@ class DataflowRunnerTest(unittest.TestCase):
     self.assertEqual(
         strategy,
         DataflowRunner.deserialize_windowing_strategy(
-            DataflowRunner.serialize_windowing_strategy(strategy)))
+            DataflowRunner.serialize_windowing_strategy(strategy)
+        ))
 
   def test_side_input_visitor(self):
     p = TestPipeline()
@@ -398,8 +426,9 @@ class DataflowRunnerTest(unittest.TestCase):
     p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
     p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     p.run()
-    self.assertIn('min_cpu_platform=Intel Haswell',
-                  remote_runner.job.options.view_as(DebugOptions).experiments)
+    self.assertIn(
+        'min_cpu_platform=Intel Haswell',
+        remote_runner.job.options.view_as(DebugOptions).experiments)
 
   def test_streaming_engine_flag_adds_windmill_experiments(self):
     remote_runner = DataflowRunner()
@@ -411,8 +440,9 @@ class DataflowRunnerTest(unittest.TestCase):
     p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     p.run()
 
-    experiments_for_job = (
-        remote_runner.job.options.view_as(DebugOptions).experiments)
+    experiments_for_job = remote_runner.job.options.view_as(
+        DebugOptions
+    ).experiments
     self.assertIn('enable_streaming_engine', experiments_for_job)
     self.assertIn('enable_windmill_service', experiments_for_job)
     self.assertIn('some_other_experiment', experiments_for_job)
@@ -426,8 +456,9 @@ class DataflowRunnerTest(unittest.TestCase):
     p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     p.run()
 
-    experiments_for_job = (
-        remote_runner.job.options.view_as(DebugOptions).experiments)
+    experiments_for_job = remote_runner.job.options.view_as(
+        DebugOptions
+    ).experiments
     self.assertIn('some_other_experiment', experiments_for_job)
     self.assertNotIn('use_staged_dataflow_worker_jar', experiments_for_job)
 
@@ -440,8 +471,9 @@ class DataflowRunnerTest(unittest.TestCase):
     p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     p.run()
 
-    experiments_for_job = (
-        remote_runner.job.options.view_as(DebugOptions).experiments)
+    experiments_for_job = remote_runner.job.options.view_as(
+        DebugOptions
+    ).experiments
     self.assertIn('beam_fn_api', experiments_for_job)
     self.assertIn('use_staged_dataflow_worker_jar', experiments_for_job)
 
@@ -455,7 +487,8 @@ class DataflowRunnerTest(unittest.TestCase):
     self.assertEqual(
         sys.version_info[0] > 2,
         remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
-            'use_fastavro', False))
+            'use_fastavro', False
+        ))
 
   def test_use_fastavro_experiment_is_not_added_when_use_avro_is_present(self):
     remote_runner = DataflowRunner()

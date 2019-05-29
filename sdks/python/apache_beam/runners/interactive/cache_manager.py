@@ -30,7 +30,7 @@ from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.transforms import combiners
 
-try:                    # Python 3
+try:  # Python 3
   unquote_to_bytes = urllib.parse.unquote_to_bytes
   quote = urllib.parse.quote
 except AttributeError:  # Python 2
@@ -92,8 +92,8 @@ class FileBasedCacheManager(CacheManager):
   def __init__(self, cache_dir=None):
     if cache_dir:
       self._cache_dir = filesystems.FileSystems.join(
-          cache_dir,
-          datetime.datetime.now().strftime("cache-%y-%m-%d-%H_%M_%S"))
+          cache_dir, datetime.datetime.now().strftime("cache-%y-%m-%d-%H_%M_%S")
+      )
     else:
       self._cache_dir = tempfile.mkdtemp(
           prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
@@ -118,16 +118,19 @@ class FileBasedCacheManager(CacheManager):
       for path in self._match(*labels):
         for line in filesystems.FileSystems.open(path):
           yield coder.decode(line.strip())
+
     result, version = list(_read_helper()), self._latest_version(*labels)
     return result, version
 
   def source(self, *labels):
-    return beam.io.ReadFromText(self._glob_path(*labels),
-                                coder=SafeFastPrimitivesCoder())._source
+    return beam.io.ReadFromText(
+        self._glob_path(*labels), coder=SafeFastPrimitivesCoder()
+    )._source
 
   def sink(self, *labels):
-    return beam.io.WriteToText(self._path(*labels),
-                               coder=SafeFastPrimitivesCoder())._sink
+    return beam.io.WriteToText(
+        self._path(*labels), coder=SafeFastPrimitivesCoder()
+    )._sink
 
   def cleanup(self):
     if filesystems.FileSystems.exists(self._cache_dir):
@@ -168,6 +171,7 @@ class FileBasedCacheManager(CacheManager):
 
 class ReadCache(beam.PTransform):
   """A PTransform that reads the PCollections from the cache."""
+
   def __init__(self, cache_manager, label):
     self._cache_manager = cache_manager
     self._label = label
@@ -180,6 +184,7 @@ class ReadCache(beam.PTransform):
 
 class WriteCache(beam.PTransform):
   """A PTransform that writes the PCollections to the cache."""
+
   def __init__(self, cache_manager, label, sample=False, sample_size=0):
     self._cache_manager = cache_manager
     self._label = label
@@ -199,6 +204,7 @@ class WriteCache(beam.PTransform):
 
 class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
+
   # pylint: disable=deprecated-urllib-function
 
   def encode(self, value):

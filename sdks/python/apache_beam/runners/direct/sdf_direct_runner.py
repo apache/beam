@@ -48,8 +48,7 @@ class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
   """A transform override for ProcessElements transform."""
 
   def matches(self, applied_ptransform):
-    return isinstance(
-        applied_ptransform.transform, ProcessKeyedElements)
+    return isinstance(applied_ptransform.transform, ProcessKeyedElements)
 
   def get_replacement_transform(self, ptransform):
     return ProcessKeyedElementsViaKeyedWorkItems(ptransform)
@@ -62,8 +61,7 @@ class ProcessKeyedElementsViaKeyedWorkItems(PTransform):
     self._process_keyed_elements_transform = process_keyed_elements_transform
 
   def expand(self, pcoll):
-    process_elements = ProcessElements(
-        self._process_keyed_elements_transform)
+    process_elements = ProcessElements(self._process_keyed_elements_transform)
     process_elements.args = (
         self._process_keyed_elements_transform.ptransform_args)
     process_elements.kwargs = (
@@ -111,8 +109,7 @@ class ProcessFn(beam.DoFn):
   for re-invoking the element and release the output watermark.
   """
 
-  def __init__(
-      self, sdf, args_for_invoker, kwargs_for_invoker):
+  def __init__(self, sdf, args_for_invoker, kwargs_for_invoker):
     self.sdf = sdf
     self._element_tag = _ValueStateTag('element')
     self._restriction_tag = _ValueStateTag('restriction')
@@ -120,8 +117,10 @@ class ProcessFn(beam.DoFn):
     self._process_element_invoker = None
 
     self.sdf_invoker = DoFnInvoker.create_invoker(
-        DoFnSignature(self.sdf), context=DoFnContext('unused_context'),
-        input_args=args_for_invoker, input_kwargs=kwargs_for_invoker)
+        DoFnSignature(self.sdf),
+        context=DoFnContext('unused_context'),
+        input_args=args_for_invoker,
+        input_kwargs=kwargs_for_invoker)
 
     self._step_context = None
 
@@ -138,8 +137,13 @@ class ProcessFn(beam.DoFn):
     assert isinstance(process_element_invoker, SDFProcessElementInvoker)
     self._process_element_invoker = process_element_invoker
 
-  def process(self, element, timestamp=beam.DoFn.TimestampParam,
-              window=beam.DoFn.WindowParam, *args, **kwargs):
+  def process(
+      self,
+      element,
+      timestamp=beam.DoFn.TimestampParam,
+      window=beam.DoFn.WindowParam,
+      *args,
+      **kwargs):
     if isinstance(element, KeyedWorkItem):
       # Must be a timer firing.
       key = element.encoded_key
@@ -150,9 +154,10 @@ class ProcessFn(beam.DoFn):
       # Value here will either be a WindowedValue or an ElementAndRestriction
       # object.
       # TODO: handle key collisions here.
-      assert len(values) == 1, 'Internal error. Processing of splittable ' \
-                               'DoFn cannot continue since elements did not ' \
-                               'have unique keys.'
+      assert len(values) == 1, (
+          'Internal error. Processing of splittable '
+          'DoFn cannot continue since elements did not '
+          'have unique keys.')
       value = values[0]
       if len(values) != 1:
         raise ValueError('')
@@ -182,8 +187,7 @@ class ProcessFn(beam.DoFn):
 
     tracker = self.sdf_invoker.invoke_create_tracker(restriction)
     assert self._process_element_invoker
-    assert isinstance(self._process_element_invoker,
-                      SDFProcessElementInvoker)
+    assert isinstance(self._process_element_invoker, SDFProcessElementInvoker)
 
     output_values = self._process_element_invoker.invoke_process_element(
         self.sdf_invoker, windowed_element, tracker, *args, **kwargs)
@@ -196,24 +200,25 @@ class ProcessFn(beam.DoFn):
         break
       yield output
 
-    assert sdf_result, ('SDFProcessElementInvoker must return a '
-                        'SDFProcessElementInvoker.Result object as the last '
-                        'value of a SDF invoke_process_element() invocation.')
+    assert sdf_result, (
+        'SDFProcessElementInvoker must return a '
+        'SDFProcessElementInvoker.Result object as the last '
+        'value of a SDF invoke_process_element() invocation.')
 
     if not sdf_result.residual_restriction:
       # All work for current residual and restriction pair is complete.
       state.clear_state(window, self._element_tag)
       state.clear_state(window, self._restriction_tag)
       # Releasing output watermark by setting it to positive infinity.
-      state.add_state(window, self.watermark_hold_tag,
-                      WatermarkManager.WATERMARK_POS_INF)
+      state.add_state(
+          window, self.watermark_hold_tag, WatermarkManager.WATERMARK_POS_INF)
     else:
       state.add_state(window, self._element_tag, element)
-      state.add_state(window, self._restriction_tag,
-                      sdf_result.residual_restriction)
+      state.add_state(
+          window, self._restriction_tag, sdf_result.residual_restriction)
       # Holding output watermark by setting it to negative infinity.
-      state.add_state(window, self.watermark_hold_tag,
-                      WatermarkManager.WATERMARK_NEG_INF)
+      state.add_state(
+          window, self.watermark_hold_tag, WatermarkManager.WATERMARK_NEG_INF)
 
       # Setting a timer to be reinvoked to continue processing the element.
       # Currently Python SDK only supports setting timers based on watermark. So
@@ -222,7 +227,8 @@ class ProcessFn(beam.DoFn):
       # TODO(chamikara): update this by setting a timer for the proper
       # processing time when Python SDK supports that.
       state.set_timer(
-          window, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_NEG_INF)
+          window, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_NEG_INF
+      )
 
 
 class SDFProcessElementInvoker(object):
@@ -252,7 +258,9 @@ class SDFProcessElementInvoker(object):
 
   class Result(object):
     def __init__(
-        self, residual_restriction=None, process_continuation=None,
+        self,
+        residual_restriction=None,
+        process_continuation=None,
         future_output_watermark=None):
       """Returned as a result of a `invoke_process_element()` invocation.
 
@@ -271,8 +279,7 @@ class SDFProcessElementInvoker(object):
       self.process_continuation = process_continuation
       self.future_output_watermark = future_output_watermark
 
-  def __init__(
-      self, max_num_outputs, max_duration):
+  def __init__(self, max_num_outputs, max_duration):
     self._max_num_outputs = max_num_outputs
     self._max_duration = max_duration
     self._checkpoint_lock = Lock()
@@ -296,7 +303,6 @@ class SDFProcessElementInvoker(object):
     assert isinstance(tracker, RestrictionTracker)
 
     class CheckpointState(object):
-
       def __init__(self):
         self.checkpointed = None
         self.residual_restriction = None
@@ -313,8 +319,11 @@ class SDFProcessElementInvoker(object):
     output_processor = _OutputProcessor()
     Timer(self._max_duration, initiate_checkpoint).start()
     sdf_invoker.invoke_process(
-        element, restriction_tracker=tracker, output_processor=output_processor,
-        additional_args=args, additional_kwargs=kwargs)
+        element,
+        restriction_tracker=tracker,
+        output_processor=output_processor,
+        additional_args=args,
+        additional_kwargs=kwargs)
 
     assert output_processor.output_iter is not None
     output_count = 0
@@ -355,7 +364,6 @@ class SDFProcessElementInvoker(object):
 
 
 class _OutputProcessor(OutputProcessor):
-
   def __init__(self):
     self.output_iter = None
 

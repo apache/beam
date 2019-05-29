@@ -47,23 +47,21 @@ coders_registry.register_coder(AvroTestRecord, AvroTestCoder)
 
 
 class CodersTest(unittest.TestCase):
-
   def test_avro_record_coder(self):
     real_coder = coders_registry.get_coder(AvroTestRecord)
     expected_coder = AvroTestCoder()
     self.assertEqual(
         real_coder.encode(
-            AvroTestRecord({"name": "Daenerys targaryen", "age": 23})),
+            AvroTestRecord({"name": "Daenerys targaryen", "age": 23})
+        ),
         expected_coder.encode(
-            AvroTestRecord({"name": "Daenerys targaryen", "age": 23}))
-    )
+            AvroTestRecord({"name": "Daenerys targaryen", "age": 23})
+        ))
     self.assertEqual(
         AvroTestRecord({"name": "Jon Snow", "age": 23}),
         real_coder.decode(
-            real_coder.encode(
-                AvroTestRecord({"name": "Jon Snow", "age": 23}))
-        )
-    )
+            real_coder.encode(AvroTestRecord({"name": "Jon Snow", "age": 23}))
+        ))
 
 
 if __name__ == '__main__':

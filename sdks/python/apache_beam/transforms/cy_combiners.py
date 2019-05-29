@@ -31,9 +31,11 @@ from builtins import object
 from apache_beam.transforms import core
 
 try:
-  from apache_beam.transforms.cy_dataflow_distribution_counter import DataflowDistributionCounter
+  from apache_beam.transforms.cy_dataflow_distribution_counter import (
+      DataflowDistributionCounter)
 except ImportError:
-  from apache_beam.transforms.py_dataflow_distribution_counter import DataflowDistributionCounter
+  from apache_beam.transforms.py_dataflow_distribution_counter import (
+      DataflowDistributionCounter)
 
 
 class AccumulatorCombineFn(core.CombineFn):
@@ -56,8 +58,9 @@ class AccumulatorCombineFn(core.CombineFn):
     return accumulator.extract_output()
 
   def __eq__(self, other):
-    return (isinstance(other, AccumulatorCombineFn)
-            and self._accumulator_type is other._accumulator_type)
+    return (
+        isinstance(other, AccumulatorCombineFn)
+        and self._accumulator_type is other._accumulator_type)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -68,8 +71,8 @@ class AccumulatorCombineFn(core.CombineFn):
 
 
 _63 = 63  # Avoid large literals in C source code.
-globals()['INT64_MAX'] = 2**_63 - 1
-globals()['INT64_MIN'] = -2**_63
+globals()['INT64_MAX'] = 2 ** _63 - 1
+globals()['INT64_MIN'] = -2 ** _63
 
 
 class CountAccumulator(object):
@@ -104,9 +107,9 @@ class SumInt64Accumulator(object):
 
   def extract_output(self):
     if not INT64_MIN <= self.value <= INT64_MAX:
-      self.value %= 2**64
+      self.value %= 2 ** 64
       if self.value >= INT64_MAX:
-        self.value -= 2**64
+        self.value -= 2 ** 64
     return self.value
 
 
@@ -169,9 +172,9 @@ class MeanInt64Accumulator(object):
 
   def extract_output(self):
     if not INT64_MIN <= self.sum <= INT64_MAX:
-      self.sum %= 2**64
+      self.sum %= 2 ** 64
       if self.sum >= INT64_MAX:
-        self.sum -= 2**64
+        self.sum -= 2 ** 64
     return self.sum // self.count if self.count else _NAN
 
 
@@ -200,9 +203,9 @@ class DistributionInt64Accumulator(object):
 
   def extract_output(self):
     if not INT64_MIN <= self.sum <= INT64_MAX:
-      self.sum %= 2**64
+      self.sum %= 2 ** 64
       if self.sum >= INT64_MAX:
-        self.sum -= 2**64
+        self.sum -= 2 ** 64
     mean = self.sum // self.count if self.count else _NAN
     return mean, self.sum, self.count, self.min, self.max
 
@@ -371,6 +374,7 @@ class DataflowDistributionCounterFn(AccumulatorCombineFn):
   CounterFn combine with cythonized module, otherwise, combine with python
   version.
   """
+
   _accumulator_type = DataflowDistributionCounter
 
 
@@ -378,7 +382,10 @@ class ComparableValue(object):
   """A way to allow comparing elements in a rich fashion."""
 
   __slots__ = (
-      'value', '_less_than_fn', '_comparable_value', 'requires_hydration')
+      'value',
+      '_less_than_fn',
+      '_comparable_value',
+      'requires_hydration')
 
   def __init__(self, value, less_than_fn, key_fn, _requires_hydration=False):
     self.value = value

@@ -38,8 +38,12 @@ from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['ReadFromText', 'ReadFromTextWithFilename', 'ReadAllFromText',
-           'WriteToText']
+__all__ = [
+    'ReadFromText',
+    'ReadFromTextWithFilename',
+    'ReadAllFromText',
+    'WriteToText',
+]
 
 
 class _TextSource(filebasedsource.FileBasedSource):
@@ -79,24 +83,26 @@ class _TextSource(filebasedsource.FileBasedSource):
     def position(self, value):
       assert isinstance(value, (int, long))
       if value > len(self._data):
-        raise ValueError('Cannot set position to %d since it\'s larger than '
-                         'size of data %d.' % (value, len(self._data)))
+        raise ValueError(
+            'Cannot set position to %d since it\'s larger than '
+            'size of data %d.' % (value, len(self._data)))
       self._position = value
 
     def reset(self):
       self.data = b''
       self.position = 0
 
-  def __init__(self,
-               file_pattern,
-               min_bundle_size,
-               compression_type,
-               strip_trailing_newlines,
-               coder,
-               buffer_size=DEFAULT_READ_BUFFER_SIZE,
-               validate=True,
-               skip_header_lines=0,
-               header_processor_fns=(None, None)):
+  def __init__(
+      self,
+      file_pattern,
+      min_bundle_size,
+      compression_type,
+      strip_trailing_newlines,
+      coder,
+      buffer_size=DEFAULT_READ_BUFFER_SIZE,
+      validate=True,
+      skip_header_lines=0,
+      header_processor_fns=(None, None)):
     """Initialize a _TextSource
 
     Args:
@@ -115,17 +121,20 @@ class _TextSource(filebasedsource.FileBasedSource):
     Please refer to documentation in class `ReadFromText` for the rest
     of the arguments.
     """
-    super(_TextSource, self).__init__(file_pattern, min_bundle_size,
-                                      compression_type=compression_type,
-                                      validate=validate)
+    super(_TextSource, self).__init__(
+        file_pattern,
+        min_bundle_size,
+        compression_type=compression_type,
+        validate=validate)
 
     self._strip_trailing_newlines = strip_trailing_newlines
     self._compression_type = compression_type
     self._coder = coder
     self._buffer_size = buffer_size
     if skip_header_lines < 0:
-      raise ValueError('Cannot skip negative number of header lines: %d'
-                       % skip_header_lines)
+      raise ValueError(
+          'Cannot skip negative number of header lines: %d' % skip_header_lines
+      )
     elif skip_header_lines > 10:
       logging.warning(
           'Skipping %d header lines. Skipping large number of header '
@@ -136,14 +145,10 @@ class _TextSource(filebasedsource.FileBasedSource):
   def display_data(self):
     parent_dd = super(_TextSource, self).display_data()
     parent_dd['strip_newline'] = DisplayDataItem(
-        self._strip_trailing_newlines,
-        label='Strip Trailing New Lines')
+        self._strip_trailing_newlines, label='Strip Trailing New Lines')
     parent_dd['buffer_size'] = DisplayDataItem(
-        self._buffer_size,
-        label='Buffer Size')
-    parent_dd['coder'] = DisplayDataItem(
-        self._coder.__class__,
-        label='Coder')
+        self._buffer_size, label='Buffer Size')
+    parent_dd['coder'] = DisplayDataItem(self._coder.__class__, label='Coder')
     return parent_dd
 
   def read_records(self, file_name, range_tracker):
@@ -153,14 +158,16 @@ class _TextSource(filebasedsource.FileBasedSource):
     next_record_start_position = -1
 
     def split_points_unclaimed(stop_position):
-      return (0 if stop_position <= next_record_start_position
-              else iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+      return (
+          0
+          if stop_position <= next_record_start_position
+          else iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
 
     range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
 
     with self.open_file(file_name) as file_to_read:
-      position_after_processing_header_lines = (
-          self._process_header(file_to_read, read_buffer))
+      position_after_processing_header_lines = self._process_header(
+          file_to_read, read_buffer)
       start_offset = max(start_offset, position_after_processing_header_lines)
       if start_offset > position_after_processing_header_lines:
         # Seeking to one position before the start index and ignoring the
@@ -183,15 +190,16 @@ class _TextSource(filebasedsource.FileBasedSource):
         next_record_start_position = position_after_processing_header_lines
 
       while range_tracker.try_claim(next_record_start_position):
-        record, num_bytes_to_next_record = self._read_record(file_to_read,
-                                                             read_buffer)
+        record, num_bytes_to_next_record = self._read_record(
+            file_to_read, read_buffer)
         # For compressed text files that use an unsplittable OffsetRangeTracker
         # with infinity as the end position, above 'try_claim()' invocation
         # would pass for an empty record at the end of file that is not
         # followed by a new line character. Since such a record is at the last
         # position of a file, it should not be a part of the considered range.
         # We do this check to ignore such records.
-        if len(record) == 0 and num_bytes_to_next_record < 0:  # pylint: disable=len-as-condition
+        if (len(record) == 0 and num_bytes_to_next_record < 0
+        ):  # pylint: disable=len-as-condition
           break
 
         # Record separator must be larger than zero bytes.
@@ -208,13 +216,14 @@ class _TextSource(filebasedsource.FileBasedSource):
     # records and a list of decoded header lines that match
     # 'header_matcher'.
     header_lines = []
-    position = self._skip_lines(
-        file_to_read, read_buffer,
-        self._skip_header_lines) if self._skip_header_lines else 0
+    position = (
+        self._skip_lines(file_to_read, read_buffer, self._skip_header_lines)
+        if self._skip_header_lines
+        else 0)
     if self._header_matcher:
       while True:
-        record, num_bytes_to_next_record = self._read_record(file_to_read,
-                                                             read_buffer)
+        record, num_bytes_to_next_record = self._read_record(
+            file_to_read, read_buffer)
         decoded_line = self._coder.decode(record)
         if not self._header_matcher(decoded_line):
           # We've read past the header section at this point, so go back a line.
@@ -254,7 +263,7 @@ class _TextSource(filebasedsource.FileBasedSource):
       # array.
       next_lf = read_buffer.data.find(b'\n', current_pos)
       if next_lf >= 0:
-        if next_lf > 0 and read_buffer.data[next_lf - 1:next_lf] == b'\r':
+        if next_lf > 0 and read_buffer.data[next_lf - 1 : next_lf] == b'\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:
@@ -298,13 +307,13 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     if read_buffer.position > self._buffer_size:
       # read_buffer is too large. Truncating and adjusting it.
-      read_buffer.data = read_buffer.data[read_buffer.position:]
+      read_buffer.data = read_buffer.data[read_buffer.position :]
       read_buffer.position = 0
 
     record_start_position_in_buffer = read_buffer.position
     sep_bounds = self._find_separator_bounds(file_to_read, read_buffer)
-    read_buffer.position = sep_bounds[1] if sep_bounds else len(
-        read_buffer.data)
+    read_buffer.position = (
+        sep_bounds[1] if sep_bounds else len(read_buffer.data))
 
     if not sep_bounds:
       # Reached EOF. Bytes up to the EOF is the next record. Returning '-1' for
@@ -313,18 +322,20 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     if self._strip_trailing_newlines:
       # Current record should not contain the separator.
-      return (read_buffer.data[record_start_position_in_buffer:sep_bounds[0]],
-              sep_bounds[1] - record_start_position_in_buffer)
+      return (
+          read_buffer.data[record_start_position_in_buffer : sep_bounds[0]],
+          sep_bounds[1] - record_start_position_in_buffer)
     else:
       # Current record should contain the separator.
-      return (read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
-              sep_bounds[1] - record_start_position_in_buffer)
+      return (
+          read_buffer.data[record_start_position_in_buffer : sep_bounds[1]],
+          sep_bounds[1] - record_start_position_in_buffer)
 
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
-    records = super(_TextSourceWithFilename, self).read_records(file_name,
-                                                                range_tracker)
+    records = super(_TextSourceWithFilename, self).read_records(
+        file_name, range_tracker)
     for record in records:
       yield (file_name, record)
 
@@ -332,15 +343,16 @@ class _TextSourceWithFilename(_TextSource):
 class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
 
-  def __init__(self,
-               file_path_prefix,
-               file_name_suffix='',
-               append_trailing_newlines=True,
-               num_shards=0,
-               shard_name_template=None,
-               coder=coders.ToStringCoder(),
-               compression_type=CompressionTypes.AUTO,
-               header=None):
+  def __init__(
+      self,
+      file_path_prefix,
+      file_name_suffix='',
+      append_trailing_newlines=True,
+      num_shards=0,
+      shard_name_template=None,
+      coder=coders.ToStringCoder(),
+      compression_type=CompressionTypes.AUTO,
+      header=None):
     """Initialize a _TextSink.
 
     Args:
@@ -398,8 +410,7 @@ class _TextSink(filebasedsink.FileBasedSink):
   def display_data(self):
     dd_parent = super(_TextSink, self).display_data()
     dd_parent['append_newline'] = DisplayDataItem(
-        self._append_trailing_newlines,
-        label='Append Trailing New Lines')
+        self._append_trailing_newlines, label='Append Trailing New Lines')
     return dd_parent
 
   def write_encoded_record(self, file_handle, encoded_value):
@@ -410,13 +421,20 @@ class _TextSink(filebasedsink.FileBasedSink):
 
 
 def _create_text_source(
-    file_pattern=None, min_bundle_size=None, compression_type=None,
-    strip_trailing_newlines=None, coder=None, skip_header_lines=None):
+    file_pattern=None,
+    min_bundle_size=None,
+    compression_type=None,
+    strip_trailing_newlines=None,
+    coder=None,
+    skip_header_lines=None):
   return _TextSource(
-      file_pattern=file_pattern, min_bundle_size=min_bundle_size,
+      file_pattern=file_pattern,
+      min_bundle_size=min_bundle_size,
       compression_type=compression_type,
       strip_trailing_newlines=strip_trailing_newlines,
-      coder=coder, validate=False, skip_header_lines=skip_header_lines)
+      coder=coder,
+      validate=False,
+      skip_header_lines=skip_header_lines)
 
 
 class ReadAllFromText(PTransform):
@@ -466,15 +484,20 @@ class ReadAllFromText(PTransform):
     """
     super(ReadAllFromText, self).__init__(**kwargs)
     source_from_file = partial(
-        _create_text_source, min_bundle_size=min_bundle_size,
+        _create_text_source,
+        min_bundle_size=min_bundle_size,
         compression_type=compression_type,
-        strip_trailing_newlines=strip_trailing_newlines, coder=coder,
+        strip_trailing_newlines=strip_trailing_newlines,
+        coder=coder,
         skip_header_lines=skip_header_lines)
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
     self._read_all_files = ReadAllFiles(
-        True, compression_type, desired_bundle_size, min_bundle_size,
+        True,
+        compression_type,
+        desired_bundle_size,
+        min_bundle_size,
         source_from_file)
 
   def expand(self, pvalue):
@@ -531,8 +554,12 @@ class ReadFromText(PTransform):
 
     super(ReadFromText, self).__init__(**kwargs)
     self._source = self._source_class(
-        file_pattern, min_bundle_size, compression_type,
-        strip_trailing_newlines, coder, validate=validate,
+        file_pattern,
+        min_bundle_size,
+        compression_type,
+        strip_trailing_newlines,
+        coder,
+        validate=validate,
         skip_header_lines=skip_header_lines)
 
   def expand(self, pvalue):
@@ -601,9 +628,15 @@ class WriteToText(PTransform):
         be added.
     """
 
-    self._sink = _TextSink(file_path_prefix, file_name_suffix,
-                           append_trailing_newlines, num_shards,
-                           shard_name_template, coder, compression_type, header)
+    self._sink = _TextSink(
+        file_path_prefix,
+        file_name_suffix,
+        append_trailing_newlines,
+        num_shards,
+        shard_name_template,
+        coder,
+        compression_type,
+        header)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

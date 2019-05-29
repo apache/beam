@@ -56,6 +56,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   def setUp(self):
     if platform.system() != 'Windows':
+
       def handler(signum, frame):
         msg = 'Timed out after %s seconds.' % self.TIMEOUT_SECS
         print('=' * 20, msg, '=' * 20)
@@ -67,6 +68,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
           print('# Thread:', th or thread_id)
           traceback.print_stack(stack)
         raise BaseException(msg)
+
       signal.signal(signal.SIGALRM, handler)
       signal.alarm(self.TIMEOUT_SECS)
 
@@ -117,8 +119,8 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       time.sleep(0.1)
       if cls._subprocess.poll() is not None:
         raise RuntimeError(
-            'Subprocess terminated unexpectedly with exit code %d.' %
-            cls._subprocess.returncode)
+            'Subprocess terminated unexpectedly with exit code %d.'
+            % cls._subprocess.returncode)
       elif time.time() - start > timeout:
         raise RuntimeError(
             'Pipeline timed out waiting for job service subprocess.')
@@ -170,13 +172,13 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       return 'unknown_test'
 
     # Set the job name for better debugging.
-    options = PipelineOptions.from_dictionary({
-        'job_name': get_pipeline_name() + '_' + str(time.time())
-    })
+    options = PipelineOptions.from_dictionary(
+        {'job_name': get_pipeline_name() + '_' + str(time.time())})
     options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
     # Override the default environment type for testing.
-    options.view_as(PortableOptions).environment_type = (
-        python_urns.EMBEDDED_PYTHON)
+    options.view_as(
+        PortableOptions
+    ).environment_type = python_urns.EMBEDDED_PYTHON
     return options
 
   def create_pipeline(self):
@@ -187,7 +189,6 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
 @unittest.skip("BEAM-7248")
 class PortableRunnerOptimized(PortableRunnerTest):
-
   def create_options(self):
     options = super(PortableRunnerOptimized, self).create_options()
     options.view_as(DebugOptions).add_experiment('pre_optimize=all')
@@ -195,11 +196,12 @@ class PortableRunnerOptimized(PortableRunnerTest):
 
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
-
   @classmethod
   def setUpClass(cls):
-    cls._worker_address, cls._worker_server = (
-        portable_runner.BeamFnExternalWorkerPoolServicer.start())
+    (
+        cls._worker_address,
+        cls._worker_server,
+    ) = portable_runner.BeamFnExternalWorkerPoolServicer.start()
 
   @classmethod
   def tearDownClass(cls):
@@ -218,19 +220,22 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
 
   def create_options(self):
     options = super(PortableRunnerTestWithSubprocesses, self).create_options()
-    options.view_as(PortableOptions).environment_type = (
-        python_urns.SUBPROCESS_SDK)
+    options.view_as(
+        PortableOptions
+    ).environment_type = python_urns.SUBPROCESS_SDK
     options.view_as(PortableOptions).environment_config = (
-        b'%s -m apache_beam.runners.worker.sdk_worker_main' %
-        sys.executable.encode('ascii'))
+        b'%s -m apache_beam.runners.worker.sdk_worker_main'
+        % sys.executable.encode('ascii'))
     return options
 
   @classmethod
   def _subprocess_command(cls, job_port, _):
     return [
         sys.executable,
-        '-m', 'apache_beam.runners.portability.local_job_service_main',
-        '-p', str(job_port),
+        '-m',
+        'apache_beam.runners.portability.local_job_service_main',
+        '-p',
+        str(job_port),
     ]
 
 
@@ -243,44 +248,57 @@ class PortableRunnerInternalTest(unittest.TestCase):
             urn=common_urns.environments.DOCKER.urn,
             payload=beam_runner_api_pb2.DockerPayload(
                 container_image=docker_image
-            ).SerializeToString()))
+            ).SerializeToString(),
+        ))
 
   def test__create_docker_environment(self):
     docker_image = 'py-docker'
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({
-            'environment_type': 'DOCKER',
-            'environment_config': docker_image,
-        })), beam_runner_api_pb2.Environment(
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary(
+                {
+                    'environment_type': 'DOCKER',
+                    'environment_config': docker_image,
+                })
+        ),
+        beam_runner_api_pb2.Environment(
             urn=common_urns.environments.DOCKER.urn,
             payload=beam_runner_api_pb2.DockerPayload(
                 container_image=docker_image
-            ).SerializeToString()))
+            ).SerializeToString(),
+        ))
 
   def test__create_process_environment(self):
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({
-            'environment_type': "PROCESS",
-            'environment_config': '{"os": "linux", "arch": "amd64", '
-                                  '"command": "run.sh", '
-                                  '"env":{"k1": "v1"} }',
-        })), beam_runner_api_pb2.Environment(
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary(
+                {
+                    'environment_type': "PROCESS",
+                    'environment_config': '{"os": "linux", "arch": "amd64", '
+                    '"command": "run.sh", '
+                    '"env":{"k1": "v1"} }',
+                })
+        ),
+        beam_runner_api_pb2.Environment(
             urn=common_urns.environments.PROCESS.urn,
             payload=beam_runner_api_pb2.ProcessPayload(
-                os='linux',
-                arch='amd64',
-                command='run.sh',
-                env={'k1': 'v1'},
-            ).SerializeToString()))
+                os='linux', arch='amd64', command='run.sh', env={'k1': 'v1'}
+            ).SerializeToString(),
+        ))
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({
-            'environment_type': 'PROCESS',
-            'environment_config': '{"command": "run.sh"}',
-        })), beam_runner_api_pb2.Environment(
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary(
+                {
+                    'environment_type': 'PROCESS',
+                    'environment_config': '{"command": "run.sh"}',
+                })
+        ),
+        beam_runner_api_pb2.Environment(
             urn=common_urns.environments.PROCESS.urn,
             payload=beam_runner_api_pb2.ProcessPayload(
-                command='run.sh',
-            ).SerializeToString()))
+                command='run.sh'
+            ).SerializeToString(),
+        ))
 
 
 if __name__ == '__main__':

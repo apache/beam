@@ -65,8 +65,8 @@ class CreateTest(unittest.TestCase):
     # multiple values with uneven sized splits.
     self.check_read_with_initial_splits(values, self.coder, num_splits=4)
     # multiple values with num splits equal to num values.
-    self.check_read_with_initial_splits(values, self.coder,
-                                        num_splits=len(values))
+    self.check_read_with_initial_splits(
+        values, self.coder, num_splits=len(values))
     # multiple values with num splits greater than to num values.
     self.check_read_with_initial_splits(values, self.coder, num_splits=30)
 
@@ -80,7 +80,8 @@ class CreateTest(unittest.TestCase):
     splits = source.split(desired_bundle_size)
     splits_info = [
         (split.source, split.start_position, split.stop_position)
-        for split in splits]
+        for split in splits
+    ]
     source_test_utils.assert_sources_equal_reference_source(
         (source, None, None), splits_info)
 
@@ -91,9 +92,8 @@ class CreateTest(unittest.TestCase):
   def test_create_source_read_reentrant_with_initial_splits(self):
     source = Create._create_source_from_iterable(range(24), self.coder)
     for split in source.split(desired_bundle_size=5):
-      source_test_utils.assert_reentrant_reads_succeed((split.source,
-                                                        split.start_position,
-                                                        split.stop_position))
+      source_test_utils.assert_reentrant_reads_succeed(
+          (split.source, split.start_position, split.stop_position))
 
   def test_create_source_dynamic_splitting(self):
     # 2 values
@@ -122,11 +122,10 @@ class CreateTest(unittest.TestCase):
         fraction_consumed_report)
 
     expected_split_points_report = [
-        ((i - 1), num_values - (i - 1))
-        for i in range(1, num_values + 1)]
+        ((i - 1), num_values - (i - 1)) for i in range(1, num_values + 1)
+    ]
 
-    self.assertEqual(
-        expected_split_points_report, split_points_report)
+    self.assertEqual(expected_split_points_report, split_points_report)
 
 
 if __name__ == '__main__':

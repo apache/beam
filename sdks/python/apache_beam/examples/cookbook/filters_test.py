@@ -37,11 +37,11 @@ class FiltersTest(unittest.TestCase):
       {'year': 2011, 'month': 1, 'day': 3, 'mean_temp': 5, 'removed': 'a'},
       {'year': 2013, 'month': 2, 'day': 1, 'mean_temp': 3, 'removed': 'a'},
       {'year': 2011, 'month': 3, 'day': 3, 'mean_temp': 5, 'removed': 'a'},
-      ]
+  ]
 
   def _get_result_for_month(self, month):
     p = TestPipeline()
-    rows = (p | 'create' >> beam.Create(self.input_data))
+    rows = p | 'create' >> beam.Create(self.input_data)
 
     results = filters.filter_cold_days(rows, month)
     return results
@@ -51,8 +51,12 @@ class FiltersTest(unittest.TestCase):
     results = self._get_result_for_month(1)
     assert_that(
         results,
-        equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
-                  {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
+        equal_to(
+            [
+                {'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
+                {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3},
+            ]
+        ))
     results.pipeline.run()
 
   def test_basic_empty(self):

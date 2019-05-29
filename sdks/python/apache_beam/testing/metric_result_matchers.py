@@ -63,9 +63,18 @@ def _matcher_or_equal_to(value_or_matcher):
 class MetricResultMatcher(BaseMatcher):
   """A PyHamcrest matcher that validates counter MetricResults."""
 
-  def __init__(self, namespace=None, name=None, step=None, labels=None,
-               attempted=None, committed=None, sum_value=None, count_value=None,
-               min_value=None, max_value=None,):
+  def __init__(
+      self,
+      namespace=None,
+      name=None,
+      step=None,
+      labels=None,
+      attempted=None,
+      committed=None,
+      sum_value=None,
+      count_value=None,
+      min_value=None,
+      max_value=None):
     self.namespace = _matcher_or_equal_to(namespace)
     self.name = _matcher_or_equal_to(name)
     self.step = _matcher_or_equal_to(step)
@@ -84,15 +93,18 @@ class MetricResultMatcher(BaseMatcher):
       return False
     if self.step and not self.step.matches(metric_result.key.step):
       return False
-    if (self.attempted is not None and
-        not self.attempted.matches(metric_result.attempted)):
+    if self.attempted is not None and not self.attempted.matches(
+        metric_result.attempted):
       return False
-    if (self.committed is not None and
-        not self.committed.matches(metric_result.committed)):
+    if self.committed is not None and not self.committed.matches(
+        metric_result.committed):
       return False
     for (k_matcher, v_matcher) in self.label_matchers.items():
-      matched_keys = [key for key in metric_result.key.labels.keys() if
-                      k_matcher.matches(key)]
+      matched_keys = [
+          key
+          for key in metric_result.key.labels.keys()
+          if k_matcher.matches(key)
+      ]
       matched_key = matched_keys[0] if matched_keys else None
       if not matched_key:
         return False
@@ -131,8 +143,8 @@ class MetricResultMatcher(BaseMatcher):
 class DistributionMatcher(BaseMatcher):
   """A PyHamcrest matcher that validates counter distributions."""
 
-  def __init__(self, sum_value=None, count_value=None, min_value=None,
-               max_value=None):
+  def __init__(
+      self, sum_value=None, count_value=None, min_value=None, max_value=None):
     self.sum_value = _matcher_or_equal_to(sum_value)
     self.count_value = _matcher_or_equal_to(count_value)
     self.min_value = _matcher_or_equal_to(min_value)
@@ -177,9 +189,11 @@ def verify_all(all_metrics, matchers):
   for matcher in matchers:
     matched_metrics = [mr for mr in all_metrics if matcher.matches(mr)]
     if not matched_metrics:
-      errors.append('Unable to match metrics for matcher %s' % (
-          string_description.tostring(matcher)))
+      errors.append(
+          'Unable to match metrics for matcher %s'
+          % (string_description.tostring(matcher)))
   if errors:
-    errors.append('\nActual MetricResults:\n' +
-                  '\n'.join([str(mr) for mr in all_metrics]))
+    errors.append(
+        '\nActual MetricResults:\n' + '\n'.join([str(mr) for mr in all_metrics])
+    )
   return ''.join(errors)

@@ -54,10 +54,11 @@ if not getattr(dill, '_dill', None):
 
 def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
-  return (isinstance(cls, type)
-          and cls.__module__ != 'builtins'     # Python 3
-          and cls.__module__ != '__builtin__'  # Python 2
-          and cls.__name__ not in sys.modules[cls.__module__].__dict__)
+  return (
+      isinstance(cls, type)
+      and cls.__module__ != 'builtins'  # Python 3
+      and cls.__module__ != '__builtin__'  # Python 2
+      and cls.__name__ not in sys.modules[cls.__module__].__dict__)
 
 
 def _find_containing_class(nested_class):
@@ -74,7 +75,8 @@ def _find_containing_class(nested_class):
         return outer, k
       elif isinstance(v, type) and hasattr(v, '__dict__'):
         res = _find_containing_class_inner(v)
-        if res: return res
+        if res:
+          return res
 
   return _find_containing_class_inner(sys.modules[nested_class.__module__])
 
@@ -101,16 +103,19 @@ def _nested_type_wrapper(fun):
     if _is_nested_class(obj) and obj.__module__ != '__main__':
       containing_class_and_name = _find_containing_class(obj)
       if containing_class_and_name is not None:
-        return pickler.save_reduce(
-            getattr, containing_class_and_name, obj=obj)
+        return pickler.save_reduce(getattr, containing_class_and_name, obj=obj)
     try:
       return fun(pickler, obj)
     except dill.dill.PicklingError:
       # pylint: disable=protected-access
       return pickler.save_reduce(
           dill.dill._create_type,
-          (type(obj), obj.__name__, obj.__bases__,
-           dill.dill._dict_from_dictproxy(obj.__dict__)),
+          (
+              type(obj),
+              obj.__name__,
+              obj.__bases__,
+              dill.dill._dict_from_dictproxy(obj.__dict__),
+          ),
           obj=obj)
       # pylint: enable=protected-access
 
@@ -196,6 +201,7 @@ if 'save_module' in dir(dill.dill):
         return old_save_module_dict(pickler, obj)
     else:
       return old_save_module_dict(pickler, obj)
+
   dill.dill.save_module_dict = new_save_module_dict
 
   def _nest_dill_logging():
@@ -207,8 +213,10 @@ if 'save_module' in dir(dill.dill):
 
     def new_log_info(msg, *args, **kwargs):
       old_log_info(
-          ('1 2 3 4 5 6 7 8 9 0 ' * 10)[:len(traceback.extract_stack())] + msg,
-          *args, **kwargs)
+          ('1 2 3 4 5 6 7 8 9 0 ' * 10)[: len(traceback.extract_stack())] + msg,
+          *args,
+          **kwargs)
+
     dill.dill.log.info = new_log_info
 
 
@@ -224,7 +232,7 @@ def dumps(o, enable_trace=True):
 
   try:
     s = dill.dumps(o)
-  except Exception:      # pylint: disable=broad-except
+  except Exception:  # pylint: disable=broad-except
     if enable_trace:
       dill.dill._trace(True)  # pylint: disable=protected-access
       s = dill.dumps(o)
@@ -252,9 +260,9 @@ def loads(encoded, enable_trace=True):
 
   try:
     return dill.loads(s)
-  except Exception:          # pylint: disable=broad-except
+  except Exception:  # pylint: disable=broad-except
     if enable_trace:
-      dill.dill._trace(True)   # pylint: disable=protected-access
+      dill.dill._trace(True)  # pylint: disable=protected-access
       return dill.loads(s)
     else:
       raise

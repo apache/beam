@@ -174,29 +174,33 @@ class CoGroupByKeyTest(LoadTest):
         yield i
 
   def testCoGroupByKey(self):
-    pc1 = (self.pipeline
-           | 'Read ' + INPUT_TAG >> beam.io.Read(
-               synthetic_pipeline.SyntheticSource(
-                   self.parseTestPipelineOptions(self.input_options)))
-           | 'Make ' + INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
-           | 'Measure time: Start pc1' >> beam.ParDo(
-               MeasureTime(self.metrics_namespace))
-          )
+    pc1 = (
+        self.pipeline
+        | 'Read ' + INPUT_TAG
+        >> beam.io.Read(
+            synthetic_pipeline.SyntheticSource(
+                self.parseTestPipelineOptions(self.input_options))
+)
+        | 'Make ' + INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
+        | 'Measure time: Start pc1'
+        >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
-    pc2 = (self.pipeline
-           | 'Read ' + CO_INPUT_TAG >> beam.io.Read(
-               synthetic_pipeline.SyntheticSource(
-                   self.parseTestPipelineOptions(self.co_input_options)))
-           | 'Make ' + CO_INPUT_TAG + ' iterable' >> beam.Map(
-               lambda x: (x, x))
-           | 'Measure time: Start pc2' >> beam.ParDo(
-               MeasureTime(self.metrics_namespace))
-          )
+    pc2 = (
+        self.pipeline
+        | 'Read ' + CO_INPUT_TAG
+        >> beam.io.Read(
+            synthetic_pipeline.SyntheticSource(
+                self.parseTestPipelineOptions(self.co_input_options))
+)
+        | 'Make ' + CO_INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
+        | 'Measure time: Start pc2'
+        >> beam.ParDo(MeasureTime(self.metrics_namespace)))
     # pylint: disable=expression-not-assigned
-    ({INPUT_TAG: pc1, CO_INPUT_TAG: pc2}
-     | 'CoGroupByKey: ' >> beam.CoGroupByKey()
-     | 'Consume Joined Collections' >> beam.ParDo(self._Ungroup())
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+    (
+        {INPUT_TAG: pc1, CO_INPUT_TAG: pc2}
+        | 'CoGroupByKey: ' >> beam.CoGroupByKey()
+        | 'Consume Joined Collections' >> beam.ParDo(self._Ungroup())
+        | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
     )
 
 

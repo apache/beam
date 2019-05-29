@@ -39,10 +39,10 @@ class ComputeTopSessionsTest(unittest.TestCase):
       json.dumps({'timestamp': 0.001, 'contributor_username': 'user2'}),
       json.dumps({'timestamp': 3.601, 'contributor_username': 'user2'}),
       json.dumps({'timestamp': 3.602, 'contributor_username': 'user2'}),
+      json.dumps({'timestamp': 2 * 3600.0, 'contributor_username': 'user2'}),
       json.dumps(
-          {'timestamp': 2 * 3600.0, 'contributor_username': 'user2'}),
-      json.dumps(
-          {'timestamp': 35 * 24 * 3.600, 'contributor_username': 'user3'})
+          {'timestamp': 35 * 24 * 3.600, 'contributor_username': 'user3'}
+      ),
   ]
 
   EXPECTED = [

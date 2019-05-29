@@ -36,11 +36,13 @@ from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.utils.annotations import experimental
 
-__all__ = ['EmptyMatchTreatment',
-           'MatchFiles',
-           'MatchAll',
-           'ReadableFile',
-           'ReadMatches']
+__all__ = [
+    'EmptyMatchTreatment',
+    'MatchFiles',
+    'MatchAll',
+    'ReadableFile',
+    'ReadMatches',
+]
 
 
 class EmptyMatchTreatment(object):
@@ -66,7 +68,6 @@ class EmptyMatchTreatment(object):
 
 
 class _MatchAllFn(beam.DoFn):
-
   def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
 
@@ -77,7 +78,8 @@ class _MatchAllFn(beam.DoFn):
 
     if (not match_result.metadata_list
         and not EmptyMatchTreatment.allow_empty_match(
-            file_pattern, self._empty_match_treatment)):
+            file_pattern, self._empty_match_treatment)
+):
       raise BeamIOError(
           'Empty match for pattern %s. Disallowed.' % file_pattern)
 
@@ -91,16 +93,15 @@ class MatchFiles(beam.PTransform):
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects."""
 
-  def __init__(self,
-               file_pattern,
-               empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
+  def __init__(
+      self,
+      file_pattern,
+      empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
     self._file_pattern = file_pattern
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll):
-    return (pcoll.pipeline
-            | beam.Create([self._file_pattern])
-            | MatchAll())
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
 
 
 @experimental()
@@ -114,23 +115,22 @@ class MatchAll(beam.PTransform):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll):
-    return (pcoll
-            | beam.ParDo(_MatchAllFn(self._empty_match_treatment)))
+    return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
 
 
 class _ReadMatchesFn(beam.DoFn):
-
   def __init__(self, compression, skip_directories):
     self._compression = compression
     self._skip_directories = skip_directories
 
   def process(self, file_metadata):
-    metadata = (filesystem.FileMetadata(file_metadata, 0)
-                if isinstance(file_metadata, (str, unicode))
-                else file_metadata)
+    metadata = (
+        filesystem.FileMetadata(file_metadata, 0)
+        if isinstance(file_metadata, (str, unicode))
+        else file_metadata)
 
-    if ((metadata.path.endswith('/') or metadata.path.endswith('\\'))
-        and self._skip_directories):
+    if (metadata.path.endswith('/') or metadata.path.endswith('\\')
+    ) and self._skip_directories:
       return
     elif metadata.path.endswith('/') or metadata.path.endswith('\\'):
       raise BeamIOError(
@@ -168,5 +168,5 @@ class ReadMatches(beam.PTransform):
     self._skip_directories = skip_directories
 
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(_ReadMatchesFn(self._compression,
-                                             self._skip_directories))
+    return pcoll | beam.ParDo(
+        _ReadMatchesFn(self._compression, self._skip_directories))

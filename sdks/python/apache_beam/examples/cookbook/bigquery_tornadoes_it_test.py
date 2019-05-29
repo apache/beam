@@ -55,13 +55,16 @@ class BigqueryTornadoesIT(unittest.TestCase):
     output_table = '.'.join([dataset, table])
     query = 'SELECT month, tornado_count FROM `%s`' % output_table
 
-    pipeline_verifiers = [PipelineStateMatcher(),
-                          BigqueryMatcher(
-                              project=project,
-                              query=query,
-                              checksum=self.DEFAULT_CHECKSUM)]
-    extra_opts = {'output': output_table,
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=project, query=query, checksum=self.DEFAULT_CHECKSUM
+        ),
+    ]
+    extra_opts = {
+        'output': output_table,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+    }
 
     # Register cleanup before pipeline execution.
     # Note that actual execution happens in reverse order.
@@ -69,8 +72,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    bigquery_tornadoes.run(
-        test_pipeline.get_full_options_as_args(**extra_opts))
+    bigquery_tornadoes.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':

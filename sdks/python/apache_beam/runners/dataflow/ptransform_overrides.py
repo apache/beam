@@ -33,10 +33,9 @@ class CreatePTransformOverride(PTransformOverride):
     from apache_beam.options.pipeline_options import StandardOptions
 
     if isinstance(applied_ptransform.transform, Create):
-      standard_options = (applied_ptransform
-                          .outputs[None]
-                          .pipeline._options
-                          .view_as(StandardOptions))
+      standard_options = applied_ptransform.outputs[
+          None
+      ].pipeline._options.view_as(StandardOptions)
       return standard_options.streaming
     else:
       return False
@@ -44,7 +43,8 @@ class CreatePTransformOverride(PTransformOverride):
   def get_replacement_transform(self, ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.native_io.streaming_create import \
-      StreamingCreate
+    from apache_beam.runners.dataflow.native_io.streaming_create import (
+        StreamingCreate)
+
     coder = typecoders.registry.get_coder(ptransform.get_output_type())
     return StreamingCreate(ptransform.values, coder)

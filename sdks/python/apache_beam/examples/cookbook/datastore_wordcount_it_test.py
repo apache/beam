@@ -34,10 +34,9 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-4543')
+@unittest.skipIf(
+    sys.version_info[0] == 3 and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+    'This test still needs to be fixed on Python 3' 'TODO: BEAM-4543')
 class DatastoreWordCountIT(unittest.TestCase):
 
   DATASTORE_WORDCOUNT_KIND = "DatastoreWordCount"
@@ -48,24 +47,31 @@ class DatastoreWordCountIT(unittest.TestCase):
     test_pipeline = TestPipeline(is_integration_test=True)
     dataset = test_pipeline.get_option("project")
     kind = self.DATASTORE_WORDCOUNT_KIND
-    output = '/'.join([test_pipeline.get_option('output'),
-                       str(int(time.time() * 1000)),
-                       'datastore_wordcount_results'])
+    output = '/'.join(
+        [
+            test_pipeline.get_option('output'),
+            str(int(time.time() * 1000)),
+            'datastore_wordcount_results',
+        ])
 
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')
     sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
-    pipeline_verifiers = [PipelineStateMatcher(),
-                          FileChecksumMatcher(output + '*-of-*',
-                                              self.EXPECTED_CHECKSUM,
-                                              sleep_secs)]
-    extra_opts = {'dataset': dataset,
-                  'kind': kind,
-                  'output': output,
-                  'read_only': True,
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        FileChecksumMatcher(
+            output + '*-of-*', self.EXPECTED_CHECKSUM, sleep_secs
+        ),
+    ]
+    extra_opts = {
+        'dataset': dataset,
+        'kind': kind,
+        'output': output,
+        'read_only': True,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+    }
 
-    datastore_wordcount.run(test_pipeline.get_full_options_as_args(
-        **extra_opts))
+    datastore_wordcount.run(
+        test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':

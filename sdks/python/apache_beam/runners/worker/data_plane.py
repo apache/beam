@@ -49,10 +49,11 @@ _DEFAULT_FLUSH_THRESHOLD = 10 << 20  # 10MB
 class ClosableOutputStream(type(coder_impl.create_OutputStream())):
   """A Outputstream for use with CoderImpls that has a close() method."""
 
-  def __init__(self,
-               close_callback=None,
-               flush_callback=None,
-               flush_threshold=_DEFAULT_FLUSH_THRESHOLD):
+  def __init__(
+      self,
+      close_callback=None,
+      flush_callback=None,
+      flush_threshold=_DEFAULT_FLUSH_THRESHOLD):
     super(ClosableOutputStream, self).__init__()
     self._close_callback = close_callback
     self._flush_callback = flush_callback
@@ -140,8 +141,9 @@ class InMemoryDataChannel(DataChannel):
   def inverse(self):
     return self._inverse
 
-  def input_elements(self, instruction_id, unused_expected_targets=None,
-                     abort_callback=None):
+  def input_elements(
+      self, instruction_id, unused_expected_targets=None, abort_callback=None
+  ):
     other_inputs = []
     for data in self._inputs:
       if data.instruction_reference == instruction_id:
@@ -155,9 +157,9 @@ class InMemoryDataChannel(DataChannel):
     def add_to_inverse_output(data):
       self._inverse._inputs.append(  # pylint: disable=protected-access
           beam_fn_api_pb2.Elements.Data(
-              instruction_reference=instruction_id,
-              target=target,
-              data=data))
+              instruction_reference=instruction_id, target=target, data=data
+          )
+)
     return ClosableOutputStream(
         add_to_inverse_output, flush_callback=add_to_inverse_output)
 
@@ -193,8 +195,8 @@ class _GrpcDataChannel(DataChannel):
     with self._receive_lock:
       self._received.pop(instruction_id)
 
-  def input_elements(self, instruction_id, expected_targets,
-                     abort_callback=None):
+  def input_elements(
+      self, instruction_id, expected_targets, abort_callback=None):
     """
     Generator to retrieve elements for an instruction_id
     input_elements should be called only once for an instruction_id
@@ -234,18 +236,17 @@ class _GrpcDataChannel(DataChannel):
       if data:
         self._to_send.put(
             beam_fn_api_pb2.Elements.Data(
-                instruction_reference=instruction_id,
-                target=target,
-                data=data))
-
+                instruction_reference=instruction_id, target=target, data=data
+            )
+)
     def close_callback(data):
       add_to_send_queue(data)
       # End of stream marker.
       self._to_send.put(
           beam_fn_api_pb2.Elements.Data(
-              instruction_reference=instruction_id,
-              target=target,
-              data=b''))
+              instruction_reference=instruction_id, target=target, data=b'')
+)
+
     return ClosableOutputStream(
         close_callback, flush_callback=add_to_send_queue)
 
@@ -343,8 +344,10 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
           # Options to have no limits (-1) on the size of the messages
           # received or sent over the data plane. The actual buffer size
           # is controlled in a layer above.
-          channel_options = [("grpc.max_receive_message_length", -1),
-                             ("grpc.max_send_message_length", -1)]
+          channel_options = [
+              ("grpc.max_receive_message_length", -1),
+              ("grpc.max_send_message_length", -1),
+          ]
           grpc_channel = None
           if self._credentials is None:
             grpc_channel = GRPCChannelFactory.insecure_channel(
@@ -353,8 +356,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
             grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=channel_options)
           # Add workerId to the grpc channel
-          grpc_channel = grpc.intercept_channel(grpc_channel,
-                                                WorkerIdInterceptor())
+          grpc_channel = grpc.intercept_channel(
+              grpc_channel, WorkerIdInterceptor())
           self._data_channel_cache[url] = GrpcClientDataChannel(
               beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
 

@@ -59,25 +59,26 @@ class HourlyTeamScoreIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     # Set up BigQuery environment
-    self.dataset_ref = utils.create_bq_dataset(self.project,
-                                               self.OUTPUT_DATASET)
+    self.dataset_ref = utils.create_bq_dataset(
+        self.project, self.OUTPUT_DATASET)
 
   @attr('IT')
   def test_hourly_team_score_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
-    query = ('SELECT COUNT(*) FROM `%s.%s.%s`' % (self.project,
-                                                  self.dataset_ref.dataset_id,
-                                                  self.OUTPUT_TABLE))
+    query = 'SELECT COUNT(*) FROM `%s.%s.%s`' % (
+        self.project,
+        self.dataset_ref.dataset_id,
+        self.OUTPUT_TABLE)
 
-    bigquery_verifier = BigqueryMatcher(self.project,
-                                        query,
-                                        self.DEFAULT_EXPECTED_CHECKSUM)
+    bigquery_verifier = BigqueryMatcher(
+        self.project, query, self.DEFAULT_EXPECTED_CHECKSUM)
 
-    extra_opts = {'input': self.DEFAULT_INPUT_FILE,
-                  'dataset': self.dataset_ref.dataset_id,
-                  'window_duration': 1,
-                  'on_success_matcher': all_of(state_verifier,
-                                               bigquery_verifier)}
+    extra_opts = {
+        'input': self.DEFAULT_INPUT_FILE,
+        'dataset': self.dataset_ref.dataset_id,
+        'window_duration': 1,
+        'on_success_matcher': all_of(state_verifier, bigquery_verifier),
+    }
 
     # Register clean up before pipeline execution
     # Note that actual execution happens in reverse order.

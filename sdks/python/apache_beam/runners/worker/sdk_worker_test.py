@@ -34,7 +34,6 @@ from apache_beam.runners.worker import sdk_worker
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
-
   def __init__(self, requests, raise_errors=True):
     self.requests = requests
     self.instruction_ids = set(r.instruction_id for r in requests)
@@ -56,19 +55,20 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
         elif len(self.responses) == len(self.requests):
           logging.info("All %s instructions finished.", len(self.requests))
           return
-    raise RuntimeError("Missing responses: %s" %
-                       (self.instruction_ids - set(self.responses.keys())))
+    raise RuntimeError(
+        "Missing responses: %s"
+        % (self.instruction_ids - set(self.responses.keys())))
 
 
 class SdkWorkerTest(unittest.TestCase):
-
   def _get_process_bundles(self, prefix, size):
     return [
         beam_fn_api_pb2.ProcessBundleDescriptor(
             id=str(str(prefix) + "-" + str(ix)),
             transforms={
                 str(ix): beam_runner_api_pb2.PTransform(unique_name=str(ix))
-            }) for ix in range(size)
+            })
+        for ix in range(size)
     ]
 
   def _check_fn_registration_multi_request(self, *args):
@@ -89,7 +89,9 @@ class SdkWorkerTest(unittest.TestCase):
             beam_fn_api_pb2.InstructionRequest(
                 instruction_id=str(i),
                 register=beam_fn_api_pb2.RegisterRequest(
-                    process_bundle_descriptor=process_bundle_descriptors)))
+                    process_bundle_descriptor=process_bundle_descriptors
+                ))
+)
 
       test_controller = BeamFnControlServicer(requests)
 
@@ -104,9 +106,9 @@ class SdkWorkerTest(unittest.TestCase):
       harness.run()
 
       for worker in harness.workers.queue:
-        self.assertEqual(worker.bundle_processor_cache.fns,
-                         {item.id: item
-                          for item in process_bundle_descriptors})
+        self.assertEqual(
+            worker.bundle_processor_cache.fns,
+            {item.id: item for item in process_bundle_descriptors})
 
   def test_fn_registration(self):
     self._check_fn_registration_multi_request((1, 4, 1), (4, 4, 1), (4, 4, 2))

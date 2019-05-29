@@ -27,47 +27,45 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
 class _ClientCallDetails(
-    collections.namedtuple('_ClientCallDetails',
-                           ('method', 'timeout', 'metadata', 'credentials')),
+    collections.namedtuple(
+        '_ClientCallDetails', ('method', 'timeout', 'metadata', 'credentials')
+    ),
     grpc.ClientCallDetails):
   pass
 
 
 class WorkerIdInterceptorTest(unittest.TestCase):
-
   def test_worker_id_insertion(self):
     worker_id_key = 'worker_id'
     headers_holder = {}
 
     def continuation(client_details, request_iterator):
-      headers_holder.update({
-          worker_id_key: dict(client_details.metadata).get(worker_id_key)
-      })
+      headers_holder.update(
+          {worker_id_key: dict(client_details.metadata).get(worker_id_key)})
 
     WorkerIdInterceptor._worker_id = 'my_worker_id'
 
-    WorkerIdInterceptor().intercept_stream_stream(continuation,
-                                                  _ClientCallDetails(
-                                                      None, None, None, None),
-                                                  [])
-    self.assertEqual(headers_holder[worker_id_key], 'my_worker_id',
-                     'worker_id_key not set')
+    WorkerIdInterceptor().intercept_stream_stream(
+        continuation, _ClientCallDetails(None, None, None, None), [])
+    self.assertEqual(
+        headers_holder[worker_id_key], 'my_worker_id', 'worker_id_key not set'
+    )
 
   def test_failure_when_worker_id_exists(self):
     worker_id_key = 'worker_id'
     headers_holder = {}
 
     def continuation(client_details, request_iterator):
-      headers_holder.update({
-          worker_id_key: dict(client_details.metadata).get(worker_id_key)
-      })
+      headers_holder.update(
+          {worker_id_key: dict(client_details.metadata).get(worker_id_key)})
 
     WorkerIdInterceptor._worker_id = 'my_worker_id'
 
     with self.assertRaises(RuntimeError):
       WorkerIdInterceptor().intercept_stream_stream(
-          continuation, _ClientCallDetails(None, None, {'worker_id': '1'},
-                                           None), [])
+          continuation,
+          _ClientCallDetails(None, None, {'worker_id': '1'}, None),
+          [])
 
 
 if __name__ == '__main__':

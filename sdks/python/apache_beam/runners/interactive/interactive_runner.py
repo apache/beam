@@ -44,8 +44,8 @@ class InteractiveRunner(runners.PipelineRunner):
   Allows interactively building and running Beam Python pipelines.
   """
 
-  def __init__(self, underlying_runner=None, cache_dir=None,
-               render_option=None):
+  def __init__(
+      self, underlying_runner=None, cache_dir=None, render_option=None):
     """Constructor of InteractiveRunner.
 
     Args:
@@ -54,8 +54,7 @@ class InteractiveRunner(runners.PipelineRunner):
       render_option: (str) this parameter decides how the pipeline graph is
           rendered. See display.pipeline_graph_renderer for available options.
     """
-    self._underlying_runner = (underlying_runner
-                               or direct_runner.DirectRunner())
+    self._underlying_runner = underlying_runner or direct_runner.DirectRunner()
     self._cache_manager = cache.FileBasedCacheManager(cache_dir)
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
     self._in_session = False
@@ -109,27 +108,26 @@ class InteractiveRunner(runners.PipelineRunner):
     # Invoke a round trip through the runner API. This makes sure the Pipeline
     # proto is stable.
     pipeline = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(use_fake_coders=True),
-        pipeline.runner,
-        options)
+        pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options
+    )
 
     # Snapshot the pipeline in a portable proto before mutating it.
     pipeline_proto, original_context = pipeline.to_runner_api(
         return_context=True, use_fake_coders=True)
     pcolls_to_pcoll_id = self._pcolls_to_pcoll_id(pipeline, original_context)
 
-    analyzer = pipeline_analyzer.PipelineAnalyzer(self._cache_manager,
-                                                  pipeline_proto,
-                                                  self._underlying_runner,
-                                                  options,
-                                                  self._desired_cache_labels)
+    analyzer = pipeline_analyzer.PipelineAnalyzer(
+        self._cache_manager,
+        pipeline_proto,
+        self._underlying_runner,
+        options,
+        self._desired_cache_labels)
     # Should be only accessed for debugging purpose.
     self._analyzer = analyzer
 
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
-        analyzer.pipeline_proto_to_execute(),
-        self._underlying_runner,
-        options)
+        analyzer.pipeline_proto_to_execute(), self._underlying_runner, options
+    )
 
     display = display_manager.DisplayManager(
         pipeline_proto=pipeline_proto,
@@ -141,8 +139,12 @@ class InteractiveRunner(runners.PipelineRunner):
     result.wait_until_finish()
     display.stop_periodic_update()
 
-    return PipelineResult(result, self, self._analyzer.pipeline_info(),
-                          self._cache_manager, pcolls_to_pcoll_id)
+    return PipelineResult(
+        result,
+        self,
+        self._analyzer.pipeline_info(),
+        self._cache_manager,
+        pcolls_to_pcoll_id)
 
   def _pcolls_to_pcoll_id(self, pipeline, original_context):
     """Returns a dict mapping PCollections string to PCollection IDs.
@@ -160,9 +162,13 @@ class InteractiveRunner(runners.PipelineRunner):
     """
     pcolls_to_pcoll_id = {}
 
-    from apache_beam.pipeline import PipelineVisitor  # pylint: disable=import-error
+    from apache_beam.pipeline import (
+        PipelineVisitor,
+    )  # pylint: disable=import-error
 
-    class PCollVisitor(PipelineVisitor):  # pylint: disable=used-before-assignment
+    class PCollVisitor(
+        PipelineVisitor
+    ):  # pylint: disable=used-before-assignment
       """"A visitor that records input and output values to be replaced.
 
       Input and output values that should be updated are recorded in maps
@@ -187,8 +193,13 @@ class InteractiveRunner(runners.PipelineRunner):
 class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
 
-  def __init__(self, underlying_result, runner, pipeline_info, cache_manager,
-               pcolls_to_pcoll_id):
+  def __init__(
+      self,
+      underlying_result,
+      runner,
+      pipeline_info,
+      cache_manager,
+      pcolls_to_pcoll_id):
     super(PipelineResult, self).__init__(underlying_result.state)
     self._runner = runner
     self._pipeline_info = pipeline_info
@@ -209,7 +220,9 @@ class PipelineResult(beam.runners.runner.PipelineResult):
       pcoll_list, _ = self._cache_manager.read('full', cache_label)
       return pcoll_list
     else:
-      self._runner._desired_cache_labels.add(cache_label)  # pylint: disable=protected-access
+      self._runner._desired_cache_labels.add(
+          cache_label
+      )  # pylint: disable=protected-access
       raise ValueError('PCollection not available, please run the pipeline.')
 
   def sample(self, pcoll):
@@ -217,5 +230,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     if self._cache_manager.exists('sample', cache_label):
       return self._cache_manager.read('sample', cache_label)
     else:
-      self._runner._desired_cache_labels.add(cache_label)  # pylint: disable=protected-access
+      self._runner._desired_cache_labels.add(
+          cache_label
+      )  # pylint: disable=protected-access
       raise ValueError('PCollection not available, please run the pipeline.')

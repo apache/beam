@@ -38,6 +38,7 @@ class Environment(object):
 
   Provides consistency with how the other componentes are accessed.
   """
+
   def __init__(self, proto):
     self._proto = proto
 
@@ -55,6 +56,7 @@ class _PipelineContextMap(object):
   Under the hood it encodes and decodes these objects into runner API
   representations.
   """
+
   def __init__(self, context, obj_type, namespace, proto_map=None):
     self._pipeline_context = context
     self._obj_type = obj_type
@@ -128,9 +130,14 @@ class PipelineContext(object):
   }
 
   def __init__(
-      self, proto=None, default_environment=None, use_fake_coders=False,
-      iterable_state_read=None, iterable_state_write=None,
-      namespace='ref', allow_proto_holders=False):
+      self,
+      proto=None,
+      default_environment=None,
+      use_fake_coders=False,
+      iterable_state_read=None,
+      iterable_state_write=None,
+      namespace='ref',
+      allow_proto_holders=False):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -138,8 +145,10 @@ class PipelineContext(object):
           environments=dict(proto.environments.items()))
     for name, cls in self._COMPONENT_TYPES.items():
       setattr(
-          self, name, _PipelineContextMap(
-              self, cls, namespace, getattr(proto, name, None)))
+          self,
+          name,
+          _PipelineContextMap(self, cls, namespace, getattr(proto, name, None)),
+      )
     if default_environment:
       self._default_environment_id = self.environments.get_id(
           Environment(default_environment), label='default_environment')

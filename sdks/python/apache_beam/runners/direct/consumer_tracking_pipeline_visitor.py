@@ -36,8 +36,8 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
   def __init__(self):
     self.value_to_consumers = {}  # Map from PValue to [AppliedPTransform].
     self.root_transforms = set()  # set of (root) AppliedPTransforms.
-    self.views = []               # list of side inputs.
-    self.step_names = {}          # Map from AppliedPTransform to String.
+    self.views = []  # list of side inputs.
+    self.step_names = {}  # Map from AppliedPTransform to String.
 
     self._num_transforms = 0
 

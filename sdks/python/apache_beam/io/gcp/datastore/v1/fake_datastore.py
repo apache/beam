@@ -46,6 +46,7 @@ def create_run_query(entities, batch_size):
     batch_size: the number of entities that run_query method returns in one
                 request.
   """
+
   def run_query(req):
     start = int(req.query.start_cursor) if req.query.start_cursor else 0
     # if query limit is less than batch_size, then only return that much.
@@ -58,6 +59,7 @@ def create_run_query(entities, batch_size):
     if end == len(entities) or count == req.query.limit.value:
       finish = True
     return create_response(entities[start:end], str(end), finish)
+
   return run_query
 
 
@@ -100,8 +102,8 @@ def create_entities(count, id_or_name=False):
   for _ in range(count):
     entity_result = query_pb2.EntityResult()
     if id_or_name:
-      entity_result.entity.key.path.add().id = (
-          uuid.uuid4().int & ((1 << 63) - 1))
+      entity_result.entity.key.path.add().id = uuid.uuid4().int & (
+          (1 << 63) - 1)
     else:
       entity_result.entity.key.path.add().name = str(uuid.uuid4())
     entities.append(entity_result)

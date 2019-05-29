@@ -95,7 +95,8 @@ class ExternalTransform(ptransform.PTransform):
     transform_proto = beam_runner_api_pb2.PTransform(
         unique_name=self._EXPANDED_TRANSFORM_UNIQUE_NAME,
         spec=beam_runner_api_pb2.FunctionSpec(
-            urn=self._urn, payload=self._payload))
+            urn=self._urn, payload=self._payload
+        ))
     for tag, pcoll in self._inputs.items():
       transform_proto.inputs[tag] = context.pcollections.get_id(pcoll)
       # Conversion to/from proto assumes producers.
@@ -105,8 +106,10 @@ class ExternalTransform(ptransform.PTransform):
           beam_runner_api_pb2.PTransform(
               unique_name='%s_%s' % (self._IMPULSE_PREFIX, tag),
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.primitives.IMPULSE.urn),
-              outputs={'out': transform_proto.inputs[tag]}))
+                  urn=common_urns.primitives.IMPULSE.urn
+              ),
+              outputs={'out': transform_proto.inputs[tag]},
+          ))
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
@@ -116,7 +119,8 @@ class ExternalTransform(ptransform.PTransform):
     if isinstance(self._endpoint, str):
       with grpc.insecure_channel(self._endpoint) as channel:
         response = beam_expansion_api_pb2_grpc.ExpansionServiceStub(
-            channel).Expand(request)
+            channel
+        ).Expand(request)
     else:
       response = self._endpoint.Expand(request, None)
 
@@ -130,6 +134,7 @@ class ExternalTransform(ptransform.PTransform):
       pcoll.pipeline = pipeline
       pcoll.tag = tag
       return pcoll
+
     self._outputs = {
         tag: fix_output(result_context.pcollections.get_by_id(pcoll_id), tag)
         for tag, pcoll_id in self._expanded_transform.outputs.items()
@@ -150,17 +155,21 @@ class ExternalTransform(ptransform.PTransform):
       if tag not in self._expanded_transform.inputs:
         if renamed_tag_seen:
           raise RuntimeError(
-              'Ambiguity due to non-preserved tags: %s vs %s' % (
+              'Ambiguity due to non-preserved tags: %s vs %s'
+              % (
                   sorted(self._expanded_transform.inputs.keys()),
-                  sorted(self._inputs.keys())))
+                  sorted(self._inputs.keys()))
+)
         else:
           renamed_tag_seen = True
-          tag, = self._expanded_transform.inputs.keys()
-      pcoll_renames[self._expanded_transform.inputs[tag]] = (
-          context.pcollections.get_id(pcoll))
+          (tag,) = self._expanded_transform.inputs.keys()
+      pcoll_renames[
+          self._expanded_transform.inputs[tag]
+      ] = context.pcollections.get_id(pcoll)
     for tag, pcoll in self._outputs.items():
-      pcoll_renames[self._expanded_transform.outputs[tag]] = (
-          context.pcollections.get_id(pcoll))
+      pcoll_renames[
+          self._expanded_transform.outputs[tag]
+      ] = context.pcollections.get_id(pcoll)
 
     def _equivalent(coder1, coder2):
       return coder1 == coder2 or _normalize(coder1) == _normalize(coder2)
@@ -176,8 +185,9 @@ class ExternalTransform(ptransform.PTransform):
         context.coders.put_proto(id, proto)
       elif id in context.coders:
         if not _equivalent(context.coders._id_to_proto[id], proto):
-          raise RuntimeError('Re-used coder id: %s\n%s\n%s' % (
-              id, context.coders._id_to_proto[id], proto))
+          raise RuntimeError(
+              'Re-used coder id: %s\n%s\n%s'
+              % (id, context.coders._id_to_proto[id], proto))
       else:
         context.coders.put_proto(id, proto)
     for id, proto in self._expanded_components.windowing_strategies.items():
@@ -197,14 +207,18 @@ class ExternalTransform(ptransform.PTransform):
         continue
       assert id.startswith(self._namespace), (id, self._namespace)
       new_proto = beam_runner_api_pb2.PTransform(
-          unique_name=full_label + proto.unique_name[
-              len(self._EXPANDED_TRANSFORM_UNIQUE_NAME):],
+          unique_name=full_label
+          + proto.unique_name[len(self._EXPANDED_TRANSFORM_UNIQUE_NAME) :],
           spec=proto.spec,
           subtransforms=proto.subtransforms,
-          inputs={tag: pcoll_renames.get(pcoll, pcoll)
-                  for tag, pcoll in proto.inputs.items()},
-          outputs={tag: pcoll_renames.get(pcoll, pcoll)
-                   for tag, pcoll in proto.outputs.items()})
+          inputs={
+              tag: pcoll_renames.get(pcoll, pcoll)
+              for tag, pcoll in proto.inputs.items()
+          },
+          outputs={
+              tag: pcoll_renames.get(pcoll, pcoll)
+              for tag, pcoll in proto.outputs.items()
+          })
       context.transforms.put_proto(id, new_proto)
 
     return beam_runner_api_pb2.PTransform(
@@ -214,7 +228,8 @@ class ExternalTransform(ptransform.PTransform):
         inputs=self._expanded_transform.inputs,
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag, pcoll in self._expanded_transform.outputs.items()})
+            for tag, pcoll in self._expanded_transform.outputs.items()
+        })
 
 
 def memoize(func):
@@ -224,4 +239,5 @@ def memoize(func):
     if args not in cache:
       cache[args] = func(*args)
     return cache[args]
+
   return wrapper

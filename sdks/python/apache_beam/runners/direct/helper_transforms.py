@@ -30,14 +30,13 @@ from apache_beam.utils.windowed_value import WindowedValue
 class LiftedCombinePerKey(beam.PTransform):
   """An implementation of CombinePerKey that does mapper-side pre-combining.
   """
+
   def __init__(self, combine_fn, args, kwargs):
     args_to_check = itertools.chain(args, kwargs.values())
     if isinstance(combine_fn, _CurriedFn):
-      args_to_check = itertools.chain(args_to_check,
-                                      combine_fn.args,
-                                      combine_fn.kwargs.values())
-    if any(isinstance(arg, ArgumentPlaceholder)
-           for arg in args_to_check):
+      args_to_check = itertools.chain(
+          args_to_check, combine_fn.args, combine_fn.kwargs.values())
+    if any(isinstance(arg, ArgumentPlaceholder) for arg in args_to_check):
       # This isn't implemented in dataflow either...
       raise NotImplementedError('Deferred CombineFn side inputs.')
     self._combine_fn = beam.transforms.combiners.curry_combine_fn(
@@ -56,6 +55,7 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 
   As bundles are in-memory-sized, we don't bother flushing until the very end.
   """
+
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
@@ -64,8 +64,8 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 
   def process(self, element, window=beam.DoFn.WindowParam):
     k, vi = element
-    self._cache[k, window] = self._combine_fn.add_input(self._cache[k, window],
-                                                        vi)
+    self._cache[k, window] = self._combine_fn.add_input(
+        self._cache[k, window], vi)
 
   def finish_bundle(self):
     for (k, w), va in self._cache.items():
@@ -89,15 +89,19 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 class FinishCombine(beam.DoFn):
   """Merges partially combined results.
   """
+
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
   def process(self, element):
     k, vs = element
-    return [(
-        k,
-        self._combine_fn.extract_output(
-            self._combine_fn.merge_accumulators(vs)))]
+    return [
+        (
+            k,
+            self._combine_fn.extract_output(
+                self._combine_fn.merge_accumulators(vs)
+            ))
+    ]
 
   def default_type_hints(self):
     hints = self._combine_fn.get_type_hints().copy()

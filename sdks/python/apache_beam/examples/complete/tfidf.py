@@ -73,9 +73,8 @@ class TfIdf(beam.PTransform):
       (uri, line) = uri_line
       return [(uri, w.lower()) for w in re.findall(r'[A-Za-z\']+', line)]
 
-    uri_to_words = (
-        uri_to_content
-        | 'SplitWords' >> beam.FlatMap(split_into_words))
+    uri_to_words = uri_to_content | 'SplitWords' >> beam.FlatMap(
+        split_into_words)
 
     # Compute a mapping from each word to the total number of documents
     # in which it appears.
@@ -95,8 +94,8 @@ class TfIdf(beam.PTransform):
     # Count, for each (URI, word) pair, the number of occurrences of that word
     # in the document associated with the URI.
     uri_and_word_to_count = (
-        uri_to_words
-        | 'CountWord-DocPairs' >> beam.combiners.Count.PerElement())
+        uri_to_words | 'CountWord-DocPairs' >> beam.combiners.Count.PerElement()
+    )
 
     # Adjust the above collection to a mapping from (URI, word) pairs to counts
     # into an isomorphic mapping from URI to (word, count) pairs, to prepare
@@ -104,9 +103,8 @@ class TfIdf(beam.PTransform):
     def shift_keys(uri_word_count):
       return (uri_word_count[0][0], (uri_word_count[0][1], uri_word_count[1]))
 
-    uri_to_word_and_count = (
-        uri_and_word_to_count
-        | 'ShiftKeys' >> beam.Map(shift_keys))
+    uri_to_word_and_count = uri_and_word_to_count | 'ShiftKeys' >> beam.Map(
+        shift_keys)
 
     # Perform a CoGroupByKey (a sort of pre-join) on the prepared
     # uri_to_word_total and uri_to_word_and_count tagged by 'word totals' and
@@ -120,9 +118,10 @@ class TfIdf(beam.PTransform):
     #         'word counts': [(word, count),  # Counts of specific words
     #                         (word, count),  # within this URI's document.
     #                         ... ]}
-    uri_to_word_and_count_and_total = (
-        {'word totals': uri_to_word_total, 'word counts': uri_to_word_and_count}
-        | 'CoGroupByUri' >> beam.CoGroupByKey())
+    uri_to_word_and_count_and_total = {
+        'word totals': uri_to_word_total,
+        'word counts': uri_to_word_and_count,
+    } | 'CoGroupByUri' >> beam.CoGroupByKey()
 
     # Compute a mapping from each word to a (URI, term frequency) pair for each
     # URI. A word's term frequency for a document is simply the number of times
@@ -156,17 +155,15 @@ class TfIdf(beam.PTransform):
       (word, count) = word_count
       return (word, float(count) / total)
 
-    word_to_df = (
-        word_to_doc_count
-        | 'ComputeDocFrequencies' >> beam.Map(
-            div_word_count_by_total,
-            AsSingleton(total_documents)))
+    word_to_df = word_to_doc_count | 'ComputeDocFrequencies' >> beam.Map(
+        div_word_count_by_total, AsSingleton(total_documents))
 
     # Join the term frequency and document frequency collections,
     # each keyed on the word.
-    word_to_uri_and_tf_and_df = (
-        {'tf': word_to_uri_and_tf, 'df': word_to_df}
-        | 'CoGroupWordsByTf-df' >> beam.CoGroupByKey())
+    word_to_uri_and_tf_and_df = {
+        'tf': word_to_uri_and_tf,
+        'df': word_to_df,
+    } | 'CoGroupWordsByTf-df' >> beam.CoGroupByKey()
 
     # Compute a mapping from each word to a (URI, TF-IDF) score for each URI.
     # There are a variety of definitions of TF-IDF
@@ -180,9 +177,8 @@ class TfIdf(beam.PTransform):
       for uri, tf in tf_and_df['tf']:
         yield word, (uri, tf * math.log(1 / docf))
 
-    word_to_uri_and_tfidf = (
-        word_to_uri_and_tf_and_df
-        | 'ComputeTf-idf' >> beam.FlatMap(compute_tf_idf))
+    word_to_uri_and_tfidf = word_to_uri_and_tf_and_df | 'ComputeTf-idf' >> beam.FlatMap(
+        compute_tf_idf)
 
     return word_to_uri_and_tfidf
 
@@ -190,12 +186,9 @@ class TfIdf(beam.PTransform):
 def run(argv=None):
   """Main entry point; defines and runs the tfidf pipeline."""
   parser = argparse.ArgumentParser()
-  parser.add_argument('--uris',
-                      required=True,
-                      help='URIs to process.')
-  parser.add_argument('--output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument('--uris', required=True, help='URIs to process.')
+  parser.add_argument(
+      '--output', required=True, help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).

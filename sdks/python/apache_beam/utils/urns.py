@@ -67,9 +67,11 @@ class RunnerApiFn(object):
     A corresponding to_runner_api_parameter method would be expected that
     returns the tuple ('beam:fn:foo', FooPayload)
     """
+
     def register(fn):
       cls._known_urns[urn] = parameter_type, fn
       return staticmethod(fn)
+
     if fn:
       # Used as a statement.
       register(fn)
@@ -81,9 +83,11 @@ class RunnerApiFn(object):
   def register_pickle_urn(cls, pickle_urn):
     """Registers and implements the given urn via pickling.
     """
-    inspect.currentframe().f_back.f_locals['to_runner_api_parameter'] = (
-        lambda self, context: (
-            pickle_urn, wrappers_pb2.BytesValue(value=pickler.dumps(self))))
+    inspect.currentframe().f_back.f_locals[
+        'to_runner_api_parameter'
+    ] = lambda self, context: (
+        pickle_urn,
+        wrappers_pb2.BytesValue(value=pickler.dumps(self)))
     cls.register_urn(
         pickle_urn,
         wrappers_pb2.BytesValue,
@@ -95,6 +99,7 @@ class RunnerApiFn(object):
     Prefer overriding self.to_runner_api_parameter.
     """
     from apache_beam.portability.api import beam_runner_api_pb2
+
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.SdkFunctionSpec(
         environment_id=context.default_environment_id(),
@@ -102,7 +107,8 @@ class RunnerApiFn(object):
             urn=urn,
             payload=typed_param.SerializeToString()
             if isinstance(typed_param, message.Message)
-            else typed_param))
+            else typed_param,
+        ))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
@@ -112,5 +118,5 @@ class RunnerApiFn(object):
     """
     parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
     return constructor(
-        proto_utils.parse_Bytes(fn_proto.spec.payload, parameter_type),
-        context)
+        proto_utils.parse_Bytes(fn_proto.spec.payload, parameter_type), context
+    )

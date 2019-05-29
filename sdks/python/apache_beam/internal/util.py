@@ -84,12 +84,14 @@ def remove_objects_from_args(args, kwargs, pvalue_classes):
   def swapper(value):
     pvals.append(value)
     return ArgumentPlaceholder()
+
   new_args = [swapper(v) if isinstance(v, pvalue_classes) else v for v in args]
   # Make sure the order in which we process the dictionary keys is predictable
   # by sorting the entries first. This will be important when putting back
   # PValues.
-  new_kwargs = dict((k, swapper(v)) if isinstance(v, pvalue_classes) else (k, v)
-                    for k, v in sorted(kwargs.items()))
+  new_kwargs = dict(
+      (k, swapper(v)) if isinstance(v, pvalue_classes) else (k, v)
+      for k, v in sorted(kwargs.items()))
   return (new_args, new_kwargs, pvals)
 
 
@@ -111,7 +113,8 @@ def insert_values_in_args(args, kwargs, values):
   v_iter = iter(values)
   new_args = [
       next(v_iter) if isinstance(arg, ArgumentPlaceholder) else arg
-      for arg in args]
+      for arg in args
+  ]
   new_kwargs = dict(
       (k, next(v_iter)) if isinstance(v, ArgumentPlaceholder) else (k, v)
       for k, v in sorted(kwargs.items()))

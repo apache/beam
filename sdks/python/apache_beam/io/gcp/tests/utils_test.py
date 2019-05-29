@@ -39,7 +39,6 @@ except ImportError:
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery, 'Client')
 class UtilsTest(unittest.TestCase):
-
   def setUp(self):
     patch_retry(self, utils)
 
@@ -60,9 +59,7 @@ class UtilsTest(unittest.TestCase):
     mock_client.return_value.dataset.return_value.table.return_value = (
         'table_ref')
 
-    utils.delete_bq_table('unused_project',
-                          'unused_dataset',
-                          'unused_table')
+    utils.delete_bq_table('unused_project', 'unused_dataset', 'unused_table')
     mock_client.return_value.delete_table.assert_called_with('table_ref')
 
   def test_delete_table_fails_not_found(self, mock_client):
@@ -71,9 +68,7 @@ class UtilsTest(unittest.TestCase):
     mock_client.return_value.delete_table.side_effect = NotFound('test')
 
     with self.assertRaisesRegexp(Exception, r'does not exist:.*table_ref'):
-      utils.delete_bq_table('unused_project',
-                            'unused_dataset',
-                            'unused_table')
+      utils.delete_bq_table('unused_project', 'unused_dataset', 'unused_table')
 
 
 if __name__ == '__main__':

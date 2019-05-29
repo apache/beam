@@ -34,8 +34,7 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.dofn = dofn
     self.key_coder = key_coder
 
-    self.all_state_specs, self.all_timer_specs = (
-        userstate.get_dofn_specs(dofn))
+    self.all_state_specs, self.all_timer_specs = userstate.get_dofn_specs(dofn)
     self.state_tags = {}
     for state_spec in self.all_state_specs:
       state_key = 'user/%s' % state_spec.name
@@ -64,8 +63,8 @@ class DirectUserStateContext(userstate.UserStateContext):
     cache_key = (encoded_key, window, state_spec)
     if cache_key not in self.cached_states:
       state_tag = self.state_tags[state_spec]
-      value_accessor = (
-          lambda: self._get_underlying_state(state_spec, key, window))
+      value_accessor = lambda: self._get_underlying_state(
+          state_spec, key, window)
       self.cached_states[cache_key] = userstate.RuntimeState.for_spec(
           state_spec, state_tag, value_accessor)
     return self.cached_states[cache_key]
@@ -73,8 +72,8 @@ class DirectUserStateContext(userstate.UserStateContext):
   def _get_underlying_state(self, state_spec, key, window):
     state_tag = self.state_tags[state_spec]
     encoded_key = self.key_coder.encode(key)
-    return (self.step_context.get_keyed_state(encoded_key)
-            .get_state(window, state_tag))
+    return self.step_context.get_keyed_state(encoded_key).get_state(
+        window, state_tag)
 
   def commit(self):
     # Commit state modifications.
@@ -91,7 +90,8 @@ class DirectUserStateContext(userstate.UserStateContext):
         if runtime_state._modified:
           state.clear_state(window, state_tag)
           state.add_state(
-              window, state_tag,
+              window,
+              state_tag,
               state_spec.coder.encode(runtime_state._current_accumulator))
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
@@ -106,5 +106,8 @@ class DirectUserStateContext(userstate.UserStateContext):
       if runtime_timer._new_timestamp is not None:
         # TODO(ccy): add corresponding watermark holds after the DirectRunner
         # allows for keyed watermark holds.
-        state.set_timer(window, timer_name, timer_spec.time_domain,
-                        runtime_timer._new_timestamp)
+        state.set_timer(
+            window,
+            timer_name,
+            timer_spec.time_domain,
+            runtime_timer._new_timestamp)

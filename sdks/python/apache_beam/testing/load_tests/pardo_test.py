@@ -137,7 +137,8 @@ class ParDoTest(LoadTest):
 
   def testParDo(self):
     class _GetElement(beam.DoFn):
-      from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
+      from apache_beam.testing.load_tests.load_test_metrics_utils import (
+          count_bytes)
 
       @count_bytes
       def process(self, element, namespace, is_returning):
@@ -149,30 +150,27 @@ class ParDoTest(LoadTest):
     else:
       num_runs = int(self.iterations)
 
-    pc = (self.pipeline
-          | 'Read synthetic' >> beam.io.Read(
-              synthetic_pipeline.SyntheticSource(
-                  self.parseTestPipelineOptions()
-              ))
-          | 'Measure time: Start' >> beam.ParDo(
-              MeasureTime(self.metrics_namespace))
-         )
+    pc = (
+        self.pipeline
+        | 'Read synthetic'
+        >> beam.io.Read(
+            synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions())
+        )
+        | 'Measure time: Start'
+        >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
     for i in range(num_runs):
-      is_returning = (i == (num_runs-1))
-      pc = (pc
-            | 'Step: %d' % i >> beam.ParDo(
-                _GetElement(), self.metrics_namespace, is_returning)
-           )
+      is_returning = i == (num_runs - 1)
+      pc = pc | 'Step: %d' % i >> beam.ParDo(
+          _GetElement(), self.metrics_namespace, is_returning)
 
     if self.output:
-      pc = (pc
-            | "Write" >> beam.io.WriteToText(self.output)
-           )
+      pc = pc | "Write" >> beam.io.WriteToText(self.output)
 
     # pylint: disable=expression-not-assigned
-    (pc
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+    (
+        pc
+        | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
     )
 
 

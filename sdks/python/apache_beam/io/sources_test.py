@@ -83,7 +83,6 @@ class LineSource(iobase.BoundedSource):
 
 
 class SourcesTest(unittest.TestCase):
-
   @classmethod
   def setUpClass(cls):
     # Method has been renamed in Python 3

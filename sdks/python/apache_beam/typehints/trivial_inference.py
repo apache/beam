@@ -36,15 +36,16 @@ from apache_beam.typehints import Any
 from apache_beam.typehints import typehints
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:                  # Python 2
+try:  # Python 2
   import __builtin__ as builtins
-except ImportError:   # Python 3
+except ImportError:  # Python 3
   import builtins
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 class TypeInferenceError(ValueError):
   """Error to raise when type inference failed."""
+
   pass
 
 
@@ -86,7 +87,6 @@ def union_list(xs, ys):
 
 
 class Const(object):
-
   def __init__(self, value):
     self.value = value
     self.type = instance_to_type(value)
@@ -166,8 +166,10 @@ class FrameState(object):
       return other.copy()
     elif other is None:
       return self.copy()
-    return FrameState(self.f, union_list(self.vars, other.vars), union_list(
-        self.stack, other.stack))
+    return FrameState(
+        self.f,
+        union_list(self.vars, other.vars),
+        union_list(self.stack, other.stack))
 
   def __ror__(self, left):
     return self | left
@@ -214,7 +216,7 @@ def key_value_types(kv_type):
   return Any, Any
 
 
-known_return_types = {len: int, hash: int,}
+known_return_types = {len: int, hash: int}
 
 
 class BoundMethod(object):
@@ -271,7 +273,7 @@ def infer_return_type(c, input_types, debug=False, depth=5):
             list: typehints.List[Any],
             set: typehints.Set[Any],
             tuple: typehints.Tuple[Any, ...],
-            dict: typehints.Dict[Any, Any]
+            dict: typehints.Dict[Any, Any],
         }[c]
       return c
     else:
@@ -306,6 +308,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     print()
     print(f, id(f), input_types)
   from . import opcodes
+
   simple_ops = dict((k.upper(), v) for k, v in opcodes.__dict__.items())
 
   co = f.__code__
@@ -318,8 +321,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   yields = set()
   returns = set()
   # TODO(robertwb): Default args via inspect module.
-  local_vars = list(input_types) + [typehints.Union[()]] * (len(co.co_varnames)
-                                                            - len(input_types))
+  local_vars = list(input_types) + [typehints.Union[()]] * (
+      len(co.co_varnames) - len(input_types))
   state = FrameState(f, local_vars)
   states = collections.defaultdict(lambda: None)
   jumps = collections.defaultdict(int)
@@ -343,7 +346,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       elif sys.version_info[0] == 3 and sys.version_info[1] < 6:
         arg = code[pc] + code[pc + 1] * 256 + extended_arg
       else:
-        pass # TODO(luke-zhu): Python 3.6 bytecode to wordcode changes
+        pass  # TODO(luke-zhu): Python 3.6 bytecode to wordcode changes
       extended_arg = 0
       pc += 2
       if op == dis.EXTENDED_ARG:
@@ -391,16 +394,17 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         if var_args or kw_args:
           state.stack[-1] = Any
           state.stack[-var_args - kw_args] = Any
-        return_type = infer_return_type(state.stack[-pop_count].value,
-                                        state.stack[1 - pop_count:],
-                                        debug=debug,
-                                        depth=depth - 1)
+        return_type = infer_return_type(
+            state.stack[-pop_count].value,
+            state.stack[1 - pop_count :],
+            debug=debug,
+            depth=depth - 1)
       else:
         return_type = Any
       state.stack[-pop_count:] = [return_type]
     elif (opname == 'BINARY_SUBSCR'
-          and isinstance(state.stack[1], Const)
-          and isinstance(state.stack[0], typehints.IndexableTypeConstraint)):
+        and isinstance(state.stack[1], Const)
+        and isinstance(state.stack[0], typehints.IndexableTypeConstraint)):
       if debug:
         print("Executing special case binary subscript")
       idx = state.stack.pop()

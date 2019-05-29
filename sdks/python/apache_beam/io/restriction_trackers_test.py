@@ -27,7 +27,6 @@ from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 
 
 class OffsetRangeTest(unittest.TestCase):
-
   def test_create(self):
     OffsetRange(0, 10)
     OffsetRange(10, 10)
@@ -47,8 +46,10 @@ class OffsetRangeTest(unittest.TestCase):
 
   def test_split_respects_min_num_splits(self):
     range = OffsetRange(10, 100)
-    splits = list(range.split(desired_num_offsets_per_split=5,
-                              min_num_offsets_per_split=25))
+    splits = list(
+        range.split(
+            desired_num_offsets_per_split=5, min_num_offsets_per_split=25)
+)
     self.assertEqual(3, len(splits))
     self.assertIn(OffsetRange(10, 35), splits)
     self.assertIn(OffsetRange(35, 60), splits)
@@ -64,7 +65,6 @@ class OffsetRangeTest(unittest.TestCase):
 
 
 class OffsetRestrictionTrackerTest(unittest.TestCase):
-
   def test_try_claim(self):
     tracker = OffsetRestrictionTracker(100, 200)
     self.assertEqual((100, 200), tracker.current_restriction())

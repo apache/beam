@@ -58,8 +58,8 @@ def _get_match(proto, filter_fn):
 
 # V1b3 MetricStructuredName keys to accept and copy to the MetricKey labels.
 STEP_LABEL = 'step'
-STRUCTURED_NAME_LABELS = set([
-    'execution_step', 'original_name', 'output_user_name'])
+STRUCTURED_NAME_LABELS = set(
+    ['execution_step', 'original_name', 'output_user_name'])
 
 
 class DataflowMetrics(MetricResults):
@@ -97,11 +97,11 @@ class DataflowMetrics(MetricResults):
       raise ValueError('Could not translate the internal step name.')
 
     try:
-      step = _get_match(self._job_graph.proto.steps,
-                        lambda x: x.name == internal_name)
+      step = _get_match(
+          self._job_graph.proto.steps, lambda x: x.name == internal_name)
       user_step_name = _get_match(
-          step.properties.additionalProperties,
-          lambda x: x.key == 'user_name').value.string_value
+          step.properties.additionalProperties, lambda x: x.key == 'user_name'
+      ).value.string_value
     except ValueError:
       raise ValueError('Could not translate the internal step name.')
     return user_step_name
@@ -109,9 +109,9 @@ class DataflowMetrics(MetricResults):
   def _get_metric_key(self, metric):
     """Populate the MetricKey object for a queried metric result."""
     step = ""
-    name = metric.name.name # Always extract a name
+    name = metric.name.name  # Always extract a name
     labels = dict()
-    try: # Try to extract the user step name.
+    try:  # Try to extract the user step name.
       # If ValueError is thrown within this try-block, it is because of
       # one of the following:
       # 1. Unable to translate the step name. Only happening with improperly
@@ -119,16 +119,20 @@ class DataflowMetrics(MetricResults):
       #   step name (only happens for unstructured-named metrics).
       # 2. Unable to unpack [step] or [namespace]; which should only happen
       #   for unstructured names.
-      step = _get_match(metric.name.context.additionalProperties,
-                        lambda x: x.key == STEP_LABEL).value
+      step = _get_match(
+          metric.name.context.additionalProperties,
+          lambda x: x.key == STEP_LABEL,
+      ).value
       step = self._translate_step_name(step)
     except ValueError:
       pass
 
-    namespace = "dataflow/v1b3" # Try to extract namespace or add a default.
+    namespace = "dataflow/v1b3"  # Try to extract namespace or add a default.
     try:
-      namespace = _get_match(metric.name.context.additionalProperties,
-                             lambda x: x.key == 'namespace').value
+      namespace = _get_match(
+          metric.name.context.additionalProperties,
+          lambda x: x.key == 'namespace',
+      ).value
     except ValueError:
       pass
 
@@ -143,21 +147,23 @@ class DataflowMetrics(MetricResults):
   def _populate_metrics(self, response, result, user_metrics=False):
     """Move metrics from response to results as MetricResults."""
     if user_metrics:
-      metrics = [metric
-                 for metric in response.metrics
-                 if metric.name.origin == 'user']
+      metrics = [
+          metric for metric in response.metrics if metric.name.origin == 'user'
+      ]
     else:
-      metrics = [metric
-                 for metric in response.metrics
-                 if metric.name.origin == 'dataflow/v1b3']
+      metrics = [
+          metric
+          for metric in response.metrics
+          if metric.name.origin == 'dataflow/v1b3'
+      ]
 
     # Get the tentative/committed versions of every metric together.
     metrics_by_name = defaultdict(lambda: {})
     for metric in metrics:
-      if (metric.name.name.endswith('[MIN]') or
-          metric.name.name.endswith('[MAX]') or
-          metric.name.name.endswith('[MEAN]') or
-          metric.name.name.endswith('[COUNT]')):
+      if (metric.name.name.endswith('[MIN]')
+          or metric.name.name.endswith('[MAX]')
+          or metric.name.name.endswith('[MEAN]')
+          or metric.name.name.endswith('[COUNT]')):
         # The Dataflow Service presents distribution metrics in two ways:
         # One way is as a single distribution object with all its fields, and
         # another way is as four different scalar metrics labeled as [MIN],
@@ -166,9 +172,11 @@ class DataflowMetrics(MetricResults):
         #  in the service.
         # The second way is only useful for the UI, and should be ignored.
         continue
-      is_tentative = [prop
-                      for prop in metric.name.context.additionalProperties
-                      if prop.key == 'tentative' and prop.value == 'true']
+      is_tentative = [
+          prop
+          for prop in metric.name.context.additionalProperties
+          if prop.key == 'tentative' and prop.value == 'true'
+      ]
       tentative_or_committed = 'tentative' if is_tentative else 'committed'
 
       metric_key = self._get_metric_key(metric)
@@ -180,9 +188,8 @@ class DataflowMetrics(MetricResults):
     for metric_key, metric in iteritems(metrics_by_name):
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
-      result.append(MetricResult(metric_key,
-                                 attempted=attempted,
-                                 committed=committed))
+      result.append(
+          MetricResult(metric_key, attempted=attempted, committed=committed))
 
   def _get_metric_value(self, metric):
     """Get a metric result object from a MetricUpdate from Dataflow API."""
@@ -192,17 +199,21 @@ class DataflowMetrics(MetricResults):
     if metric.scalar is not None:
       return metric.scalar.integer_value
     elif metric.distribution is not None:
-      dist_count = _get_match(metric.distribution.object_value.properties,
-                              lambda x: x.key == 'count').value.integer_value
-      dist_min = _get_match(metric.distribution.object_value.properties,
-                            lambda x: x.key == 'min').value.integer_value
-      dist_max = _get_match(metric.distribution.object_value.properties,
-                            lambda x: x.key == 'max').value.integer_value
-      dist_sum = _get_match(metric.distribution.object_value.properties,
-                            lambda x: x.key == 'sum').value.integer_value
+      dist_count = _get_match(
+          metric.distribution.object_value.properties,
+          lambda x: x.key == 'count',
+      ).value.integer_value
+      dist_min = _get_match(
+          metric.distribution.object_value.properties, lambda x: x.key == 'min'
+      ).value.integer_value
+      dist_max = _get_match(
+          metric.distribution.object_value.properties, lambda x: x.key == 'max'
+      ).value.integer_value
+      dist_sum = _get_match(
+          metric.distribution.object_value.properties, lambda x: x.key == 'sum'
+      ).value.integer_value
       return DistributionResult(
-          DistributionData(
-              dist_sum, dist_count, dist_min, dist_max))
+          DistributionData(dist_sum, dist_count, dist_min, dist_max))
     else:
       return None
 
@@ -238,13 +249,21 @@ class DataflowMetrics(MetricResults):
     metric_results = []
     response = self._get_metrics_from_dataflow()
     self._populate_metrics(response, metric_results, user_metrics=True)
-    return {self.COUNTERS: [elm for elm in metric_results
-                            if self.matches(filter, elm.key)
-                            and DataflowMetrics._is_counter(elm)],
-            self.DISTRIBUTIONS: [elm for elm in metric_results
-                                 if self.matches(filter, elm.key)
-                                 and DataflowMetrics._is_distribution(elm)],
-            self.GAUGES: []}  # TODO(pabloem): Add Gauge support for dataflow.
+    return {
+        self.COUNTERS: [
+            elm
+            for elm in metric_results
+            if self.matches(filter, elm.key)
+            and DataflowMetrics._is_counter(elm)
+        ],
+        self.DISTRIBUTIONS: [
+            elm
+            for elm in metric_results
+            if self.matches(filter, elm.key)
+            and DataflowMetrics._is_distribution(elm)
+        ],
+        self.GAUGES: [],
+    }  # TODO(pabloem): Add Gauge support for dataflow.
 
 
 def main(argv):
@@ -267,10 +286,11 @@ def main(argv):
   if argv[0] == __file__:
     argv = argv[1:]
   parser = argparse.ArgumentParser()
-  parser.add_argument('-j', '--job_id', type=str,
-                      help='The job id to query metrics for.')
-  parser.add_argument('-p', '--project', type=str,
-                      help='The project name to query metrics for.')
+  parser.add_argument(
+      '-j', '--job_id', type=str, help='The job id to query metrics for.')
+  parser.add_argument(
+      '-p', '--project', type=str, help='The project name to query metrics for.'
+  )
   flags = parser.parse_args(argv)
 
   # Get a Dataflow API client and set its project and job_id in the options.
@@ -280,8 +300,8 @@ def main(argv):
   dataflow_client = apiclient.DataflowApplicationClient(options)
   df_metrics = DataflowMetrics(dataflow_client)
   all_metrics = df_metrics.all_metrics(job_id=flags.job_id)
-  logging.info('Printing all MetricResults for %s in %s',
-               flags.job_id, flags.project)
+  logging.info(
+      'Printing all MetricResults for %s in %s', flags.job_id, flags.project)
   for metric_result in all_metrics:
     logging.info(metric_result)
 

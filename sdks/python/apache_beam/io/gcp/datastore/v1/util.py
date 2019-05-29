@@ -59,8 +59,8 @@ class MovingSum(object):
 
   def _Reset(self, now):
     self._current_index = 0  # pointer into self._buckets
-    self._current_ms_since_epoch = math.floor(
-        now / self._bucket_ms) * self._bucket_ms
+    self._current_ms_since_epoch = (
+        math.floor(now / self._bucket_ms) * self._bucket_ms)
 
     # _buckets is a list where each element is a list [sum, num_samples]
     # This is a circular buffer where
@@ -78,8 +78,8 @@ class MovingSum(object):
     Args:
       now: int, milliseconds since epoch
     """
-    if now >= (self._current_ms_since_epoch
-               + self._bucket_ms * self._num_buckets):
+    if now >= (
+        self._current_ms_since_epoch + self._bucket_ms * self._num_buckets):
       # Time moved forward so far that all currently held data is outside of
       # the window.  It is faster to simply reset our data.
       self._Reset(now)
@@ -88,7 +88,7 @@ class MovingSum(object):
     while now > self._current_ms_since_epoch + self._bucket_ms:
       # Advance time by one _bucket_ms, setting the new bucket's counts to 0.
       self._current_ms_since_epoch += self._bucket_ms
-      self._current_index = (self._current_index+1) % self._num_buckets
+      self._current_index = (self._current_index + 1) % self._num_buckets
       self._buckets[self._current_index] = [0, 0]
       # Intentional dead reckoning here; we don't care about staying precisely
       # aligned with multiples of _bucket_ms since the epoch, we just need our
@@ -114,22 +114,25 @@ class MovingSum(object):
 
 class DynamicBatchSizer(object):
   """Determines request sizes for future Datastore RPCs."""
+
   def __init__(self):
-    self._commit_time_per_entity_ms = MovingSum(window_ms=120000,
-                                                bucket_ms=10000)
+    self._commit_time_per_entity_ms = MovingSum(
+        window_ms=120000, bucket_ms=10000)
 
   def get_batch_size(self, now):
     """Returns the recommended size for datastore RPCs at this time."""
     if not self._commit_time_per_entity_ms.has_data(now):
       return WRITE_BATCH_INITIAL_SIZE
 
-    recent_mean_latency_ms = (self._commit_time_per_entity_ms.sum(now)
-                              // self._commit_time_per_entity_ms.count(now))
-    return max(WRITE_BATCH_MIN_SIZE,
-               min(WRITE_BATCH_MAX_SIZE,
-                   WRITE_BATCH_TARGET_LATENCY_MS
-                   // max(recent_mean_latency_ms, 1)
-                  ))
+    recent_mean_latency_ms = self._commit_time_per_entity_ms.sum(
+        now
+    ) // self._commit_time_per_entity_ms.count(now)
+    return max(
+        WRITE_BATCH_MIN_SIZE,
+        min(
+            WRITE_BATCH_MAX_SIZE,
+            WRITE_BATCH_TARGET_LATENCY_MS // max(recent_mean_latency_ms, 1),
+        ))
 
   def report_latency(self, now, latency_ms, num_mutations):
     """Report the latency of a Datastore RPC.

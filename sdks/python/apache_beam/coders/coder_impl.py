@@ -52,6 +52,7 @@ try:
   from .stream import OutputStream as create_OutputStream
   from .stream import ByteCountingOutputStream
   from .stream import get_varint_size
+
   # Make it possible to import create_InputStream and other cdef-classes
   # from apache_beam.coders.coder_impl when Cython codepath is used.
   globals()['create_InputStream'] = create_InputStream
@@ -62,6 +63,7 @@ except ImportError:
   from .slow_stream import OutputStream as create_OutputStream
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
+
   if False:  # pylint: disable=using-constant-test
     # This clause is interpreted by the compiler.
     from cython import compiled as is_compiled
@@ -221,7 +223,8 @@ class CallbackCoderImpl(CoderImpl):
 
   def __repr__(self):
     return 'CallbackCoderImpl[encoder=%s, decoder=%s]' % (
-        self._encoder, self._decoder)
+        self._encoder,
+        self._decoder)
 
 
 class DeterministicFastPrimitivesCoderImpl(CoderImpl):
@@ -242,8 +245,8 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     else:
       raise TypeError(
           "Unable to deterministically code '%s' of type '%s', "
-          "please provide a type hint for the input of '%s'" % (
-              value, type(value), self._step_label))
+          "please provide a type hint for the input of '%s'"
+          % (value, type(value), self._step_label))
 
   def encode_to_stream(self, value, stream, nested):
     self._check_safe(value)
@@ -471,8 +474,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     typed_value = value
-    span_millis = (typed_value._end_micros // 1000
-                   - typed_value._start_micros // 1000)
+    span_millis = (
+        typed_value._end_micros // 1000 - typed_value._start_micros // 1000)
     out.write_bigendian_uint64(
         self._from_normal_time(typed_value._end_micros // 1000))
     out.write_var_int64(span_millis)
@@ -482,8 +485,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     if IntervalWindow is None:
       from apache_beam.transforms.window import IntervalWindow
     typed_value = IntervalWindow(None, None)
-    typed_value._end_micros = (
-        1000 * self._to_normal_time(in_.read_bigendian_uint64()))
+    typed_value._end_micros = 1000 * self._to_normal_time(
+        in_.read_bigendian_uint64())
     typed_value._start_micros = (
         typed_value._end_micros - 1000 * in_.read_var_int64())
     return typed_value
@@ -492,8 +495,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
     typed_value = value
-    span_millis = (typed_value._end_micros // 1000
-                   - typed_value._start_micros // 1000)
+    span_millis = (
+        typed_value._end_micros // 1000 - typed_value._start_micros // 1000)
     return 8 + get_varint_size(span_millis)
 
 
@@ -530,6 +533,7 @@ class TimestampCoderImpl(StreamCoderImpl):
 
 class TimerCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
+
   def __init__(self, payload_coder_impl):
     self._timestamp_coder_impl = TimestampCoderImpl()
     self._payload_coder_impl = payload_coder_impl
@@ -542,7 +546,8 @@ class TimerCoderImpl(StreamCoderImpl):
     # TODO(robertwb): Consider using a concrete class rather than a dict here.
     return dict(
         timestamp=self._timestamp_coder_impl.decode_from_stream(
-            in_stream, True),
+            in_stream, True
+        ),
         payload=self._payload_coder_impl.decode_from_stream(in_stream, True))
 
 
@@ -622,24 +627,24 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     values = self._extract_components(value)
     if len(self._coder_impls) != len(values):
-      raise ValueError(
-          'Number of components does not match number of coders.')
+      raise ValueError('Number of components does not match number of coders.')
     for i in range(0, len(self._coder_impls)):
-      c = self._coder_impls[i]   # type cast
-      c.encode_to_stream(values[i], out,
-                         nested or i + 1 < len(self._coder_impls))
+      c = self._coder_impls[i]  # type cast
+      c.encode_to_stream(
+          values[i], out, nested or i + 1 < len(self._coder_impls))
 
   def decode_from_stream(self, in_stream, nested):
     return self._construct_from_components(
-        [c.decode_from_stream(in_stream,
-                              nested or i + 1 < len(self._coder_impls))
-         for i, c in enumerate(self._coder_impls)])
+        [
+            c.decode_from_stream(
+                in_stream, nested or i + 1 < len(self._coder_impls))
+            for i, c in enumerate(self._coder_impls)
+        ])
 
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
     # TODO(ccy): This ignores sizes of observable components.
-    estimated_size, _ = (
-        self.get_estimated_size_and_observables(value))
+    estimated_size, _ = self.get_estimated_size_and_observables(value)
     return estimated_size
 
   def get_estimated_size_and_observables(self, value, nested=False):
@@ -649,9 +654,8 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
     observables = []
     for i in range(0, len(self._coder_impls)):
       c = self._coder_impls[i]  # type cast
-      child_size, child_observables = (
-          c.get_estimated_size_and_observables(
-              values[i], nested=nested or i + 1 < len(self._coder_impls)))
+      child_size, child_observables = c.get_estimated_size_and_observables(
+          values[i], nested=nested or i + 1 < len(self._coder_impls))
       estimated_size += child_size
       observables += child_observables
     return estimated_size, observables
@@ -727,8 +731,12 @@ class SequenceCoderImpl(StreamCoderImpl):
   # Default buffer size of 64kB of handling iterables of unknown length.
   _DEFAULT_BUFFER_SIZE = 64 * 1024
 
-  def __init__(self, elem_coder,
-               read_state=None, write_state=None, write_state_threshold=0):
+  def __init__(
+      self,
+      elem_coder,
+      read_state=None,
+      write_state=None,
+      write_state_threshold=0):
     self._elem_coder = elem_coder
     self._read_state = read_state
     self._write_state = write_state
@@ -770,8 +778,10 @@ class SequenceCoderImpl(StreamCoderImpl):
           buffer = create_OutputStream()
           if (self._write_state is not None
               and out.size() - start_size > self._write_state_threshold):
-            tail = (value_iter[index + 1:] if isinstance(value, (list, tuple))
-                    else value_iter)
+            tail = (
+                value_iter[index + 1 :]
+                if isinstance(value, (list, tuple))
+                else value_iter)
             state_token = self._write_state(tail, self._elem_coder)
             out.write_var_int64(-1)
             out.write(state_token, True)
@@ -786,8 +796,10 @@ class SequenceCoderImpl(StreamCoderImpl):
     size = in_stream.read_bigendian_int32()
 
     if size >= 0:
-      elements = [self._elem_coder.decode_from_stream(in_stream, True)
-                  for _ in range(size)]
+      elements = [
+          self._elem_coder.decode_from_stream(in_stream, True)
+          for _ in range(size)
+      ]
     else:
       elements = []
       count = in_stream.read_var_int64()
@@ -810,8 +822,7 @@ class SequenceCoderImpl(StreamCoderImpl):
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
     # TODO(ccy): This ignores element sizes.
-    estimated_size, _ = (
-        self.get_estimated_size_and_observables(value))
+    estimated_size, _ = self.get_estimated_size_and_observables(value)
     return estimated_size
 
   def get_estimated_size_and_observables(self, value, nested=False):
@@ -824,9 +835,11 @@ class SequenceCoderImpl(StreamCoderImpl):
 
     observables = []
     for elem in value:
-      child_size, child_observables = (
-          self._elem_coder.get_estimated_size_and_observables(
-              elem, nested=True))
+      (
+          child_size,
+          child_observables,
+      ) = self._elem_coder.get_estimated_size_and_observables(
+          elem, nested=True)
       estimated_size += child_size
       observables += child_observables
     # TODO: (BEAM-1537) Update to use an accurate count depending on size and
@@ -883,11 +896,11 @@ class PaneInfoCoderImpl(StreamCoderImpl):
   Coder for a PaneInfo descriptor."""
 
   def _choose_encoding(self, value):
-    if ((value._index == 0 and value._nonspeculative_index == 0) or
-        value._timing == PaneInfoTiming_UNKNOWN):
+    if (value._index == 0 and value._nonspeculative_index == 0
+    ) or value._timing == PaneInfoTiming_UNKNOWN:
       return PaneInfoEncoding_FIRST
-    elif (value._index == value._nonspeculative_index or
-          value._timing == windowed_value.PaneInfoTiming.EARLY):
+    elif (value._index == value._nonspeculative_index
+        or value._timing == windowed_value.PaneInfoTiming.EARLY):
       return PaneInfoEncoding.ONE_INDEX
     else:
       return PaneInfoEncoding.TWO_INDICES
@@ -974,12 +987,14 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
-            restore_sign * (
+            restore_sign
+            * (
                 abs(
                     MIN_TIMESTAMP_micros
                     if wv.timestamp_micros < MIN_TIMESTAMP_micros
-                    else wv.timestamp_micros
-                ) // 1000)))
+                    else wv.timestamp_micros)
+                // 1000)
+))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     self._pane_info_coder.encode_to_stream(wv.pane_info, out, True)
@@ -1019,17 +1034,19 @@ class WindowedValueCoderImpl(StreamCoderImpl):
       return 0, [(value, self._value_coder)]
     estimated_size = 0
     observables = []
-    value_estimated_size, value_observables = (
-        self._value_coder.get_estimated_size_and_observables(
-            value.value, nested=nested))
+    (
+        value_estimated_size,
+        value_observables,
+    ) = self._value_coder.get_estimated_size_and_observables(
+        value.value, nested=nested)
     estimated_size += value_estimated_size
     observables += value_observables
-    estimated_size += (
-        self._timestamp_coder.estimate_size(value.timestamp, nested=True))
-    estimated_size += (
-        self._windows_coder.estimate_size(value.windows, nested=True))
-    estimated_size += (
-        self._pane_info_coder.estimate_size(value.pane_info, nested=True))
+    estimated_size += self._timestamp_coder.estimate_size(
+        value.timestamp, nested=True)
+    estimated_size += self._windows_coder.estimate_size(
+        value.windows, nested=True)
+    estimated_size += self._pane_info_coder.estimate_size(
+        value.pane_info, nested=True)
     return estimated_size, observables
 
 

@@ -39,11 +39,11 @@ from apache_beam.typehints.decorators import getfullargspec
 
 
 class MainInputTest(unittest.TestCase):
-
   def test_bad_main_input(self):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
+
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(repeat, 3)
 
@@ -73,6 +73,7 @@ class MainInputTest(unittest.TestCase):
     @typehints.with_output_types(str)
     def format_number(x):
       return '%g' % x
+
     result = [1, 2, 3] | beam.Map(format_number)
     self.assertEqual(['1', '2', '3'], sorted(result))
 
@@ -96,6 +97,7 @@ class MainInputTest(unittest.TestCase):
     class MyDoFn(beam.DoFn):
       def process(self, element):
         return [str(element)]
+
     my_do_fn = MyDoFn().with_input_types(int).with_output_types(str)
 
     result = [1, 2, 3] | beam.ParDo(my_do_fn)
@@ -116,12 +118,12 @@ class MainInputTest(unittest.TestCase):
 
 
 class NativeTypesTest(unittest.TestCase):
-
   def test_good_main_input(self):
     @typehints.with_input_types(typing.Tuple[str, int])
     def munge(s_i):
       (s, i) = s_i
       return (s + 's', i * 2)
+
     result = [('apple', 5), ('pear', 3)] | beam.Map(munge)
     self.assertEqual([('apples', 10), ('pears', 6)], sorted(result))
 
@@ -130,6 +132,7 @@ class NativeTypesTest(unittest.TestCase):
     def munge(s_i):
       (s, i) = s_i
       return (s + 's', i * 2)
+
     with self.assertRaises(typehints.TypeCheckError):
       [('apple', 5), ('pear', 3)] | beam.Map(munge)
 
@@ -139,12 +142,12 @@ class NativeTypesTest(unittest.TestCase):
     def munge(a_b):
       (a, b) = a_b
       return (str(a), str(b))
+
     with self.assertRaises(typehints.TypeCheckError):
       [(5, 4), (3, 2)] | beam.Map(munge) | 'Again' >> beam.Map(munge)
 
 
 class SideInputTest(unittest.TestCase):
-
   def _run_repeat_test(self, repeat):
     self._run_repeat_test_good(repeat)
     self._run_repeat_test_bad(repeat)
@@ -175,24 +178,28 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
+
     self._run_repeat_test(repeat)
 
   def test_keyword_side_input_hint(self):
     @typehints.with_input_types(str, times=int)
     def repeat(s, times):
       return s * times
+
     self._run_repeat_test(repeat)
 
   def test_default_typed_hint(self):
     @typehints.with_input_types(str, int)
     def repeat(s, times=3):
       return s * times
+
     self._run_repeat_test(repeat)
 
   def test_default_untyped_hint(self):
     @typehints.with_input_types(str)
     def repeat(s, times=3):
       return s * times
+
     # No type checking on default arg.
     self._run_repeat_test_good(repeat)
 
@@ -213,6 +220,7 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
+
     with TestPipeline() as p:
       main_input = p | beam.Create(['a', 'bb', 'c'])
       side_input = p | 'side' >> beam.Create([3])
@@ -227,6 +235,7 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, typehints.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
+
     with TestPipeline() as p:
       main_input = p | beam.Create(['a', 'bb', 'c'])
       side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
@@ -239,9 +248,7 @@ class SideInputTest(unittest.TestCase):
 
 
 class CustomTransformTest(unittest.TestCase):
-
   class CustomTransform(beam.PTransform):
-
     def _extract_input_pvalues(self, pvalueish):
       return pvalueish, (pvalueish['in0'], pvalueish['in1'])
 
@@ -266,13 +273,13 @@ class CustomTransformTest(unittest.TestCase):
 
   def test_keyword_type_hints(self):
     self.check_output(
-        self.test_input | self.CustomTransform().with_input_types(
-            in0=str, in1=int))
+        self.test_input
+        | self.CustomTransform().with_input_types(in0=str, in1=int))
     self.check_output(
         self.test_input | self.CustomTransform().with_input_types(in0=str))
     self.check_output(
-        self.test_input | self.CustomTransform().with_output_types(
-            out0=str, out1=int))
+        self.test_input
+        | self.CustomTransform().with_output_types(out0=str, out1=int))
     with self.assertRaises(typehints.TypeCheckError):
       self.test_input | self.CustomTransform().with_input_types(in0=int)
     with self.assertRaises(typehints.TypeCheckError):
@@ -280,8 +287,9 @@ class CustomTransformTest(unittest.TestCase):
 
   def test_flat_type_hint(self):
     # Type hint is applied to both.
-    ({'in0': ['a', 'b', 'c'], 'in1': ['x', 'y', 'z']}
-     | self.CustomTransform().with_input_types(str))
+    (
+        {'in0': ['a', 'b', 'c'], 'in1': ['x', 'y', 'z']}
+        | self.CustomTransform().with_input_types(str))
     with self.assertRaises(typehints.TypeCheckError):
       self.test_input | self.CustomTransform().with_input_types(str)
     with self.assertRaises(typehints.TypeCheckError):

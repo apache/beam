@@ -54,7 +54,6 @@ class ExternalTransformTest(unittest.TestCase):
   expansion_service_port = None
 
   class _RunWithExpansion(object):
-
     def __init__(self, port, expansion_service_jar):
       self._port = port
       self._expansion_service_jar = expansion_service_jar
@@ -78,16 +77,15 @@ class ExternalTransformTest(unittest.TestCase):
 
   def test_pipeline_generation(self):
     pipeline = beam.Pipeline()
-    res = (pipeline
-           | beam.Create(['a', 'b'])
-           | beam.ExternalTransform(
-               'simple',
-               None,
-               expansion_service.ExpansionServiceServicer()))
+    res = (
+        pipeline
+        | beam.Create(['a', 'b'])
+        | beam.ExternalTransform(
+            'simple', None, expansion_service.ExpansionServiceServicer())
+)
     assert_that(res, equal_to(['Simple(a)', 'Simple(b)']))
 
-    proto, _ = pipeline.to_runner_api(
-        return_context=True)
+    proto, _ = pipeline.to_runner_api(return_context=True)
     pipeline_from_proto = Pipeline.from_runner_api(
         proto, pipeline.runner, pipeline._options)
 
@@ -107,9 +105,8 @@ class ExternalTransformTest(unittest.TestCase):
           p
           | beam.Create(['a', 'b'])
           | beam.ExternalTransform(
-              'simple',
-              None,
-              expansion_service.ExpansionServiceServicer()))
+              'simple', None, expansion_service.ExpansionServiceServicer())
+)
       assert_that(res, equal_to(['Simple(a)', 'Simple(b)']))
 
   def test_multi(self):
@@ -128,8 +125,8 @@ class ExternalTransformTest(unittest.TestCase):
           p
           | beam.Create(['a', 'bb'], reshuffle=False)
           | beam.ExternalTransform(
-              'payload', b's',
-              expansion_service.ExpansionServiceServicer()))
+              'payload', b's', expansion_service.ExpansionServiceServicer())
+)
       assert_that(res, equal_to(['as', 'bbs']))
 
   def test_nested(self):
@@ -138,10 +135,12 @@ class ExternalTransformTest(unittest.TestCase):
 
   def test_java_expansion_portable_runner(self):
     pipeline_options = PipelineOptions(
-        ['--runner=PortableRunner',
-         '--experiments=beam_fn_api',
-         '--environment_type=%s' % python_urns.EMBEDDED_PYTHON,
-         '--job_endpoint=embed'])
+        [
+            '--runner=PortableRunner',
+            '--experiments=beam_fn_api',
+            '--environment_type=%s' % python_urns.EMBEDDED_PYTHON,
+            '--job_endpoint=embed',
+        ])
 
     # We use the save_main_session option because one or more DoFn's in this
     # workflow rely on global context (e.g., a module imported at module level).
@@ -155,14 +154,17 @@ class ExternalTransformTest(unittest.TestCase):
     # tests the translation to a Dataflow job request.
 
     with patch.object(
-        apiclient.DataflowApplicationClient, 'create_job') as mock_create_job:
+        apiclient.DataflowApplicationClient, 'create_job'
+    ) as mock_create_job:
       port = ExternalTransformTest.expansion_service_port or 8091
       with self._RunWithExpansion(port, self.expansion_service_jar):
         pipeline_options = PipelineOptions(
-            ['--runner=DataflowRunner',
-             '--project=dummyproject',
-             '--experiments=beam_fn_api',
-             '--temp_location=gs://dummybucket/'])
+            [
+                '--runner=DataflowRunner',
+                '--project=dummyproject',
+                '--experiments=beam_fn_api',
+                '--temp_location=gs://dummybucket/',
+            ])
 
         # We use the save_main_session option because one or more DoFn's in this
         # workflow rely on global context (e.g., a module imported at module

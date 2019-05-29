@@ -36,10 +36,8 @@ from apache_beam.portability.api import beam_runner_api_pb2
 class PipelineGraph(object):
   """Creates a DOT representation of the pipeline. Thread-safe."""
 
-  def __init__(self,
-               pipeline,
-               default_vertex_attrs=None,
-               default_edge_attrs=None):
+  def __init__(
+      self, pipeline, default_vertex_attrs=None, default_edge_attrs=None):
     """Constructor of PipelineGraph.
 
     Examples:
@@ -64,9 +62,9 @@ class PipelineGraph(object):
     elif isinstance(pipeline, beam.Pipeline):
       self._pipeline_proto = pipeline.to_runner_api()
     else:
-      raise TypeError('pipeline should either be a %s or %s, while %s is given'
-                      % (beam_runner_api_pb2.Pipeline, beam.Pipeline,
-                         type(pipeline)))
+      raise TypeError(
+          'pipeline should either be a %s or %s, while %s is given'
+          % (beam_runner_api_pb2.Pipeline, beam.Pipeline, type(pipeline)))
 
     # A dict from PCollection ID to a list of its consuming Transform IDs
     self._consumers = collections.defaultdict(list)
@@ -87,10 +85,8 @@ class PipelineGraph(object):
       default_vertex_attrs['fontcolor'] = 'blue'
 
     vertex_dict, edge_dict = self._generate_graph_dicts()
-    self._construct_graph(vertex_dict,
-                          edge_dict,
-                          default_vertex_attrs,
-                          default_edge_attrs)
+    self._construct_graph(
+        vertex_dict, edge_dict, default_vertex_attrs, default_edge_attrs)
 
   def get_dot(self):
     return self._get_graph().to_string()
@@ -159,8 +155,8 @@ class PipelineGraph(object):
     with self._lock:
       return self._graph
 
-  def _construct_graph(self, vertex_dict, edge_dict,
-                       default_vertex_attrs, default_edge_attrs):
+  def _construct_graph(
+      self, vertex_dict, edge_dict, default_vertex_attrs, default_edge_attrs):
     """Constructs the pydot.Dot object for the pipeline graph.
 
     Args:
@@ -204,6 +200,7 @@ class PipelineGraph(object):
           Or (Dict[(str, str), Dict[str, str]]) which maps vertex pairs to edge
           attributes
     """
+
     def set_attrs(ref, attrs):
       for attr_name, attr_val in attrs.items():
         ref.set(attr_name, attr_val)

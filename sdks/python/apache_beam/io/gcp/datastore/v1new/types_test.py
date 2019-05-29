@@ -42,7 +42,8 @@ class TypesTest(unittest.TestCase):
 
   def setUp(self):
     self._test_client = client.Client(
-        project=self._PROJECT, namespace=self._NAMESPACE,
+        project=self._PROJECT,
+        namespace=self._NAMESPACE,
         # Don't do any network requests.
         _http=mock.MagicMock())
 
@@ -67,8 +68,8 @@ class TypesTest(unittest.TestCase):
     self.assertEqual(e, efc)
 
   def testKeyToClientKey(self):
-    k = Key(['kind1', 'parent'],
-            project=self._PROJECT, namespace=self._NAMESPACE)
+    k = Key(
+        ['kind1', 'parent'], project=self._PROJECT, namespace=self._NAMESPACE)
     ck = k.to_client_key()
     self.assertEqual(self._PROJECT, ck.project)
     self.assertEqual(self._NAMESPACE, ck.namespace)
@@ -119,9 +120,15 @@ class TypesTest(unittest.TestCase):
     order = projection
     distinct_on = projection
     ancestor_key = Key(['kind', 'id'], project=self._PROJECT)
-    q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
-              ancestor=ancestor_key, filters=filters, projection=projection,
-              order=order, distinct_on=distinct_on)
+    q = Query(
+        kind='kind',
+        project=self._PROJECT,
+        namespace=self._NAMESPACE,
+        ancestor=ancestor_key,
+        filters=filters,
+        projection=projection,
+        order=order,
+        distinct_on=distinct_on)
     cq = q._to_client_query(self._test_client)
     self.assertEqual(self._PROJECT, cq.project)
     self.assertEqual(self._NAMESPACE, cq.namespace)

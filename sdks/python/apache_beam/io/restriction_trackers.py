@@ -28,7 +28,6 @@ from apache_beam.io.range_trackers import OffsetRangeTracker
 
 
 class OffsetRange(object):
-
   def __init__(self, start, stop):
     if start > stop:
       raise ValueError(
@@ -52,15 +51,15 @@ class OffsetRange(object):
 
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
-    max_split_size = max(desired_num_offsets_per_split,
-                         min_num_offsets_per_split)
+    max_split_size = max(
+        desired_num_offsets_per_split, min_num_offsets_per_split)
     while current_split_start < self.stop:
       current_split_stop = min(current_split_start + max_split_size, self.stop)
       remaining = self.stop - current_split_stop
 
       # Avoiding a small split at the end.
-      if (remaining < desired_num_offsets_per_split // 4 or
-          remaining < min_num_offsets_per_split):
+      if (remaining < desired_num_offsets_per_split // 4
+          or remaining < min_num_offsets_per_split):
         current_split_stop = self.stop
 
       yield OffsetRange(current_split_start, current_split_stop)
@@ -92,9 +91,12 @@ class OffsetRestrictionTracker(RestrictionTracker):
         raise ValueError(
             'OffsetRestrictionTracker is not done since work in range [%s, %s) '
             'has not been claimed.'
-            % (self._last_claim_attempt if self._last_claim_attempt is not None
-               else self._range.start,
-               self._range.stop))
+            % (
+                self._last_claim_attempt
+                if self._last_claim_attempt is not None
+                else self._range.start,
+                self._range.stop)
+)
 
   def current_restriction(self):
     with self._lock:
@@ -111,9 +113,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
         # If self._current_position is not None, we must be done.
         fraction = 1.0
       else:
-        fraction = (
-            float(self._current_position - self._range.start)
-            / (self._range.stop - self._range.start))
+        fraction = float(self._current_position - self._range.start) / (
+            self._range.stop - self._range.start)
     return RestrictionProgress(fraction=fraction)
 
   def start_position(self):

@@ -43,7 +43,7 @@ __all__ = [
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
     'TestWindowedValue',
-    ]
+]
 
 
 class BeamAssertException(Exception):
@@ -64,6 +64,7 @@ def contains_in_any_order(iterable):
   Arguments:
     iterable: An iterable of hashable objects.
   """
+
   class InAnyOrder(object):
     def __init__(self, iterable):
       self._counter = collections.Counter(iterable)
@@ -91,11 +92,11 @@ def equal_to_per_window(expected_window_to_elements):
     expected_window_to_elements: A dictionary where the keys are the windows
       to check and the values are the elements associated with each window.
   """
+
   def matcher(elements):
     actual_elements_in_window, window = elements
     if window in expected_window_to_elements:
-      expected_elements_in_window = list(
-          expected_window_to_elements[window])
+      expected_elements_in_window = list(expected_window_to_elements[window])
       sorted_expected = sorted(expected_elements_in_window)
       sorted_actual = sorted(actual_elements_in_window)
       if sorted_expected != sorted_actual:
@@ -105,7 +106,9 @@ def equal_to_per_window(expected_window_to_elements):
         # For example, in the presence of early triggers.
         if all(elem in sorted_expected for elem in sorted_actual) is False:
           raise BeamAssertException(
-              'Failed assert: %r not in %r' % (sorted_actual, sorted_expected))
+              'Failed assert: %r not in %r' % (sorted_actual, sorted_expected)
+          )
+
   return matcher
 
 
@@ -113,7 +116,6 @@ def equal_to_per_window(expected_window_to_elements):
 # other. However, only permutations of the top level are checked. Therefore
 # [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
 def equal_to(expected):
-
   def _equal(actual):
     expected_list = list(expected)
 
@@ -145,13 +147,17 @@ def is_empty():
   def _empty(actual):
     actual = list(actual)
     if actual:
-      raise BeamAssertException(
-          'Failed assert: [] == %r' % actual)
+      raise BeamAssertException('Failed assert: [] == %r' % actual)
+
   return _empty
 
 
-def assert_that(actual, matcher, label='assert_that',
-                reify_windows=False, use_global_window=True):
+def assert_that(
+    actual,
+    matcher,
+    label='assert_that',
+    reify_windows=False,
+    use_global_window=True):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -174,8 +180,9 @@ def assert_that(actual, matcher, label='assert_that',
   assert isinstance(actual, pvalue.PCollection)
 
   class ReifyTimestampWindow(DoFn):
-    def process(self, element, timestamp=DoFn.TimestampParam,
-                window=DoFn.WindowParam):
+    def process(
+        self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam
+    ):
       # This returns TestWindowedValue instead of
       # beam.utils.windowed_value.WindowedValue because ParDo will extract
       # the timestamp and window out of the latter.
@@ -186,7 +193,6 @@ def assert_that(actual, matcher, label='assert_that',
       yield element, window
 
   class AssertThat(PTransform):
-
     def expand(self, pcoll):
       if reify_windows:
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
@@ -198,9 +204,10 @@ def assert_that(actual, matcher, label='assert_that',
 
       keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
 
-      plain_actual = ((keyed_singleton, keyed_actual)
-                      | "Group" >> CoGroupByKey()
-                      | "Unkey" >> Map(lambda k_values: k_values[1][1]))
+      plain_actual = (
+          (keyed_singleton, keyed_actual)
+          | "Group" >> CoGroupByKey()
+          | "Unkey" >> Map(lambda k_values: k_values[1][1]))
 
       if not use_global_window:
         plain_actual = plain_actual | "AddWindow" >> ParDo(AddWindow())

@@ -41,9 +41,9 @@ class KV2BytesTransform(ptransform.PTransform):
     return (
         pcoll
         | combine.Count.PerElement()
-        | beam.Map(
-            lambda x: '{}->{}'.format(x[0], x[1])).with_output_types(bytes)
-    )
+        | beam.Map(lambda x: '{}->{}'.format(x[0], x[1])).with_output_types(
+            bytes)
+)
 
   def to_runner_api_parameter(self, unused_context):
     return 'kv_to_bytes', None
@@ -70,11 +70,9 @@ class SimpleTransform(ptransform.PTransform):
 class MutltiTransform(ptransform.PTransform):
   def expand(self, pcolls):
     return {
-        'main':
-            (pcolls['main1'], pcolls['main2'])
-            | beam.Flatten()
-            | beam.Map(lambda x, s: x + s,
-                       beam.pvalue.AsSingleton(pcolls['side'])),
+        'main': (pcolls['main1'], pcolls['main2'])
+        | beam.Flatten()
+        | beam.Map(lambda x, s: x + s, beam.pvalue.AsSingleton(pcolls['side'])),
         'side': pcolls['side'] | beam.Map(lambda x: x + x),
     }
 
@@ -112,15 +110,16 @@ class FibTransform(ptransform.PTransform):
       return p | beam.Create([1])
     else:
       a = p | 'A' >> beam.ExternalTransform(
-          'fib', str(self._level - 1).encode('ascii'),
+          'fib',
+          str(self._level - 1).encode('ascii'),
           expansion_service.ExpansionServiceServicer())
       b = p | 'B' >> beam.ExternalTransform(
-          'fib', str(self._level - 2).encode('ascii'),
+          'fib',
+          str(self._level - 2).encode('ascii'),
           expansion_service.ExpansionServiceServicer())
       return (
-          (a, b)
-          | beam.Flatten()
-          | beam.CombineGlobally(sum).without_defaults())
+          (a, b) | beam.Flatten() | beam.CombineGlobally(sum).without_defaults()
+      )
 
   def to_runner_api_parameter(self, unused_context):
     return 'fib', str(self._level).encode('ascii')
@@ -135,15 +134,13 @@ server = None
 
 def main(unused_argv):
   parser = argparse.ArgumentParser()
-  parser.add_argument('-p', '--port',
-                      type=int,
-                      help='port on which to serve the job api')
+  parser.add_argument(
+      '-p', '--port', type=int, help='port on which to serve the job api')
   options = parser.parse_args()
   global server
   server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
   beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
-      expansion_service.ExpansionServiceServicer(PipelineOptions()), server
-  )
+      expansion_service.ExpansionServiceServicer(PipelineOptions()), server)
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()
   logging.info('Listening for expansion requests at %d', options.port)

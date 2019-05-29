@@ -496,7 +496,8 @@ class CounterUpdate(_messages.Message):
   nameAndKind = _messages.MessageField('NameAndKind', 12)
   shortId = _messages.IntegerField(13)
   stringList = _messages.MessageField('StringList', 14)
-  structuredNameAndMetadata = _messages.MessageField('CounterStructuredNameAndMetadata', 15)
+  structuredNameAndMetadata = _messages.MessageField(
+      'CounterStructuredNameAndMetadata', 15)
 
 
 class CreateJobFromTemplateRequest(_messages.Message):
@@ -539,7 +540,8 @@ class CreateJobFromTemplateRequest(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   environment = _messages.MessageField('RuntimeEnvironment', 1)
   gcsPath = _messages.StringField(2)
@@ -946,7 +948,8 @@ class DataflowProjectsJobsWorkItemsReportStatusRequest(_messages.Message):
 
   jobId = _messages.StringField(1, required=True)
   projectId = _messages.StringField(2, required=True)
-  reportWorkItemStatusRequest = _messages.MessageField('ReportWorkItemStatusRequest', 3)
+  reportWorkItemStatusRequest = _messages.MessageField(
+      'ReportWorkItemStatusRequest', 3)
 
 
 class DataflowProjectsLocationsJobsCreateRequest(_messages.Message):
@@ -1247,7 +1250,8 @@ class DataflowProjectsLocationsJobsWorkItemsLeaseRequest(_messages.Message):
   projectId = _messages.StringField(4, required=True)
 
 
-class DataflowProjectsLocationsJobsWorkItemsReportStatusRequest(_messages.Message):
+class DataflowProjectsLocationsJobsWorkItemsReportStatusRequest(
+    _messages.Message):
   r"""A DataflowProjectsLocationsJobsWorkItemsReportStatusRequest object.
 
   Fields:
@@ -1263,7 +1267,8 @@ class DataflowProjectsLocationsJobsWorkItemsReportStatusRequest(_messages.Messag
   jobId = _messages.StringField(1, required=True)
   location = _messages.StringField(2, required=True)
   projectId = _messages.StringField(3, required=True)
-  reportWorkItemStatusRequest = _messages.MessageField('ReportWorkItemStatusRequest', 4)
+  reportWorkItemStatusRequest = _messages.MessageField(
+      'ReportWorkItemStatusRequest', 4)
 
 
 class DataflowProjectsLocationsSnapshotsDeleteRequest(_messages.Message):
@@ -1338,7 +1343,8 @@ class DataflowProjectsLocationsTemplatesCreateRequest(_messages.Message):
       belongs to.
   """
 
-  createJobFromTemplateRequest = _messages.MessageField('CreateJobFromTemplateRequest', 1)
+  createJobFromTemplateRequest = _messages.MessageField(
+      'CreateJobFromTemplateRequest', 1)
   location = _messages.StringField(2, required=True)
   projectId = _messages.StringField(3, required=True)
 
@@ -1398,7 +1404,8 @@ class DataflowProjectsLocationsTemplatesLaunchRequest(_messages.Message):
   dynamicTemplate_gcsPath = _messages.StringField(1)
   dynamicTemplate_stagingLocation = _messages.StringField(2)
   gcsPath = _messages.StringField(3)
-  launchTemplateParameters = _messages.MessageField('LaunchTemplateParameters', 4)
+  launchTemplateParameters = _messages.MessageField(
+      'LaunchTemplateParameters', 4)
   location = _messages.StringField(5, required=True)
   projectId = _messages.StringField(6, required=True)
   validateOnly = _messages.BooleanField(7)
@@ -1418,7 +1425,8 @@ class DataflowProjectsLocationsWorkerMessagesRequest(_messages.Message):
 
   location = _messages.StringField(1, required=True)
   projectId = _messages.StringField(2, required=True)
-  sendWorkerMessagesRequest = _messages.MessageField('SendWorkerMessagesRequest', 3)
+  sendWorkerMessagesRequest = _messages.MessageField(
+      'SendWorkerMessagesRequest', 3)
 
 
 class DataflowProjectsSnapshotsGetRequest(_messages.Message):
@@ -1458,7 +1466,8 @@ class DataflowProjectsTemplatesCreateRequest(_messages.Message):
       belongs to.
   """
 
-  createJobFromTemplateRequest = _messages.MessageField('CreateJobFromTemplateRequest', 1)
+  createJobFromTemplateRequest = _messages.MessageField(
+      'CreateJobFromTemplateRequest', 1)
   projectId = _messages.StringField(2, required=True)
 
 
@@ -1517,7 +1526,8 @@ class DataflowProjectsTemplatesLaunchRequest(_messages.Message):
   dynamicTemplate_gcsPath = _messages.StringField(1)
   dynamicTemplate_stagingLocation = _messages.StringField(2)
   gcsPath = _messages.StringField(3)
-  launchTemplateParameters = _messages.MessageField('LaunchTemplateParameters', 4)
+  launchTemplateParameters = _messages.MessageField(
+      'LaunchTemplateParameters', 4)
   location = _messages.StringField(5)
   projectId = _messages.StringField(6, required=True)
   validateOnly = _messages.BooleanField(7)
@@ -1533,7 +1543,8 @@ class DataflowProjectsWorkerMessagesRequest(_messages.Message):
   """
 
   projectId = _messages.StringField(1, required=True)
-  sendWorkerMessagesRequest = _messages.MessageField('SendWorkerMessagesRequest', 2)
+  sendWorkerMessagesRequest = _messages.MessageField(
+      'SendWorkerMessagesRequest', 2)
 
 
 class DatastoreIODetails(_messages.Message):
@@ -1786,7 +1797,8 @@ class Environment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class SdkPipelineOptionsValue(_messages.Message):
@@ -1814,7 +1826,8 @@ class Environment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UserAgentValue(_messages.Message):
@@ -1838,7 +1851,8 @@ class Environment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class VersionValue(_messages.Message):
@@ -1863,12 +1877,14 @@ class Environment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   clusterManagerApiService = _messages.StringField(1)
   dataset = _messages.StringField(2)
   experiments = _messages.StringField(3, repeated=True)
-  flexResourceSchedulingGoal = _messages.EnumField('FlexResourceSchedulingGoalValueValuesEnum', 4)
+  flexResourceSchedulingGoal = _messages.EnumField(
+      'FlexResourceSchedulingGoalValueValuesEnum', 4)
   internalExperiments = _messages.MessageField('InternalExperimentsValue', 5)
   sdkPipelineOptions = _messages.MessageField('SdkPipelineOptionsValue', 6)
   serviceAccountEmail = _messages.StringField(7)
@@ -1958,7 +1974,8 @@ class ExecutionStageState(_messages.Message):
 
   currentStateTime = _messages.StringField(1)
   executionStageName = _messages.StringField(2)
-  executionStageState = _messages.EnumField('ExecutionStageStateValueValuesEnum', 3)
+  executionStageState = _messages.EnumField(
+      'ExecutionStageStateValueValuesEnum', 3)
 
 
 class ExecutionStageSummary(_messages.Message):
@@ -2006,7 +2023,8 @@ class ExecutionStageSummary(_messages.Message):
     SHUFFLE_KIND = 8
 
   componentSource = _messages.MessageField('ComponentSource', 1, repeated=True)
-  componentTransform = _messages.MessageField('ComponentTransform', 2, repeated=True)
+  componentTransform = _messages.MessageField(
+      'ComponentTransform', 2, repeated=True)
   id = _messages.StringField(3)
   inputSource = _messages.MessageField('StageSource', 4, repeated=True)
   kind = _messages.EnumField('KindValueValuesEnum', 5)
@@ -2146,7 +2164,8 @@ class InstructionInput(_messages.Message):
   """
 
   outputNum = _messages.IntegerField(1, variant=_messages.Variant.INT32)
-  producerInstructionIndex = _messages.IntegerField(2, variant=_messages.Variant.INT32)
+  producerInstructionIndex = _messages.IntegerField(
+      2, variant=_messages.Variant.INT32)
 
 
 class InstructionOutput(_messages.Message):
@@ -2191,7 +2210,8 @@ class InstructionOutput(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   codec = _messages.MessageField('CodecValue', 1)
   name = _messages.StringField(2)
@@ -2520,7 +2540,8 @@ class Job(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class TransformNameMappingValue(_messages.Message):
@@ -2547,7 +2568,8 @@ class Job(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   clientRequestId = _messages.StringField(1)
   createTime = _messages.StringField(2)
@@ -2609,7 +2631,8 @@ class JobExecutionInfo(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('JobExecutionStageInfo', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   stages = _messages.MessageField('StagesValue', 1)
 
@@ -2700,9 +2723,12 @@ class JobMetadata(_messages.Message):
       job.
   """
 
-  bigTableDetails = _messages.MessageField('BigTableIODetails', 1, repeated=True)
-  bigqueryDetails = _messages.MessageField('BigQueryIODetails', 2, repeated=True)
-  datastoreDetails = _messages.MessageField('DatastoreIODetails', 3, repeated=True)
+  bigTableDetails = _messages.MessageField(
+      'BigTableIODetails', 1, repeated=True)
+  bigqueryDetails = _messages.MessageField(
+      'BigQueryIODetails', 2, repeated=True)
+  datastoreDetails = _messages.MessageField(
+      'DatastoreIODetails', 3, repeated=True)
   fileDetails = _messages.MessageField('FileIODetails', 4, repeated=True)
   pubsubDetails = _messages.MessageField('PubSubIODetails', 5, repeated=True)
   sdkVersion = _messages.MessageField('SdkVersion', 6)
@@ -2804,7 +2830,8 @@ class LaunchTemplateParameters(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   environment = _messages.MessageField('RuntimeEnvironment', 1)
   jobName = _messages.StringField(2)
@@ -2868,7 +2895,8 @@ class LeaseWorkItemRequest(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   currentWorkerTime = _messages.StringField(1)
   location = _messages.StringField(2)
@@ -2916,9 +2944,11 @@ class LeaseWorkItemResponse(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
-  unifiedWorkerResponse = _messages.MessageField('UnifiedWorkerResponseValue', 1)
+  unifiedWorkerResponse = _messages.MessageField(
+      'UnifiedWorkerResponseValue', 1)
   workItems = _messages.MessageField('WorkItem', 2, repeated=True)
 
 
@@ -2932,7 +2962,8 @@ class ListJobMessagesResponse(_messages.Message):
       more.
   """
 
-  autoscalingEvents = _messages.MessageField('AutoscalingEvent', 1, repeated=True)
+  autoscalingEvents = _messages.MessageField(
+      'AutoscalingEvent', 1, repeated=True)
   jobMessages = _messages.MessageField('JobMessage', 2, repeated=True)
   nextPageToken = _messages.StringField(3)
 
@@ -3051,7 +3082,8 @@ class MetricStructuredName(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   context = _messages.MessageField('ContextValue', 1)
   name = _messages.StringField(2)
@@ -3235,7 +3267,8 @@ class ParDoInstruction(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   input = _messages.MessageField('InstructionInput', 1)
   multiOutputInfos = _messages.MessageField('MultiOutputInfo', 2, repeated=True)
@@ -3350,7 +3383,8 @@ class PartialGroupByKeyInstruction(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ValueCombiningFnValue(_messages.Message):
@@ -3375,7 +3409,8 @@ class PartialGroupByKeyInstruction(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   input = _messages.MessageField('InstructionInput', 1)
   inputElementCodec = _messages.MessageField('InputElementCodecValue', 2)
@@ -3399,8 +3434,10 @@ class PipelineDescription(_messages.Message):
   """
 
   displayData = _messages.MessageField('DisplayData', 1, repeated=True)
-  executionPipelineStage = _messages.MessageField('ExecutionStageSummary', 2, repeated=True)
-  originalPipelineTransform = _messages.MessageField('TransformSummary', 3, repeated=True)
+  executionPipelineStage = _messages.MessageField(
+      'ExecutionStageSummary', 2, repeated=True)
+  originalPipelineTransform = _messages.MessageField(
+      'TransformSummary', 3, repeated=True)
 
 
 class Position(_messages.Message):
@@ -3527,7 +3564,8 @@ class ReportWorkItemStatusRequest(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   currentWorkerTime = _messages.StringField(1)
   location = _messages.StringField(2)
@@ -3577,10 +3615,13 @@ class ReportWorkItemStatusResponse(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
-  unifiedWorkerResponse = _messages.MessageField('UnifiedWorkerResponseValue', 1)
-  workItemServiceStates = _messages.MessageField('WorkItemServiceState', 2, repeated=True)
+  unifiedWorkerResponse = _messages.MessageField(
+      'UnifiedWorkerResponseValue', 1)
+  workItemServiceStates = _messages.MessageField(
+      'WorkItemServiceState', 2, repeated=True)
 
 
 class ReportedParallelism(_messages.Message):
@@ -3615,7 +3656,6 @@ class ResourceUtilizationReport(_messages.Message):
 class ResourceUtilizationReportResponse(_messages.Message):
   r"""Service-side response to WorkerMessage reporting resource utilization.
   """
-
 
 
 class RuntimeEnvironment(_messages.Message):
@@ -3681,7 +3721,8 @@ class RuntimeEnvironment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   additionalExperiments = _messages.StringField(1, repeated=True)
   additionalUserLabels = _messages.MessageField('AdditionalUserLabelsValue', 2)
@@ -3777,7 +3818,8 @@ class SendWorkerMessagesResponse(_messages.Message):
     workerMessageResponses: The servers response to the worker messages.
   """
 
-  workerMessageResponses = _messages.MessageField('WorkerMessageResponse', 1, repeated=True)
+  workerMessageResponses = _messages.MessageField(
+      'WorkerMessageResponse', 1, repeated=True)
 
 
 class SeqMapTask(_messages.Message):
@@ -3819,7 +3861,8 @@ class SeqMapTask(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   inputs = _messages.MessageField('SideInputInfo', 1, repeated=True)
   name = _messages.StringField(2)
@@ -3891,7 +3934,8 @@ class SideInputInfo(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   kind = _messages.MessageField('KindValue', 1)
   sources = _messages.MessageField('Source', 2, repeated=True)
@@ -3932,7 +3976,8 @@ class Sink(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class SpecValue(_messages.Message):
@@ -3956,7 +4001,8 @@ class Sink(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   codec = _messages.MessageField('CodecValue', 1)
   spec = _messages.MessageField('SpecValue', 2)
@@ -4077,7 +4123,8 @@ class Source(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class CodecValue(_messages.Message):
@@ -4101,7 +4148,8 @@ class Source(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class SpecValue(_messages.Message):
@@ -4125,9 +4173,11 @@ class Source(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
-  baseSpecs = _messages.MessageField('BaseSpecsValueListEntry', 1, repeated=True)
+  baseSpecs = _messages.MessageField(
+      'BaseSpecsValueListEntry', 1, repeated=True)
   codec = _messages.MessageField('CodecValue', 2)
   doesNotNeedSplitting = _messages.BooleanField(3)
   metadata = _messages.MessageField('SourceMetadata', 4)
@@ -4533,7 +4583,8 @@ class Status(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   code = _messages.IntegerField(1, variant=_messages.Variant.INT32)
   details = _messages.MessageField('DetailsValueListEntry', 2, repeated=True)
@@ -4592,7 +4643,8 @@ class Step(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   kind = _messages.StringField(1)
   name = _messages.StringField(2)
@@ -4673,13 +4725,15 @@ class StreamingComputationConfig(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   computationId = _messages.StringField(1)
   instructions = _messages.MessageField('ParallelInstruction', 2, repeated=True)
   stageName = _messages.StringField(3)
   systemName = _messages.StringField(4)
-  transformUserNameToStateFamily = _messages.MessageField('TransformUserNameToStateFamilyValue', 5)
+  transformUserNameToStateFamily = _messages.MessageField(
+      'TransformUserNameToStateFamilyValue', 5)
 
 
 class StreamingComputationRanges(_messages.Message):
@@ -4692,7 +4746,8 @@ class StreamingComputationRanges(_messages.Message):
   """
 
   computationId = _messages.StringField(1)
-  rangeAssignments = _messages.MessageField('KeyRangeDataDiskAssignment', 2, repeated=True)
+  rangeAssignments = _messages.MessageField(
+      'KeyRangeDataDiskAssignment', 2, repeated=True)
 
 
 class StreamingComputationTask(_messages.Message):
@@ -4724,7 +4779,8 @@ class StreamingComputationTask(_messages.Message):
     STREAMING_COMPUTATION_TASK_STOP = 1
     STREAMING_COMPUTATION_TASK_START = 2
 
-  computationRanges = _messages.MessageField('StreamingComputationRanges', 1, repeated=True)
+  computationRanges = _messages.MessageField(
+      'StreamingComputationRanges', 1, repeated=True)
   dataDisks = _messages.MessageField('MountedDataDisk', 2, repeated=True)
   taskType = _messages.EnumField('TaskTypeValueValuesEnum', 3)
 
@@ -4775,11 +4831,14 @@ class StreamingConfigTask(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   maxWorkItemCommitBytes = _messages.IntegerField(1)
-  streamingComputationConfigs = _messages.MessageField('StreamingComputationConfig', 2, repeated=True)
-  userStepToStateFamilyNameMap = _messages.MessageField('UserStepToStateFamilyNameMapValue', 3)
+  streamingComputationConfigs = _messages.MessageField(
+      'StreamingComputationConfig', 2, repeated=True)
+  userStepToStateFamilyNameMap = _messages.MessageField(
+      'UserStepToStateFamilyNameMapValue', 3)
   windmillServiceEndpoint = _messages.StringField(4)
   windmillServicePort = _messages.IntegerField(5)
 
@@ -4977,13 +5036,17 @@ class TopologyConfig(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   computations = _messages.MessageField('ComputationTopology', 1, repeated=True)
-  dataDiskAssignments = _messages.MessageField('DataDiskAssignment', 2, repeated=True)
+  dataDiskAssignments = _messages.MessageField(
+      'DataDiskAssignment', 2, repeated=True)
   forwardingKeyBits = _messages.IntegerField(3, variant=_messages.Variant.INT32)
-  persistentStateVersion = _messages.IntegerField(4, variant=_messages.Variant.INT32)
-  userStageToComputationNameMap = _messages.MessageField('UserStageToComputationNameMapValue', 5)
+  persistentStateVersion = _messages.IntegerField(
+      4, variant=_messages.Variant.INT32)
+  userStageToComputationNameMap = _messages.MessageField(
+      'UserStageToComputationNameMapValue', 5)
 
 
 class TransformSummary(_messages.Message):
@@ -5086,7 +5149,8 @@ class WorkItem(_messages.Message):
   seqMapTask = _messages.MessageField('SeqMapTask', 10)
   shellTask = _messages.MessageField('ShellTask', 11)
   sourceOperationTask = _messages.MessageField('SourceOperationRequest', 12)
-  streamingComputationTask = _messages.MessageField('StreamingComputationTask', 13)
+  streamingComputationTask = _messages.MessageField(
+      'StreamingComputationTask', 13)
   streamingConfigTask = _messages.MessageField('StreamingConfigTask', 14)
   streamingSetupTask = _messages.MessageField('StreamingSetupTask', 15)
 
@@ -5142,7 +5206,8 @@ class WorkItemServiceState(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   harnessData = _messages.MessageField('HarnessDataValue', 1)
   leaseExpireTime = _messages.StringField(2)
@@ -5222,7 +5287,8 @@ class WorkItemStatus(_messages.Message):
   reportedProgress = _messages.MessageField('ApproximateReportedProgress', 8)
   requestedLeaseDuration = _messages.StringField(9)
   sourceFork = _messages.MessageField('SourceFork', 10)
-  sourceOperationResponse = _messages.MessageField('SourceOperationResponse', 11)
+  sourceOperationResponse = _messages.MessageField(
+      'SourceOperationResponse', 11)
   stopPosition = _messages.MessageField('Position', 12)
   totalThrottlerWaitTimeSeconds = _messages.FloatField(13)
   workItemId = _messages.StringField(14)
@@ -5275,7 +5341,8 @@ class WorkerHealthReport(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   msg = _messages.StringField(1)
   pods = _messages.MessageField('PodsValueListEntry', 2, repeated=True)
@@ -5368,7 +5435,8 @@ class WorkerLifecycleEvent(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   containerStartTime = _messages.StringField(1)
   event = _messages.EnumField('EventValueValuesEnum', 2)
@@ -5430,7 +5498,8 @@ class WorkerMessage(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   labels = _messages.MessageField('LabelsValue', 1)
   time = _messages.StringField(2)
@@ -5520,7 +5589,8 @@ class WorkerMessageCode(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   code = _messages.StringField(1)
   parameters = _messages.MessageField('ParametersValue', 2)
@@ -5539,9 +5609,12 @@ class WorkerMessageResponse(_messages.Message):
       (currently empty).
   """
 
-  workerHealthReportResponse = _messages.MessageField('WorkerHealthReportResponse', 1)
-  workerMetricsResponse = _messages.MessageField('ResourceUtilizationReportResponse', 2)
-  workerShutdownNoticeResponse = _messages.MessageField('WorkerShutdownNoticeResponse', 3)
+  workerHealthReportResponse = _messages.MessageField(
+      'WorkerHealthReportResponse', 1)
+  workerMetricsResponse = _messages.MessageField(
+      'ResourceUtilizationReportResponse', 2)
+  workerShutdownNoticeResponse = _messages.MessageField(
+      'WorkerShutdownNoticeResponse', 3)
 
 
 class WorkerPool(_messages.Message):
@@ -5707,7 +5780,8 @@ class WorkerPool(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class PoolArgsValue(_messages.Message):
@@ -5732,7 +5806,8 @@ class WorkerPool(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   autoscalingSettings = _messages.MessageField('AutoscalingSettings', 1)
   dataDisks = _messages.MessageField('Disk', 2, repeated=True)
@@ -5745,7 +5820,8 @@ class WorkerPool(_messages.Message):
   machineType = _messages.StringField(9)
   metadata = _messages.MessageField('MetadataValue', 10)
   network = _messages.StringField(11)
-  numThreadsPerWorker = _messages.IntegerField(12, variant=_messages.Variant.INT32)
+  numThreadsPerWorker = _messages.IntegerField(
+      12, variant=_messages.Variant.INT32)
   numWorkers = _messages.IntegerField(13, variant=_messages.Variant.INT32)
   onHostMaintenance = _messages.StringField(14)
   packages = _messages.MessageField('Package', 15, repeated=True)

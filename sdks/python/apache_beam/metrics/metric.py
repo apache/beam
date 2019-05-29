@@ -40,6 +40,7 @@ __all__ = ['Metrics', 'MetricsFilter']
 
 class Metrics(object):
   """Lets users create/access metric objects during pipeline execution."""
+
   @staticmethod
   def get_namespace(namespace):
     if inspect.isclass(namespace):
@@ -142,10 +143,8 @@ class MetricResults(object):
     if not filter.names and not filter.namespaces:
       return True
 
-    if ((filter.namespaces and
-         metric_key.metric.namespace in filter.namespaces) or
-        (filter.names and
-         metric_key.metric.name in filter.names)):
+    if (filter.namespaces and metric_key.metric.namespace in filter.namespaces
+    ) or (filter.names and metric_key.metric.name in filter.names):
       return True
     return False
 
@@ -156,7 +155,7 @@ class MetricResults(object):
     needle_len = len(needle)
     haystack_len = len(haystack)
     for i in range(0, haystack_len - needle_len + 1):
-      if haystack[i:i+needle_len] == needle:
+      if haystack[i : i + needle_len] == needle:
         return True
 
     return False
@@ -166,9 +165,7 @@ class MetricResults(object):
     """True iff the '/'-delimited pieces of filter_scope exist as a sub-list
     of the '/'-delimited pieces of actual_scope"""
     return MetricResults._is_sub_list(
-        filter_scope.split('/'),
-        actual_scope.split('/')
-    )
+        filter_scope.split('/'), actual_scope.split('/'))
 
   @staticmethod
   def _matches_scope(filter, metric_key):
@@ -186,8 +183,9 @@ class MetricResults(object):
     if filter is None:
       return True
 
-    if (MetricResults._matches_name(filter, metric_key) and
-        MetricResults._matches_scope(filter, metric_key)):
+    if MetricResults._matches_name(
+        filter, metric_key
+    ) and MetricResults._matches_scope(filter, metric_key):
       return True
     return False
 
@@ -219,6 +217,7 @@ class MetricsFilter(object):
   be used to construct arguments as an RPC request. It is left for runners
   to implement matching logic by themselves.
   """
+
   def __init__(self):
     self._names = set()
     self._namespaces = set()

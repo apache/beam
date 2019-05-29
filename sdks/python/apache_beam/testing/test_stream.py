@@ -43,7 +43,7 @@ __all__ = [
     'WatermarkEvent',
     'ProcessingTimeEvent',
     'TestStream',
-    ]
+]
 
 
 @total_ordering
@@ -143,15 +143,18 @@ class TestStream(PTransform):
   def _add(self, event):
     if isinstance(event, ElementEvent):
       for tv in event.timestamped_values:
-        assert tv.timestamp < timestamp.MAX_TIMESTAMP, (
-            'Element timestamp must be before timestamp.MAX_TIMESTAMP.')
+        assert (
+            tv.timestamp < timestamp.MAX_TIMESTAMP
+        ), 'Element timestamp must be before timestamp.MAX_TIMESTAMP.'
     elif isinstance(event, WatermarkEvent):
-      assert event.new_watermark > self.current_watermark, (
-          'Watermark must strictly-monotonically advance.')
+      assert (
+          event.new_watermark > self.current_watermark
+      ), 'Watermark must strictly-monotonically advance.'
       self.current_watermark = event.new_watermark
     elif isinstance(event, ProcessingTimeEvent):
-      assert event.advance_by > 0, (
-          'Must advance processing time by positive amount.')
+      assert (
+          event.advance_by > 0
+      ), 'Must advance processing time by positive amount.'
     else:
       raise ValueError('Unknown event: %s' % event)
     self.events.append(event)

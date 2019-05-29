@@ -35,14 +35,12 @@ from apache_beam.runners.interactive import pipeline_analyzer
 def to_stable_runner_api(p):
   """The extra round trip ensures a stable pipeline proto.
   """
-  return (beam.pipeline.Pipeline.from_runner_api(
-      p.to_runner_api(use_fake_coders=True),
-      p.runner,
-      p._options).to_runner_api(use_fake_coders=True))
+  return beam.pipeline.Pipeline.from_runner_api(
+      p.to_runner_api(use_fake_coders=True), p.runner, p._options
+  ).to_runner_api(use_fake_coders=True)
 
 
 class PipelineAnalyzerTest(unittest.TestCase):
-
   def setUp(self):
     self.runner = direct_runner.DirectRunner()
     self.cache_manager = cache.FileBasedCacheManager()
@@ -57,21 +55,23 @@ class PipelineAnalyzerTest(unittest.TestCase):
     components2 = pipeline_proto2.components
 
     self.assertEqual(len(components1.transforms), len(components2.transforms))
-    self.assertEqual(len(components1.pcollections),
-                     len(components2.pcollections))
+    self.assertEqual(
+        len(components1.pcollections), len(components2.pcollections))
 
     # GreatEqual instead of Equal because the pipeline_proto_to_execute could
     # include more windowing_stratagies and coders than necessary.
-    self.assertGreaterEqual(len(components1.windowing_strategies),
-                            len(components2.windowing_strategies))
+    self.assertGreaterEqual(
+        len(components1.windowing_strategies),
+        len(components2.windowing_strategies))
     self.assertGreaterEqual(len(components1.coders), len(components2.coders))
-    self.assertTransformEqual(pipeline_proto1,
-                              pipeline_proto1.root_transform_ids[0],
-                              pipeline_proto2,
-                              pipeline_proto2.root_transform_ids[0])
+    self.assertTransformEqual(
+        pipeline_proto1,
+        pipeline_proto1.root_transform_ids[0],
+        pipeline_proto2,
+        pipeline_proto2.root_transform_ids[0])
 
-  def assertTransformEqual(self, pipeline_proto1, transform_id1,
-                           pipeline_proto2, transform_id2):
+  def assertTransformEqual(
+      self, pipeline_proto1, transform_id1, pipeline_proto2, transform_id2):
     """A naive check for Transform proto equality.
     """
     transform_proto1 = pipeline_proto1.components.transforms[transform_id1]
@@ -79,53 +79,48 @@ class PipelineAnalyzerTest(unittest.TestCase):
     self.assertEqual(transform_proto1.spec.urn, transform_proto2.spec.urn)
     # Skipping payload checking because PTransforms of the same functionality
     # could generate different payloads.
-    self.assertEqual(len(transform_proto1.subtransforms),
-                     len(transform_proto2.subtransforms))
-    self.assertSetEqual(set(transform_proto1.inputs),
-                        set(transform_proto2.inputs))
-    self.assertSetEqual(set(transform_proto1.outputs),
-                        set(transform_proto2.outputs))
+    self.assertEqual(
+        len(transform_proto1.subtransforms), len(transform_proto2.subtransforms)
+    )
+    self.assertSetEqual(
+        set(transform_proto1.inputs), set(transform_proto2.inputs))
+    self.assertSetEqual(
+        set(transform_proto1.outputs), set(transform_proto2.outputs))
 
   def test_basic(self):
     p = beam.Pipeline(runner=self.runner)
 
     # The cold run.
-    pcoll = (p
-             | 'Create' >> beam.Create([1, 2, 3])
-             | 'Double' >> beam.Map(lambda x: x*2)
-             | 'Square' >> beam.Map(lambda x: x**2))
-    analyzer = pipeline_analyzer.PipelineAnalyzer(self.cache_manager,
-                                                  to_stable_runner_api(p),
-                                                  self.runner)
+    pcoll = (
+        p
+        | 'Create' >> beam.Create([1, 2, 3])
+        | 'Double' >> beam.Map(lambda x: x * 2)
+        | 'Square' >> beam.Map(lambda x: x ** 2))
+    analyzer = pipeline_analyzer.PipelineAnalyzer(
+        self.cache_manager, to_stable_runner_api(p), self.runner)
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
-        analyzer.pipeline_proto_to_execute(),
-        p.runner,
-        p._options
-    )
+        analyzer.pipeline_proto_to_execute(), p.runner, p._options)
     pipeline_to_execute.run().wait_until_finish()
     self.assertEqual(
         len(analyzer.tl_required_trans_ids()),
-        7  # Create, Double, Square, CacheSample * 3, CacheFull
+        7,  # Create, Double, Square, CacheSample * 3, CacheFull
     )
     self.assertEqual(len(analyzer.tl_referenced_pcoll_ids()), 3)
     self.assertEqual(len(analyzer.read_cache_ids()), 0)
     self.assertEqual(len(analyzer.write_cache_ids()), 4)
 
     # The second run.
-    _ = (pcoll
-         | 'Triple' >> beam.Map(lambda x: x*3)
-         | 'Cube' >> beam.Map(lambda x: x**3))
-    analyzer = pipeline_analyzer.PipelineAnalyzer(self.cache_manager,
-                                                  to_stable_runner_api(p),
-                                                  self.runner)
+    _ = (
+        pcoll
+        | 'Triple' >> beam.Map(lambda x: x * 3)
+        | 'Cube' >> beam.Map(lambda x: x ** 3))
+    analyzer = pipeline_analyzer.PipelineAnalyzer(
+        self.cache_manager, to_stable_runner_api(p), self.runner)
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
-        analyzer.pipeline_proto_to_execute(),
-        p.runner,
-        p._options
-    )
+        analyzer.pipeline_proto_to_execute(), p.runner, p._options)
     self.assertEqual(
         len(analyzer.tl_required_trans_ids()),
-        6  # Read, Triple, Cube, CacheSample * 2, CacheFull
+        6,  # Read, Triple, Cube, CacheSample * 2, CacheFull
     )
     self.assertEqual(len(analyzer.tl_referenced_pcoll_ids()), 3)
     self.assertEqual(len(analyzer.read_cache_ids()), 1)
@@ -137,7 +132,6 @@ class PipelineAnalyzerTest(unittest.TestCase):
     p = beam.Pipeline(runner=self.runner)
 
     class WordExtractingDoFn(beam.DoFn):
-
       def process(self, element):
         text_line = element.strip()
         words = text_line.split()
@@ -150,9 +144,8 @@ class PipelineAnalyzerTest(unittest.TestCase):
     pcoll4 = pcoll3 | 'Group' >> beam.GroupByKey()
     pcoll5 = pcoll4 | 'Count' >> beam.Map(lambda item: (item[0], sum(item[1])))
 
-    analyzer = pipeline_analyzer.PipelineAnalyzer(self.cache_manager,
-                                                  to_stable_runner_api(p),
-                                                  self.runner)
+    analyzer = pipeline_analyzer.PipelineAnalyzer(
+        self.cache_manager, to_stable_runner_api(p), self.runner)
 
     cache_label1 = 'PColl-1111111'
     cache_label2 = 'PColl-2222222'
@@ -175,25 +168,21 @@ class PipelineAnalyzerTest(unittest.TestCase):
         self.cache_manager, cache_label3)
     expected_pipeline_proto = to_stable_runner_api(p)
 
-    self.assertPipelineEqual(analyzer.pipeline_proto_to_execute(),
-                             expected_pipeline_proto)
+    self.assertPipelineEqual(
+        analyzer.pipeline_proto_to_execute(), expected_pipeline_proto)
 
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
-        analyzer.pipeline_proto_to_execute(),
-        p.runner,
-        p._options
-    )
+        analyzer.pipeline_proto_to_execute(), p.runner, p._options)
     pipeline_to_execute.run().wait_until_finish()
 
   def test_write_cache_expansion(self):
     p = beam.Pipeline(runner=self.runner)
 
     pcoll1 = p | 'Create' >> beam.Create([1, 2, 3])
-    pcoll2 = pcoll1 | 'Double' >> beam.Map(lambda x: x*2)
-    pcoll3 = pcoll2 | 'Square' >> beam.Map(lambda x: x**2)
-    analyzer = pipeline_analyzer.PipelineAnalyzer(self.cache_manager,
-                                                  to_stable_runner_api(p),
-                                                  self.runner)
+    pcoll2 = pcoll1 | 'Double' >> beam.Map(lambda x: x * 2)
+    pcoll3 = pcoll2 | 'Square' >> beam.Map(lambda x: x ** 2)
+    analyzer = pipeline_analyzer.PipelineAnalyzer(
+        self.cache_manager, to_stable_runner_api(p), self.runner)
 
     cache_label1 = 'PColl-1234567'
     cache_label2 = 'PColl-7654321'
@@ -212,47 +201,43 @@ class PipelineAnalyzerTest(unittest.TestCase):
 
     # Since WriteCache expansion leads to more than 50 PTransform protos in the
     # pipeline, a simple check of proto map size is enough.
-    self.assertPipelineEqual(analyzer.pipeline_proto_to_execute(),
-                             expected_pipeline_proto)
+    self.assertPipelineEqual(
+        analyzer.pipeline_proto_to_execute(), expected_pipeline_proto)
 
   def test_read_cache_expansion(self):
     p = beam.Pipeline(runner=self.runner)
 
     # The cold run.
-    pcoll = (p
-             | 'Create' >> beam.Create([1, 2, 3])
-             | 'Double' >> beam.Map(lambda x: x*2)
-             | 'Square' >> beam.Map(lambda x: x**2))
+    pcoll = (
+        p
+        | 'Create' >> beam.Create([1, 2, 3])
+        | 'Double' >> beam.Map(lambda x: x * 2)
+        | 'Square' >> beam.Map(lambda x: x ** 2))
     pipeline_proto = to_stable_runner_api(p)
 
     pipeline_info = pipeline_analyzer.PipelineInfo(pipeline_proto.components)
     pcoll_id = 'ref_PCollection_PCollection_3'  # Output PCollection of Square
     cache_label1 = pipeline_info.cache_label(pcoll_id)
 
-    analyzer = pipeline_analyzer.PipelineAnalyzer(self.cache_manager,
-                                                  pipeline_proto,
-                                                  self.runner)
+    analyzer = pipeline_analyzer.PipelineAnalyzer(
+        self.cache_manager, pipeline_proto, self.runner)
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
-        analyzer.pipeline_proto_to_execute(),
-        p.runner,
-        p._options
-    )
+        analyzer.pipeline_proto_to_execute(), p.runner, p._options)
     pipeline_to_execute.run().wait_until_finish()
 
     # The second run.
-    _ = (pcoll
-         | 'Triple' >> beam.Map(lambda x: x*3)
-         | 'Cube' >> beam.Map(lambda x: x**3))
-    analyzer = pipeline_analyzer.PipelineAnalyzer(self.cache_manager,
-                                                  to_stable_runner_api(p),
-                                                  self.runner)
+    _ = (
+        pcoll
+        | 'Triple' >> beam.Map(lambda x: x * 3)
+        | 'Cube' >> beam.Map(lambda x: x ** 3))
+    analyzer = pipeline_analyzer.PipelineAnalyzer(
+        self.cache_manager, to_stable_runner_api(p), self.runner)
 
     expected_pipeline = beam.Pipeline(runner=self.runner)
-    pcoll1 = (expected_pipeline
-              | 'Load%s' % cache_label1 >> cache.ReadCache(
-                  self.cache_manager, cache_label1))
-    pcoll2 = pcoll1 | 'Triple' >> beam.Map(lambda x: x*3)
-    pcoll3 = pcoll2 | 'Cube' >> beam.Map(lambda x: x**3)
+    pcoll1 = expected_pipeline | 'Load%s' % cache_label1 >> cache.ReadCache(
+        self.cache_manager, cache_label1)
+    pcoll2 = pcoll1 | 'Triple' >> beam.Map(lambda x: x * 3)
+    pcoll3 = pcoll2 | 'Cube' >> beam.Map(lambda x: x ** 3)
 
     cache_label2 = 'PColl-7654321'
     cache_label3 = 'PColl-3141593'
@@ -267,8 +252,9 @@ class PipelineAnalyzerTest(unittest.TestCase):
 
     # Since ReadCache & WriteCache expansion leads to more than 50 PTransform
     # protos in the pipeline, a simple check of proto map size is enough.
-    self.assertPipelineEqual(analyzer.pipeline_proto_to_execute(),
-                             to_stable_runner_api(expected_pipeline))
+    self.assertPipelineEqual(
+        analyzer.pipeline_proto_to_execute(),
+        to_stable_runner_api(expected_pipeline))
 
 
 if __name__ == '__main__':

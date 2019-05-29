@@ -31,11 +31,11 @@ generate events:
 class Person(object):
   "Author of an auction or a bid."
 
-  def __init__(self, id, name, email, credit_card,
-               city, state, timestamp, extra=None):
+  def __init__(
+      self, id, name, email, credit_card, city, state, timestamp, extra=None):
     self.id = id
     self.name = name
-    self.email = email    # key
+    self.email = email  # key
     self.credit_card = credit_card
     self.city = city
     self.state = state
@@ -43,17 +43,27 @@ class Person(object):
     self.extra = extra
 
   def __repr__(self):
-    return 'Person({id}, {email})'.format(**{'id': self.id,
-                                             'email': self.email})
+    return 'Person({id}, {email})'.format(
+        **{'id': self.id, 'email': self.email})
 
 
 class Auction(object):
   "Item for auction."
 
-  def __init__(self, id, item_name, description, initial_bid, reserve_price,
-               timestamp, expires, seller, category, extra=None):
+  def __init__(
+      self,
+      id,
+      item_name,
+      description,
+      initial_bid,
+      reserve_price,
+      timestamp,
+      expires,
+      seller,
+      category,
+      extra=None):
     self.id = id
-    self.item_name = item_name      # key
+    self.item_name = item_name  # key
     self.description = description
     self.initial_bid = initial_bid
     self.reserve_price = reserve_price
@@ -64,15 +74,15 @@ class Auction(object):
     self.extra = extra
 
   def __repr__(self):
-    return 'Auction({id}, {item_name})'.format(**{'id': self.id,
-                                                  'item_name': self.item_name})
+    return 'Auction({id}, {item_name})'.format(
+        **{'id': self.id, 'item_name': self.item_name})
 
 
 class Bid(object):
   "A bid for an item for auction."
 
   def __init__(self, auction, bidder, price, timestamp, extra=None):
-    self.auction = auction    # key
+    self.auction = auction  # key
     self.bidder = bidder
     self.price = price
     self.timestamp = timestamp
@@ -80,6 +90,5 @@ class Bid(object):
 
   def __repr__(self):
     return 'Bid({auction}, {bidder}, {price})'.format(
-        **{'auction': self.auction,
-           'bidder': self.bidder,
-           'price': self.price})
+        **{'auction': self.auction, 'bidder': self.bidder, 'price': self.price}
+    )

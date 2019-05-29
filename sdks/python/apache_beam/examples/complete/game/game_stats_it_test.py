@@ -63,7 +63,7 @@ class GameStatsIT(unittest.TestCase):
   OUTPUT_TABLE_TEAMS = 'game_stats_teams'
   DEFAULT_INPUT_COUNT = 500
 
-  WAIT_UNTIL_FINISH_DURATION = 12 * 60 * 1000   # in milliseconds
+  WAIT_UNTIL_FINISH_DURATION = 12 * 60 * 1000  # in milliseconds
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -72,32 +72,35 @@ class GameStatsIT(unittest.TestCase):
 
     # Set up PubSub environment.
     from google.cloud import pubsub
+
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + _unique_id))
+        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + _unique_id)
+    )
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project,
-                                          self.INPUT_SUB + _unique_id),
+        self.sub_client.subscription_path(
+            self.project, self.INPUT_SUB + _unique_id
+        ),
         self.input_topic.name)
 
     # Set up BigQuery environment
-    self.dataset_ref = utils.create_bq_dataset(self.project,
-                                               self.OUTPUT_DATASET)
+    self.dataset_ref = utils.create_bq_dataset(
+        self.project, self.OUTPUT_DATASET)
 
     self._test_timestamp = int(time.time() * 1000)
 
   def _inject_pubsub_game_events(self, topic, message_count):
     """Inject game events as test data to PubSub."""
 
-    logging.debug('Injecting %d game events to topic %s',
-                  message_count, topic.name)
+    logging.debug(
+        'Injecting %d game events to topic %s', message_count, topic.name)
 
     for _ in range(message_count):
-      self.pub_client.publish(topic.name,
-                              (self.INPUT_EVENT % self._test_timestamp
-                              ).encode('utf-8'))
+      self.pub_client.publish(
+          topic.name, (self.INPUT_EVENT % self._test_timestamp).encode('utf-8')
+      )
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
@@ -108,26 +111,25 @@ class GameStatsIT(unittest.TestCase):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 
     success_condition = 'mean_duration=300 LIMIT 1'
-    sessions_query = ('SELECT mean_duration FROM `%s.%s.%s` '
-                      'WHERE %s' % (self.project,
-                                    self.dataset_ref.dataset_id,
-                                    self.OUTPUT_TABLE_SESSIONS,
-                                    success_condition))
-    bq_sessions_verifier = BigqueryMatcher(self.project,
-                                           sessions_query,
-                                           self.DEFAULT_EXPECTED_CHECKSUM)
+    sessions_query = 'SELECT mean_duration FROM `%s.%s.%s` ' 'WHERE %s' % (
+        self.project,
+        self.dataset_ref.dataset_id,
+        self.OUTPUT_TABLE_SESSIONS,
+        success_condition)
+    bq_sessions_verifier = BigqueryMatcher(
+        self.project, sessions_query, self.DEFAULT_EXPECTED_CHECKSUM)
 
     # TODO(mariagh): Add teams table verifier once game_stats.py is fixed.
 
-    extra_opts = {'subscription': self.input_sub.name,
-                  'dataset': self.dataset_ref.dataset_id,
-                  'topic': self.input_topic.name,
-                  'fixed_window_duration': 1,
-                  'user_activity_window_duration': 1,
-                  'wait_until_finish_duration':
-                      self.WAIT_UNTIL_FINISH_DURATION,
-                  'on_success_matcher': all_of(state_verifier,
-                                               bq_sessions_verifier)}
+    extra_opts = {
+        'subscription': self.input_sub.name,
+        'dataset': self.dataset_ref.dataset_id,
+        'topic': self.input_topic.name,
+        'fixed_window_duration': 1,
+        'user_activity_window_duration': 1,
+        'wait_until_finish_duration': self.WAIT_UNTIL_FINISH_DURATION,
+        'on_success_matcher': all_of(state_verifier, bq_sessions_verifier),
+    }
 
     # Register cleanup before pipeline execution.
     # Note that actual execution happens in reverse order.
@@ -139,8 +141,7 @@ class GameStatsIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    game_stats.run(
-        self.test_pipeline.get_full_options_as_args(**extra_opts))
+    game_stats.run(self.test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':

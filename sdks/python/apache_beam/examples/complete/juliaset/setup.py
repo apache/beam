@@ -43,6 +43,7 @@ class build(_build):  # pylint: disable=invalid-name
   instantiated during install for this specific scenario and will trigger
   running the custom commands specified.
   """
+
   sub_commands = _build.sub_commands + [('CustomCommands', None)]
 
 
@@ -73,8 +74,7 @@ class build(_build):  # pylint: disable=invalid-name
 # TODO(BEAM-3237): Output from the custom commands are missing from the logs.
 # The output of custom commands (including failures) will be logged in the
 # worker-startup log.
-CUSTOM_COMMANDS = [
-    ['echo', 'Custom command worked!']]
+CUSTOM_COMMANDS = [['echo', 'Custom command worked!']]
 
 
 class CustomCommands(setuptools.Command):
@@ -90,7 +90,9 @@ class CustomCommands(setuptools.Command):
     print('Running command: %s' % command_list)
     p = subprocess.Popen(
         command_list,
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
     # Can use communicate(input='y\n'.encode()) if the command run requires
     # some confirmation.
     stdout_data, _ = p.communicate()
@@ -108,9 +110,7 @@ class CustomCommands(setuptools.Command):
 # Note that the Python Dataflow containers come with numpy already installed
 # so this dependency will not trigger anything to be installed unless a version
 # restriction is specified.
-REQUIRED_PACKAGES = [
-    'numpy',
-    ]
+REQUIRED_PACKAGES = ['numpy']
 
 
 setuptools.setup(
@@ -123,5 +123,4 @@ setuptools.setup(
         # Command class instantiated and run during pip install scenarios.
         'build': build,
         'CustomCommands': CustomCommands,
-        }
-    )
+    })

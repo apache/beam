@@ -29,9 +29,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners.runner import PipelineState
 
-__all__ = [
-    'TestPipeline',
-    ]
+__all__ = ['TestPipeline']
 
 
 class TestPipeline(Pipeline):
@@ -62,12 +60,13 @@ class TestPipeline(Pipeline):
     pipeline.run()
   """
 
-  def __init__(self,
-               runner=None,
-               options=None,
-               argv=None,
-               is_integration_test=False,
-               blocking=True):
+  def __init__(
+      self,
+      runner=None,
+      options=None,
+      argv=None,
+      is_integration_test=False,
+      blocking=True):
     """Initialize a pipeline object for test.
 
     Args:
@@ -103,12 +102,15 @@ class TestPipeline(Pipeline):
 
   def run(self, test_runner_api=True):
     result = super(TestPipeline, self).run(
-        test_runner_api=(False if self.not_use_test_runner_api
-                         else test_runner_api))
+        test_runner_api=(
+            False if self.not_use_test_runner_api else test_runner_api)
+)
     if self.blocking:
       state = result.wait_until_finish()
-      assert state in (PipelineState.DONE, PipelineState.CANCELLED), \
-          "Pipeline execution failed."
+      assert state in (
+          PipelineState.DONE,
+          PipelineState.CANCELLED,
+      ), "Pipeline execution failed."
 
     return result
 
@@ -125,26 +127,30 @@ class TestPipeline(Pipeline):
       build a pipeline option.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test-pipeline-options',
-                        type=str,
-                        action='store',
-                        help='only run tests providing service options')
-    parser.add_argument('--not-use-test-runner-api',
-                        action='store_true',
-                        default=False,
-                        help='whether not to use test-runner-api')
+    parser.add_argument(
+        '--test-pipeline-options',
+        type=str,
+        action='store',
+        help='only run tests providing service options')
+    parser.add_argument(
+        '--not-use-test-runner-api',
+        action='store_true',
+        default=False,
+        help='whether not to use test-runner-api')
     known, unused_argv = parser.parse_known_args(argv)
 
     if self.is_integration_test and not known.test_pipeline_options:
       # Skip integration test when argument '--test-pipeline-options' is not
       # specified since nose calls integration tests when runs unit test by
       # 'setup.py test'.
-      raise SkipTest('IT is skipped because --test-pipeline-options '
-                     'is not specified')
+      raise SkipTest(
+          'IT is skipped because --test-pipeline-options ' 'is not specified')
 
     self.not_use_test_runner_api = known.not_use_test_runner_api
-    return shlex.split(known.test_pipeline_options) \
-      if known.test_pipeline_options else []
+    return (
+        shlex.split(known.test_pipeline_options)
+        if known.test_pipeline_options
+        else [])
 
   def get_full_options_as_args(self, **extra_opts):
     """Get full pipeline options as an argument list.
@@ -178,8 +184,6 @@ class TestPipeline(Pipeline):
     parser = argparse.ArgumentParser()
     opt_name = opt_name[:2] if opt_name[:2] == '--' else opt_name
     # Option name should start with '--' when it's used for parsing.
-    parser.add_argument('--' + opt_name,
-                        type=str,
-                        action='store')
+    parser.add_argument('--' + opt_name, type=str, action='store')
     known, _ = parser.parse_known_args(self.options_list)
     return getattr(known, opt_name) if hasattr(known, opt_name) else None

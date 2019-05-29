@@ -125,6 +125,7 @@ class MetricCell(object):
   and may be subject to parallel/concurrent updates. Cells should only be used
   directly within a runner.
   """
+
   def __init__(self):
     self.commit = CellCommitState()
     self._lock = threading.Lock()
@@ -144,6 +145,7 @@ class CounterCell(Counter, MetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self, *args):
     super(CounterCell, self).__init__(*args)
     self.value = CounterAggregator.identity_element()
@@ -173,9 +175,7 @@ class CounterCell(Counter, MetricCell):
     # was added to CounterCell. Consider adding a CounterData class or
     # removing the GaugeData and DistributionData classes.
     return metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(
-            int64_value=self.get_cumulative()
-        )
+        counter_data=metrics_pb2.CounterData(int64_value=self.get_cumulative())
     )
 
 
@@ -190,6 +190,7 @@ class DistributionCell(Distribution, MetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
     self.data = DistributionAggregator.identity_element()
@@ -212,12 +213,14 @@ class DistributionCell(Distribution, MetricCell):
     value = int(value)
     self.data.count += 1
     self.data.sum += value
-    self.data.min = (value
-                     if self.data.min is None or self.data.min > value
-                     else self.data.min)
-    self.data.max = (value
-                     if self.data.max is None or self.data.max < value
-                     else self.data.max)
+    self.data.min = (
+        value
+        if self.data.min is None or self.data.min > value
+        else self.data.min)
+    self.data.max = (
+        value
+        if self.data.max is None or self.data.max < value
+        else self.data.max)
 
   def get_cumulative(self):
     with self._lock:
@@ -235,6 +238,7 @@ class GaugeCell(Gauge, MetricCell):
 
   This class is thread safe.
   """
+
   def __init__(self, *args):
     super(GaugeCell, self).__init__(*args)
     self.data = GaugeAggregator.identity_element()
@@ -264,6 +268,7 @@ class GaugeCell(Gauge, MetricCell):
 
 class DistributionResult(object):
   """The result of a Distribution metric."""
+
   def __init__(self, data):
     self.data = data
 
@@ -282,10 +287,7 @@ class DistributionResult(object):
 
   def __repr__(self):
     return '<DistributionResult(sum={}, count={}, min={}, max={})>'.format(
-        self.sum,
-        self.count,
-        self.min,
-        self.max)
+        self.sum, self.count, self.min, self.max)
 
   @property
   def max(self):
@@ -333,8 +335,7 @@ class GaugeResult(object):
 
   def __repr__(self):
     return '<GaugeResult(value={}, timestamp={})>'.format(
-        self.value,
-        self.timestamp)
+        self.value, self.timestamp)
 
   @property
   def value(self):
@@ -355,6 +356,7 @@ class GaugeData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the GaugeCell that contains it.
   """
+
   def __init__(self, value, timestamp=None):
     self.value = value
     self.timestamp = timestamp if timestamp is not None else 0
@@ -371,8 +373,7 @@ class GaugeData(object):
 
   def __repr__(self):
     return '<GaugeData(value={}, timestamp={})>'.format(
-        self.value,
-        self.timestamp)
+        self.value, self.timestamp)
 
   def get_cumulative(self):
     return GaugeData(self.value, timestamp=self.timestamp)
@@ -392,24 +393,21 @@ class GaugeData(object):
 
   def to_runner_api(self):
     seconds = int(self.timestamp)
-    nanos = int((self.timestamp - seconds) * 10**9)
+    nanos = int((self.timestamp - seconds) * 10 ** 9)
     gauge_timestamp = timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
     return beam_fn_api_pb2.Metrics.User.GaugeData(
         value=self.value, timestamp=gauge_timestamp)
 
   @staticmethod
   def from_runner_api(proto):
-    gauge_timestamp = (proto.timestamp.seconds +
-                       float(proto.timestamp.nanos) / 10**9)
+    gauge_timestamp = (
+        proto.timestamp.seconds + float(proto.timestamp.nanos) / 10 ** 9)
     return GaugeData(proto.value, timestamp=gauge_timestamp)
 
   def to_runner_api_monitoring_info(self):
     """Returns a Metric with this value for use in a MonitoringInfo."""
     return metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(
-            int64_value=self.value
-        )
-    )
+        counter_data=metrics_pb2.CounterData(int64_value=self.value))
 
 
 class DistributionData(object):
@@ -422,6 +420,7 @@ class DistributionData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the DistributionCell that contains it.
   """
+
   def __init__(self, sum, count, min, max):
     self.sum = sum
     self.count = count
@@ -429,10 +428,11 @@ class DistributionData(object):
     self.max = max
 
   def __eq__(self, other):
-    return (self.sum == other.sum and
-            self.count == other.count and
-            self.min == other.min and
-            self.max == other.max)
+    return (
+        self.sum == other.sum
+        and self.count == other.count
+        and self.min == other.min
+        and self.max == other.max)
 
   def __hash__(self):
     return hash((self.sum, self.count, self.min, self.max))
@@ -443,10 +443,7 @@ class DistributionData(object):
 
   def __repr__(self):
     return '<DistributionData(sum={}, count={}, min={}, max={})>'.format(
-        self.sum,
-        self.count,
-        self.min,
-        self.max)
+        self.sum, self.count, self.min, self.max)
 
   def get_cumulative(self):
     return DistributionData(self.sum, self.count, self.min, self.max)
@@ -455,15 +452,16 @@ class DistributionData(object):
     if other is None:
       return self
 
-    new_min = (None if self.min is None and other.min is None else
-               min(x for x in (self.min, other.min) if x is not None))
-    new_max = (None if self.max is None and other.max is None else
-               max(x for x in (self.max, other.max) if x is not None))
+    new_min = (
+        None
+        if self.min is None and other.min is None
+        else min(x for x in (self.min, other.min) if x is not None))
+    new_max = (
+        None
+        if self.max is None and other.max is None
+        else max(x for x in (self.max, other.max) if x is not None))
     return DistributionData(
-        self.sum + other.sum,
-        self.count + other.count,
-        new_min,
-        new_max)
+        self.sum + other.sum, self.count + other.count, new_min, new_max)
 
   @staticmethod
   def singleton(value):
@@ -482,7 +480,8 @@ class DistributionData(object):
     return metrics_pb2.Metric(
         distribution_data=metrics_pb2.DistributionData(
             int_distribution_data=metrics_pb2.IntDistributionData(
-                count=self.count, sum=self.sum, min=self.min, max=self.max)))
+                count=self.count, sum=self.sum, min=self.min, max=self.max)
+))
 
 
 class MetricAggregator(object):
@@ -512,6 +511,7 @@ class CounterAggregator(MetricAggregator):
 
   Values aggregated should be ``int`` objects.
   """
+
   @staticmethod
   def identity_element():
     return 0
@@ -530,6 +530,7 @@ class DistributionAggregator(MetricAggregator):
 
   Values aggregated should be ``DistributionData`` objects.
   """
+
   @staticmethod
   def identity_element():
     return DistributionData(0, 0, None, None)
@@ -548,6 +549,7 @@ class GaugeAggregator(MetricAggregator):
 
   Values aggregated should be ``GaugeData`` objects.
   """
+
   @staticmethod
   def identity_element():
     return GaugeData(None, timestamp=0)

@@ -43,7 +43,6 @@ from apache_beam.typehints import TypeCheckError
 
 
 class CombineTest(unittest.TestCase):
-
   def test_builtin_combines(self):
     pipeline = TestPipeline()
 
@@ -81,10 +80,10 @@ class CombineTest(unittest.TestCase):
         [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
     result_key_top = pcoll | 'top-perkey' >> combine.Top.LargestPerKey(5)
     result_key_bot = pcoll | 'bot-perkey' >> combine.Top.SmallestPerKey(4)
-    assert_that(result_key_top, equal_to([('a', [9, 6, 6, 5, 3])]),
-                label='key:top')
-    assert_that(result_key_bot, equal_to([('a', [0, 1, 1, 1])]),
-                label='key:bot')
+    assert_that(
+        result_key_top, equal_to([('a', [9, 6, 6, 5, 3])]), label='key:top')
+    assert_that(
+        result_key_bot, equal_to([('a', [0, 1, 1, 1])]), label='key:bot')
     pipeline.run()
 
   @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
@@ -92,21 +91,22 @@ class CombineTest(unittest.TestCase):
     pipeline = TestPipeline()
 
     # A parameter we'll be sharing with a custom comparator.
-    names = {0: 'zo',
-             1: 'one',
-             2: 'twoo',
-             3: 'three',
-             5: 'fiiive',
-             6: 'sssssix',
-             9: 'nniiinne'}
+    names = {
+        0: 'zo',
+        1: 'one',
+        2: 'twoo',
+        3: 'three',
+        5: 'fiiive',
+        6: 'sssssix',
+        9: 'nniiinne',
+    }
 
     # First for global combines.
     pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
 
     result_cmp = pcoll | 'cmp' >> combine.Top.Of(
-        6,
-        lambda a, b, names: len(names[a]) < len(names[b]),
-        names)  # Note parameter passed to comparator.
+        6, lambda a, b, names: len(names[a]) < len(names[b]), names
+    )  # Note parameter passed to comparator.
     result_cmp_rev = pcoll | 'cmp_rev' >> combine.Top.Of(
         3,
         lambda a, b, names: len(names[a]) < len(names[b]),
@@ -119,27 +119,29 @@ class CombineTest(unittest.TestCase):
     pcoll = pipeline | 'start-perkye' >> Create(
         [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
     result_key_cmp = pcoll | 'cmp-perkey' >> combine.Top.PerKey(
-        6,
-        lambda a, b, names: len(names[a]) < len(names[b]),
-        names)  # Note parameter passed to comparator.
-    assert_that(result_key_cmp, equal_to([('a', [9, 6, 6, 5, 3, 2])]),
-                label='key:cmp')
+        6, lambda a, b, names: len(names[a]) < len(names[b]), names
+    )  # Note parameter passed to comparator.
+    assert_that(
+        result_key_cmp, equal_to([('a', [9, 6, 6, 5, 3, 2])]), label='key:cmp'
+    )
     pipeline.run()
 
   def test_empty_global_top(self):
     with TestPipeline() as p:
-      assert_that(p | beam.Create([]) | combine.Top.Largest(10),
-                  equal_to([[]]))
+      assert_that(p | beam.Create([]) | combine.Top.Largest(10), equal_to([[]]))
 
   def test_sharded_top(self):
     elements = list(range(100))
     random.shuffle(elements)
 
     pipeline = TestPipeline()
-    shards = [pipeline | 'Shard%s' % shard >> beam.Create(elements[shard::7])
-              for shard in range(7)]
-    assert_that(shards | beam.Flatten() | combine.Top.Largest(10),
-                equal_to([[99, 98, 97, 96, 95, 94, 93, 92, 91, 90]]))
+    shards = [
+        pipeline | 'Shard%s' % shard >> beam.Create(elements[shard::7])
+        for shard in range(7)
+    ]
+    assert_that(
+        shards | beam.Flatten() | combine.Top.Largest(10),
+        equal_to([[99, 98, 97, 96, 95, 94, 93, 92, 91, 90]]))
     pipeline.run()
 
   def test_top_key(self):
@@ -154,26 +156,30 @@ class CombineTest(unittest.TestCase):
   def test_top_key_py2(self):
     # The largest elements compared by their length mod 5.
     self.assertEqual(
-        ['aa', 'bbbb', 'c', 'ddddd', 'eee', 'ffffff'] | combine.Top.Of(
+        ['aa', 'bbbb', 'c', 'ddddd', 'eee', 'ffffff']
+        | combine.Top.Of(
             3,
             compare=lambda len_a, len_b, m: len_a % m > len_b % m,
             key=len,
             reverse=True,
-            m=5),
+            m=5,
+        ),
         [['bbbb', 'eee', 'aa']])
 
   def test_sharded_top_combine_fn(self):
     def test_combine_fn(combine_fn, shards, expected):
       accumulators = [
           combine_fn.add_inputs(combine_fn.create_accumulator(), shard)
-          for shard in shards]
+          for shard in shards
+      ]
       final_accumulator = combine_fn.merge_accumulators(accumulators)
       self.assertEqual(combine_fn.extract_output(final_accumulator), expected)
 
     test_combine_fn(combine.TopCombineFn(3), [range(10), range(10)], [9, 9, 8])
-    test_combine_fn(combine.TopCombineFn(5),
-                    [range(1000), range(100), range(1001)],
-                    [1000, 999, 999, 998, 998])
+    test_combine_fn(
+        combine.TopCombineFn(5),
+        [range(1000), range(100), range(1001)],
+        [1000, 999, 999, 998, 998])
 
   def test_combine_per_key_top_display_data(self):
     def individual_test_per_key_dd(combineFn):
@@ -182,7 +188,8 @@ class CombineTest(unittest.TestCase):
       expected_items = [
           DisplayDataItemMatcher('combine_fn', combineFn.__class__),
           DisplayDataItemMatcher('n', combineFn._n),
-          DisplayDataItemMatcher('compare', combineFn._compare.__name__)]
+          DisplayDataItemMatcher('compare', combineFn._compare.__name__),
+      ]
       hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     individual_test_per_key_dd(combine.Largest(5))
@@ -197,7 +204,8 @@ class CombineTest(unittest.TestCase):
         dd = DisplayData.create_from(transform)
         hc.assert_that(
             dd.items,
-            hc.contains_inanyorder(DisplayDataItemMatcher('n', transform._n)))
+            hc.contains_inanyorder(DisplayDataItemMatcher('n', transform._n)),
+        )
 
     individual_test_per_key_dd(combine.Sample.FixedSizePerKey, 5)
     individual_test_per_key_dd(combine.Sample.FixedSizeGlobally, 5)
@@ -208,7 +216,8 @@ class CombineTest(unittest.TestCase):
     expected_items = [
         DisplayDataItemMatcher('combine_fn', combine.Smallest),
         DisplayDataItemMatcher('n', 5),
-        DisplayDataItemMatcher('compare', 'gt')]
+        DisplayDataItemMatcher('compare', 'gt'),
+    ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_basic_combiners_display_data(self):
@@ -217,8 +226,8 @@ class CombineTest(unittest.TestCase):
     dd = DisplayData.create_from(transform)
     expected_items = [
         DisplayDataItemMatcher('combine_fn', combine.TupleCombineFn),
-        DisplayDataItemMatcher('combiners',
-                               "['max', 'MeanCombineFn', 'sum']")]
+        DisplayDataItemMatcher('combiners', "['max', 'MeanCombineFn', 'sum']"),
+    ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_top_shorthands(self):
@@ -240,9 +249,7 @@ class CombineTest(unittest.TestCase):
     pipeline.run()
 
   def test_top_no_compact(self):
-
     class TopCombineFnNoCompact(combine.TopCombineFn):
-
       def compact(self, accumulator):
         return accumulator
 
@@ -291,7 +298,9 @@ class CombineTest(unittest.TestCase):
           num_ones = sum(1 for x in samples if x == 1)
           num_twos = sum(1 for x in samples if x == 2)
           equal_to([1, 2])([num_ones, num_twos])
+
       return match
+
     assert_that(result, matcher())
     pipeline.run()
 
@@ -300,8 +309,9 @@ class CombineTest(unittest.TestCase):
       result = (
           p
           | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
-          | beam.CombineGlobally(combine.TupleCombineFn(
-              max, combine.MeanCombineFn(), sum)).without_defaults())
+          | beam.CombineGlobally(
+              combine.TupleCombineFn(max, combine.MeanCombineFn(), sum)
+          ).without_defaults())
       assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
 
   def test_tuple_combine_fn_without_defaults(self):
@@ -310,8 +320,10 @@ class CombineTest(unittest.TestCase):
           p
           | Create([1, 1, 2, 3])
           | beam.CombineGlobally(
-              combine.TupleCombineFn(min, combine.MeanCombineFn(), max)
-              .with_common_input()).without_defaults())
+              combine.TupleCombineFn(
+                  min, combine.MeanCombineFn(), max
+              ).with_common_input()
+          ).without_defaults())
       assert_that(result, equal_to([(1, 7.0 / 4, 3)]))
 
   def test_to_list_and_to_dict(self):
@@ -323,7 +335,9 @@ class CombineTest(unittest.TestCase):
     def matcher(expected):
       def match(actual):
         equal_to(expected[0])(actual[0])
+
       return match
+
     assert_that(result, matcher([the_list]))
     pipeline.run()
 
@@ -336,7 +350,9 @@ class CombineTest(unittest.TestCase):
       def match(actual):
         equal_to([1])([len(actual)])
         equal_to(pairs)(actual[0].items())
+
       return match
+
     assert_that(result, matcher())
     pipeline.run()
 
@@ -368,7 +384,8 @@ class CombineTest(unittest.TestCase):
           p
           | beam.Create(itertools.product(['hot', 'cold'], range(10)))
           | beam.CombinePerKey(combine.MeanCombineFn()).with_hot_key_fanout(
-              lambda key: (key == 'hot') * 5))
+              lambda key: (key == 'hot') * 5)
+)
       assert_that(result, equal_to([('hot', 4.5), ('cold', 4.5)]))
 
   def test_hot_key_fanout_sharded(self):
@@ -376,13 +393,16 @@ class CombineTest(unittest.TestCase):
     with TestPipeline() as p:
       elements = [(None, e) for e in range(1000)]
       random.shuffle(elements)
-      shards = [p | "Shard%s" % shard >> beam.Create(elements[shard::20])
-                for shard in range(20)]
+      shards = [
+          p | "Shard%s" % shard >> beam.Create(elements[shard::20])
+          for shard in range(20)
+      ]
       result = (
           shards
           | beam.Flatten()
           | beam.CombinePerKey(combine.MeanCombineFn()).with_hot_key_fanout(
-              lambda key: random.randrange(0, 5)))
+              lambda key: random.randrange(0, 5))
+)
       assert_that(result, equal_to([(None, 499.5)]))
 
   def test_global_fanout(self):
@@ -395,11 +415,12 @@ class CombineTest(unittest.TestCase):
 
 
 class LatestTest(unittest.TestCase):
-
   def test_globally(self):
-    l = [window.TimestampedValue(3, 100),
-         window.TimestampedValue(1, 200),
-         window.TimestampedValue(2, 300)]
+    l = [
+        window.TimestampedValue(3, 100),
+        window.TimestampedValue(1, 200),
+        window.TimestampedValue(2, 300),
+    ]
     with TestPipeline() as p:
       # Map(lambda x: x) PTransform is added after Create here, because when
       # a PCollection of TimestampedValues is created with Create PTransform,
@@ -419,9 +440,11 @@ class LatestTest(unittest.TestCase):
       assert_that(latest, equal_to([None]))
 
   def test_per_key(self):
-    l = [window.TimestampedValue(('a', 1), 300),
-         window.TimestampedValue(('b', 3), 100),
-         window.TimestampedValue(('a', 2), 200)]
+    l = [
+        window.TimestampedValue(('a', 1), 300),
+        window.TimestampedValue(('b', 3), 100),
+        window.TimestampedValue(('a', 2), 200),
+    ]
     with TestPipeline() as p:
       pc = p | Create(l) | Map(lambda x: x)
       latest = pc | combine.Latest.PerKey()
@@ -436,7 +459,6 @@ class LatestTest(unittest.TestCase):
 
 
 class LatestCombineFnTest(unittest.TestCase):
-
   def setUp(self):
     self.fn = combine.LatestCombineFn()
 

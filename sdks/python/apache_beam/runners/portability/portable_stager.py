@@ -51,8 +51,8 @@ class PortableStager(Stager):
         call.
     """
     super(PortableStager, self).__init__()
-    self._artifact_staging_stub = beam_artifact_api_pb2_grpc.\
-        ArtifactStagingServiceStub(channel=artifact_service_channel)
+    self._artifact_staging_stub = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
+        channel=artifact_service_channel)
     self._staging_session_token = staging_session_token
     self._artifacts = []
 
@@ -65,8 +65,9 @@ class PortableStager(Stager):
     """
     if not os.path.isfile(local_path_to_artifact):
       raise ValueError(
-          'Cannot stage {0} to artifact server. Only local files can be staged.'
-          .format(local_path_to_artifact))
+          'Cannot stage {0} to artifact server. Only local files can be staged.'.format(
+              local_path_to_artifact)
+)
 
     def artifact_request_generator():
       artifact_metadata = beam_artifact_api_pb2.ArtifactMetadata(
@@ -95,8 +96,9 @@ class PortableStager(Stager):
     self._artifacts = []
     return self._artifact_staging_stub.CommitManifest(
         beam_artifact_api_pb2.CommitManifestRequest(
-            manifest=manifest,
-            staging_session_token=self._staging_session_token)).retrieval_token
+            manifest=manifest, staging_session_token=self._staging_session_token
+        )
+    ).retrieval_token
 
 
 def _get_file_hash(path):

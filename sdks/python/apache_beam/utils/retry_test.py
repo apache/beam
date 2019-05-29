@@ -74,7 +74,6 @@ def _test_no_retry_function(a, b):
 
 
 class RetryTest(unittest.TestCase):
-
   def setUp(self):
     self.clock = FakeClock()
     self.logger = FakeLogger()
@@ -103,75 +102,84 @@ class RetryTest(unittest.TestCase):
     self.assertRaises(NotImplementedError, _test_no_retry_function, 1, 2)
 
   def test_with_real_clock(self):
-    self.assertRaises(NotImplementedError,
-                      _test_function_with_real_clock, 10, b=20)
+    self.assertRaises(
+        NotImplementedError, _test_function_with_real_clock, 10, b=20)
 
   def test_with_default_number_of_retries(self):
-    self.assertRaises(NotImplementedError,
-                      retry.with_exponential_backoff(clock=self.clock)(
-                          self.permanent_failure),
-                      10, b=20)
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(clock=self.clock)(
+            self.permanent_failure
+        ),
+        10,
+        b=20)
     self.assertEqual(len(self.clock.calls), 7)
 
   def test_with_explicit_number_of_retries(self):
-    self.assertRaises(NotImplementedError,
-                      retry.with_exponential_backoff(
-                          clock=self.clock, num_retries=10)(
-                              self.permanent_failure),
-                      10, b=20)
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(clock=self.clock, num_retries=10)(
+            self.permanent_failure
+        ),
+        10,
+        b=20)
     self.assertEqual(len(self.clock.calls), 10)
 
   @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
   def test_with_http_error_that_should_not_be_retried(self):
-    self.assertRaises(HttpError,
-                      retry.with_exponential_backoff(
-                          clock=self.clock, num_retries=10)(
-                              self.http_error),
-                      404)
+    self.assertRaises(
+        HttpError,
+        retry.with_exponential_backoff(clock=self.clock, num_retries=10)(
+            self.http_error
+        ),
+        404)
     # Make sure just one call was made.
     self.assertEqual(len(self.clock.calls), 0)
 
   @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
   def test_with_http_error_that_should_be_retried(self):
-    self.assertRaises(HttpError,
-                      retry.with_exponential_backoff(
-                          clock=self.clock, num_retries=10)(
-                              self.http_error),
-                      500)
+    self.assertRaises(
+        HttpError,
+        retry.with_exponential_backoff(clock=self.clock, num_retries=10)(
+            self.http_error
+        ),
+        500)
     self.assertEqual(len(self.clock.calls), 10)
 
   def test_with_explicit_initial_delay(self):
-    self.assertRaises(NotImplementedError,
-                      retry.with_exponential_backoff(
-                          initial_delay_secs=10.0, clock=self.clock,
-                          fuzz=False)(
-                              self.permanent_failure),
-                      10, b=20)
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(
+            initial_delay_secs=10.0, clock=self.clock, fuzz=False
+        )(self.permanent_failure),
+        10,
+        b=20)
     self.assertEqual(len(self.clock.calls), 7)
     self.assertEqual(self.clock.calls[0], 10.0)
 
   def test_log_calls_for_permanent_failure(self):
-    self.assertRaises(NotImplementedError,
-                      retry.with_exponential_backoff(
-                          clock=self.clock, logger=self.logger.log)(
-                              self.permanent_failure),
-                      10, b=20)
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(
+            clock=self.clock, logger=self.logger.log
+        )(self.permanent_failure),
+        10,
+        b=20)
     self.assertEqual(len(self.logger.calls), 7)
-    for message, func_name, exn_name  in self.logger.calls:
+    for message, func_name, exn_name in self.logger.calls:
       self.assertTrue(message.startswith('Retry with exponential backoff:'))
       self.assertEqual(exn_name, 'NotImplementedError\n')
       self.assertEqual(func_name, 'permanent_failure')
 
   def test_log_calls_for_transient_failure(self):
     result = retry.with_exponential_backoff(
-        clock=self.clock, logger=self.logger.log, fuzz=False)(
-            self.transient_failure)(10, b=20)
+        clock=self.clock, logger=self.logger.log, fuzz=False
+    )(self.transient_failure)(10, b=20)
     self.assertEqual(result, 30)
     self.assertEqual(len(self.clock.calls), 4)
-    self.assertEqual(self.clock.calls,
-                     [5.0 * 1, 5.0 * 2, 5.0 * 4, 5.0 * 8,])
+    self.assertEqual(self.clock.calls, [5.0 * 1, 5.0 * 2, 5.0 * 4, 5.0 * 8])
     self.assertEqual(len(self.logger.calls), 4)
-    for message, func_name, exn_name  in self.logger.calls:
+    for message, func_name, exn_name in self.logger.calls:
       self.assertTrue(message.startswith('Retry with exponential backoff:'))
       self.assertEqual(exn_name, 'NotImplementedError\n')
       self.assertEqual(func_name, 'transient_failure')
@@ -185,8 +193,8 @@ class DummyClass(object):
   @retry.with_exponential_backoff(num_retries=2, initial_delay_secs=0.1)
   def func(self):
     self.index += 1
-    if self.index > len(self.results) or \
-        self.results[self.index - 1] == "Error":
+    if (self.index > len(self.results)
+        or self.results[self.index - 1] == "Error"):
       raise ValueError("Error")
     return self.results[self.index - 1]
 
@@ -199,6 +207,7 @@ class RetryStateTest(unittest.TestCase):
 
   The test_call_two_objects would test this inside the same test.
   """
+
   def test_two_failures(self):
     dummy = DummyClass(["Error", "Error", "Success"])
     dummy.func()

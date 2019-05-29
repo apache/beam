@@ -29,9 +29,11 @@ from apache_beam.utils.counters import CounterName
 
 try:
   from apache_beam.runners.worker import statesampler_fast as statesampler_impl
+
   FAST_SAMPLER = True
 except ImportError:
   from apache_beam.runners.worker import statesampler_slow as statesampler_impl
+
   FAST_SAMPLER = False
 
 
@@ -56,10 +58,12 @@ def for_test():
 
 StateSamplerInfo = namedtuple(
     'StateSamplerInfo',
-    ['state_name',
-     'transition_count',
-     'time_since_transition',
-     'tracked_thread'])
+    [
+        'state_name',
+        'transition_count',
+        'time_since_transition',
+        'tracked_thread',
+    ])
 
 
 # Default period for sampling current state of pipeline execution.
@@ -67,9 +71,11 @@ DEFAULT_SAMPLING_PERIOD_MS = 200
 
 
 class StateSampler(statesampler_impl.StateSampler):
-
-  def __init__(self, prefix, counter_factory,
-               sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
+  def __init__(
+      self,
+      prefix,
+      counter_factory,
+      sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     self.states_by_name = {}
     self._prefix = prefix
     self._counter_factory = counter_factory
@@ -106,11 +112,8 @@ class StateSampler(statesampler_impl.StateSampler):
         self.time_since_transition,
         self.tracked_thread)
 
-  def scoped_state(self,
-                   name_context,
-                   state_name,
-                   io_target=None,
-                   metrics_container=None):
+  def scoped_state(
+      self, name_context, state_name, io_target=None, metrics_container=None):
     """Returns a ScopedState object associated to a Step and a State.
 
     Args:
@@ -126,20 +129,20 @@ class StateSampler(statesampler_impl.StateSampler):
     if not isinstance(name_context, common.NameContext):
       name_context = common.NameContext(name_context)
 
-    counter_name = CounterName(state_name + '-msecs',
-                               stage_name=self._prefix,
-                               step_name=name_context.metrics_name(),
-                               io_target=io_target)
+    counter_name = CounterName(
+        state_name + '-msecs',
+        stage_name=self._prefix,
+        step_name=name_context.metrics_name(),
+        io_target=io_target)
     if counter_name in self._states_by_name:
       return self._states_by_name[counter_name]
     else:
-      output_counter = self._counter_factory.get_counter(counter_name,
-                                                         Counter.SUM)
+      output_counter = self._counter_factory.get_counter(
+          counter_name, Counter.SUM)
       self._states_by_name[counter_name] = super(
-          StateSampler, self)._scoped_state(counter_name,
-                                            name_context,
-                                            output_counter,
-                                            metrics_container)
+          StateSampler, self
+      )._scoped_state(
+          counter_name, name_context, output_counter, metrics_container)
       return self._states_by_name[counter_name]
 
   def commit_counters(self):

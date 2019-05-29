@@ -56,9 +56,9 @@ class FakeGcsClient(object):
 
 
 class FakeFile(object):
-
-  def __init__(self, bucket, obj, contents, generation, crc32c=None,
-               last_updated=None):
+  def __init__(
+      self, bucket, obj, contents, generation, crc32c=None, last_updated=None
+  ):
     self.bucket = bucket
     self.object = obj
     self.contents = contents
@@ -82,7 +82,6 @@ class FakeFile(object):
 
 
 class FakeGcsObjects(object):
-
   def __init__(self):
     self.files = {}
     # Store the last generation used for a given object name.  Note that this
@@ -117,14 +116,15 @@ class FakeGcsObjects(object):
         if not (start >= 0 and end >= start and end < len(f.contents)):
           raise ValueError(
               'start=%d end=%d len=%s' % (start, end, len(f.contents)))
-        stream.write(f.contents[start:end + 1])
+        stream.write(f.contents[start : end + 1])
 
       download.GetRange = get_range_callback
 
   def Insert(self, insert_request, upload=None):  # pylint: disable=invalid-name
     assert upload is not None
-    generation = self.get_last_generation(insert_request.bucket,
-                                          insert_request.name) + 1
+    generation = (
+        self.get_last_generation(insert_request.bucket, insert_request.name) + 1
+    )
     f = FakeFile(insert_request.bucket, insert_request.name, b'', generation)
 
     # Stream data into file.
@@ -145,24 +145,34 @@ class FakeGcsObjects(object):
     if rewrite_request.rewriteToken == self.REWRITE_TOKEN:
       dest_object = storage.Object()
       return storage.RewriteResponse(
-          done=True, objectSize=100, resource=dest_object,
+          done=True,
+          objectSize=100,
+          resource=dest_object,
           totalBytesRewritten=100)
 
-    src_file = self.get_file(rewrite_request.sourceBucket,
-                             rewrite_request.sourceObject)
+    src_file = self.get_file(
+        rewrite_request.sourceBucket, rewrite_request.sourceObject)
     if not src_file:
       raise HttpError(
-          httplib2.Response({'status': '404'}), '404 Not Found',
+          httplib2.Response({'status': '404'}),
+          '404 Not Found',
           'https://fake/url')
-    generation = self.get_last_generation(rewrite_request.destinationBucket,
-                                          rewrite_request.destinationObject) + 1
-    dest_file = FakeFile(rewrite_request.destinationBucket,
-                         rewrite_request.destinationObject, src_file.contents,
-                         generation)
+    generation = (
+        self.get_last_generation(
+            rewrite_request.destinationBucket, rewrite_request.destinationObject
+        )
+        + 1)
+    dest_file = FakeFile(
+        rewrite_request.destinationBucket,
+        rewrite_request.destinationObject,
+        src_file.contents,
+        generation)
     self.add_file(dest_file)
     time.sleep(10)  # time.sleep and time.time are mocked below.
     return storage.RewriteResponse(
-        done=False, objectSize=100, rewriteToken=self.REWRITE_TOKEN,
+        done=False,
+        objectSize=100,
+        rewriteToken=self.REWRITE_TOKEN,
         totalBytesRewritten=5)
 
   def Delete(self, delete_request):  # pylint: disable=invalid-name
@@ -172,7 +182,8 @@ class FakeGcsObjects(object):
       self.delete_file(delete_request.bucket, delete_request.object)
     else:
       raise HttpError(
-          httplib2.Response({'status': '404'}), '404 Not Found',
+          httplib2.Response({'status': '404'}),
+          '404 Not Found',
           'https://fake/url')
 
   def List(self, list_request):  # pylint: disable=invalid-name
@@ -195,18 +206,19 @@ class FakeGcsObjects(object):
       del self.list_page_tokens[list_request.pageToken]
 
     result = storage.Objects(
-        items=matching_files[range_start:range_start + items_per_page])
+        items=matching_files[range_start : range_start + items_per_page])
     if range_start + items_per_page < len(matching_files):
       next_range_start = range_start + items_per_page
-      next_page_token = '_page_token_%s_%s_%d' % (bucket, prefix,
-                                                  next_range_start)
+      next_page_token = '_page_token_%s_%s_%d' % (
+          bucket,
+          prefix,
+          next_range_start)
       self.list_page_tokens[next_page_token] = next_range_start
       result.nextPageToken = next_page_token
     return result
 
 
 class FakeApiCall(object):
-
   def __init__(self, exception, response):
     self.exception = exception
     self.is_error = exception is not None
@@ -215,14 +227,15 @@ class FakeApiCall(object):
 
 
 class FakeBatchApiRequest(object):
-
   def __init__(self, **unused_kwargs):
     self.operations = []
 
   def Add(self, service, method, request):  # pylint: disable=invalid-name
     self.operations.append((service, method, request))
 
-  def Execute(self, unused_http, **unused_kwargs):  # pylint: disable=invalid-name
+  def Execute(
+      self, unused_http, **unused_kwargs
+  ):  # pylint: disable=invalid-name
     api_calls = []
     for service, method, request in self.operations:
       exception = None
@@ -271,16 +284,20 @@ class TestGCSPathParser(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-@mock.patch.multiple('time',
-                     time=mock.MagicMock(side_effect=range(100)),
-                     sleep=mock.MagicMock())
+@mock.patch.multiple(
+    'time', time=mock.MagicMock(side_effect=range(100)), sleep=mock.MagicMock()
+)
 class TestGCSIO(unittest.TestCase):
-
-  def _insert_random_file(self, client, path, size, generation=1, crc32c=None,
-                          last_updated=None):
+  def _insert_random_file(
+      self, client, path, size, generation=1, crc32c=None, last_updated=None):
     bucket, name = gcsio.parse_gcs_path(path)
-    f = FakeFile(bucket, name, os.urandom(size), generation, crc32c=crc32c,
-                 last_updated=last_updated)
+    f = FakeFile(
+        bucket,
+        name,
+        os.urandom(size),
+        generation,
+        crc32c=crc32c,
+        last_updated=last_updated)
     client.objects.add_file(f)
     return f
 
@@ -328,8 +345,8 @@ class TestGCSIO(unittest.TestCase):
     file_size = 1234
     last_updated = 123456.78
 
-    self._insert_random_file(self.client, file_name, file_size,
-                             last_updated=last_updated)
+    self._insert_random_file(
+        self.client, file_name, file_size, last_updated=last_updated)
     self.assertTrue(self.gcs.exists(file_name))
     self.assertEqual(last_updated, self.gcs.last_updated(file_name))
 
@@ -417,8 +434,9 @@ class TestGCSIO(unittest.TestCase):
 
     # Test copy of non-existent files.
     with self.assertRaisesRegexp(HttpError, r'Not Found'):
-      self.gcs.copy('gs://gcsio-test/non-existent',
-                    'gs://gcsio-test/non-existent-destination')
+      self.gcs.copy(
+          'gs://gcsio-test/non-existent',
+          'gs://gcsio-test/non-existent-destination')
 
   @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_copy_batch(self, *unused_args):
@@ -429,8 +447,10 @@ class TestGCSIO(unittest.TestCase):
     num_files = 10
 
     result = self.gcs.copy_batch(
-        [(from_name_pattern % i, to_name_pattern % i)
-         for i in range(num_files)],
+        [
+            (from_name_pattern % i, to_name_pattern % i)
+            for i in range(num_files)
+        ],
         dest_kms_key_name='kms_key')
     self.assertTrue(result)
     for i, (src, dest, exception) in enumerate(result):
@@ -450,8 +470,9 @@ class TestGCSIO(unittest.TestCase):
       self.assertTrue(self.gcs.exists(from_name_pattern % i))
 
     # Execute batch copy.
-    self.gcs.copy_batch([(from_name_pattern % i, to_name_pattern % i)
-                         for i in range(num_files)])
+    self.gcs.copy_batch(
+        [(from_name_pattern % i, to_name_pattern % i) for i in range(num_files)]
+    )
 
     # Check files copied properly.
     for i in range(num_files):
@@ -525,7 +546,7 @@ class TestGCSIO(unittest.TestCase):
       f.seek(start)
       self.assertEqual(f.tell(), start)
       self.assertEqual(
-          f.read(end - start + 1), random_file.contents[start:end + 1])
+          f.read(end - start + 1), random_file.contents[start : end + 1])
       self.assertEqual(f.tell(), end + 1)
 
   def test_file_iterator(self):
@@ -608,8 +629,8 @@ class TestGCSIO(unittest.TestCase):
     f = self.gcs.open(file_name, 'w')
     self.assertEqual(f.mode, 'w')
     f.write(contents[0:1000])
-    f.write(contents[1000:1024 * 1024])
-    f.write(contents[1024 * 1024:])
+    f.write(contents[1000 : 1024 * 1024])
+    f.write(contents[1024 * 1024 :])
     f.close()
     bucket, name = gcsio.parse_gcs_path(file_name)
     self.assertEqual(
@@ -637,10 +658,10 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(f.mode, 'w')
     f.write(contents[0:1000])
     f.flush()
-    f.write(contents[1000:1024 * 1024])
+    f.write(contents[1000 : 1024 * 1024])
     f.flush()
     f.flush()  # Should be a NOOP.
-    f.write(contents[1024 * 1024:])
+    f.write(contents[1024 * 1024 :])
     f.close()  # This should already call the equivalent of flush() in its body.
     self.assertEqual(
         self.client.objects.get_file(bucket, name).contents, contents)
@@ -676,23 +697,29 @@ class TestGCSIO(unittest.TestCase):
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
       self._insert_random_file(self.client, file_name, size)
     test_cases = [
-        ('gs://gcsio-test/c', [
-            ('cow/cat/fish', 2),
-            ('cow/cat/blubber', 3),
-            ('cow/dog/blubber', 4),
-        ]),
-        ('gs://gcsio-test/cow/', [
-            ('cow/cat/fish', 2),
-            ('cow/cat/blubber', 3),
-            ('cow/dog/blubber', 4),
-        ]),
-        ('gs://gcsio-test/cow/cat/fish', [
-            ('cow/cat/fish', 2),
-        ]),
+        (
+            'gs://gcsio-test/c',
+            [
+                ('cow/cat/fish', 2),
+                ('cow/cat/blubber', 3),
+                ('cow/dog/blubber', 4),
+            ],
+        ),
+        (
+            'gs://gcsio-test/cow/',
+            [
+                ('cow/cat/fish', 2),
+                ('cow/cat/blubber', 3),
+                ('cow/dog/blubber', 4),
+            ],
+        ),
+        ('gs://gcsio-test/cow/cat/fish', [('cow/cat/fish', 2)]),
     ]
     for file_pattern, expected_object_names in test_cases:
-      expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
-                             for (object_name, size) in expected_object_names]
+      expected_file_names = [
+          ('gs://%s/%s' % (bucket_name, object_name), size)
+          for (object_name, size) in expected_object_names
+      ]
       self.assertEqual(
           set(self.gcs.list_prefix(file_pattern).items()),
           set(expected_file_names))
@@ -702,6 +729,7 @@ class TestGCSIO(unittest.TestCase):
     # and does not corrupt '\r\n' during uploads (the patch to apitools in
     # Python 3 is applied in io/gcp/__init__.py).
     from apitools.base.py.transfer import email_generator
+
     if sys.version_info[0] == 3:
       generator_cls = email_generator.BytesGenerator
     else:

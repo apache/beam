@@ -84,7 +84,7 @@ class GCSFileSystem(FileSystem):
       last_sep += prefix_len
 
     if last_sep > 0:
-      return (path[:last_sep], path[last_sep + 1:])
+      return (path[:last_sep], path[last_sep + 1 :])
     elif last_sep < 0:
       return (path, '')
     else:
@@ -126,8 +126,12 @@ class GCSFileSystem(FileSystem):
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
-  def _path_open(self, path, mode, mime_type='application/octet-stream',
-                 compression_type=CompressionTypes.AUTO):
+  def _path_open(
+      self,
+      path,
+      mode,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
@@ -137,8 +141,11 @@ class GCSFileSystem(FileSystem):
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
 
-  def create(self, path, mime_type='application/octet-stream',
-             compression_type=CompressionTypes.AUTO):
+  def create(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     """Returns a write channel for the given file path.
 
     Args:
@@ -150,8 +157,11 @@ class GCSFileSystem(FileSystem):
     """
     return self._path_open(path, 'wb', mime_type, compression_type)
 
-  def open(self, path, mime_type='application/octet-stream',
-           compression_type=CompressionTypes.AUTO):
+  def open(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     """Returns a read channel for the given file path.
 
     Args:
@@ -173,8 +183,9 @@ class GCSFileSystem(FileSystem):
     Raises:
       ``BeamIOError`` if any of the copy operations fail
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
+    err_msg = (
+        "source_file_names and destination_file_names should "
+        "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
     def _copy_path(source, destination):
@@ -209,8 +220,9 @@ class GCSFileSystem(FileSystem):
     Raises:
       ``BeamIOError`` if any of the rename operations fail
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
+    err_msg = (
+        "source_file_names and destination_file_names should "
+        "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
     gcs_batches = []
@@ -303,6 +315,7 @@ class GCSFileSystem(FileSystem):
     Args:
       paths: list of paths that give the file objects to be deleted
     """
+
     def _delete_path(path):
       """Recursively delete the file or directory at the provided path.
       """

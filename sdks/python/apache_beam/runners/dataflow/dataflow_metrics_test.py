@@ -39,6 +39,7 @@ from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 
 class DictToObject(object):
   """Translate from a dict(list()) structure to an object structure"""
+
   def __init__(self, data):
     for name, value in data.items():
       setattr(self, name, self._wrap(value))
@@ -53,256 +54,304 @@ class TestDataflowMetrics(unittest.TestCase):
 
   # TODO(BEAM-6734): Write a dump tool to generate this fake data, or
   # somehow make this easier to maintain.
-  ONLY_COUNTERS_LIST = {"metrics": [
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "namespace",
-                     "value": "__main__.WordExtractingDoFn"},
-                    {"key": "step",
-                     "value": "s2"},
-                    {"key": "tentative",
-                     "value": "true"}]
-                },
-                "name": "words",
-                "origin": "user"
-               },
-       "scalar": {"integer_value": 26185},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "namespace",
-                     "value": "__main__.WordExtractingDoFn"},
-                    {"key": "step",
-                     "value": "s2"}]
-                },
-                "name": "words",
-                "origin": "user"
-               },
-       "scalar": {"integer_value": 26181},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "namespace",
-                     "value": "__main__.WordExtractingDoFn"},
-                    {"key": "step",
-                     "value": "s2"},
-                    {"key": "tentative",
-                     "value": "true"}]
-                },
-                "name": "empty_lines",
-                "origin": "user"
-               },
-       "scalar": {"integer_value": 1080},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "namespace",
-                     "value": "__main__.WordExtractingDoFn"},
-                    {"key": "step",
-                     "value": "s2"}]
-                },
-                "name": "empty_lines",
-                "origin": "user"
-               },
-       "scalar": {"integer_value": 1080},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-  ]}
-  STRUCTURED_COUNTER_LIST = {"metrics": [
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "namespace",
-                     "value": "__main__.WordExtractingDoFn"},
-                    {"key": "step",
-                     "value": "s2"},
-                    {"key": "tentative",
-                     "value": "true"}]
-                },
-                "name": "word_lengths",
-                "origin": "user"
-               },
-       "scalar": {"integer_value": 109475},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "namespace",
-                     "value": "__main__.WordExtractingDoFn"},
-                    {"key": "step",
-                     "value": "s2"}]
-                },
-                "name": "word_lengths",
-                "origin": "user"
-               },
-       "scalar": {"integer_value": 109475},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "namespace",
-                     "value": "__main__.WordExtractingDoFn"},
-                    {"key": "step",
-                     "value": "s2"},
-                    {"key": "tentative",
-                     "value": "true"}]
-                },
-                "name": "word_length_dist",
-                "origin": "user"
-               },
-       "scalar": None,
-       "distribution": {
-           "object_value": {
-               "properties": [
-                   {"key": "min", "value":
-                    {"integer_value": 2}},
-                   {"key": "max", "value":
-                    {"integer_value": 16}},
-                   {"key": "count", "value":
-                    {"integer_value": 2}},
-                   {"key": "mean", "value":
-                    {"integer_value": 9}},
-                   {"key": "sum", "value":
-                    {"integer_value": 18}},]
-           }
-       },
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "namespace",
-                     "value": "__main__.WordExtractingDoFn"},
-                    {"key": "step",
-                     "value": "s2"}]
-                },
-                "name": "word_length_dist",
-                "origin": "user"
-               },
-       "scalar": None,
-       "distribution": {
-           "object_value": {
-               "properties": [
-                   {"key": "min", "value":
-                    {"integer_value": 2}},
-                   {"key": "max", "value":
-                    {"integer_value": 16}},
-                   {"key": "count", "value":
-                    {"integer_value": 2}},
-                   {"key": "mean", "value":
-                    {"integer_value": 9}},
-                   {"key": "sum", "value":
-                    {"integer_value": 18}},
-               ]
-           }
-       },
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-  ]}
-  SYSTEM_COUNTERS_LIST = {"metrics": [
-      # ElementCount
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "original_name",
-                     "value":  "ToIsmRecordForMultimap-out0-ElementCount"},
-                    {"key": "output_user_name",
-                     "value": "ToIsmRecordForMultimap-out0"}
-                    ]
-                },
-                "name": "ElementCount",
-                "origin": "dataflow/v1b3"
-               },
-       "scalar": {"integer_value": 42},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "original_name",
-                     "value":  "ToIsmRecordForMultimap-out0-ElementCount"},
-                    {"key": "output_user_name",
-                     "value": "ToIsmRecordForMultimap-out0"},
-                    {"key": "tentative",
-                     "value": "true"}
-                    ]
-                },
-                "name": "ElementCount",
-                "origin": "dataflow/v1b3"
-               },
-       "scalar": {"integer_value": 42},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      # MeanByteCount
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "original_name",
-                     "value":  "Read-out0-MeanByteCount"},
-                    {"key": "output_user_name",
-                     "value": "GroupByKey/Read-out0"}
-                    ]
-                },
-                "name": "MeanByteCount",
-                "origin": "dataflow/v1b3"
-               },
-       "scalar": {"integer_value": 31},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "original_name",
-                     "value":  "Read-out0-MeanByteCount"},
-                    {"key": "output_user_name",
-                     "value": "GroupByKey/Read-out0"},
-                    {"key": "tentative",
-                     "value": "true"}
-                    ]
-                },
-                "name": "MeanByteCount",
-                "origin": "dataflow/v1b3"
-               },
-       "scalar": {"integer_value": 31},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      # ExecutionTime
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "step",
-                     "value":  "write/Write/Write"},
-                    ]
-                },
-                "name": "ExecutionTime_ProcessElement",
-                "origin": "dataflow/v1b3"
-               },
-       "scalar": {"integer_value": 1000},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "step",
-                     "value":  "write/Write/Write"},
-                    {"key": "tentative",
-                     "value": "true"}
-                    ]
-                },
-                "name": "ExecutionTime_ProcessElement",
-                "origin": "dataflow/v1b3"
-               },
-       "scalar": {"integer_value": 1000},
-       "distribution": None,
-       "updateTime": "2017-03-22T18:47:06.402Z"
-      },
-  ]}
+  ONLY_COUNTERS_LIST = {
+      "metrics": [
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "namespace",
+                              "value": "__main__.WordExtractingDoFn",
+                          },
+                          {"key": "step", "value": "s2"},
+                          {"key": "tentative", "value": "true"},
+                      ]
+                  },
+                  "name": "words",
+                  "origin": "user",
+              },
+              "scalar": {"integer_value": 26185},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "namespace",
+                              "value": "__main__.WordExtractingDoFn",
+                          },
+                          {"key": "step", "value": "s2"},
+                      ]
+                  },
+                  "name": "words",
+                  "origin": "user",
+              },
+              "scalar": {"integer_value": 26181},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "namespace",
+                              "value": "__main__.WordExtractingDoFn",
+                          },
+                          {"key": "step", "value": "s2"},
+                          {"key": "tentative", "value": "true"},
+                      ]
+                  },
+                  "name": "empty_lines",
+                  "origin": "user",
+              },
+              "scalar": {"integer_value": 1080},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "namespace",
+                              "value": "__main__.WordExtractingDoFn",
+                          },
+                          {"key": "step", "value": "s2"},
+                      ]
+                  },
+                  "name": "empty_lines",
+                  "origin": "user",
+              },
+              "scalar": {"integer_value": 1080},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+      ]
+  }
+  STRUCTURED_COUNTER_LIST = {
+      "metrics": [
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "namespace",
+                              "value": "__main__.WordExtractingDoFn",
+                          },
+                          {"key": "step", "value": "s2"},
+                          {"key": "tentative", "value": "true"},
+                      ]
+                  },
+                  "name": "word_lengths",
+                  "origin": "user",
+              },
+              "scalar": {"integer_value": 109475},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "namespace",
+                              "value": "__main__.WordExtractingDoFn",
+                          },
+                          {"key": "step", "value": "s2"},
+                      ]
+                  },
+                  "name": "word_lengths",
+                  "origin": "user",
+              },
+              "scalar": {"integer_value": 109475},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "namespace",
+                              "value": "__main__.WordExtractingDoFn",
+                          },
+                          {"key": "step", "value": "s2"},
+                          {"key": "tentative", "value": "true"},
+                      ]
+                  },
+                  "name": "word_length_dist",
+                  "origin": "user",
+              },
+              "scalar": None,
+              "distribution": {
+                  "object_value": {
+                      "properties": [
+                          {"key": "min", "value": {"integer_value": 2}},
+                          {"key": "max", "value": {"integer_value": 16}},
+                          {"key": "count", "value": {"integer_value": 2}},
+                          {"key": "mean", "value": {"integer_value": 9}},
+                          {"key": "sum", "value": {"integer_value": 18}},
+                      ]
+                  }
+              },
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "namespace",
+                              "value": "__main__.WordExtractingDoFn",
+                          },
+                          {"key": "step", "value": "s2"},
+                      ]
+                  },
+                  "name": "word_length_dist",
+                  "origin": "user",
+              },
+              "scalar": None,
+              "distribution": {
+                  "object_value": {
+                      "properties": [
+                          {"key": "min", "value": {"integer_value": 2}},
+                          {"key": "max", "value": {"integer_value": 16}},
+                          {"key": "count", "value": {"integer_value": 2}},
+                          {"key": "mean", "value": {"integer_value": 9}},
+                          {"key": "sum", "value": {"integer_value": 18}},
+                      ]
+                  }
+              },
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+      ]
+  }
+  SYSTEM_COUNTERS_LIST = {
+      "metrics": [
+          # ElementCount
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "original_name",
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount",
+                          },
+                          {
+                              "key": "output_user_name",
+                              "value": "ToIsmRecordForMultimap-out0",
+                          },
+                      ]
+                  },
+                  "name": "ElementCount",
+                  "origin": "dataflow/v1b3",
+              },
+              "scalar": {"integer_value": 42},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "original_name",
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount",
+                          },
+                          {
+                              "key": "output_user_name",
+                              "value": "ToIsmRecordForMultimap-out0",
+                          },
+                          {"key": "tentative", "value": "true"},
+                      ]
+                  },
+                  "name": "ElementCount",
+                  "origin": "dataflow/v1b3",
+              },
+              "scalar": {"integer_value": 42},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          # MeanByteCount
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "original_name",
+                              "value": "Read-out0-MeanByteCount",
+                          },
+                          {
+                              "key": "output_user_name",
+                              "value": "GroupByKey/Read-out0",
+                          },
+                      ]
+                  },
+                  "name": "MeanByteCount",
+                  "origin": "dataflow/v1b3",
+              },
+              "scalar": {"integer_value": 31},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {
+                              "key": "original_name",
+                              "value": "Read-out0-MeanByteCount",
+                          },
+                          {
+                              "key": "output_user_name",
+                              "value": "GroupByKey/Read-out0",
+                          },
+                          {"key": "tentative", "value": "true"},
+                      ]
+                  },
+                  "name": "MeanByteCount",
+                  "origin": "dataflow/v1b3",
+              },
+              "scalar": {"integer_value": 31},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          # ExecutionTime
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {"key": "step", "value": "write/Write/Write"}
+                      ]
+                  },
+                  "name": "ExecutionTime_ProcessElement",
+                  "origin": "dataflow/v1b3",
+              },
+              "scalar": {"integer_value": 1000},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+          {
+              "name": {
+                  "context": {
+                      "additionalProperties": [
+                          {"key": "step", "value": "write/Write/Write"},
+                          {"key": "tentative", "value": "true"},
+                      ]
+                  },
+                  "name": "ExecutionTime_ProcessElement",
+                  "origin": "dataflow/v1b3",
+              },
+              "scalar": {"integer_value": 1000},
+              "distribution": None,
+              "updateTime": "2017-03-22T18:47:06.402Z",
+          },
+      ]
+  }
 
   def setup_mock_client_result(self, counter_list=None):
     mock_client = mock.Mock()
@@ -338,24 +387,24 @@ class TestDataflowMetrics(unittest.TestCase):
     query_result = dm.query()
     expected_counters = [
         MetricResult(
-            MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn', 'word_lengths'),
-                     ),
-            109475, 109475),
-        ]
+            MetricKey(
+                'split',
+                MetricName('__main__.WordExtractingDoFn', 'word_lengths'),
+            ),
+            109475,
+            109475)
+    ]
     self.assertEqual(query_result['counters'], expected_counters)
 
     expected_distributions = [
         MetricResult(
-            MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn',
-                                 'word_length_dist'),
-                     ),
-            DistributionResult(DistributionData(
-                18, 2, 2, 16)),
-            DistributionResult(DistributionData(
-                18, 2, 2, 16))),
-        ]
+            MetricKey(
+                'split',
+                MetricName('__main__.WordExtractingDoFn', 'word_length_dist'),
+            ),
+            DistributionResult(DistributionData(18, 2, 2, 16)),
+            DistributionResult(DistributionData(18, 2, 2, 16)))
+    ]
     self.assertEqual(query_result['distributions'], expected_distributions)
 
   def test_query_counters(self):
@@ -366,19 +415,24 @@ class TestDataflowMetrics(unittest.TestCase):
     query_result = dm.query()
     expected_counters = [
         MetricResult(
-            MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn', 'empty_lines')
-                     ),
-            1080, 1080),
+            MetricKey(
+                'split',
+                MetricName('__main__.WordExtractingDoFn', 'empty_lines'),
+            ),
+            1080,
+            1080,
+        ),
         MetricResult(
-            MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn', 'words')),
-            26181, 26185),
-        ]
-    self.assertEqual(sorted(query_result['counters'],
-                            key=lambda x: x.key.metric.name),
-                     sorted(expected_counters,
-                            key=lambda x: x.key.metric.name))
+            MetricKey(
+                'split', MetricName('__main__.WordExtractingDoFn', 'words')
+            ),
+            26181,
+            26185,
+        ),
+    ]
+    self.assertEqual(
+        sorted(query_result['counters'], key=lambda x: x.key.metric.name),
+        sorted(expected_counters, key=lambda x: x.key.metric.name))
 
   def test_system_counters_set_labels_and_step_name(self):
     mock_client, mock_job_result = self.setup_mock_client_result(
@@ -390,27 +444,27 @@ class TestDataflowMetrics(unittest.TestCase):
         MetricResultMatcher(
             name='ElementCount',
             labels={
-                'original_name' : 'ToIsmRecordForMultimap-out0-ElementCount',
-                'output_user_name' : 'ToIsmRecordForMultimap-out0'
+                'original_name': 'ToIsmRecordForMultimap-out0-ElementCount',
+                'output_user_name': 'ToIsmRecordForMultimap-out0',
             },
             attempted=42,
-            committed=42
+            committed=42,
         ),
         MetricResultMatcher(
             name='MeanByteCount',
             labels={
-                'original_name' : 'Read-out0-MeanByteCount',
-                'output_user_name' : 'GroupByKey/Read-out0'
+                'original_name': 'Read-out0-MeanByteCount',
+                'output_user_name': 'GroupByKey/Read-out0',
             },
             attempted=31,
-            committed=31
+            committed=31,
         ),
         MetricResultMatcher(
             name='ExecutionTime_ProcessElement',
             step='write/Write/Write',
             attempted=1000,
-            committed=1000
-        )
+            committed=1000,
+        ),
     ]
     errors = metric_result_matchers.verify_all(all_metrics, matchers)
     self.assertFalse(errors, errors)

@@ -55,26 +55,38 @@ def build_worker_instruction(*args):
 
 def worker_printable_fields(workerproto):
   """Returns the interesting fields of a Worker* object."""
-  return ['%s=%s' % (name, value)
-          # _asdict is the only way and cannot subclass this generated class
-          # pylint: disable=protected-access
-          for name, value in workerproto._asdict().items()
-          # want to output value 0 but not None nor []
-          if (value or value == 0)
-          and name not in
-          ('coder', 'coders', 'output_coders',
-           'elements',
-           'combine_fn', 'serialized_fn', 'window_fn',
-           'append_trailing_newlines', 'strip_trailing_newlines',
-           'compression_type', 'context',
-           'start_shuffle_position', 'end_shuffle_position',
-           'shuffle_reader_config', 'shuffle_writer_config')]
+  return [
+      '%s=%s' % (name, value)
+      # _asdict is the only way and cannot subclass this generated class
+      # pylint: disable=protected-access
+      for name, value in workerproto._asdict().items()
+      # want to output value 0 but not None nor []
+      if (value or value == 0)
+      and name
+      not in (
+          'coder',
+          'coders',
+          'output_coders',
+          'elements',
+          'combine_fn',
+          'serialized_fn',
+          'window_fn',
+          'append_trailing_newlines',
+          'strip_trailing_newlines',
+          'compression_type',
+          'context',
+          'start_shuffle_position',
+          'end_shuffle_position',
+          'shuffle_reader_config',
+          'shuffle_writer_config')
+  ]
 
 
 def worker_object_to_string(worker_object):
   """Returns a string compactly representing a Worker* object."""
-  return '%s(%s)' % (worker_object.__class__.__name__,
-                     ', '.join(worker_printable_fields(worker_object)))
+  return '%s(%s)' % (
+      worker_object.__class__.__name__,
+      ', '.join(worker_printable_fields(worker_object)))
 
 
 # All the following Worker* definitions will have these lint problems:
@@ -82,8 +94,7 @@ def worker_object_to_string(worker_object):
 # pylint: disable=pointless-string-statement
 
 
-WorkerRead = build_worker_instruction(
-    'WorkerRead', ['source', 'output_coders'])
+WorkerRead = build_worker_instruction('WorkerRead', ['source', 'output_coders'])
 """Worker details needed to read from a source.
 
 Attributes:
@@ -104,8 +115,13 @@ Attributes:
 
 WorkerGroupingShuffleRead = build_worker_instruction(
     'WorkerGroupingShuffleRead',
-    ['start_shuffle_position', 'end_shuffle_position',
-     'shuffle_reader_config', 'coder', 'output_coders'])
+    [
+        'start_shuffle_position',
+        'end_shuffle_position',
+        'shuffle_reader_config',
+        'coder',
+        'output_coders',
+    ])
 """Worker details needed to read from a grouping shuffle source.
 
 Attributes:
@@ -123,8 +139,13 @@ Attributes:
 
 WorkerUngroupedShuffleRead = build_worker_instruction(
     'WorkerUngroupedShuffleRead',
-    ['start_shuffle_position', 'end_shuffle_position',
-     'shuffle_reader_config', 'coder', 'output_coders'])
+    [
+        'start_shuffle_position',
+        'end_shuffle_position',
+        'shuffle_reader_config',
+        'coder',
+        'output_coders',
+    ])
 """Worker details needed to read from an ungrouped shuffle source.
 
 Attributes:
@@ -193,7 +214,8 @@ Attributes:
 
 WorkerDoFn = build_worker_instruction(
     'WorkerDoFn',
-    ['serialized_fn', 'output_tags', 'input', 'side_inputs', 'output_coders'])
+    ['serialized_fn', 'output_tags', 'input', 'side_inputs', 'output_coders'],
+)
 """Worker details needed to run a DoFn.
 Attributes:
   serialized_fn: A serialized DoFn object to be run for each input element.
@@ -211,8 +233,8 @@ Attributes:
 
 
 WorkerReifyTimestampAndWindows = build_worker_instruction(
-    'WorkerReifyTimestampAndWindows',
-    ['output_tags', 'input', 'output_coders'])
+    'WorkerReifyTimestampAndWindows', ['output_tags', 'input', 'output_coders']
+)
 """Worker details needed to run a WindowInto.
 Attributes:
   output_tags: The string tags used to identify the outputs of a ParDo
@@ -227,8 +249,16 @@ Attributes:
 
 WorkerMergeWindows = build_worker_instruction(
     'WorkerMergeWindows',
-    ['window_fn', 'combine_fn', 'phase', 'output_tags', 'input', 'coders',
-     'context', 'output_coders'])
+    [
+        'window_fn',
+        'combine_fn',
+        'phase',
+        'output_tags',
+        'input',
+        'coders',
+        'context',
+        'output_coders',
+    ])
 """Worker details needed to run a MergeWindows (aka. GroupAlsoByWindows).
 Attributes:
   window_fn: A serialized Windowing object representing the windowing strategy.
@@ -252,8 +282,7 @@ Attributes:
 
 
 WorkerCombineFn = build_worker_instruction(
-    'WorkerCombineFn',
-    ['serialized_fn', 'phase', 'input', 'output_coders'])
+    'WorkerCombineFn', ['serialized_fn', 'phase', 'input', 'output_coders'])
 """Worker details needed to run a CombineFn.
 Attributes:
   serialized_fn: A serialized CombineFn object to be used.
@@ -270,8 +299,7 @@ Attributes:
 
 
 WorkerPartialGroupByKey = build_worker_instruction(
-    'WorkerPartialGroupByKey',
-    ['combine_fn', 'input', 'output_coders'])
+    'WorkerPartialGroupByKey', ['combine_fn', 'input', 'output_coders'])
 """Worker details needed to run a partial group-by-key.
 Attributes:
   combine_fn: A serialized CombineFn object to be used.
@@ -283,8 +311,7 @@ Attributes:
 
 
 WorkerFlatten = build_worker_instruction(
-    'WorkerFlatten',
-    ['inputs', 'output_coders'])
+    'WorkerFlatten', ['inputs', 'output_coders'])
 """Worker details needed to run a Flatten.
 Attributes:
   inputs: A list of tuples, each (producer index, output index), representing
@@ -319,7 +346,8 @@ def get_coder_from_spec(coder_spec):
   if coder_spec['@type'] == 'kind:pair':
     assert len(coder_spec['component_encodings']) == 2
     component_coders = [
-        get_coder_from_spec(c) for c in coder_spec['component_encodings']]
+        get_coder_from_spec(c) for c in coder_spec['component_encodings']
+    ]
     return coders.TupleCoder(component_coders)
   elif coder_spec['@type'] == 'kind:stream':
     assert len(coder_spec['component_encodings']) == 1
@@ -328,34 +356,36 @@ def get_coder_from_spec(coder_spec):
   elif coder_spec['@type'] == 'kind:windowed_value':
     assert len(coder_spec['component_encodings']) == 2
     value_coder, window_coder = [
-        get_coder_from_spec(c) for c in coder_spec['component_encodings']]
+        get_coder_from_spec(c) for c in coder_spec['component_encodings']
+    ]
     return coders.coders.WindowedValueCoder(
         value_coder, window_coder=window_coder)
   elif coder_spec['@type'] == 'kind:interval_window':
-    assert ('component_encodings' not in coder_spec
-            or not coder_spec['component_encodings'])
+    assert (
+        'component_encodings' not in coder_spec
+        or not coder_spec['component_encodings'])
     return coders.coders.IntervalWindowCoder()
   elif coder_spec['@type'] == 'kind:global_window':
-    assert ('component_encodings' not in coder_spec
-            or not coder_spec['component_encodings'])
+    assert (
+        'component_encodings' not in coder_spec
+        or not coder_spec['component_encodings'])
     return coders.coders.GlobalWindowCoder()
   elif coder_spec['@type'] == 'kind:varint':
-    assert ('component_encodings' not in coder_spec
-            or len(coder_spec['component_encodings'] == 0))
+    assert 'component_encodings' not in coder_spec or len(
+        coder_spec['component_encodings'] == 0)
     return coders.coders.VarIntCoder()
   elif coder_spec['@type'] == 'kind:length_prefix':
     assert len(coder_spec['component_encodings']) == 1
     return coders.coders.LengthPrefixCoder(
         get_coder_from_spec(coder_spec['component_encodings'][0]))
   elif coder_spec['@type'] == 'kind:bytes':
-    assert ('component_encodings' not in coder_spec
-            or len(coder_spec['component_encodings'] == 0))
+    assert 'component_encodings' not in coder_spec or len(
+        coder_spec['component_encodings'] == 0)
     return coders.BytesCoder()
 
   # We pass coders in the form "<coder_name>$<pickled_data>" to make the job
   # description JSON more readable.
-  return coders.coders.deserialize_coder(
-      coder_spec['@type'].encode('ascii'))
+  return coders.coders.deserialize_coder(coder_spec['@type'].encode('ascii'))
 
 
 class MapTask(object):
@@ -374,11 +404,14 @@ class MapTask(object):
       about a step.
   """
 
-  def __init__(self, operations, stage_name,
-               system_names=None,
-               step_names=None,
-               original_names=None,
-               name_contexts=None):
+  def __init__(
+      self,
+      operations,
+      stage_name,
+      system_names=None,
+      step_names=None,
+      original_names=None,
+      name_contexts=None):
     # TODO(BEAM-4028): Remove arguments other than name_contexts.
     self.operations = operations
     self.stage_name = stage_name
@@ -388,10 +421,11 @@ class MapTask(object):
   @staticmethod
   def _make_name_contexts(original_names, user_names, system_names):
     # TODO(BEAM-4028): Remove method once map task relies on name contexts.
-    return [common.DataflowNameContext(step_name, user_name, system_name)
-            for step_name, user_name, system_name in zip(original_names,
-                                                         user_names,
-                                                         system_names)]
+    return [
+        common.DataflowNameContext(step_name, user_name, system_name)
+        for step_name, user_name, system_name in zip(
+            original_names, user_names, system_names)
+    ]
 
   @property
   def system_names(self):
@@ -420,5 +454,7 @@ class MapTask(object):
     return [nc.user_name for nc in self.name_contexts]
 
   def __str__(self):
-    return '<%s %s steps=%s>' % (self.__class__.__name__, self.stage_name,
-                                 '+'.join(self.step_names))
+    return '<%s %s steps=%s>' % (
+        self.__class__.__name__,
+        self.stage_name,
+        '+'.join(self.step_names))

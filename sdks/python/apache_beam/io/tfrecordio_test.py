@@ -90,7 +90,6 @@ def _write_file_gzip(path, base64_records):
 
 
 class TestTFRecordUtil(unittest.TestCase):
-
   def setUp(self):
     self.record = binascii.a2b_base64(FOO_RECORD_BASE64)
 
@@ -114,30 +113,28 @@ class TestTFRecordUtil(unittest.TestCase):
       _TFRecordUtil.read_record(self._as_file_handle(record))
 
   def test_masked_crc32c(self):
-    self.assertEqual(0xfd7fffa, _TFRecordUtil._masked_crc32c(b'\x00' * 32))
-    self.assertEqual(0xf909b029, _TFRecordUtil._masked_crc32c(b'\xff' * 32))
-    self.assertEqual(0xfebe8a61, _TFRecordUtil._masked_crc32c(b'foo'))
+    self.assertEqual(0xFD7FFFA, _TFRecordUtil._masked_crc32c(b'\x00' * 32))
+    self.assertEqual(0xF909B029, _TFRecordUtil._masked_crc32c(b'\xff' * 32))
+    self.assertEqual(0xFEBE8A61, _TFRecordUtil._masked_crc32c(b'foo'))
     self.assertEqual(
-        0xe4999b0,
+        0xE4999B0,
         _TFRecordUtil._masked_crc32c(b'\x03\x00\x00\x00\x00\x00\x00\x00'))
 
   def test_masked_crc32c_crcmod(self):
     crc32c_fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
     self.assertEqual(
-        0xfd7fffa,
-        _TFRecordUtil._masked_crc32c(
-            b'\x00' * 32, crc32c_fn=crc32c_fn))
+        0xFD7FFFA,
+        _TFRecordUtil._masked_crc32c(b'\x00' * 32, crc32c_fn=crc32c_fn))
     self.assertEqual(
-        0xf909b029,
-        _TFRecordUtil._masked_crc32c(
-            b'\xff' * 32, crc32c_fn=crc32c_fn))
+        0xF909B029,
+        _TFRecordUtil._masked_crc32c(b'\xff' * 32, crc32c_fn=crc32c_fn))
     self.assertEqual(
-        0xfebe8a61, _TFRecordUtil._masked_crc32c(
-            b'foo', crc32c_fn=crc32c_fn))
+        0xFEBE8A61, _TFRecordUtil._masked_crc32c(b'foo', crc32c_fn=crc32c_fn))
     self.assertEqual(
-        0xe4999b0,
+        0xE4999B0,
         _TFRecordUtil._masked_crc32c(
-            b'\x03\x00\x00\x00\x00\x00\x00\x00', crc32c_fn=crc32c_fn))
+            b'\x03\x00\x00\x00\x00\x00\x00\x00', crc32c_fn=crc32c_fn
+        ))
 
   def test_write_record(self):
     file_handle = io.BytesIO()
@@ -169,7 +166,6 @@ class TestTFRecordUtil(unittest.TestCase):
 
 
 class TestTFRecordSink(unittest.TestCase):
-
   def _write_lines(self, sink, path, lines):
     f = sink.open(path)
     for l in lines:
@@ -211,20 +207,25 @@ class TestTFRecordSink(unittest.TestCase):
 
 @unittest.skipIf(tf is None, 'tensorflow not installed.')
 class TestWriteToTFRecord(TestTFRecordSink):
-
   def test_write_record_gzip(self):
     with TempDir() as temp_dir:
       file_path_prefix = temp_dir.create_temp_file('result')
       with TestPipeline() as p:
         input_data = ['foo', 'bar']
-        _ = p | beam.Create(input_data) | WriteToTFRecord(
-            file_path_prefix, compression_type=CompressionTypes.GZIP)
+        _ = (
+            p
+            | beam.Create(input_data)
+            | WriteToTFRecord(
+                file_path_prefix, compression_type=CompressionTypes.GZIP)
+)
 
       actual = []
       file_name = glob.glob(file_path_prefix + '-*')[0]
       for r in tf.python_io.tf_record_iterator(
-          file_name, options=tf.python_io.TFRecordOptions(
-              tf.python_io.TFRecordCompressionType.GZIP)):
+          file_name,
+          options=tf.python_io.TFRecordOptions(
+              tf.python_io.TFRecordCompressionType.GZIP
+          )):
         actual.append(r)
       self.assertEqual(actual, input_data)
 
@@ -233,31 +234,33 @@ class TestWriteToTFRecord(TestTFRecordSink):
       file_path_prefix = temp_dir.create_temp_file('result')
       with TestPipeline() as p:
         input_data = ['foo', 'bar']
-        _ = p | beam.Create(input_data) | WriteToTFRecord(
-            file_path_prefix, file_name_suffix='.gz')
+        _ = (
+            p
+            | beam.Create(input_data)
+            | WriteToTFRecord(file_path_prefix, file_name_suffix='.gz'))
 
       actual = []
       file_name = glob.glob(file_path_prefix + '-*.gz')[0]
       for r in tf.python_io.tf_record_iterator(
-          file_name, options=tf.python_io.TFRecordOptions(
-              tf.python_io.TFRecordCompressionType.GZIP)):
+          file_name,
+          options=tf.python_io.TFRecordOptions(
+              tf.python_io.TFRecordCompressionType.GZIP
+          )):
         actual.append(r)
       self.assertEqual(actual, input_data)
 
 
 class TestReadFromTFRecord(unittest.TestCase):
-
   def test_process_single(self):
     with TempDir() as temp_dir:
       path = temp_dir.create_temp_file('result')
       _write_file(path, FOO_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | ReadFromTFRecord(
-                      path,
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.AUTO,
-                      validate=True))
+        result = p | ReadFromTFRecord(
+            path,
+            coder=coders.BytesCoder(),
+            compression_type=CompressionTypes.AUTO,
+            validate=True)
         assert_that(result, equal_to([b'foo']))
 
   def test_process_multiple(self):
@@ -265,12 +268,11 @@ class TestReadFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result')
       _write_file(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | ReadFromTFRecord(
-                      path,
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.AUTO,
-                      validate=True))
+        result = p | ReadFromTFRecord(
+            path,
+            coder=coders.BytesCoder(),
+            compression_type=CompressionTypes.AUTO,
+            validate=True)
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_deflate(self):
@@ -278,12 +280,11 @@ class TestReadFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result')
       _write_file_deflate(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | ReadFromTFRecord(
-                      path,
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.DEFLATE,
-                      validate=True))
+        result = p | ReadFromTFRecord(
+            path,
+            coder=coders.BytesCoder(),
+            compression_type=CompressionTypes.DEFLATE,
+            validate=True)
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_gzip(self):
@@ -291,12 +292,11 @@ class TestReadFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result')
       _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | ReadFromTFRecord(
-                      path,
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.GZIP,
-                      validate=True))
+        result = p | ReadFromTFRecord(
+            path,
+            coder=coders.BytesCoder(),
+            compression_type=CompressionTypes.GZIP,
+            validate=True)
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_auto(self):
@@ -304,12 +304,11 @@ class TestReadFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result.gz')
       _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | ReadFromTFRecord(
-                      path,
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.AUTO,
-                      validate=True))
+        result = p | ReadFromTFRecord(
+            path,
+            coder=coders.BytesCoder(),
+            compression_type=CompressionTypes.AUTO,
+            validate=True)
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_gzip(self):
@@ -317,9 +316,8 @@ class TestReadFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result')
       _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | ReadFromTFRecord(
-                      path, compression_type=CompressionTypes.GZIP))
+        result = p | ReadFromTFRecord(
+            path, compression_type=CompressionTypes.GZIP)
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_gzip_auto(self):
@@ -327,14 +325,12 @@ class TestReadFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result.gz')
       _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | ReadFromTFRecord(
-                      path, compression_type=CompressionTypes.AUTO))
+        result = p | ReadFromTFRecord(
+            path, compression_type=CompressionTypes.AUTO)
         assert_that(result, equal_to([b'foo', b'bar']))
 
 
 class TestReadAllFromTFRecord(unittest.TestCase):
-
   def _write_glob(self, temp_dir, suffix):
     for _ in range(3):
       path = temp_dir.create_temp_file(suffix)
@@ -345,11 +341,13 @@ class TestReadAllFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result')
       _write_file(path, FOO_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | Create([path])
-                  | ReadAllFromTFRecord(
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.AUTO))
+        result = (
+            p
+            | Create([path])
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.AUTO)
+)
         assert_that(result, equal_to([b'foo']))
 
   def test_process_multiple(self):
@@ -357,11 +355,13 @@ class TestReadAllFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result')
       _write_file(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | Create([path])
-                  | ReadAllFromTFRecord(
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.AUTO))
+        result = (
+            p
+            | Create([path])
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.AUTO)
+)
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_glob(self):
@@ -369,11 +369,13 @@ class TestReadAllFromTFRecord(unittest.TestCase):
       self._write_glob(temp_dir, 'result')
       glob = temp_dir.get_path() + os.path.sep + '*result'
       with TestPipeline() as p:
-        result = (p
-                  | Create([glob])
-                  | ReadAllFromTFRecord(
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.AUTO))
+        result = (
+            p
+            | Create([glob])
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.AUTO)
+)
         assert_that(result, equal_to([b'foo', b'bar'] * 3))
 
   def test_process_multiple_globs(self):
@@ -385,11 +387,13 @@ class TestReadAllFromTFRecord(unittest.TestCase):
         globs.append(temp_dir.get_path() + os.path.sep + '*' + suffix)
 
       with TestPipeline() as p:
-        result = (p
-                  | Create(globs)
-                  | ReadAllFromTFRecord(
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.AUTO))
+        result = (
+            p
+            | Create(globs)
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.AUTO)
+)
         assert_that(result, equal_to([b'foo', b'bar'] * 9))
 
   def test_process_deflate(self):
@@ -397,11 +401,13 @@ class TestReadAllFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result')
       _write_file_deflate(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | Create([path])
-                  | ReadAllFromTFRecord(
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.DEFLATE))
+        result = (
+            p
+            | Create([path])
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.DEFLATE)
+)
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_gzip(self):
@@ -409,11 +415,13 @@ class TestReadAllFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result')
       _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | Create([path])
-                  | ReadAllFromTFRecord(
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.GZIP))
+        result = (
+            p
+            | Create([path])
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.GZIP)
+)
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_auto(self):
@@ -421,19 +429,21 @@ class TestReadAllFromTFRecord(unittest.TestCase):
       path = temp_dir.create_temp_file('result.gz')
       _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
       with TestPipeline() as p:
-        result = (p
-                  | Create([path])
-                  | ReadAllFromTFRecord(
-                      coder=coders.BytesCoder(),
-                      compression_type=CompressionTypes.AUTO))
+        result = (
+            p
+            | Create([path])
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.AUTO)
+)
         assert_that(result, equal_to([b'foo', b'bar']))
 
 
 class TestEnd2EndWriteAndRead(unittest.TestCase):
-
   def create_inputs(self):
-    input_array = [[random.random() - 0.5 for _ in range(15)]
-                   for _ in range(12)]
+    input_array = [
+        [random.random() - 0.5 for _ in range(15)] for _ in range(12)
+    ]
     memfile = io.BytesIO()
     pickle.dump(input_array, memfile)
     return memfile.getvalue()
@@ -459,8 +469,10 @@ class TestEnd2EndWriteAndRead(unittest.TestCase):
       # Generate a TFRecord file.
       with TestPipeline() as p:
         expected_data = [self.create_inputs() for _ in range(0, 10)]
-        _ = p | beam.Create(expected_data) | WriteToTFRecord(
-            file_path_prefix, file_name_suffix='.gz')
+        _ = (
+            p
+            | beam.Create(expected_data)
+            | WriteToTFRecord(file_path_prefix, file_name_suffix='.gz'))
 
       # Read the file back and compare.
       with TestPipeline() as p:
@@ -474,8 +486,11 @@ class TestEnd2EndWriteAndRead(unittest.TestCase):
       # Generate a TFRecord file.
       with TestPipeline() as p:
         expected_data = [self.create_inputs() for _ in range(0, 10)]
-        _ = p | beam.Create(expected_data) | WriteToTFRecord(
-            file_path_prefix + '.gz', shard_name_template='')
+        _ = (
+            p
+            | beam.Create(expected_data)
+            | WriteToTFRecord(file_path_prefix + '.gz', shard_name_template='')
+        )
 
       # Read the file back and compare.
       with TestPipeline() as p:
@@ -493,14 +508,19 @@ class TestEnd2EndWriteAndRead(unittest.TestCase):
           [b'foo', b'bar'])
 
       with TestPipeline() as p:
-        _ = p | beam.Create([example]) | WriteToTFRecord(
-            file_path_prefix, coder=beam.coders.ProtoCoder(example.__class__))
+        _ = (
+            p
+            | beam.Create([example])
+            | WriteToTFRecord(
+                file_path_prefix,
+                coder=beam.coders.ProtoCoder(example.__class__))
+)
 
       # Read the file back and compare.
       with TestPipeline() as p:
-        actual_data = (p | ReadFromTFRecord(
+        actual_data = p | ReadFromTFRecord(
             file_path_prefix + '-*',
-            coder=beam.coders.ProtoCoder(example.__class__)))
+            coder=beam.coders.ProtoCoder(example.__class__))
         assert_that(actual_data, equal_to([example]))
 
   def test_end2end_read_write_read(self):
@@ -511,12 +531,14 @@ class TestEnd2EndWriteAndRead(unittest.TestCase):
         # created.
         _ = p | ReadFromTFRecord(path + '-*', validate=False)
         expected_data = [self.create_inputs() for _ in range(0, 10)]
-        _ = p | beam.Create(expected_data) | WriteToTFRecord(
-            path, file_name_suffix='.gz')
+        _ = (
+            p
+            | beam.Create(expected_data)
+            | WriteToTFRecord(path, file_name_suffix='.gz'))
 
       # Read the file back and compare.
       with TestPipeline() as p:
-        actual_data = p | ReadFromTFRecord(path+'-*', validate=True)
+        actual_data = p | ReadFromTFRecord(path + '-*', validate=True)
         assert_that(actual_data, equal_to(expected_data))
 
 

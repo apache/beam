@@ -49,12 +49,14 @@ class Command(object):
 
   def run(self, timeout):
     def thread_target():
-      logging.debug('Starting thread for %d seconds: %s',
-                    timeout, self.cmd.__name__)
+      logging.debug(
+          'Starting thread for %d seconds: %s', timeout, self.cmd.__name__)
 
       self.cmd(*self.args)
-      logging.info('%d seconds elapsed. Thread (%s) finished.',
-                   timeout, self.cmd.__name__)
+      logging.info(
+          '%d seconds elapsed. Thread (%s) finished.',
+          timeout,
+          self.cmd.__name__)
 
     thread = threading.Thread(target=thread_target, name='Thread-timeout')
     thread.daemon = True

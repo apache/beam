@@ -67,7 +67,8 @@ class AdaptiveThrottler(object):
     all_requests = self._all_requests.sum(now)
     successful_requests = self._successful_requests.sum(now)
     return max(
-        0, (all_requests - self._overload_ratio * successful_requests)
+        0,
+        (all_requests - self._overload_ratio * successful_requests)
         / (all_requests + AdaptiveThrottler.MIN_REQUESTS))
 
   def throttle_request(self, now):

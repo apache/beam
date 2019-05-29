@@ -33,41 +33,45 @@ def _get_runner_map(runner_names, module_path):
   """Create a map of runner name in lower case to full import path to the
   runner class.
   """
-  return {runner_name.lower(): module_path + runner_name
-          for runner_name in runner_names}
+  return {
+      runner_name.lower(): module_path + runner_name
+      for runner_name in runner_names
+  }
 
 
 _DIRECT_RUNNER_PATH = 'apache_beam.runners.direct.direct_runner.'
-_DATAFLOW_RUNNER_PATH = (
-    'apache_beam.runners.dataflow.dataflow_runner.')
+_DATAFLOW_RUNNER_PATH = 'apache_beam.runners.dataflow.dataflow_runner.'
 _TEST_RUNNER_PATH = 'apache_beam.runners.test.'
 _PYTHON_RPC_DIRECT_RUNNER = (
     'apache_beam.runners.experimental.python_rpc_direct.'
     'python_rpc_direct_runner.')
-_PORTABLE_RUNNER_PATH = ('apache_beam.runners.portability.portable_runner.')
+_PORTABLE_RUNNER_PATH = 'apache_beam.runners.portability.portable_runner.'
 
 _KNOWN_PYTHON_RPC_DIRECT_RUNNER = ('PythonRPCDirectRunner',)
-_KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'BundleBasedDirectRunner',
-                         'SwitchingDirectRunner')
+_KNOWN_DIRECT_RUNNERS = (
+    'DirectRunner',
+    'BundleBasedDirectRunner',
+    'SwitchingDirectRunner')
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner', 'TestDirectRunner')
 _KNOWN_PORTABLE_RUNNERS = ('PortableRunner',)
 
 _RUNNER_MAP = {}
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_DIRECT_RUNNERS,
-                                   _DIRECT_RUNNER_PATH))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_DATAFLOW_RUNNERS,
-                                   _DATAFLOW_RUNNER_PATH))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_PYTHON_RPC_DIRECT_RUNNER,
-                                   _PYTHON_RPC_DIRECT_RUNNER))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_TEST_RUNNERS,
-                                   _TEST_RUNNER_PATH))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_PORTABLE_RUNNERS,
-                                   _PORTABLE_RUNNER_PATH))
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_DIRECT_RUNNERS, _DIRECT_RUNNER_PATH))
+_RUNNER_MAP.update(
+    _get_runner_map(_KNOWN_DATAFLOW_RUNNERS, _DATAFLOW_RUNNER_PATH))
+_RUNNER_MAP.update(
+    _get_runner_map(_KNOWN_PYTHON_RPC_DIRECT_RUNNER, _PYTHON_RPC_DIRECT_RUNNER)
+)
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_TEST_RUNNERS, _TEST_RUNNER_PATH))
+_RUNNER_MAP.update(
+    _get_runner_map(_KNOWN_PORTABLE_RUNNERS, _PORTABLE_RUNNER_PATH))
 
 _ALL_KNOWN_RUNNERS = (
-    _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS +
-    _KNOWN_PORTABLE_RUNNERS)
+    _KNOWN_DIRECT_RUNNERS
+    + _KNOWN_DATAFLOW_RUNNERS
+    + _KNOWN_TEST_RUNNERS
+    + _KNOWN_PORTABLE_RUNNERS)
 
 
 def create_runner(runner_name):
@@ -107,8 +111,8 @@ def create_runner(runner_name):
   else:
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
-        'or the fully qualified name of a PipelineRunner subclass.' % (
-            runner_name, ', '.join(_ALL_KNOWN_RUNNERS)))
+        'or the fully qualified name of a PipelineRunner subclass.'
+        % (runner_name, ', '.join(_ALL_KNOWN_RUNNERS)))
 
 
 class PipelineRunner(object):
@@ -144,6 +148,7 @@ class PipelineRunner(object):
     from apache_beam import PTransform
     from apache_beam.pvalue import PBegin
     from apache_beam.pipeline import Pipeline
+
     p = Pipeline(runner=self, options=options)
     if isinstance(transform, PTransform):
       p | transform
@@ -162,7 +167,6 @@ class PipelineRunner(object):
     from apache_beam.pipeline import PipelineVisitor
 
     class RunVisitor(PipelineVisitor):
-
       def __init__(self, runner):
         self.runner = runner
 
@@ -213,8 +217,8 @@ class PipelineRunner(object):
       if m:
         return m(transform_node, options)
     raise NotImplementedError(
-        'Execution of [%s] not implemented in runner %s.' % (
-            transform_node.transform, self))
+        'Execution of [%s] not implemented in runner %s.'
+        % (transform_node.transform, self))
 
 
 class PValueCache(object):
@@ -267,6 +271,7 @@ class PValueCache(object):
 
   def is_cached(self, pobj):
     from apache_beam.pipeline import AppliedPTransform
+
     if isinstance(pobj, AppliedPTransform):
       transform = pobj
       tag = None
@@ -282,8 +287,7 @@ class PValueCache(object):
       tag = None
     else:
       tag = tag_or_value
-    self._cache[
-        self.to_cache_key(transform, tag)] = value
+    self._cache[self.to_cache_key(transform, tag)] = value
 
   def get_pvalue(self, pvalue):
     """Gets the value associated with a PValue from the cache."""
@@ -319,6 +323,7 @@ class PipelineState(object):
   pipeline in. Currently, it represents the values of the dataflow
   API JobState enum.
   """
+
   UNKNOWN = 'UNKNOWN'  # not specified
   STARTING = 'STARTING'  # not yet started
   STOPPED = 'STOPPED'  # paused or not yet started
@@ -329,14 +334,20 @@ class PipelineState(object):
   UPDATED = 'UPDATED'  # replaced by another job (terminal state)
   DRAINING = 'DRAINING'  # still processing, no longer reading data
   DRAINED = 'DRAINED'  # draining completed (terminal state)
-  PENDING = 'PENDING' # the job has been created but is not yet running.
-  CANCELLING = 'CANCELLING' # job has been explicitly cancelled and is
-                            # in the process of stopping
+  PENDING = 'PENDING'  # the job has been created but is not yet running.
+  CANCELLING = 'CANCELLING'  # job has been explicitly cancelled and is
+  # in the process of stopping
 
   @classmethod
   def is_terminal(cls, state):
-    return state in [cls.STOPPED, cls.DONE, cls.FAILED, cls.CANCELLED,
-                     cls.UPDATED, cls.DRAINED]
+    return state in [
+        cls.STOPPED,
+        cls.DONE,
+        cls.FAILED,
+        cls.CANCELLED,
+        cls.UPDATED,
+        cls.DRAINED,
+    ]
 
 
 class PipelineResult(object):
@@ -396,6 +407,6 @@ class PipelineResult(object):
   # pylint: disable=unused-argument
   def aggregated_values(self, aggregator_or_name):
     """Return a dict of step names to values of the Aggregator."""
-    logging.warn('%s does not implement aggregated_values',
-                 self.__class__.__name__)
+    logging.warn(
+        '%s does not implement aggregated_values', self.__class__.__name__)
     return {}

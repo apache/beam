@@ -22,7 +22,7 @@ from mock import Mock
 
 from apache_beam.transforms import DataflowDistributionCounter
 
-INT64_MAX = 2**63 - 1
+INT64_MAX = 2 ** 63 - 1
 
 
 class DataflowDistributionAccumulatorTest(unittest.TestCase):

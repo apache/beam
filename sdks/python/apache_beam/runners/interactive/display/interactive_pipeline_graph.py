@@ -52,11 +52,12 @@ def format_sample(contents, count=1000):
 class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
   """Creates the DOT representation of an interactive pipeline. Thread-safe."""
 
-  def __init__(self,
-               pipeline,
-               required_transforms=None,
-               referenced_pcollections=None,
-               cached_pcollections=None):
+  def __init__(
+      self,
+      pipeline,
+      required_transforms=None,
+      referenced_pcollections=None,
+      cached_pcollections=None):
     """Constructor of PipelineGraph.
 
     Args:
@@ -76,8 +77,7 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
     super(InteractivePipelineGraph, self).__init__(
         pipeline=pipeline,
         default_vertex_attrs={'color': 'gray', 'fontcolor': 'gray'},
-        default_edge_attrs={'color': 'gray'}
-    )
+        default_edge_attrs={'color': 'gray'})
 
     transform_updates, pcollection_updates = self._generate_graph_update_dicts()
     self._update_graph(transform_updates, pcollection_updates)
@@ -121,7 +121,7 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
       for pcoll_id in transform_proto.outputs.values():
         pcoll_dict[pcoll_id] = {
             'cached': pcoll_id in self._cached_pcollections,
-            'referenced': pcoll_id in self._referenced_pcollections
+            'referenced': pcoll_id in self._referenced_pcollections,
         }
 
     def vertex_properties_to_attributes(vertex):

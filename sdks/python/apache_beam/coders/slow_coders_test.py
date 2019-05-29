@@ -27,12 +27,12 @@ from apache_beam.coders.coders_test_common import *
 
 
 class SlowCoders(unittest.TestCase):
-
   def test_using_slow_impl(self):
     try:
       # pylint: disable=wrong-import-position
       # pylint: disable=unused-variable
       from Cython.Build import cythonize
+
       self.skipTest('Found cython, cannot test non-compiled implementation.')
     except ImportError:
       # Assert that we are not using the compiled implementation.

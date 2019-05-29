@@ -118,6 +118,7 @@ def annotate(label, since, current, extra_message, custom_message=None):
   Returns:
     The decorator for the API.
   """
+
   def _annotate(fnc):
     @wraps(fnc)
     def inner(*args, **kwargs):
@@ -134,24 +135,29 @@ def annotate(label, since, current, extra_message, custom_message=None):
           message += ' ' + extra_message
       else:
         if label == 'deprecated' and '%since%' not in custom_message:
-          raise TypeError("Replacement string %since% not found on \
-          custom message")
+          raise TypeError(
+              "Replacement string %since% not found on \
+          custom message"
+          )
         emptyArg = lambda x: '' if x is None else x
-        message = custom_message\
-        .replace('%name%', fnc.__name__)\
-        .replace('%since%', emptyArg(since))\
-        .replace('%current%', emptyArg(current))\
-        .replace('%extra%', emptyArg(extra_message))
+        message = (
+            custom_message.replace('%name%', fnc.__name__)
+            .replace('%since%', emptyArg(since))
+            .replace('%current%', emptyArg(current))
+            .replace('%extra%', emptyArg(extra_message)))
       warnings.warn(message, warning_type, stacklevel=2)
       return fnc(*args, **kwargs)
+
     return inner
+
   return _annotate
 
 
 # Use partial application to customize each annotation.
 # 'current' will be optional in both deprecated and experimental
 # while 'since' will be mandatory for deprecated.
-deprecated = partial(annotate, label='deprecated',
-                     current=None, extra_message=None)
-experimental = partial(annotate, label='experimental',
-                       current=None, since=None, extra_message=None)
+deprecated = partial(
+    annotate, label='deprecated', current=None, extra_message=None)
+experimental = partial(
+    annotate, label='experimental', current=None, since=None, extra_message=None
+)

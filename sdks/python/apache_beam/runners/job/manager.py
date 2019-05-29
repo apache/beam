@@ -33,12 +33,15 @@ from apache_beam.portability.api import beam_job_api_pb2_grpc
 class DockerRPCManager(object):
   """A native co-process to start a contianer that speaks the JobApi
   """
+
   def __init__(self, run_command=None):
     # TODO(BEAM-2431): Change this to a docker container from a command.
     self.process = subprocess.Popen(
-        ['python',
-         '-m',
-         'apache_beam.runners.experimental.python_rpc_direct.server'])
+        [
+            'python',
+            '-m',
+            'apache_beam.runners.experimental.python_rpc_direct.server',
+        ])
 
     self.channel = grpc.insecure_channel('localhost:50051')
     self.service = beam_job_api_pb2_grpc.JobServiceStub(self.channel)

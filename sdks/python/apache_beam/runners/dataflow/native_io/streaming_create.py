@@ -70,7 +70,8 @@ class StreamingCreate(PTransform):
       return bytes
 
   def expand(self, pbegin):
-    return (pbegin
-            | 'Impulse' >> self.Impulse()
-            | 'Decode Values' >> ParDo(
-                self.DecodeAndEmitDoFn(self.encoded_values, self.coder)))
+    return (
+        pbegin
+        | 'Impulse' >> self.Impulse()
+        | 'Decode Values'
+        >> ParDo(self.DecodeAndEmitDoFn(self.encoded_values, self.coder)))

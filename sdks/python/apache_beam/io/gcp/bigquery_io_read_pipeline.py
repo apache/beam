@@ -35,7 +35,6 @@ from apache_beam.testing.util import equal_to
 
 
 class RowToStringWithSlowDown(beam.DoFn):
-
   def process(self, element, num_slow=0, *args, **kwargs):
 
     if num_slow == 0:
@@ -51,23 +50,31 @@ class RowToStringWithSlowDown(beam.DoFn):
 
 def run(argv=None):
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input_table', required=True,
-                      help='Input table to process.')
-  parser.add_argument('--num_records', required=True,
-                      help='The expected number of records', type=int)
-  parser.add_argument('--num_slow', default=0,
-                      help=('Percentage of rows that will be slow. '
-                            'Must be in the range [0, 100)'))
+  parser.add_argument(
+      '--input_table', required=True, help='Input table to process.')
+  parser.add_argument(
+      '--num_records',
+      required=True,
+      help='The expected number of records',
+      type=int)
+  parser.add_argument(
+      '--num_slow',
+      default=0,
+      help=(
+          'Percentage of rows that will be slow. '
+          'Must be in the range [0, 100)'
+      ))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   p = TestPipeline(options=PipelineOptions(pipeline_args))
 
   # pylint: disable=expression-not-assigned
-  count = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-      known_args.input_table))
-           | 'row to string' >> beam.ParDo(RowToStringWithSlowDown(),
-                                           num_slow=known_args.num_slow)
-           | 'count' >> beam.combiners.Count.Globally())
+  count = (
+      p
+      | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input_table))
+      | 'row to string'
+      >> beam.ParDo(RowToStringWithSlowDown(), num_slow=known_args.num_slow)
+      | 'count' >> beam.combiners.Count.Globally())
 
   assert_that(count, equal_to([known_args.num_records]))
 

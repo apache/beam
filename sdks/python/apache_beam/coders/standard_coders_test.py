@@ -38,9 +38,11 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 
-STANDARD_CODERS_YAML = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
-
+STANDARD_CODERS_YAML = os.path.normpath(
+    os.path.join(
+        os.path.dirname(__file__), '../portability/api/standard_coders.yaml'
+    )
+)
 
 def _load_test_cases(test_yaml):
   """Load test data from yaml file and return an iterable of test cases.
@@ -56,7 +58,6 @@ def _load_test_cases(test_yaml):
 
 
 class StandardCodersTest(unittest.TestCase):
-
   def parse_float(s):
     x = float(s)
     if math.isnan(x):
@@ -69,23 +70,25 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:bytes:v1': lambda x: x.encode('utf-8'),
       'beam:coder:string_utf8:v1': lambda x: x,
       'beam:coder:varint:v1': lambda x: x,
-      'beam:coder:kv:v1':
-          lambda x, key_parser, value_parser: (key_parser(x['key']),
-                                               value_parser(x['value'])),
-      'beam:coder:interval_window:v1':
-          lambda x: IntervalWindow(
-              start=Timestamp(micros=(x['end'] - x['span']) * 1000),
-              end=Timestamp(micros=x['end'] * 1000)),
+      'beam:coder:kv:v1': lambda x, key_parser, value_parser: (
+          key_parser(x['key']),
+          value_parser(x['value']),
+      ),
+      'beam:coder:interval_window:v1': lambda x: IntervalWindow(
+          start=Timestamp(micros=(x['end'] - x['span']) * 1000),
+          end=Timestamp(micros=x['end'] * 1000),
+      ),
       'beam:coder:iterable:v1': lambda x, parser: list(map(parser, x)),
       'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
-      'beam:coder:windowed_value:v1':
-          lambda x, value_parser, window_parser: windowed_value.create(
-              value_parser(x['value']), x['timestamp'] * 1000,
-              tuple([window_parser(w) for w in x['windows']])),
-      'beam:coder:timer:v1':
-          lambda x, payload_parser: dict(
-              payload=payload_parser(x['payload']),
-              timestamp=Timestamp(micros=x['timestamp'] * 1000)),
+      'beam:coder:windowed_value:v1': lambda x, value_parser, window_parser: windowed_value.create(
+          value_parser(x['value']),
+          x['timestamp'] * 1000,
+          tuple([window_parser(w) for w in x['windows']]),
+      ),
+      'beam:coder:timer:v1': lambda x, payload_parser: dict(
+          payload=payload_parser(x['payload']),
+          timestamp=Timestamp(micros=x['timestamp'] * 1000),
+      ),
       'beam:coder:double:v1': parse_float,
   }
 
@@ -121,24 +124,31 @@ class StandardCodersTest(unittest.TestCase):
             assert_equal(decoded, value)
         else:
           # Only verify decoding for a non-deterministic coder
-          self.assertEqual(decode_nested(coder, expected_encoded, nested),
-                           value)
+          self.assertEqual(
+              decode_nested(coder, expected_encoded, nested), value)
 
   def parse_coder(self, spec):
     context = pipeline_context.PipelineContext()
     coder_id = str(hash(str(spec)))
-    component_ids = [context.coders.get_id(self.parse_coder(c))
-                     for c in spec.get('components', ())]
-    context.coders.put_proto(coder_id, beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.SdkFunctionSpec(
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=spec['urn'], payload=spec.get('payload'))),
-        component_coder_ids=component_ids))
+    component_ids = [
+        context.coders.get_id(self.parse_coder(c))
+        for c in spec.get('components', ())
+    ]
+    context.coders.put_proto(
+        coder_id,
+        beam_runner_api_pb2.Coder(
+            spec=beam_runner_api_pb2.SdkFunctionSpec(
+                spec=beam_runner_api_pb2.FunctionSpec(
+                    urn=spec['urn'], payload=spec.get('payload'))
+            ),
+            component_coder_ids=component_ids,
+        ))
     return context.coders.get_by_id(coder_id)
 
   def json_value_parser(self, coder_spec):
     component_parsers = [
-        self.json_value_parser(c) for c in coder_spec.get('components', ())]
+        self.json_value_parser(c) for c in coder_spec.get('components', ())
+    ]
     return lambda x: self._urn_to_json_value_parser[coder_spec['urn']](
         x, *component_parsers)
 
@@ -156,6 +166,7 @@ class StandardCodersTest(unittest.TestCase):
 
       def quote(s):
         return json.dumps(s.decode('latin1')).replace(r'\u0000', r'\0')
+
       for (doc_ix, expected_encoded), actual_encoded in cls.to_fix.items():
         print(quote(expected_encoded), "->", quote(actual_encoded))
         docs[doc_ix] = docs[doc_ix].replace(

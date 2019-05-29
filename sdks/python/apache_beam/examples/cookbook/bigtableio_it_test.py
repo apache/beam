@@ -62,15 +62,17 @@ class GenerateTestRows(beam.PTransform):
   Bigtable Table.
 
   """
-  def __init__(self, number, project_id=None, instance_id=None,
-               table_id=None):
+
+  def __init__(self, number, project_id=None, instance_id=None, table_id=None):
     super(WriteToBigTable, self).__init__()
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
+    self.beam_options = {
+        'project_id': project_id,
+        'instance_id': instance_id,
+        'table_id': table_id,
+    }
 
   def _generate(self):
     value = ''.join(self.rand for i in range(100))
@@ -79,19 +81,23 @@ class GenerateTestRows(beam.PTransform):
       key = "beam_key%s" % ('{0:07}'.format(index))
       direct_row = row.DirectRow(row_key=key)
       for column_id in range(10):
-        direct_row.set_cell(self.column_family_id,
-                            ('field%s' % column_id).encode('utf-8'),
-                            value,
-                            datetime.datetime.now())
+        direct_row.set_cell(
+            self.column_family_id,
+            ('field%s' % column_id).encode('utf-8'),
+            value,
+            datetime.datetime.now())
       yield direct_row
 
   def expand(self, pvalue):
     beam_options = self.beam_options
-    return (pvalue
-            | beam.Create(self._generate())
-            | WriteToBigTable(beam_options['project_id'],
-                              beam_options['instance_id'],
-                              beam_options['table_id']))
+    return (
+        pvalue
+        | beam.Create(self._generate())
+        | WriteToBigTable(
+            beam_options['project_id'],
+            beam_options['instance_id'],
+            beam_options['table_id'])
+)
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
@@ -99,6 +105,7 @@ class BigtableIOWriteTest(unittest.TestCase):
   """ Bigtable Write Connector Test
 
   """
+
   DEFAULT_TABLE_PREFIX = "python-test"
   instance_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   cluster_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
@@ -109,6 +116,7 @@ class BigtableIOWriteTest(unittest.TestCase):
   def setUp(self):
     try:
       from google.cloud.bigtable import enums
+
       self.STORAGE_TYPE = enums.StorageType.HDD
       self.INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
     except ImportError:
@@ -122,14 +130,14 @@ class BigtableIOWriteTest(unittest.TestCase):
 
     self._delete_old_instances()
 
-    self.instance = self.client.instance(self.instance_id,
-                                         instance_type=self.INSTANCE_TYPE,
-                                         labels=LABELS)
+    self.instance = self.client.instance(
+        self.instance_id, instance_type=self.INSTANCE_TYPE, labels=LABELS)
 
     if not self.instance.exists():
-      cluster = self.instance.cluster(self.cluster_id,
-                                      self.LOCATION_ID,
-                                      default_storage_type=self.STORAGE_TYPE)
+      cluster = self.instance.cluster(
+          self.cluster_id,
+          self.LOCATION_ID,
+          default_storage_type=self.STORAGE_TYPE)
       self.instance.create(clusters=[cluster])
     self.table = self.instance.table(self.table_id)
 
@@ -144,11 +152,18 @@ class BigtableIOWriteTest(unittest.TestCase):
     EXISTING_INSTANCES[:] = instances
 
     def age_in_hours(micros):
-      return (datetime.datetime.utcnow().replace(tzinfo=UTC) - (
-          _datetime_from_microseconds(micros))).total_seconds() // 3600
-    CLEAN_INSTANCE = [i for instance in EXISTING_INSTANCES for i in instance if(
-        LABEL_KEY in i.labels.keys() and
-        (age_in_hours(int(i.labels[LABEL_KEY])) >= 2))]
+      return (
+          datetime.datetime.utcnow().replace(tzinfo=UTC)
+          - (_datetime_from_microseconds(micros))
+      ).total_seconds() // 3600
+
+    CLEAN_INSTANCE = [
+        i
+        for instance in EXISTING_INSTANCES
+        for i in instance
+        if (LABEL_KEY in i.labels.keys()
+            and (age_in_hours(int(i.labels[LABEL_KEY])) >= 2))
+    ]
 
     if CLEAN_INSTANCE:
       for instance in CLEAN_INSTANCE:
@@ -164,12 +179,13 @@ class BigtableIOWriteTest(unittest.TestCase):
     pipeline_options = PipelineOptions(pipeline_args)
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-      config_data = {'project_id':self.project,
-                     'instance_id':self.instance,
-                     'table_id':self.table}
-      _ = (
-          pipeline
-          | 'Generate Direct Rows' >> GenerateTestRows(number, **config_data))
+      config_data = {
+          'project_id': self.project,
+          'instance_id': self.instance,
+          'table_id': self.table,
+      }
+      _ = pipeline | 'Generate Direct Rows' >> GenerateTestRows(
+          number, **config_data)
 
       result = pipeline.run()
       result.wait_until_finish()

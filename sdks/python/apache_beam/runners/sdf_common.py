@@ -72,15 +72,20 @@ class SplittableParDo(PTransform):
     element_coder = typecoders.registry.get_coder(pcoll.element_type)
     restriction_coder = invoker.invoke_restriction_coder()
 
-    keyed_elements = (pcoll
-                      | 'pair' >> ParDo(PairWithRestrictionFn(sdf))
-                      | 'split' >> ParDo(SplitRestrictionFn(sdf))
-                      | 'explode' >> ParDo(ExplodeWindowsFn())
-                      | 'random' >> ParDo(RandomUniqueKeyFn()))
+    keyed_elements = (
+        pcoll
+        | 'pair' >> ParDo(PairWithRestrictionFn(sdf))
+        | 'split' >> ParDo(SplitRestrictionFn(sdf))
+        | 'explode' >> ParDo(ExplodeWindowsFn())
+        | 'random' >> ParDo(RandomUniqueKeyFn()))
 
     return keyed_elements | ProcessKeyedElements(
-        sdf, element_coder, restriction_coder,
-        pcoll.windowing, self._ptransform.args, self._ptransform.kwargs,
+        sdf,
+        element_coder,
+        restriction_coder,
+        pcoll.windowing,
+        self._ptransform.args,
+        self._ptransform.kwargs,
         self._ptransform.side_inputs)
 
 
@@ -122,9 +127,7 @@ class SplitRestrictionFn(beam.DoFn):
   def process(self, element_and_restriction, *args, **kwargs):
     element = element_and_restriction.element
     restriction = element_and_restriction.restriction
-    restriction_parts = self._invoker.invoke_split(
-        element,
-        restriction)
+    restriction_parts = self._invoker.invoke_split(element, restriction)
     for part in restriction_parts:
       yield ElementAndRestriction(element, part)
 
@@ -156,8 +159,14 @@ class ProcessKeyedElements(PTransform):
   """
 
   def __init__(
-      self, sdf, element_coder, restriction_coder, windowing_strategy,
-      ptransform_args, ptransform_kwargs, ptransform_side_inputs):
+      self,
+      sdf,
+      element_coder,
+      restriction_coder,
+      windowing_strategy,
+      ptransform_args,
+      ptransform_kwargs,
+      ptransform_side_inputs):
     self.sdf = sdf
     self.element_coder = element_coder
     self.restriction_coder = restriction_coder
