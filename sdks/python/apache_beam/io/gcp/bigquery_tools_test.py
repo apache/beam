@@ -406,8 +406,8 @@ class TestBigQueryReader(unittest.TestCase):
     options = PipelineOptions(flags=['--project', 'myproject'])
     source.pipeline_options = options
     reader = source.reader()
-    self.assertEquals('SELECT * FROM [myproject:mydataset.mytable];',
-                      reader.query)
+    self.assertEqual('SELECT * FROM [myproject:mydataset.mytable];',
+                     reader.query)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -573,7 +573,7 @@ class TestBigQueryWriter(unittest.TestCase):
     options = PipelineOptions(flags=['--project', 'myproject'])
     sink.pipeline_options = options
     writer = sink.writer()
-    self.assertEquals('myproject', writer.project_id)
+    self.assertEqual('myproject', writer.project_id)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

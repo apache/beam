@@ -112,7 +112,7 @@ class MainInputTest(unittest.TestCase):
     def filter_fn(data):
       return data % 2
 
-    self.assertEquals([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
+    self.assertEqual([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
 
 
 class NativeTypesTest(unittest.TestCase):
