@@ -214,6 +214,10 @@ public class ProcessBundleHandler {
     }
   }
 
+  private void ProcessBundleDescriptor() {
+
+  }
+
   /**
    * Processes a bundle, running the start(), process(), and finish() functions. This function is
    * required to be reentrant.

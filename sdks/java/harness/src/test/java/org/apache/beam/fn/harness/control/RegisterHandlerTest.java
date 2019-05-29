@@ -101,4 +101,6 @@ public class RegisterHandlerTest {
         handler.getById("20L"));
     assertEquals(REGISTER_RESPONSE, responseFuture.get());
   }
+
+  // TODO add a test for the logic of setting IsBounded.
 }

@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,16 +74,36 @@ public class RegisterHandler {
     BeamFnApi.RegisterRequest registerRequest = request.getRegister();
     for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor :
         registerRequest.getProcessBundleDescriptorList()) {
+      BeamFnApi.ProcessBundleDescriptor.Builder processBundleDescriptorFixed =
+              BeamFnApi.ProcessBundleDescriptor.newBuilder(processBundleDescriptor);
+
       LOG.debug(
           "Registering {} with type {}",
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
+
+      // TODO(BEAM-6623): Remove force setting the IsBounded field once all the
+      // runner harnesses are updated to properly set the IsBounded enum.
+      for (Map.Entry<String, RunnerApi.PCollection> entry : processBundleDescriptor.getPcollectionsMap().entrySet()) {
+        switch (entry.getValue().getIsBounded()) {
+          case BOUNDED:
+          case UNBOUNDED:
+            continue;
+          case UNRECOGNIZED:
+          default:
+            RunnerApi.PCollection.Builder pcollectionBuilder = RunnerApi.PCollection.newBuilder(entry.getValue());
+            pcollectionBuilder.setIsBounded(RunnerApi.IsBounded.Enum.BOUNDED);
+            processBundleDescriptorFixed.putPcollections(entry.getKey(), pcollectionBuilder.build());
+        }
+      }
+
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
       for (Map.Entry<String, RunnerApi.Coder> entry :
           processBundleDescriptor.getCodersMap().entrySet()) {
         LOG.debug("Registering {} with type {}", entry.getKey(), entry.getValue().getClass());
         computeIfAbsent(entry.getKey()).complete(entry.getValue());
       }
+
     }
 
     return response;
