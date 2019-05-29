@@ -28,7 +28,6 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.io import source_test_utils
-from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -89,7 +88,7 @@ class SyntheticPipelineTest(unittest.TestCase):
                                                                       None)
 
     self.assertEquals(
-        list(provider.split('ab', (2, 15))),[(2, 8), (8, 15)])
+        list(provider.split('ab', (2, 15))), [(2, 8), (8, 15)])
     self.assertEquals(
         list(provider.split('ab', (0, 8))), [(0, 4), (4, 8)])
     self.assertEquals(
@@ -209,10 +208,10 @@ class SyntheticPipelineTest(unittest.TestCase):
 
   def run_pipeline(self, barrier, writes_output=True):
     steps = [{
-      'per_element_delay': 1
+        'per_element_delay': 1
     }, {
-      'per_element_delay': 1,
-      'splittable': True
+        'per_element_delay': 1,
+        'splittable': True
     }]
     args = ['--barrier=%s' % barrier, '--runner=DirectRunner',
             '--steps=%s' % json.dumps(steps),
