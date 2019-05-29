@@ -44,15 +44,26 @@ public class AvroBucketMetadata<K, V extends GenericRecord> extends BucketMetada
 
   @JsonIgnore private final String[] keyPath;
 
-  @JsonCreator
   public AvroBucketMetadata(
+      int numBuckets,
+      int numShards,
+      Class<K> keyClass,
+      BucketMetadata.HashType hashType,
+      String keyField)
+      throws CannotProvideCoderException, NonDeterministicException {
+    this(BucketMetadata.CURRENT_VERSION, numBuckets, numShards, keyClass, hashType, keyField);
+  }
+
+  @JsonCreator
+  AvroBucketMetadata(
+      @JsonProperty("version") int version,
       @JsonProperty("numBuckets") int numBuckets,
       @JsonProperty("numShards") int numShards,
       @JsonProperty("keyClass") Class<K> keyClass,
       @JsonProperty("hashType") BucketMetadata.HashType hashType,
       @JsonProperty("keyField") String keyField)
       throws CannotProvideCoderException, NonDeterministicException {
-    super(numBuckets, numShards, keyClass, hashType);
+    super(version, numBuckets, numShards, keyClass, hashType);
     this.keyField = keyField;
     this.keyPath = keyField.split("\\.");
   }

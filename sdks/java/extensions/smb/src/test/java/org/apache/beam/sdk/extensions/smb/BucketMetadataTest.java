@@ -32,21 +32,24 @@ public class BucketMetadataTest {
   @Test
   public void testCoding() throws Exception {
     final BucketMetadata<String, String> metadata =
-        new TestBucketMetadata(16, 4, HashType.MURMUR3_32);
+        new TestBucketMetadata(1, 16, 4, HashType.MURMUR3_32);
     final BucketMetadata<String, String> copy = BucketMetadata.from(metadata.toString());
 
+    Assert.assertEquals(metadata.getVersion(), copy.getVersion());
     Assert.assertEquals(metadata.getNumBuckets(), copy.getNumBuckets());
     Assert.assertEquals(metadata.getNumShards(), copy.getNumShards());
     Assert.assertEquals(metadata.getKeyClass(), copy.getKeyClass());
     Assert.assertEquals(metadata.getHashType(), copy.getHashType());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
-  public void testDeterminism() throws Exception {
+  public void testDeterminism() {
     Assert.assertThrows(
         NonDeterministicException.class,
         () ->
-            new BucketMetadata(1, 1, Double.class, HashType.MURMUR3_32) {
+            new BucketMetadata(
+                BucketMetadata.CURRENT_VERSION, 1, 1, Double.class, HashType.MURMUR3_32) {
               @Override
               public Object extractKey(Object value) {
                 return null;
@@ -69,13 +72,15 @@ public class BucketMetadataTest {
 
   @Test
   public void testCompatibility() throws Exception {
-    final TestBucketMetadata m1 = new TestBucketMetadata(1, 1, HashType.MURMUR3_32);
-    final TestBucketMetadata m2 = new TestBucketMetadata(1, 1, HashType.MURMUR3_32);
-    final TestBucketMetadata m3 = new TestBucketMetadata(1, 2, HashType.MURMUR3_32);
-    final TestBucketMetadata m4 = new TestBucketMetadata(1, 1, HashType.MURMUR3_128);
+    final TestBucketMetadata m1 = new TestBucketMetadata(0, 1, 1, HashType.MURMUR3_32);
+    final TestBucketMetadata m2 = new TestBucketMetadata(0, 1, 1, HashType.MURMUR3_32);
+    final TestBucketMetadata m3 = new TestBucketMetadata(0, 1, 2, HashType.MURMUR3_32);
+    final TestBucketMetadata m4 = new TestBucketMetadata(0, 1, 1, HashType.MURMUR3_128);
+    final TestBucketMetadata m5 = new TestBucketMetadata(1, 1, 1, HashType.MURMUR3_32);
 
     Assert.assertTrue(m1.isCompatibleWith(m2));
     Assert.assertTrue(m1.isCompatibleWith(m3));
     Assert.assertFalse(m1.isCompatibleWith(m4));
+    Assert.assertFalse(m1.isCompatibleWith(m5));
   }
 }

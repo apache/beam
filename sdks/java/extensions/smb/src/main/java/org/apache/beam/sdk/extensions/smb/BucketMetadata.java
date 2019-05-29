@@ -50,6 +50,12 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "type")
 public abstract class BucketMetadata<K, V> implements Serializable {
 
+  @JsonIgnore public static final int CURRENT_VERSION = 0;
+
+  // Represents the current major version of the Beam SMB module. Storage format may differ
+  // across versions and require internal code branching to ensure backwards compatibility.
+  @JsonProperty private final int version;
+
   @JsonProperty private final int numBuckets;
 
   @JsonProperty private final int numShards;
@@ -62,7 +68,8 @@ public abstract class BucketMetadata<K, V> implements Serializable {
 
   @JsonIgnore private final Coder<K> keyCoder;
 
-  public BucketMetadata(int numBuckets, int numShards, Class<K> keyClass, HashType hashType)
+  public BucketMetadata(
+      int version, int numBuckets, int numShards, Class<K> keyClass, HashType hashType)
       throws CannotProvideCoderException, NonDeterministicException {
     Preconditions.checkArgument(
         numBuckets > 0 && ((numBuckets & (numBuckets - 1)) == 0),
@@ -75,6 +82,7 @@ public abstract class BucketMetadata<K, V> implements Serializable {
     this.hashType = hashType;
     this.hashFunction = hashType.create();
     this.keyCoder = getKeyCoder();
+    this.version = version;
   }
 
   @JsonIgnore
@@ -113,6 +121,7 @@ public abstract class BucketMetadata<K, V> implements Serializable {
 
   boolean isCompatibleWith(BucketMetadata other) {
     return other != null
+        && this.version == other.version
         && this.hashType == other.hashType
         // This check should be redundant since power of two is checked in BucketMetadata
         // constructor, but it's cheap to double-check.
@@ -122,6 +131,10 @@ public abstract class BucketMetadata<K, V> implements Serializable {
   ////////////////////////////////////////
   // Configuration
   ////////////////////////////////////////
+
+  public int getVersion() {
+    return version;
+  }
 
   public int getNumBuckets() {
     return numBuckets;

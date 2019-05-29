@@ -29,13 +29,22 @@ class TestBucketMetadata extends BucketMetadata<String, String> {
     return new TestBucketMetadata(numBuckets, numShards, HashType.MURMUR3_32);
   }
 
-  @JsonCreator
   TestBucketMetadata(
       @JsonProperty("numBuckets") int numBuckets,
       @JsonProperty("numShards") int numShards,
       @JsonProperty("hashType") HashType hashType)
       throws CannotProvideCoderException, NonDeterministicException {
-    super(numBuckets, numShards, String.class, hashType);
+    this(BucketMetadata.CURRENT_VERSION, numBuckets, numShards, hashType);
+  }
+
+  @JsonCreator
+  TestBucketMetadata(
+      @JsonProperty("version") int version,
+      @JsonProperty("numBuckets") int numBuckets,
+      @JsonProperty("numShards") int numShards,
+      @JsonProperty("hashType") HashType hashType)
+      throws CannotProvideCoderException, NonDeterministicException {
+    super(version, numBuckets, numShards, String.class, hashType);
   }
 
   @Override

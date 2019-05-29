@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.smb.json;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.smb.BucketMetadata;
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
 import org.junit.Assert;
 import org.junit.Test;
@@ -27,7 +28,7 @@ import org.junit.Test;
 public class JsonBucketMetadataTest {
 
   @Test
-  public void test() throws Exception {
+  public void testExtractKey() throws Exception {
     final TableRow user =
         new TableRow()
             .set("user", "Alice")
@@ -55,5 +56,26 @@ public class JsonBucketMetadataTest {
                 1, 1, ArrayList.class, HashType.MURMUR3_32, "location.prevCountries")
             .extractKey(user));
      */
+  }
+
+  @Test
+  public void testCoding() throws Exception {
+    final JsonBucketMetadata<String> metadata =
+        new JsonBucketMetadata<>(1, 1, 1, String.class, HashType.MURMUR3_32, "favorite_color");
+
+    final BucketMetadata<String, TableRow> copy = BucketMetadata.from(metadata.toString());
+    Assert.assertEquals(metadata.getVersion(), copy.getVersion());
+    Assert.assertEquals(metadata.getNumBuckets(), copy.getNumBuckets());
+    Assert.assertEquals(metadata.getNumShards(), copy.getNumShards());
+    Assert.assertEquals(metadata.getKeyClass(), copy.getKeyClass());
+    Assert.assertEquals(metadata.getHashType(), copy.getHashType());
+  }
+
+  @Test
+  public void testVersionDefault() throws Exception {
+    final JsonBucketMetadata<String> metadata =
+        new JsonBucketMetadata<>(1, 1, String.class, HashType.MURMUR3_32, "favorite_color");
+
+    Assert.assertEquals(BucketMetadata.CURRENT_VERSION, metadata.getVersion());
   }
 }
