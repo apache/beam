@@ -122,9 +122,8 @@ class StandardCodersTest(unittest.TestCase):
     component_ids = [context.coders.get_id(self.parse_coder(c))
                      for c in spec.get('components', ())]
     context.coders.put_proto(coder_id, beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.SdkFunctionSpec(
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=spec['urn'], payload=spec.get('payload'))),
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=spec['urn'], payload=spec.get('payload')),
         component_coder_ids=component_ids))
     return context.coders.get_by_id(coder_id)
 

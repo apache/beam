@@ -48,11 +48,8 @@ public class RegisterHandlerTest {
                               "10L",
                               RunnerApi.Coder.newBuilder()
                                   .setSpec(
-                                      RunnerApi.SdkFunctionSpec.newBuilder()
-                                          .setSpec(
-                                              RunnerApi.FunctionSpec.newBuilder()
-                                                  .setUrn("testUrn1")
-                                                  .build())
+                                      RunnerApi.FunctionSpec.newBuilder()
+                                          .setUrn("testUrn1")
                                           .build())
                                   .build())
                           .build())
@@ -63,11 +60,8 @@ public class RegisterHandlerTest {
                               "20L",
                               RunnerApi.Coder.newBuilder()
                                   .setSpec(
-                                      RunnerApi.SdkFunctionSpec.newBuilder()
-                                          .setSpec(
-                                              RunnerApi.FunctionSpec.newBuilder()
-                                                  .setUrn("testUrn2")
-                                                  .build())
+                                      RunnerApi.FunctionSpec.newBuilder()
+                                          .setUrn("testUrn2")
                                           .build())
                                   .build())
                           .build())
