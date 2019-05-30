@@ -432,6 +432,39 @@ class WithKeysTest(unittest.TestCase):
     assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
 
 
+class ToStringTest(unittest.TestCase):
+
+  def test_tostring_elements(self):
+
+    with TestPipeline() as p:
+      result = (p | beam.Create([1, 1, 2, 3]) | util.ToString.Element())
+      assert_that(result, equal_to(["1", "1", "2", "3"]))
+
+  def test_tostring_iterables(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create([("one", "two", "three"),
+                                 ("four", "five", "six")])
+                | util.ToString.Iterables())
+      assert_that(result, equal_to(["one,two,three", "four,five,six"]))
+
+  def test_tostring_iterables_with_delimeter(self):
+    with TestPipeline() as p:
+      data = [("one", "two", "three"), ("four", "five", "six")]
+      result = (p | beam.Create(data) | util.ToString.Iterables("\t"))
+      assert_that(result, equal_to(["one\ttwo\tthree", "four\tfive\tsix"]))
+
+  def test_tostring_kvs(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs())
+      assert_that(result, equal_to(["one,1", "two,2"]))
+
+  def test_tostring_kvs_delimeter(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create([("one", 1), ("two", 2)]) |
+                util.ToString.Kvs("\t"))
+      assert_that(result, equal_to(["one\t1", "two\t2"]))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
