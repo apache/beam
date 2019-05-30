@@ -418,8 +418,9 @@ class JetTransformTranslators {
       String vertexId = dagBuilder.newVertexId(transformName);
 
       Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
-      Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
-      Vertex vertex = dagBuilder.addVertex(vertexId, ImpulseP.supplier(vertexId));
+      Coder outputCoder =
+          Utils.getCoder((PCollection) Utils.getOutput(appliedTransform).getValue());
+      Vertex vertex = dagBuilder.addVertex(vertexId, ImpulseP.supplier(outputCoder, vertexId));
 
       String outputEdgeId = Utils.getTupleTagId(output.getValue());
       dagBuilder.registerCollectionOfEdge(outputEdgeId, output.getKey().getId());
