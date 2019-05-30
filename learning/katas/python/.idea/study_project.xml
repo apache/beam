@@ -21,7 +21,7 @@
           <option name="courseMode" value="Course Creator" />
           <option name="createDate" value="1557824500323" />
           <option name="customPresentableName" />
-          <option name="description" value="This course provides a series of kata to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
+          <option name="description" value="This course provides a series of katas to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
           <option name="environment" value="" />
           <option name="fromZip" value="false" />
           <option name="id" value="54532" />
@@ -33,14 +33,14 @@
           </option>
           <option name="language" value="Python 2.7" />
           <option name="languageCode" value="en" />
-          <option name="name" value="Beam Kata - Python" />
-          <option name="public" value="false" />
+          <option name="name" value="Beam Katas - Python" />
+          <option name="public" value="true" />
           <option name="sectionIds">
             <list />
           </option>
           <option name="stepikChangeStatus" value="Up to date" />
           <option name="type" value="pycharm11 Python 2.7" />
-          <option name="updateDate" value="1558359783000" />
+          <option name="updateDate" value="1559216649000" />
           <option name="items">
             <list>
               <Section>
@@ -51,7 +51,7 @@
                 <option name="name" value="Introduction" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557826626000" />
+                <option name="updateDate" value="1558359747000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -60,7 +60,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Hello Beam" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557826626000" />
+                      <option name="updateDate" value="1558359747000" />
                       <option name="unitId" value="202042" />
                       <option name="items">
                         <list>
@@ -148,7 +148,7 @@
                 <option name="name" value="Core Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557826711000" />
+                <option name="updateDate" value="1558359770000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -157,7 +157,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Map" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557826639000" />
+                      <option name="updateDate" value="1558359764000" />
                       <option name="unitId" value="202043" />
                       <option name="items">
                         <list>
@@ -484,7 +484,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="GroupByKey" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557826677000" />
+                      <option name="updateDate" value="1558359767000" />
                       <option name="unitId" value="202044" />
                       <option name="items">
                         <list>
@@ -567,7 +567,7 @@
                       <option name="index" value="3" />
                       <option name="name" value="CoGroupByKey" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557826685000" />
+                      <option name="updateDate" value="1558359770000" />
                       <option name="unitId" value="202045" />
                       <option name="items">
                         <list>
@@ -1095,7 +1095,7 @@
                 <option name="name" value="Common Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557826716000" />
+                <option name="updateDate" value="1558359776000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1257,7 +1257,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="Aggregation" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557826716000" />
+                      <option name="updateDate" value="1558359776000" />
                       <option name="unitId" value="202050" />
                       <option name="items">
                         <list>

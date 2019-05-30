@@ -21,7 +21,7 @@
           <option name="courseMode" value="Course Creator" />
           <option name="createDate" value="1557823043901" />
           <option name="customPresentableName" />
-          <option name="description" value="This course provides a series of kata to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
+          <option name="description" value="This course provides a series of katas to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
           <option name="environment" value="" />
           <option name="fromZip" value="false" />
           <option name="id" value="54530" />
@@ -31,16 +31,16 @@
               <option value="48485817" />
             </list>
           </option>
-          <option name="language" value="JAVA" />
+          <option name="language" value="JAVA 8" />
           <option name="languageCode" value="en" />
-          <option name="name" value="Beam Kata - Java" />
-          <option name="public" value="false" />
+          <option name="name" value="Beam Katas - Java" />
+          <option name="public" value="true" />
           <option name="sectionIds">
             <list />
           </option>
           <option name="stepikChangeStatus" value="Up to date" />
-          <option name="type" value="pycharm11 JAVA" />
-          <option name="updateDate" value="1558359749000" />
+          <option name="type" value="pycharm11 JAVA 8" />
+          <option name="updateDate" value="1559216458000" />
           <option name="items">
             <list>
               <Section>
@@ -51,7 +51,7 @@
                 <option name="name" value="Introduction" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557824488000" />
+                <option name="updateDate" value="1558359731000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -60,7 +60,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Hello Beam" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557824488000" />
+                      <option name="updateDate" value="1558359731000" />
                       <option name="unitId" value="202031" />
                       <option name="items">
                         <list>
@@ -148,7 +148,7 @@
                 <option name="name" value="Core Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1558119706000" />
+                <option name="updateDate" value="1558359740000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -631,7 +631,7 @@
                       <option name="index" value="4" />
                       <option name="name" value="Combine" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1558119706000" />
+                      <option name="updateDate" value="1558359740000" />
                       <option name="unitId" value="202035" />
                       <option name="items">
                         <list>
