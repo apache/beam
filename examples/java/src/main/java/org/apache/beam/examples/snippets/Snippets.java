@@ -42,6 +42,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -605,4 +610,47 @@ public class Snippets {
 
   // [END SideInputPatternSlowUpdateGlobalWindowSnip1]
 
+  // [START AccessingValueProviderInfoAfterRunSnip1]
+
+  /** Sample of PipelineOptions with a ValueProvider option argument. */
+  public interface MyOptions extends PipelineOptions {
+    @Description("My option")
+    @Default.String("Hello world!")
+    ValueProvider<String> getStringValue();
+
+    void setStringValue(ValueProvider<String> value);
+  }
+
+  public static void accessingValueProviderInfoAfterRunSnip1(String[] args) {
+
+    MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
+
+    // Create pipeline.
+    Pipeline p = Pipeline.create(options);
+
+    // Add a branch for logging the ValueProvider value.
+    p.apply(Create.of(1))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+
+                  // Define the DoFn that logs the ValueProvider value.
+                  @ProcessElement
+                  public void process(ProcessContext c) {
+
+                    MyOptions ops = c.getPipelineOptions().as(MyOptions.class);
+                    // This example logs the ValueProvider value, but you could store it by
+                    // pushing it to an external database.
+
+                    LOG.info("Option StringValue was {}", ops.getStringValue());
+                  }
+                }));
+
+    // The main pipeline.
+    p.apply(Create.of(1, 2, 3, 4)).apply(Sum.integersGlobally());
+
+    p.run();
+  }
+
+  // [END AccessingValueProviderInfoAfterRunSnip1]
 }
