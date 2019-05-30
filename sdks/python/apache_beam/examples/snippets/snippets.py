@@ -1352,3 +1352,52 @@ def file_process_pattern_access_metadata():
                           | beam.Map(lambda x: (x.metadata.path,
                                                 x.read_utf8())))
   # [END FileProcessPatternAccessMetadataSnip1]
+
+
+def accessing_valueprovider_info_after_run():
+  # [START AccessingValueProviderInfoAfterRunSnip1]
+  import logging
+
+  import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.utils.value_provider import RuntimeValueProvider
+  from apache_beam.io import WriteToText
+
+  class MyOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_value_provider_argument('--string_value', type=str)
+
+  class LogValueProvidersFn(beam.DoFn):
+    def __init__(self, string_vp):
+      self.string_vp = string_vp
+
+    # Define the DoFn that logs the ValueProvider value.
+    # The DoFn is called when creating the pipeline branch.
+    # This example logs the ValueProvider value, but
+    # you could store it by pushing it to an external database.
+    def process(self, an_int):
+      logging.info('The string_value is %s' % self.string_vp.get())
+      # Another option (where you don't need to pass the value at all) is:
+      logging.info('The string value is %s' %
+                   RuntimeValueProvider.get_value('string_value', str, ''))
+
+  pipeline_options = PipelineOptions()
+  # Create pipeline.
+  p = beam.Pipeline(options=pipeline_options)
+
+  my_options = pipeline_options.view_as(MyOptions)
+  # Add a branch for logging the ValueProvider value.
+  _ = (p
+       | beam.Create([None])
+       | 'LogValueProvs' >> beam.ParDo(
+           LogValueProvidersFn(my_options.string_value)))
+
+  # The main pipeline.
+  result_pc = (p
+               | "main_pc" >> beam.Create([1, 2, 3])
+               | beam.combiners.Sum.Globally())
+
+  p.run().wait_until_finish()
+
+  # [END AccessingValueProviderInfoAfterRunSnip1]
