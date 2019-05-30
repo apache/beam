@@ -2,27 +2,40 @@
 set -e
 echo Starting distributed TFDV stats computation and schema generation...
 
-if [[ -z "$MYBUCKET" ]]; then
-  echo "\$MYBUCKET must be set."
+if [[ -z "$1" ]]; then
+  echo "GCS bucket name required"
   exit 1
 fi
 
+if [[ -z "$2" ]]; then
+  echo "Runner required"
+  exit 1
+fi
+
+if [[ -z "$3" ]]; then
+  echo "SDK location needed"
+  exit 1
+fi
+
+GCS_BUCKET=$1
+RUNNER=$2
+SDK_LOCATION=$3
+
 JOB_ID="chicago-taxi-tfdv-$(date +%Y%m%d-%H%M%S)"
-JOB_OUTPUT_PATH=${MYBUCKET}/${JOB_ID}/chicago_taxi_output
-TEMP_PATH=${MYBUCKET}/${JOB_ID}/tmp/
-MYPROJECT=$(gcloud config list --format 'value(core.project)' 2>/dev/null)
+JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
+TEMP_PATH=${GCS_BUCKET}/${JOB_ID}/tmp/
+GCP_PROJECT=$(gcloud config list --format 'value(core.project)' 2>/dev/null)
 MAX_ROWS=2000
-JOB_OUTPUT_PATH=${MYBUCKET}/${JOB_ID}/chicago_taxi_output
+JOB_OUTPUT_PATH=${GCS_BUCKET}/${JOB_ID}/chicago_taxi_output
 TFT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/tft_output
 EVAL_RESULT_DIR=${TFT_OUTPUT_PATH}/eval_result_dir
-RUNNER=DataflowRunner
 
 
 # Variables needed for subsequent stages.
 TFDV_OUTPUT_PATH=${JOB_OUTPUT_PATH}/tfdv_output
 SCHEMA_PATH=${TFDV_OUTPUT_PATH}/schema.pbtxt
 
-echo Using GCP project: ${MYPROJECT}
+echo Using GCP project: ${GCP_PROJECT}
 echo Job output path: ${JOB_OUTPUT_PATH}
 echo TFDV output path: ${TFDV_OUTPUT_PATH}
 
@@ -35,7 +48,7 @@ python tfdv_analyze_and_validate.py \
   --infer_schema \
   --stats_path ${TFDV_OUTPUT_PATH}/train_stats.tfrecord \
   --schema_path ${SCHEMA_PATH} \
-  --project ${MYPROJECT} \
+  --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${TEMP_PATH} \
   --experiments shuffle_mode=auto \
@@ -46,8 +59,9 @@ python tfdv_analyze_and_validate.py \
   --publish_to_big_query=true \
   --metrics_dataset='chicago_taxi_metrics' \
   --metrics_table='tfdv_analyze' \
-  --metric_reporting_project ${MYPROJECT} \
-  --sdk_location='../../../../dist/apache-beam-2.14.0.dev0.tar.gz' \
+  --metric_reporting_project ${GCP_PROJECT} \
+  --sdk_location=${SDK_LOCATION} \
+  --setup_file ./setup.py
 
 EVAL_JOB_ID=${JOB_ID}-eval
 
@@ -59,7 +73,7 @@ python tfdv_analyze_and_validate.py \
   --validate_stats \
   --stats_path ${TFDV_OUTPUT_PATH}/eval_stats.tfrecord \
   --anomalies_path ${TFDV_OUTPUT_PATH}/anomalies.pbtxt \
-  --project ${MYPROJECT} \
+  --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${TEMP_PATH} \
   --experiments shuffle_mode=auto \
@@ -70,8 +84,9 @@ python tfdv_analyze_and_validate.py \
   --publish_to_big_query=true \
   --metrics_dataset='chicago_taxi_metrics' \
   --metrics_table='tfdv_validate' \
-  --sdk_location='../../../../dist/apache-beam-2.14.0.dev0.tar.gz' \
-  --metric_reporting_project ${MYPROJECT}
+  --sdk_location=${SDK_LOCATION} \
+  --metric_reporting_project ${GCP_PROJECT} \
+  --setup_file ./setup.py
 
 # End analyze and validate
 echo Preprocessing train data...
@@ -81,7 +96,7 @@ python preprocess.py \
   --outfile_prefix train_transformed \
   --input bigquery-public-data.chicago_taxi_trips.taxi_trips \
   --schema_file ${SCHEMA_PATH} \
-  --project ${MYPROJECT} \
+  --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${TEMP_PATH} \
   --experiments shuffle_mode=auto \
@@ -91,8 +106,9 @@ python preprocess.py \
   --publish_to_big_query=true \
   --metrics_dataset='chicago_taxi_metrics' \
   --metrics_table='preprocess' \
-  --sdk_location='../../../../dist/apache-beam-2.14.0.dev0.tar.gz' \
-  --metric_reporting_project ${MYPROJECT}
+  --sdk_location=${SDK_LOCATION} \
+  --metric_reporting_project ${GCP_PROJECT} \
+  --setup_file ./setup.py
 
 
 
@@ -140,9 +156,9 @@ python process_tfma.py \
   --schema_file ${SCHEMA_PATH} \
   --eval_model_dir ${LAST_EVAL_MODEL_DIR} \
   --eval_result_dir ${EVAL_RESULT_DIR} \
-  --project ${MYPROJECT} \
+  --project ${GCP_PROJECT} \
   --region us-central1 \
-  --temp_location ${MYBUCKET}/${JOB_ID}/tmp/ \
+  --temp_location ${GCS_BUCKET}/${JOB_ID}/tmp/ \
   --experiments shuffle_mode=auto \
   --job_name ${JOB_ID} \
   --save_main_session \
@@ -151,5 +167,6 @@ python process_tfma.py \
   --publish_to_big_query=true \
   --metrics_dataset='chicago_taxi_metrics' \
   --metrics_table='process_tfma' \
-  --sdk_location='../../../../dist/apache-beam-2.14.0.dev0.tar.gz' \
-  --metric_reporting_project ${MYPROJECT}
+  --sdk_location=${SDK_LOCATION} \
+  --metric_reporting_project ${GCP_PROJECT} \
+  --setup_file ./setup.py

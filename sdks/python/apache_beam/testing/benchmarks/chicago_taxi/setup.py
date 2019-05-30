@@ -18,10 +18,6 @@ import setuptools
 TF_VERSION = '1.13.1'
 # LINT.ThenChange(train_mlengine.sh, start_model_server_mlengine.sh)
 
-# LINT.IfChange
-BEAM_VERSION = '2.13.0'
-# LINT.ThenChange(setup_beam_on_flink.sh)
-
 if __name__ == '__main__':
     setuptools.setup(
         name='beam_chicago_taxi',

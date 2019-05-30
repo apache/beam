@@ -66,7 +66,7 @@ def process_tfma(eval_result_dir,
       ValueError: if input_csv and big_query_table are not specified correctly.
     """
 
-    if input_csv == big_query_table is None:
+    if big_query_table is None:
         raise ValueError(
             '--big_query_table should be provided.')
 
@@ -132,11 +132,6 @@ def process_tfma(eval_result_dir,
             | 'Measure time: End' >> beam.ParDo(
                 MeasureTime(metrics_namespace))
             | 'Write results' >> tfma.WriteResults(writers=writers)
-            | 'ExtractEvaluateAndWriteResults' >>
-            tfma.ExtractEvaluateAndWriteResults(
-                eval_shared_model=eval_shared_model,
-                slice_spec=slice_spec,
-                output_path=eval_result_dir)
     )
     result = pipeline.run()
     result.wait_until_finish()
@@ -158,9 +153,6 @@ def main():
     parser.add_argument(
         '--big_query_table',
         help='BigQuery path to input examples which will be evaluated.')
-    parser.add_argument(
-        '--input_csv',
-        help='CSV file containing raw data which will be evaluated.')
     parser.add_argument(
         '--max_eval_rows',
         help='Maximum number of rows to evaluate on.',
@@ -198,7 +190,6 @@ def main():
 
     process_tfma(
         eval_result_dir,
-        input_csv=known_args.input_csv,
         big_query_table=known_args.big_query_table,
         eval_model_dir=known_args.eval_model_dir,
         max_eval_rows=known_args.max_eval_rows,
