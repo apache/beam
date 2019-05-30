@@ -20,6 +20,65 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam Katas</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to announce 
+&lt;a href=&quot;https://github.com/apache/beam/tree/master/learning/katas&quot;&gt;Apache Beam Katas&lt;/a&gt;, a set of 
+interactive Beam coding exercises (i.e. &lt;a href=&quot;http://codekata.com/&quot;&gt;code katas&lt;/a&gt;) that can help you in 
+learning Apache Beam concepts and programming model hands-on.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;Beam Katas objective is to provide a series of structured hands-on learning experiences for learners 
+to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
+complexity. It is built based on 
+&lt;a href=&quot;https://www.jetbrains.com/education/&quot;&gt;JetBrains Educational Products&lt;/a&gt;. Beam Katas is available for 
+both Java and Python SDKs. Currently we have about 20 lessons that cover Apache Beam fundamentals, 
+such as core transforms, common transforms, and simple use case (word count), with more katas to 
+be added in the coming future.&lt;/p&gt;
+
+&lt;p&gt;To start with the courses, you can simply download 
+&lt;a href=&quot;https://www.jetbrains.com/education/download/#section=idea&quot;&gt;IntelliJ Edu&lt;/a&gt; or 
+&lt;a href=&quot;https://www.jetbrains.com/education/download/#section=pycharm-edu&quot;&gt;PyCharm Edu&lt;/a&gt; and then browse 
+the integrated Stepik courses from the menu. Search for “Beam Katas” and once the course is loaded 
+on the IDE, you’re good to go.&lt;/p&gt;
+
+&lt;p&gt;We have plans to add more katas covering more topics including some of the intermediate and 
+advanced ones in the coming future, such as windowing, streaming, and use case patterns. We would 
+also like to welcome you to &lt;a href=&quot;https://github.com/apache/beam&quot;&gt;contribute&lt;/a&gt; by building and adding more katas that you think would be 
+useful for people to learn more about Apache Beam, and eventually become Beam Masters!&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/blog/beam-kata/beam-kata-intellij-edu-1.png&quot; alt=&quot;Beam Kata - IntelliJ Edu&quot; width=&quot;363&quot; height=&quot;350&quot; /&gt;
+&lt;img src=&quot;/images/blog/beam-kata/beam-kata-intellij-edu-2.png&quot; alt=&quot;Beam Kata - IntelliJ Edu&quot; width=&quot;455&quot; height=&quot;350&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/blog/beam-kata/beam-kata-pycharm-edu-1.png&quot; alt=&quot;Beam Kata - PyCharm Edu&quot; width=&quot;363&quot; height=&quot;350&quot; /&gt;
+&lt;img src=&quot;/images/blog/beam-kata/beam-kata-pycharm-edu-2.png&quot; alt=&quot;Beam Kata - PyCharm Edu&quot; width=&quot;459&quot; height=&quot;350&quot; /&gt;&lt;/p&gt;
+</description>
+        <pubDate>Thu, 30 May 2019 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2019/05/30/beam-kata-release.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/30/beam-kata-release.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Beam community update!</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -913,92 +972,6 @@ vaclav.plajt@gmail.com, vitaliytv, vvarma, xiliu, xinyuiscool, xitep,
         <pubDate>Mon, 29 Oct 2018 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2018/10/29/beam-2.8.0.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2018/10/29/beam-2.8.0.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam 2.7.0</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are happy to present the new 2.7.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href=&quot;/get-started/downloads/#270-lts-2018-10-02&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
-For more information on changes in 2.7.0, check out the
-&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12343654&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h2&gt;
-
-&lt;h3 id=&quot;new-ios&quot;&gt;New I/Os&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;KuduIO&lt;/li&gt;
-  &lt;li&gt;Amazon SNS sink&lt;/li&gt;
-  &lt;li&gt;Amazon SqsIO&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;dependency-upgrades&quot;&gt;Dependency Upgrades&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Apache Calcite dependency upgraded to 1.17.0&lt;/li&gt;
-  &lt;li&gt;Apache Derby dependency upgraded to 10.14.2.0&lt;/li&gt;
-  &lt;li&gt;Apache HTTP components upgraded (see release notes).&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;portability&quot;&gt;Portability&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Experimental support for Python on local Flink runner for simple
-examples, see latest information here:
-/contribute/portability/#status.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h2&gt;
-
-&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;KinesisIO, fixed dependency issue&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
-
-&lt;p&gt;According to git shortlog, the following 72 people contributed
-to the 2.7.0 release. Thank you to all contributors!&lt;/p&gt;
-
-&lt;p&gt;Ahmet Altay, Alan Myrvold, Alexey Romanenko, Aljoscha Krettek,
-Andrew Pilloud, Ankit Jhalaria, Ankur Goenka, Anton Kedin, Boyuan
-Zhang, Carl McGraw, Carlos Alonso, cclauss, Chamikara Jayalath,
-Charles Chen, Cory Brzycki, Daniel Oliveira, Dariusz Aniszewski,
-devinduan, Eric Beach, Etienne Chauchot, Eugene Kirpichov, Garrett
-Jones, Gene Peters, Gleb Kanterov, Henning Rohde, Henry Suryawirawan,
-Holden Karau, Huygaa Batsaikhan, Ismaël Mejía, Jason Kuster, Jean-
-Baptiste Onofré, Joachim van der Herten, Jozef Vilcek, jxlewis, Kai
-Jiang, Katarzyna Kucharczyk, Kenn Knowles, Krzysztof Trubalski, Kyle
-Winkelman, Leen Toelen, Luis Enrique Ortíz Ramirez, Lukasz Cwik,
-Łukasz Gajowy, Luke Cwik, Mark Liu, Matthias Feys, Maximilian Michels,
-Melissa Pashniak, Mikhail Gryzykhin, Mikhail Sokolov, mingmxu, Norbert
-Chen, Pablo Estrada, Prateek Chanda, Raghu Angadi, Ravi Pathak, Reuven
-Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ryan Williams, Sindy Li,
-Thomas Weise, Tim Robertson, Tormod Haavi, Udi Meiri, Vaclav Plajt,
-Valentyn Tymofieiev, xiliu, XuMingmin, Yifan Zou, Yueyang Qiu.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 03 Oct 2018 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2018/10/03/beam-2.7.0.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2018/10/03/beam-2.7.0.html</guid>
         
         
         <category>blog</category>
