@@ -1356,6 +1356,8 @@ def file_process_pattern_access_metadata():
 
 def accessing_valueprovider_info_after_run():
   # [START AccessingValueProviderInfoAfterRunSnip1]
+  import logging
+  
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.utils.value_provider import RuntimeValueProvider
@@ -1380,22 +1382,22 @@ def accessing_valueprovider_info_after_run():
       logging.info('The string value is %s' %
                    RuntimeValueProvider.get_value('string_value', str, ''))
 
-    pipeline_options = PipelineOptions()
-    # Create pipeline.
-    p = beam.Pipeline(options=pipeline_options)
+  pipeline_options = PipelineOptions()
+  # Create pipeline.
+  p = beam.Pipeline(options=pipeline_options)
 
-    my_options = pipeline_options.view_as(MyOptions)
-    # Add a branch for logging the ValueProvider value.
-    _ = (p
-         | beam.Create([None])
-         | 'LogValueProvs' >> beam.ParDo(
-             LogValueProvidersFn(my_options.string_value)))
+  my_options = pipeline_options.view_as(MyOptions)
+  # Add a branch for logging the ValueProvider value.
+  _ = (p
+       | beam.Create([None])
+       | 'LogValueProvs' >> beam.ParDo(
+           LogValueProvidersFn(my_options.string_value)))
 
-    # The main pipeline.
-    result_pc = (p
-                 | "main_pc" >> beam.Create([1, 2, 3])
-                 | beam.combiners.Sum.Globally())
+  # The main pipeline.
+  result_pc = (p
+               | "main_pc" >> beam.Create([1, 2, 3])
+               | beam.combiners.Sum.Globally())
 
-    p.run().wait_until_finish()
+  p.run().wait_until_finish()
 
   # [END AccessingValueProviderInfoAfterRunSnip1]
