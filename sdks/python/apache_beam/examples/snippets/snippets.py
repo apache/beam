@@ -1357,7 +1357,7 @@ def file_process_pattern_access_metadata():
 def accessing_valueprovider_info_after_run():
   # [START AccessingValueProviderInfoAfterRunSnip1]
   import logging
-  
+
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.utils.value_provider import RuntimeValueProvider
