@@ -611,7 +611,8 @@ public class Snippets {
   // [END SideInputPatternSlowUpdateGlobalWindowSnip1]
 
   // [START AccessingValueProviderInfoAfterRunSnip1]
-
+  
+  /** Sample of PipelineOptions with a ValueProvider option argument.*/
   public interface MyOptions extends PipelineOptions {
     @Description("My option")
     @Default.String("Hello world!")
