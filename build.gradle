@@ -209,21 +209,6 @@ task python3PostCommit() {
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
 }
 
-task pythonValidatesRunner() {
-  // TODO(BEAM-6907): Unify the location of Py2 / Py3 subtasks.
-  dependsOn ":sdks:python:validatesRunnerBatchTests"
-  dependsOn ":sdks:python:validatesRunnerStreamingTests"
-}
-
-task python3ValidatesRunner() {
-  dependsOn ":sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests"
-  dependsOn ":sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests"
-  dependsOn ":sdks:python:test-suites:dataflow:py35:validatesRunnerStreamingTests"
-  dependsOn ":sdks:python:test-suites:dataflow:py36:validatesRunnerStreamingTests"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:validatesRunnerStreamingTests"
-}
-
 task portablePythonPreCommit() {
   dependsOn ":sdks:python:portablePreCommit"
 }
