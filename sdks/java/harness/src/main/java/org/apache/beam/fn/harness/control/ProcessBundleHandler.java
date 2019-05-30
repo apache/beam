@@ -224,10 +224,13 @@ public class ProcessBundleHandler {
     // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
     // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
     QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
+    LOG.info("ajamato InstructionRequest: " + request.toString());
 
     String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
+
+    LOG.info("ajamato ProcessBundleDescriptor: " + bundleDescriptor.toString());
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
