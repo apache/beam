@@ -94,8 +94,14 @@ class Infrastructure {
   }
 
   static void teardownDataproc(def context, String jobName) {
-    context.steps {
-      shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
+    context.publishers {
+      postBuildScripts {
+        steps {
+          shell("gcloud dataproc clusters delete ${getClusterName(jobName)} --quiet")
+        }
+        onlyIfBuildSucceeds(false)
+        onlyIfBuildFails(false)
+      }
     }
   }
 
