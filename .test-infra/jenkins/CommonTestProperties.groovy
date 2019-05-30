@@ -27,7 +27,7 @@ class CommonTestProperties {
     enum Runner {
         DATAFLOW("DataflowRunner"),
         SPARK("SparkRunner"),
-        FLINK("FlinkRunner"),
+        FLINK("TestFlinkRunner"),
         DIRECT("DirectRunner"),
         PORTABLE("PortableRunner")
 
