@@ -21,7 +21,7 @@
           <option name="courseMode" value="Course Creator" />
           <option name="createDate" value="1557824500323" />
           <option name="customPresentableName" />
-          <option name="description" value="This course provides a series of kata to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
+          <option name="description" value="This course provides a series of katas to get familiar with Apache Beam. &#10;&#10;Apache Beam website – https://beam.apache.org/" />
           <option name="environment" value="" />
           <option name="fromZip" value="false" />
           <option name="id" value="54532" />
@@ -33,14 +33,14 @@
           </option>
           <option name="language" value="Python 2.7" />
           <option name="languageCode" value="en" />
-          <option name="name" value="Beam Kata - Python" />
-          <option name="public" value="false" />
+          <option name="name" value="Beam Katas - Python" />
+          <option name="public" value="true" />
           <option name="sectionIds">
             <list />
           </option>
           <option name="stepikChangeStatus" value="Up to date" />
           <option name="type" value="pycharm11 Python 2.7" />
-          <option name="updateDate" value="1557824500000" />
+          <option name="updateDate" value="1559216649000" />
           <option name="items">
             <list>
               <Section>
@@ -50,8 +50,8 @@
                 <option name="index" value="1" />
                 <option name="name" value="Introduction" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557824504000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1558359747000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -60,14 +60,14 @@
                       <option name="index" value="1" />
                       <option name="name" value="Hello Beam" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557824508000" />
+                      <option name="updateDate" value="1558359747000" />
                       <option name="unitId" value="202042" />
                       <option name="items">
                         <list>
                           <EduTask>
                             <option name="customPresentableName" />
                             <option name="descriptionFormat" value="HTML" />
-                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Hello Beam Pipeline&lt;/h2&gt;&#10;&lt;p&gt;This kata is to create a simple pipeline that takes a hardcoded input element &quot;Hello Beam&quot;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Hardcoded input can be created using &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Create&quot;&gt;Create&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
+                            <option name="descriptionText" value="&lt;!--&#10;  ~  Licensed to the Apache Software Foundation (ASF) under one&#10;  ~  or more contributor license agreements.  See the NOTICE file&#10;  ~  distributed with this work for additional information&#10;  ~  regarding copyright ownership.  The ASF licenses this file&#10;  ~  to you under the Apache License, Version 2.0 (the&#10;  ~  &quot;License&quot;); you may not use this file except in compliance&#10;  ~  with the License.  You may obtain a copy of the License at&#10;  ~&#10;  ~      http://www.apache.org/licenses/LICENSE-2.0&#10;  ~&#10;  ~  Unless required by applicable law or agreed to in writing, software&#10;  ~  distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#10;  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#10;  ~  See the License for the specific language governing permissions and&#10;  ~  limitations under the License.&#10;  --&gt;&#10;&#10;&lt;html&gt;&#10;&lt;h2&gt;Hello Beam Pipeline&lt;/h2&gt;&#10;&lt;p&gt;&#10;  Apache Beam is an open source, unified model for defining both batch and streaming data-parallel&#10;  processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the&#10;  pipeline. The pipeline is then executed by one of Beam’s supported distributed processing&#10;  back-ends, which include Apache Apex, Apache Flink, Apache Spark, and Google Cloud Dataflow.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  Beam is particularly useful for Embarrassingly Parallel data processing tasks, in which the&#10;  problem can be decomposed into many smaller bundles of data that can be processed independently&#10;  and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data&#10;  integration. These tasks are useful for moving data between different storage media and data&#10;  sources, transforming data into a more desirable format, or loading data onto a new system.&#10;&lt;/p&gt;&#10;&lt;p&gt;&#10;  To learn more about Apache Beam, refer to&#10;  &lt;a href=&quot;https://beam.apache.org/get-started/beam-overview/&quot;&gt;Apache Beam Overview&lt;/a&gt;.&#10;&lt;/p&gt;&#10;&lt;br/&gt;&#10;&lt;p&gt;The first kata is to create a simple pipeline that takes a hardcoded input element &quot;Hello Beam&quot;&lt;/p&gt;&#10;&lt;br&gt;&#10;&lt;br&gt;&#10;&lt;div class='hint'&gt;Hardcoded input can be created using &lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.11.0/apache_beam.transforms.core.html#apache_beam.transforms.core.Create&quot;&gt;Create&lt;/a&gt;&lt;/div&gt;&#10;&lt;/html&gt;&#10;&#10;" />
                             <option name="feedbackLink">
                               <FeedbackLink>
                                 <option name="link" />
@@ -132,7 +132,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824510000" />
+                            <option name="updateDate" value="1558359747000" />
                           </EduTask>
                         </list>
                       </option>
@@ -147,8 +147,8 @@
                 <option name="index" value="2" />
                 <option name="name" value="Core Transforms" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557824511000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1558359770000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -157,7 +157,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Map" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824515000" />
+                      <option name="updateDate" value="1558359764000" />
                       <option name="unitId" value="202043" />
                       <option name="items">
                         <list>
@@ -246,7 +246,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824517000" />
+                            <option name="updateDate" value="1558359751000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -333,7 +333,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824519000" />
+                            <option name="updateDate" value="1558359757000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -403,7 +403,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824521000" />
+                            <option name="updateDate" value="1558359761000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -473,7 +473,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824523000" />
+                            <option name="updateDate" value="1558359764000" />
                           </EduTask>
                         </list>
                       </option>
@@ -484,7 +484,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="GroupByKey" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557824527000" />
+                      <option name="updateDate" value="1558359767000" />
                       <option name="unitId" value="202044" />
                       <option name="items">
                         <list>
@@ -556,7 +556,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824529000" />
+                            <option name="updateDate" value="1558359767000" />
                           </EduTask>
                         </list>
                       </option>
@@ -567,7 +567,7 @@
                       <option name="index" value="3" />
                       <option name="name" value="CoGroupByKey" />
                       <option name="stepikChangeStatus" value="Up to date" />
-                      <option name="updateDate" value="1557824533000" />
+                      <option name="updateDate" value="1558359770000" />
                       <option name="unitId" value="202045" />
                       <option name="items">
                         <list>
@@ -639,7 +639,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824535000" />
+                            <option name="updateDate" value="1558359770000" />
                           </EduTask>
                         </list>
                       </option>
@@ -650,7 +650,7 @@
                       <option name="index" value="4" />
                       <option name="name" value="Combine" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824539000" />
+                      <option name="updateDate" value="1557826687000" />
                       <option name="unitId" value="202046" />
                       <option name="items">
                         <list>
@@ -907,7 +907,7 @@
                       <option name="index" value="5" />
                       <option name="name" value="Flatten" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824550000" />
+                      <option name="updateDate" value="1557826693000" />
                       <option name="unitId" value="202047" />
                       <option name="items">
                         <list>
@@ -990,7 +990,7 @@
                       <option name="index" value="6" />
                       <option name="name" value="Partition" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824556000" />
+                      <option name="updateDate" value="1557826711000" />
                       <option name="unitId" value="202048" />
                       <option name="items">
                         <list>
@@ -1095,7 +1095,7 @@
                 <option name="name" value="Common Transforms" />
                 <option name="position" value="0" />
                 <option name="stepikChangeStatus" value="Up to date" />
-                <option name="updateDate" value="1557824560000" />
+                <option name="updateDate" value="1558359776000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1104,7 +1104,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Filter" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824563000" />
+                      <option name="updateDate" value="1557826715000" />
                       <option name="unitId" value="202049" />
                       <option name="items">
                         <list>
@@ -1257,7 +1257,7 @@
                       <option name="index" value="2" />
                       <option name="name" value="Aggregation" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824571000" />
+                      <option name="updateDate" value="1558359776000" />
                       <option name="unitId" value="202050" />
                       <option name="items">
                         <list>
@@ -1329,7 +1329,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824574000" />
+                            <option name="updateDate" value="1558359773000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1399,7 +1399,7 @@
                                 </entry>
                               </map>
                             </option>
-                            <option name="updateDate" value="1557824575000" />
+                            <option name="updateDate" value="1558359776000" />
                           </EduTask>
                           <EduTask>
                             <option name="customPresentableName" />
@@ -1624,8 +1624,8 @@
                 <option name="index" value="4" />
                 <option name="name" value="Examples" />
                 <option name="position" value="0" />
-                <option name="stepikChangeStatus" value="Content changed" />
-                <option name="updateDate" value="1557824583000" />
+                <option name="stepikChangeStatus" value="Up to date" />
+                <option name="updateDate" value="1557826725000" />
                 <option name="items">
                   <list>
                     <Lesson>
@@ -1634,7 +1634,7 @@
                       <option name="index" value="1" />
                       <option name="name" value="Word Count" />
                       <option name="stepikChangeStatus" value="Content changed" />
-                      <option name="updateDate" value="1557824587000" />
+                      <option name="updateDate" value="1557826725000" />
                       <option name="unitId" value="202051" />
                       <option name="items">
                         <list>
