@@ -210,8 +210,9 @@ task python3PostCommit() {
 }
 
 task pythonValidatesRunner() {
-  dependsOn ":sdks:python:test-suites:dataflow:validatesRunnerBatchTests"
-  dependsOn ":sdks:python:test-suites:dataflow:validatesRunnerStreamingTests"
+  // TODO(BEAM-6907): Unify the location of Py2 / Py3 subtasks.
+  dependsOn ":sdks:python:validatesRunnerBatchTests"
+  dependsOn ":sdks:python:validatesRunnerStreamingTests"
 }
 
 task python3ValidatesRunner() {
