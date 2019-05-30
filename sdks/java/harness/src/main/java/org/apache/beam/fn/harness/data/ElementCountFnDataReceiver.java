@@ -19,8 +19,6 @@ package org.apache.beam.fn.harness.data;
 
 import java.io.Closeable;
 import java.util.HashMap;
-
-import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -105,9 +103,13 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
       boolean sample = this.shouldSample.shouldSampleElement(input.getValue());
 
       if (sample) {
-        LOG.info("ajamato sample with pCollectionId: " + this.pCollectionId +
-                 " pColl.getName(): " + this.pColl.getName() +
-                 " Coder: " + this.elementCoder.getClass().getName());
+        LOG.info(
+            "ajamato sample with pCollectionId: "
+                + this.pCollectionId
+                + " pColl.getName(): "
+                + this.pColl.getName()
+                + " Coder: "
+                + this.elementCoder.getClass().getName());
         this.elementCoder.registerByteSizeObserver(input.getValue(), this.observer);
       }
       this.original.accept(input);
