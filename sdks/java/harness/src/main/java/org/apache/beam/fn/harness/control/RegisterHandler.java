@@ -65,6 +65,13 @@ public class RegisterHandler {
     }
   }
 
+  /**
+   * Register the InstructionRequest, storing ProcessBundleDescriptors and Coders by id for fast
+   * lookup later.
+   *
+   * @param request
+   * @return an appropriate InstructionResponse.
+   */
   public BeamFnApi.InstructionResponse.Builder register(BeamFnApi.InstructionRequest request) {
     BeamFnApi.InstructionResponse.Builder response =
         BeamFnApi.InstructionResponse.newBuilder()
