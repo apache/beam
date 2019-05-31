@@ -58,6 +58,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A {@link PTransformRunnerFactory} for transforms invoking a {@link DoFn}. */
 abstract class DoFnPTransformRunnerFactory<
@@ -66,6 +68,10 @@ abstract class DoFnPTransformRunnerFactory<
         OutputT,
         RunnerT extends DoFnPTransformRunnerFactory.DoFnPTransformRunner<TransformInputT>>
     implements PTransformRunnerFactory<RunnerT> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnPTransformRunnerFactory.class);
+
+
   interface DoFnPTransformRunner<T> {
     void startBundle() throws Exception;
 
@@ -109,6 +115,7 @@ abstract class DoFnPTransformRunnerFactory<
             splitListener);
 
     RunnerT runner = createRunner(context);
+    LOG.info("ajamato pTransformId: " + pTransformId + " parDoPayload\n: " + context.parDoPayload.toString());
 
     // Register the appropriate handlers.
     startFunctionRegistry.register(pTransformId, runner::startBundle);
