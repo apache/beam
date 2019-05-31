@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -335,6 +336,7 @@ public class ParDoLifecycleTest implements Serializable {
     // exception is not necessarily thrown on every instance. But we expect at least
     // one during tests
     static AtomicBoolean exceptionWasThrown = new AtomicBoolean(false);
+    static AtomicInteger noOfInstancesToTearDown = new AtomicInteger(0);
 
     private final MethodForException toThrow;
     private boolean thrown;
@@ -348,6 +350,7 @@ public class ParDoLifecycleTest implements Serializable {
       assertThat(
           "lifecycle methods should not have been called", callStateMap.get(id()), is(nullValue()));
       initCallState();
+      noOfInstancesToTearDown.incrementAndGet();
       throwIfNecessary(MethodForException.SETUP);
     }
 
@@ -391,7 +394,7 @@ public class ParDoLifecycleTest implements Serializable {
 
     @Teardown
     public void after() {
-      if (!exceptionWasThrown.get()) {
+      if (noOfInstancesToTearDown.decrementAndGet() == 0 && !exceptionWasThrown.get()) {
         fail("Excepted to have a processing method throw an exception");
       }
       assertThat(
@@ -402,7 +405,11 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     private void initCallState() {
-      callStateMap.put(id(), new DelayedCallStateTracker(CallState.SETUP));
+      DelayedCallStateTracker previousTracker =
+          callStateMap.put(id(), new DelayedCallStateTracker(CallState.SETUP));
+      if (previousTracker != null) {
+        fail(CallState.SETUP + " method called multiple times");
+      }
     }
 
     private int id() {
