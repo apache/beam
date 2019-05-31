@@ -18,20 +18,26 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.LongStream;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -41,6 +47,7 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -53,6 +60,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -689,6 +697,78 @@ public class UnboundedSourceWrapperTest {
         thread.join(1000);
       }
       assertThat(thread.isAlive(), is(false));
+    }
+
+    @Test
+    public void testSequentialReadingFromBoundedSource() throws Exception {
+      UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<Long> source =
+          new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(
+              CountingSource.upTo(1000));
+
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      options.setShutdownSourcesOnFinalWatermark(true);
+
+      UnboundedSourceWrapper<
+              Long, UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint<Long>>
+          sourceWrapper = new UnboundedSourceWrapper<>("sequentialRead", options, source, 4);
+
+      StreamingRuntimeContext runtimeContextMock = Mockito.mock(StreamingRuntimeContext.class);
+      Mockito.when(runtimeContextMock.getIndexOfThisSubtask()).thenReturn(0);
+      when(runtimeContextMock.getNumberOfParallelSubtasks()).thenReturn(2);
+      when(runtimeContextMock.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
+      TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+      processingTimeService.setCurrentTime(0);
+      when(runtimeContextMock.getProcessingTimeService()).thenReturn(processingTimeService);
+
+      when(runtimeContextMock.getMetricGroup()).thenReturn(new UnregisteredMetricsGroup());
+
+      sourceWrapper.setRuntimeContext(runtimeContextMock);
+
+      sourceWrapper.open(new Configuration());
+      assertThat(sourceWrapper.getLocalReaders().size(), is(2));
+
+      List<Long> integers = new ArrayList<>();
+      sourceWrapper.run(
+          new SourceFunction.SourceContext<WindowedValue<ValueWithRecordId<Long>>>() {
+            private final Object checkpointLock = new Object();
+
+            @Override
+            public void collect(WindowedValue<ValueWithRecordId<Long>> element) {
+              integers.add(element.getValue().getValue());
+            }
+
+            @Override
+            public void collectWithTimestamp(
+                WindowedValue<ValueWithRecordId<Long>> element, long timestamp) {
+              throw new IllegalStateException("Should not collect with timestamp");
+            }
+
+            @Override
+            public void emitWatermark(Watermark mark) {}
+
+            @Override
+            public void markAsTemporarilyIdle() {}
+
+            @Override
+            public Object getCheckpointLock() {
+              return checkpointLock;
+            }
+
+            @Override
+            public void close() {}
+          });
+
+      // The source is effectively split into two parts: The initial splitting is performed with a
+      // parallelism of 4, but there are 2 parallel subtasks. This instances taskes 2 out of 4
+      // partitions.
+      assertThat(integers.size(), is(500));
+      assertThat(
+          integers,
+          contains(
+              LongStream.concat(LongStream.range(0, 250), LongStream.range(500, 750))
+                  .boxed()
+                  .toArray()));
     }
   }
 
