@@ -182,10 +182,16 @@
 
 
 <ul class="nav">
-  <li><a href="#generating-the-beam-examples-project-from-snapshot-versions-of-beam">Generating the Beam examples project from SNAPSHOT versions of Beam</a></li>
-  <li><a href="#generating-the-beam-examples-project-from-released-versions-of-beam">Generating the Beam examples project from RELEASED versions of Beam</a></li>
-  <li><a href="#running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</a></li>
-  <li><a href="#running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</a></li>
+  <li><a href="#overview">Overview</a></li>
+  <li><a href="#running-wordcount-with-the-hazelcast-jet-runner">Running WordCount with the Hazelcast Jet Runner</a>
+    <ul>
+      <li><a href="#generating-the-beam-examples-project-from-snapshot-versions-of-beam">Generating the Beam examples project from SNAPSHOT versions of Beam</a></li>
+      <li><a href="#generating-the-beam-examples-project-from-released-versions-of-beam">Generating the Beam examples project from RELEASED versions of Beam</a></li>
+      <li><a href="#running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</a></li>
+      <li><a href="#running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</a></li>
+    </ul>
+  </li>
+  <li><a href="#pipeline-options-for-the-jet-runner">Pipeline Options for the Jet Runner</a></li>
 </ul>
 
 
@@ -206,7 +212,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="overview">Overview</h1>
+<h2 id="overview">Overview</h2>
 
 <p>The Hazelcast Jet Runner can be used to execute Beam pipelines using <a href="https://jet.hazelcast.org/">Hazelcat
 Jet</a>.</p>
@@ -230,9 +236,9 @@ The Runner can’t match it as of now because Beam pipeline optimization/surgery
 <p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the
 supported capabilities of the Jet Runner.</p>
 
-<h1 id="running-wordcount-with-the-hazelcast-jet-runner">Running WordCount with the Hazelcast Jet Runner</h1>
+<h2 id="running-wordcount-with-the-hazelcast-jet-runner">Running WordCount with the Hazelcast Jet Runner</h2>
 
-<h2 id="generating-the-beam-examples-project-from-snapshot-versions-of-beam">Generating the Beam examples project from SNAPSHOT versions of Beam</h2>
+<h3 id="generating-the-beam-examples-project-from-snapshot-versions-of-beam">Generating the Beam examples project from SNAPSHOT versions of Beam</h3>
 <p>Make sure that your maven config (~/.m2/settings.xml) is set up to have access to the Apache Snapshot Repository. It 
 should contain this:</p>
 <div class="highlighter-rouge"><pre class="highlight"><code>    &lt;repositories&gt;
@@ -252,8 +258,7 @@ should contain this:</p>
 </div>
 
 <p>Generate the Examples Maven Project just like when the archetype is local:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>    $ cd ../../../../..
-    $ mvn archetype:generate \
+<div class="highlighter-rouge"><pre class="highlight"><code>    $ mvn archetype:generate \
         -DarchetypeGroupId=org.apache.beam \
         -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
         -DarchetypeVersion=2.14.0-SNAPSHOT \
@@ -265,34 +270,34 @@ should contain this:</p>
 </code></pre>
 </div>
 
-<h2 id="generating-the-beam-examples-project-from-released-versions-of-beam">Generating the Beam examples project from RELEASED versions of Beam</h2>
+<h3 id="generating-the-beam-examples-project-from-released-versions-of-beam">Generating the Beam examples project from RELEASED versions of Beam</h3>
 
 <p>Caution: The released Beam versions don’t contain the Jet Runner yet. The SNAPSHOT version has to be used until Jet is released.</p>
 
-<h2 id="running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</h2>
+<h3 id="running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</h3>
 <p>Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.</p>
 <div class="highlighter-rouge"><pre class="highlight"><code>    $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
         -Dexec.args="\
             --runner=JetRunner \
-            --jetGroupName=jet \
-            --jetLocalMode=3
+            --jetLocalMode=3 \
             --inputFile=pom.xml \
             --output=counts" \
         -Pjet-runner
 </code></pre>
 </div>
 
-<h2 id="running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</h2>
+<h3 id="running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</h3>
 <p>Download latest stable Hazelcast Jet code from <a href="https://jet.hazelcast.org/download/">Hazelcast Website</a> and 
 start Jet cluster. 
 The simplest way is to start Jet cluster member using the <code class="highlighter-rouge">jet-start</code> script that comes with Jet distribution.
-The members use the <a href="https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters">auto discovery feature</a> to form a cluster.</p>
+The members use the <a href="https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters">auto discovery feature</a> 
+to form a cluster. Let’s start up a cluster formed by two members:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>    $ cd hazelcast-jet/bin/
-    $ ./jet-start.sh &amp;
-    $ ./jet-start.sh &amp;
+<div class="highlighter-rouge"><pre class="highlight"><code>    $ cd hazelcast-jet
+    $ bin/jet-start.sh &amp;
+    $ bin/jet-start.sh &amp;
 </code></pre>
 </div>
 
@@ -325,14 +330,68 @@ cluster runs. The word count job won’t be able to read the data otherwise.</p>
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
         -Dexec.args="\
             --runner=JetRunner \
-            --jetGroupName=jet \
             --jetServers=192.168.0.117:5701,192.168.0.117:5702 \
             --codeJarPathname=target/word-count-beam-bundled-0.1.jar \
-            --inputFile=~/hazelcast-jet-3.0/license/apache-v2-license.txt \
+            --inputFile=&lt;INPUT_FILE_AVAILABLE_ON_ALL_CLUSTER_MEMBERS&gt; \
             --output=/tmp/counts" \
         -Pjet-runner
 </code></pre>
 </div>
+
+<h2 id="pipeline-options-for-the-jet-runner">Pipeline Options for the Jet Runner</h2>
+
+<table class="table table-bordered">
+<tr>
+  <th>Field</th>
+  <th>Description</th>
+  <th>Default Value</th>
+</tr>
+<tr>
+  <td><code>runner</code></td>
+  <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
+  <td>Set to <code>JetRunner</code> to run using Jet.</td>
+</tr>
+<tr>
+  <td><code>jetGroupName</code></td>
+  <td>The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that will be 
+  used by the Runner. With groups it is possible to create multiple clusters where each cluster has its own 
+  group and doesn't interfere with other clusters.</td>
+  <td><code>jet</code></td>
+</tr>
+<tr>
+  <td><code>jetServers</code></td>
+  <td>List of the addresses of Jet Cluster members, needed when the Runner doesn't start its own Jet Cluster, 
+  but makes use of an external, independently started one. Takes the form of a comma separated list of ip/hostname-port pairs, 
+  like this: <code>192.168.0.117:5701,192.168.0.117:5702</code></td>
+  <td><code>127.0.0.1:5701</code></td>
+</tr>
+<tr>
+  <td><code>codeJarPathname</code></td>
+  <td>Also a property needed only when using external Jet Clusters, specifies the location of a fat jar
+  containing all the code that needs to run on the cluster (so at least the pipeline and the runner code). The value 
+  is any string that is acceptad by <code>new java.io.File()</code> as a parameter.</td>
+  <td>Has no default value.</td>
+</tr>
+<tr>
+  <td><code>jetLocalMode</code></td>
+  <td>The number of Jet Cluster members that should be started locally by the Runner. If it's <code>0</code>
+  then the Runner will be using an external cluster. If greater, then the Runner will be using a cluster started by itself.</td>
+  <td><code>0</code></td>
+</tr>
+<tr>
+  <td><code>jetDefaultParallelism</code></td>
+  <td>Local parallelism of Jet members, the number of processors of each vertex of the DAG that will be created on each 
+  Jet Cluster member.</td>
+  <td><code>2</code></td>
+</tr>
+<tr>
+  <td><code>jetProcessorsCooperative</code></td>
+  <td>Boolean flag specifying if Jet Processors for DoFns are allowed to be cooperative (ie. use green threads instead of 
+  dedicated OS ones). If set to true than all such Processors will be cooperative, except when they have no outputs
+  (so they are assumed to be syncs).</td>
+  <td><code>false</code></td>
+</tr>
+</table>
 
       </div>
     </div>

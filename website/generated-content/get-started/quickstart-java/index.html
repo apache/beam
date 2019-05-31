@@ -381,7 +381,11 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 <div class="runner-jet highlighter-rouge"><pre class="highlight"><code>$ mvn package -Pjet-runner -DskipTests
 $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
-     --runner=JetRunner --jetGroupName=jet --inputFile=`pwd`/pom.xml --output=counts 
+     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
+     
+Please note that the Jet Runner will be present in released versions of Beam 
+only starting with 2.14.0. Until then SNAPSHOT versions need to be used when 
+generating the above Maven archetype for the examples code. 
 </code></pre>
 </div>
 
@@ -438,7 +442,11 @@ PS&gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.
 
 <div class="runner-jet highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn package -P jet-runner -DskipTests
 PS&gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
-      --runner=JetRunner --jetGroupName=jet --inputFile=`pwd`/pom.xml --output=counts
+      --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
+     
+Please note that the Jet Runner will be present in released versions of Beam 
+only starting with 2.14.0. Until then SNAPSHOT versions need to be used when 
+generating the above Maven archetype for the examples code. 
 </code></pre>
 </div>
 
