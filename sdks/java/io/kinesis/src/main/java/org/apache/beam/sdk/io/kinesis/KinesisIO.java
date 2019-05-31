@@ -581,6 +581,11 @@ public final class KinesisIO {
           getPartitionKey() == null || (getPartitioner() == null),
           "only one of either withPartitionKey() or withPartitioner() is possible");
       checkArgument(getAWSClientsProvider() != null, "withAWSClientsProvider() is required");
+      checkArgument(
+          streamExists(getAWSClientsProvider().getKinesisClient(), getStreamName()),
+          "Stream %s does not exist",
+          getStreamName());
+
       input.apply(ParDo.of(new KinesisWriterFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -601,11 +606,6 @@ public final class KinesisIO {
 
       @Setup
       public void setup() throws Exception {
-        checkArgument(
-            streamExists(spec.getAWSClientsProvider().getKinesisClient(), spec.getStreamName()),
-            "Stream %s does not exist",
-            spec.getStreamName());
-
         // Init producer config
         Properties props = spec.getProducerProperties();
         if (props == null) {
@@ -772,6 +772,9 @@ public final class KinesisIO {
     }
   }
 
+  /**
+   * Attention, operation "DescribeStream" has a limit of 10 transactions per second per account.
+   */
   private static boolean streamExists(AmazonKinesis client, String streamName) {
     try {
       DescribeStreamResult describeStreamResult = client.describeStream(streamName);
