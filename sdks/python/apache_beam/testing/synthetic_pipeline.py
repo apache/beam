@@ -77,6 +77,7 @@ def rotate_key(element):
   (key, value) = element
   return key[-1:] + key[:-1], value
 
+
 def initial_splitting_zipf(start_position, stop_position,
                            desired_num_bundles, distribution_parameter,
                            num_total_records=None):
@@ -101,8 +102,10 @@ def initial_splitting_zipf(start_position, stop_position,
     index += 1
   return bundle_ranges
 
+
 class SyntheticStep(beam.DoFn):
   """A DoFn of which behavior can be controlled through prespecified parameters.
+
   """
 
   def __init__(self, per_element_delay_sec=0, per_bundle_delay_sec=0,
