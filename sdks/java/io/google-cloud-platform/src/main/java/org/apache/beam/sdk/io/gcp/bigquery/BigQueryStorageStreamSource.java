@@ -39,7 +39,7 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.OffsetBasedSource;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -48,7 +48,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
+public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   public static <T> BigQueryStorageStreamSource<T> create(
       ReadSession readSession,
@@ -60,9 +60,6 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
     return new BigQueryStorageStreamSource<>(
         readSession,
         stream,
-        0L,
-        Long.MAX_VALUE,
-        1L,
         toJsonString(checkNotNull(tableSchema, "tableSchema")),
         parseFn,
         outputCoder,
@@ -79,14 +76,10 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
   private BigQueryStorageStreamSource(
       ReadSession readSession,
       Stream stream,
-      long startOffset,
-      long stopOffset,
-      long minBundleSize,
       String jsonTableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(startOffset, stopOffset, minBundleSize);
     this.readSession = checkNotNull(readSession, "readSession");
     this.stream = checkNotNull(stream, "stream");
     this.jsonTableSchema = checkNotNull(jsonTableSchema, "jsonTableSchema");
@@ -119,23 +112,11 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
   }
 
   @Override
-  public List<? extends OffsetBasedSource<T>> split(
+  public List<? extends BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) {
     // A stream source can't be split without reading from it due to server-side liquid sharding.
     // TODO: Implement dynamic work rebalancing.
     return ImmutableList.of(this);
-  }
-
-  @Override
-  public long getMaxEndOffset(PipelineOptions options) {
-    // This method should never be called given the overrides above.
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public OffsetBasedSource<T> createSourceForSubrange(long start, long end) {
-    // This method should never be called given the overrides above.
-    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
@@ -145,13 +126,14 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
 
   /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
   @Experimental(Experimental.Kind.SOURCE_SINK)
-  public static class BigQueryStorageStreamReader<T> extends OffsetBasedReader<T> {
+  public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
     private final DatumReader<GenericRecord> datumReader;
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
     private final StorageClient storageClient;
     private final TableSchema tableSchema;
 
+    private BigQueryStorageStreamSource<T> source;
     private Iterator<ReadRowsResponse> responseIterator;
     private BinaryDecoder decoder;
     private GenericRecord record;
@@ -160,7 +142,7 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
-      super(source);
+      this.source = source;
       this.datumReader =
           new GenericDatumReader<>(
               new Schema.Parser().parse(source.readSession.getAvroSchema().getSchema()));
@@ -170,9 +152,8 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
     }
 
     @Override
-    protected boolean startImpl() throws IOException {
+    public boolean start() throws IOException {
       BigQueryStorageStreamSource<T> source = getCurrentSource();
-      currentOffset = source.getStartOffset();
 
       ReadRowsRequest request =
           ReadRowsRequest.newBuilder()
@@ -185,7 +166,7 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
     }
 
     @Override
-    protected boolean advanceImpl() throws IOException {
+    public boolean advance() throws IOException {
       currentOffset++;
       return readNextRecord();
     }
@@ -215,23 +196,18 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
     }
 
     @Override
-    protected long getCurrentOffset() throws NoSuchElementException {
-      return currentOffset;
-    }
-
-    @Override
     public void close() {
       storageClient.close();
     }
 
     @Override
     public synchronized BigQueryStorageStreamSource<T> getCurrentSource() {
-      return (BigQueryStorageStreamSource<T>) super.getCurrentSource();
+      return source;
     }
 
     @Override
-    public boolean allowsDynamicSplitting() {
-      return false;
+    public BoundedSource<T> splitAtFraction(double fraction) {
+      return null;
     }
   }
 }

@@ -623,40 +623,6 @@ public class BigQueryIOStorageReadTest {
   }
 
   @Test
-  public void testStreamSourceGetMaxEndOffset() throws Exception {
-
-    BigQueryStorageStreamSource<TableRow> streamSource =
-        BigQueryStorageStreamSource.create(
-            ReadSession.getDefaultInstance(),
-            Stream.getDefaultInstance(),
-            TABLE_SCHEMA,
-            new TableRowParser(),
-            TableRowJsonCoder.of(),
-            new FakeBigQueryServices());
-
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Not implemented");
-    streamSource.getMaxEndOffset(options);
-  }
-
-  @Test
-  public void testStreamSourceCreateSouceForSubrange() throws Exception {
-
-    BigQueryStorageStreamSource<TableRow> streamSource =
-        BigQueryStorageStreamSource.create(
-            ReadSession.getDefaultInstance(),
-            Stream.getDefaultInstance(),
-            TABLE_SCHEMA,
-            new TableRowParser(),
-            TableRowJsonCoder.of(),
-            new FakeBigQueryServices());
-
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Not implemented");
-    streamSource.createSourceForSubrange(0, 0);
-  }
-
-  @Test
   public void testReadFromStreamSource() throws Exception {
 
     ReadSession readSession =
