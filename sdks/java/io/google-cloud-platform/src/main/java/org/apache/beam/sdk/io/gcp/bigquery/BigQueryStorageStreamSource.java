@@ -21,12 +21,16 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.fromJsonString
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
+import com.google.protobuf.UnknownFieldSet;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -39,16 +43,22 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.OffsetBasedSource;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
+public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
 
   public static <T> BigQueryStorageStreamSource<T> create(
       ReadSession readSession,
@@ -60,13 +70,19 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
     return new BigQueryStorageStreamSource<>(
         readSession,
         stream,
-        0L,
-        Long.MAX_VALUE,
-        1L,
         toJsonString(checkNotNull(tableSchema, "tableSchema")),
         parseFn,
         outputCoder,
         bqServices);
+  }
+
+  /**
+   * Creates a new source with the same properties as this one, except with a different {@link
+   * Stream}.
+   */
+  public BigQueryStorageStreamSource<T> fromExisting(Stream newStream) {
+    return new BigQueryStorageStreamSource(
+        readSession, newStream, jsonTableSchema, parseFn, outputCoder, bqServices);
   }
 
   private final ReadSession readSession;
@@ -79,14 +95,10 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
   private BigQueryStorageStreamSource(
       ReadSession readSession,
       Stream stream,
-      long startOffset,
-      long stopOffset,
-      long minBundleSize,
       String jsonTableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(startOffset, stopOffset, minBundleSize);
     this.readSession = checkNotNull(readSession, "readSession");
     this.stream = checkNotNull(stream, "stream");
     this.jsonTableSchema = checkNotNull(jsonTableSchema, "jsonTableSchema");
@@ -119,7 +131,7 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
   }
 
   @Override
-  public List<? extends OffsetBasedSource<T>> split(
+  public List<? extends BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) {
     // A stream source can't be split without reading from it due to server-side liquid sharding.
     // TODO: Implement dynamic work rebalancing.
@@ -127,31 +139,26 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
   }
 
   @Override
-  public long getMaxEndOffset(PipelineOptions options) {
-    // This method should never be called given the overrides above.
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public OffsetBasedSource<T> createSourceForSubrange(long start, long end) {
-    // This method should never be called given the overrides above.
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
   public BigQueryStorageStreamReader<T> createReader(PipelineOptions options) throws IOException {
     return new BigQueryStorageStreamReader<>(this, options.as(BigQueryOptions.class));
   }
 
+  @Override
+  public String toString() {
+    return stream.toString();
+  }
+
   /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
   @Experimental(Experimental.Kind.SOURCE_SINK)
-  public static class BigQueryStorageStreamReader<T> extends OffsetBasedReader<T> {
+  public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
     private final DatumReader<GenericRecord> datumReader;
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
     private final StorageClient storageClient;
     private final TableSchema tableSchema;
 
+    private BigQueryStorageStreamSource<T> source;
+    private BigQueryServerStream<ReadRowsResponse> responseStream;
     private Iterator<ReadRowsResponse> responseIterator;
     private BinaryDecoder decoder;
     private GenericRecord record;
@@ -160,7 +167,7 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
-      super(source);
+      this.source = source;
       this.datumReader =
           new GenericDatumReader<>(
               new Schema.Parser().parse(source.readSession.getAvroSchema().getSchema()));
@@ -170,9 +177,8 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
     }
 
     @Override
-    protected boolean startImpl() throws IOException {
+    public synchronized boolean start() throws IOException {
       BigQueryStorageStreamSource<T> source = getCurrentSource();
-      currentOffset = source.getStartOffset();
 
       ReadRowsRequest request =
           ReadRowsRequest.newBuilder()
@@ -180,17 +186,19 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
                   StreamPosition.newBuilder().setStream(source.stream).setOffset(currentOffset))
               .build();
 
-      responseIterator = storageClient.readRows(request).iterator();
+      responseStream = storageClient.readRows(request);
+      responseIterator = responseStream.iterator();
+      LOGGER.info("Started BigQuery Storage API read from stream {}.", source.stream.getName());
       return readNextRecord();
     }
 
     @Override
-    protected boolean advanceImpl() throws IOException {
+    public synchronized boolean advance() throws IOException {
       currentOffset++;
       return readNextRecord();
     }
 
-    private boolean readNextRecord() throws IOException {
+    private synchronized boolean readNextRecord() throws IOException {
       while (decoder == null || decoder.isEnd()) {
         if (!responseIterator.hasNext()) {
           return false;
@@ -215,23 +223,106 @@ public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
     }
 
     @Override
-    protected long getCurrentOffset() throws NoSuchElementException {
-      return currentOffset;
-    }
-
-    @Override
-    public void close() {
+    public synchronized void close() {
       storageClient.close();
     }
 
     @Override
     public synchronized BigQueryStorageStreamSource<T> getCurrentSource() {
-      return (BigQueryStorageStreamSource<T>) super.getCurrentSource();
+      return source;
     }
 
     @Override
-    public boolean allowsDynamicSplitting() {
-      return false;
+    public BoundedSource<T> splitAtFraction(double fraction) {
+      Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
+      LOGGER.debug(
+          "Received BigQuery Storage API split request for stream {} at fraction {}.",
+          source.stream.getName(),
+          fraction);
+
+      SplitReadStreamRequest splitRequest =
+          SplitReadStreamRequest.newBuilder()
+              .setOriginalStream(source.stream)
+              // TODO(aryann): Once we rebuild the generated client code, we should change this to
+              // use setFraction().
+              .setUnknownFields(
+                  UnknownFieldSet.newBuilder()
+                      .addField(
+                          2,
+                          UnknownFieldSet.Field.newBuilder()
+                              .addFixed32(java.lang.Float.floatToIntBits((float) fraction))
+                              .build())
+                      .build())
+              .build();
+      SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
+
+      if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
+        // No more splits are possible!
+        Metrics.counter(
+                BigQueryStorageStreamReader.class,
+                "split-at-fraction-calls-failed-due-to-impossible-split-point")
+            .inc();
+        LOGGER.info(
+            "BigQuery Storage API stream {} cannot be split at {}.",
+            source.stream.getName(),
+            fraction);
+        return null;
+      }
+
+      // We may be able to split this source. Before continuing, we pause the reader thread and
+      // replace its current source with the primary stream iff the reader has not moved past
+      // the split point.
+      synchronized (this) {
+        BigQueryServerStream<ReadRowsResponse> newResponseStream;
+        Iterator<ReadRowsResponse> newResponseIterator;
+        try {
+          newResponseStream =
+              storageClient.readRows(
+                  ReadRowsRequest.newBuilder()
+                      .setReadPosition(
+                          StreamPosition.newBuilder()
+                              .setStream(splitResponse.getPrimaryStream())
+                              .setOffset(currentOffset + 1))
+                      .build());
+          newResponseIterator = newResponseStream.iterator();
+          newResponseIterator.hasNext();
+        } catch (FailedPreconditionException e) {
+          // The current source has already moved past the split point, so this split attempt
+          // is unsuccessful.
+          Metrics.counter(
+                  BigQueryStorageStreamReader.class,
+                  "split-at-fraction-calls-failed-due-to-bad-split-point")
+              .inc();
+          LOGGER.info(
+              "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
+                  + "the left of the split fraction {}.",
+              source.stream.getName(),
+              fraction);
+          return null;
+        } catch (Exception e) {
+          Metrics.counter(
+                  BigQueryStorageStreamReader.class,
+                  "split-at-fraction-calls-failed-due-to-other-reasons")
+              .inc();
+          LOGGER.error("BigQuery Storage API stream split failed.", e);
+          return null;
+        }
+
+        // Cancels the parent stream before replacing it with the primary stream.
+        responseStream.cancel();
+
+        currentOffset++;
+        source = source.fromExisting(splitResponse.getPrimaryStream());
+        responseStream = newResponseStream;
+        responseIterator = newResponseIterator;
+        decoder = null;
+      }
+
+      Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
+          .inc();
+      LOGGER.info(
+          "Successfully split BigQuery Storage API stream. Split response: {}", splitResponse);
+      return source.fromExisting(splitResponse.getRemainderStream());
     }
   }
 }
