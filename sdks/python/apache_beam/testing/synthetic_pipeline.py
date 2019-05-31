@@ -77,6 +77,29 @@ def rotate_key(element):
   (key, value) = element
   return key[-1:] + key[:-1], value
 
+def initial_splitting_zipf(start_position, stop_position,
+                           desired_num_bundles, distribution_parameter,
+                           num_total_records=None):
+  """Split the given range (defined by start_position, stop_position) into
+     desired_num_bundles using zipf with the given distribution_parameter.
+  """
+  if not num_total_records:
+    num_total_records = stop_position - start_position
+  samples = np.random.zipf(distribution_parameter, desired_num_bundles)
+  total = sum(samples)
+  relative_bundle_sizes = [(float(sample) / total) for sample in samples]
+  bundle_ranges = []
+  start = start_position
+  index = 0
+  while start < stop_position:
+    if index == desired_num_bundles - 1:
+      bundle_ranges.append((start, stop_position))
+      break
+    stop = start + int(num_total_records * relative_bundle_sizes[index])
+    bundle_ranges.append((start, stop))
+    start = stop
+    index += 1
+  return bundle_ranges
 
 class SyntheticStep(beam.DoFn):
   """A DoFn of which behavior can be controlled through prespecified parameters.
@@ -122,10 +145,10 @@ class NonLiquidShardingOffsetRangeTracker(OffsetRestrictionTracker):
   """ A OffsetRangeTracker that doesn't allow splitting. """
 
   def try_split(self, split_offset):
-    return  # Don't split.
+    pass  # Don't split.
 
   def checkpoint(self):
-    return # Don't split.
+    pass # Don't split.
 
 
 class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
@@ -157,29 +180,14 @@ class SyntheticSDFStepRestrictionProvider(RestrictionProvider):
       return NonLiquidShardingOffsetRangeTracker(restriction[0],
                                                  restriction[1])
     else:
-      # OffsetRange.new_tracker returns a RangeTracker - not RestrictionTracker.
       return OffsetRestrictionTracker(restriction[0], restriction[1])
-
-  def split_randomly(self, restriction):
-    ''' Randomly split the restriction into the right number of bundles.'''
-    elems = restriction[1] - restriction[0]
-    bundles = self._initial_splitting_num_bundles
-    randomNums = [np.random.randint(0, elems - 1) for _ in
-                  range(0, bundles - 1)]
-    print randomNums
-    randomNums.append(0)
-    randomNums.append(elems)
-    randomNums.sort()
-    for i in range(1, len(randomNums)):
-      yield (restriction[0] + randomNums[i - 1],
-             restriction[0] + randomNums[i])
 
   def split(self, element, restriction):
     elems = restriction[1] - restriction[0]
     if (self._initial_splitting_uneven_chunks and
-        self._initial_splitting_num_bundles > 1 and
-        elems > 1):
-      return self.split_randomly(restriction)
+        self._initial_splitting_num_bundles > 1 and elems > 1):
+      return initial_splitting_zipf(restriction[0], restriction[1],
+                                    self._initial_splitting_num_bundles, 3.0)
     else:
       offsets_per_split = max(1, (elems // self._initial_splitting_num_bundles))
       result = list(
@@ -210,11 +218,14 @@ def getSyntheticSDFStep(per_element_delay_sec=0,
     """
 
     def __init__(self, per_element_delay_sec_arg, per_bundle_delay_sec_arg,
-                 output_filter_ratio_arg):
-      if per_element_delay_sec_arg and per_element_delay_sec_arg < 1e-3:
-        raise ValueError(
-            'Per element sleep time must be at least 1e-3. '
-            'Received: %r', per_element_delay_sec_arg)
+                 output_filter_ratio_arg, output_records_per_input_record_arg):
+      if per_element_delay_sec_arg:
+        per_element_delay_sec_arg = (
+            per_element_delay_sec_arg // output_records_per_input_record_arg)
+        if per_element_delay_sec_arg < 1e-3:
+          raise ValueError(
+              'Per element sleep time must be at least 1e-3 after being '
+              'divided among output elements.')
       self._per_element_delay_sec = per_element_delay_sec_arg
       self._per_bundle_delay_sec = per_bundle_delay_sec_arg
       self._output_filter_ratio = output_filter_ratio_arg
@@ -251,14 +262,14 @@ def getSyntheticSDFStep(per_element_delay_sec=0,
         if not restriction_tracker.try_claim(k):
           return
 
-        if self._per_element_delay_sec > 0:
+        if self._per_element_delay_sec:
           time.sleep(self._per_element_delay_sec)
 
         if not filter_element:
           yield element
 
   return SyntheticSDFStep(per_element_delay_sec, per_bundle_delay_sec,
-                          output_filter_ratio)
+                          output_filter_ratio, output_records_per_input_record)
 
 
 class SyntheticSource(iobase.BoundedSource):
@@ -340,21 +351,9 @@ class SyntheticSource(iobase.BoundedSource):
     if self._initial_splitting == 'zipf':
       desired_num_bundles = self._initial_splitting_num_bundles or math.ceil(
           float(self.estimate_size()) / desired_bundle_size)
-      samples = np.random.zipf(self._initial_splitting_distribution_parameter,
-                               desired_num_bundles)
-      total = sum(samples)
-      relative_bundle_sizes = [(float(sample) / total) for sample in samples]
-      bundle_ranges = []
-      start = start_position
-      index = 0
-      while start < stop_position:
-        if index == desired_num_bundles - 1:
-          bundle_ranges.append((start, stop_position))
-          break
-        stop = start + int(self._num_records * relative_bundle_sizes[index])
-        bundle_ranges.append((start, stop))
-        start = stop
-        index += 1
+      bundle_ranges = initial_splitting_zipf(
+          start_position, stop_position, desired_num_bundles,
+          self._initial_splitting_distribution_parameter, self._num_records)
     else:
       if self._initial_splitting_num_bundles:
         bundle_size_in_elements = max(1, int(
