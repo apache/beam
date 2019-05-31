@@ -47,8 +47,10 @@ except ImportError:
   SchemaField = None
   NotFound = None
 
-RUNTIME_METRIC = 'runtime'
-COUNTER_LABEL = 'total_bytes_count'
+METRICS = {
+    'counters': {'BYTES_COUNTER_LABEL': 'total_bytes_count'},
+    'distributions': {'RUNTIME_METRIC': 'runtime'},
+}
 
 ID_LABEL = 'test_id'
 SUBMIT_TIMESTAMP_LABEL = 'timestamp'
@@ -106,9 +108,10 @@ class MetricsReader(object):
     insert_rows = []
 
     for counter in metrics['counters']:
-      counter_dict = CounterMetric(counter, submit_timestamp, metric_id)\
-        .as_dict()
-      insert_rows.append(counter_dict)
+      if counter.key.metric.name in METRICS['counters'].values():
+        counter_dict = CounterMetric(counter, submit_timestamp, metric_id)\
+          .as_dict()
+        insert_rows.append(counter_dict)
 
     dists = metrics['distributions']
     if len(dists) > 0:
@@ -146,14 +149,15 @@ class RuntimeMetric(Metric):
   def __init__(self, runtime_list, submit_timestamp, metric_id):
     super(RuntimeMetric, self).__init__(submit_timestamp, metric_id)
     self.value = self._prepare_runtime_metrics(runtime_list)
-    self.label = RUNTIME_METRIC
+    self.label = METRICS['distributions']['RUNTIME_METRIC']
 
   def _prepare_runtime_metrics(self, distributions):
     min_values = []
     max_values = []
     for dist in distributions:
-      min_values.append(dist.committed.min)
-      max_values.append(dist.committed.max)
+      if dist.key.metric.name == self.label:
+        min_values.append(dist.committed.min)
+        max_values.append(dist.committed.max)
     # finding real start
     min_value = min(min_values)
     # finding real end
@@ -237,7 +241,10 @@ class BigQueryClient(object):
 class MeasureTime(beam.DoFn):
   def __init__(self, namespace):
     self.namespace = namespace
-    self.runtime = Metrics.distribution(self.namespace, RUNTIME_METRIC)
+    self.runtime = Metrics.distribution(
+        self.namespace,
+        METRICS['distributions']['RUNTIME_METRIC']
+    )
 
   def start_bundle(self):
     self.runtime.update(time.time())
@@ -252,7 +259,8 @@ class MeasureTime(beam.DoFn):
 def count_bytes(f):
   def repl(*args):
     namespace = args[2]
-    counter = Metrics.counter(namespace, COUNTER_LABEL)
+    counter = Metrics.counter(namespace,
+                              METRICS['counters']['BYTES_COUNTER_LABEL'])
     element = args[1]
     _, value = element
     for i in range(len(value)):
