@@ -422,16 +422,18 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   WindowParam = _DoFnParam('WindowParam')
   WatermarkReporterParam = _DoFnParam('WatermarkReporterParam')
   BundleFinalizerParam = _BundleFinalizerParam
-
-  DoFnProcessParams = [ElementParam, SideInputParam, TimestampParam,
-                       WindowParam, WatermarkReporterParam,
-                       BundleFinalizerParam]
+  KeyParam = _DoFnParam('KeyParam')
 
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),
-  # DoFn.TimerParam(timer_spec).
+  # DoFn.TimerParam(timer_spec), DoFn.TimestampParam, DoFn.WindowParam,
+  # DoFn.KeyParam
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
+
+  DoFnProcessParams = [BundleFinalizerParam, ElementParam, KeyParam,
+                       SideInputParam, StateParam, TimerParam, TimestampParam,
+                       WindowParam, WatermarkReporterParam]
 
   RestrictionParam = _RestrictionDoFnParam
 
@@ -459,6 +461,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     of the parameter.
     ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
     of the parameter.
+    ``DoFn.KeyParam``: key associated with the element.
     ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
     provided here to allow treatment as a Splittable ``DoFn``. The restriction
     tracker will be derived from the restriction provider in the parameter.

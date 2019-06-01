@@ -39,6 +39,7 @@ cdef class MethodWrapper(object):
   cdef object timer_args_to_replace
   cdef object timestamp_arg_name
   cdef object window_arg_name
+  cdef object key_arg_name
 
 
 cdef class DoFnSignature(object):

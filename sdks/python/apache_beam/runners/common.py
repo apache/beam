@@ -171,6 +171,7 @@ class MethodWrapper(object):
     self.timer_args_to_replace = {}
     self.timestamp_arg_name = None
     self.window_arg_name = None
+    self.key_arg_name = None
 
     for kw, v in zip(args[-len(defaults):], defaults):
       if isinstance(v, core.DoFn.StateParam):
@@ -183,6 +184,8 @@ class MethodWrapper(object):
         self.timestamp_arg_name = kw
       elif v == core.DoFn.WindowParam:
         self.window_arg_name = kw
+      elif v == core.DoFn.KeyParam:
+        self.key_arg_name = kw
 
   def invoke_timer_callback(self,
                             user_state_context,
@@ -201,6 +204,8 @@ class MethodWrapper(object):
       kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
     if self.window_arg_name:
       kwargs[self.window_arg_name] = window
+    if self.key_arg_name:
+      kwargs[self.key_arg_name] = key
 
     if kwargs:
       return self.method_value(**kwargs)
@@ -299,8 +304,7 @@ class DoFnSignature(object):
     return self._is_stateful_dofn
 
   def has_timers(self):
-    _, all_timer_specs = userstate.get_dofn_specs(self.do_fn)
-    return bool(all_timer_specs)
+    return bool(self.timer_methods)
 
 
 class DoFnInvoker(object):
@@ -310,6 +314,13 @@ class DoFnInvoker(object):
   represented by a given DoFnSignature."""
 
   def __init__(self, output_processor, signature):
+    """
+    Initializes `DoFnInvoker`
+
+    :param output_processor: an OutputProcessor for receiving elements produced
+                             by invoking functions of the DoFn.
+    :param signature: a DoFnSignature for the DoFn being invoked
+    """
     self.output_processor = output_processor
     self.signature = signature
     self.user_state_context = None
@@ -474,7 +485,7 @@ class PerWindowInvoker(DoFnInvoker):
     self.restriction_tracker = None
     self.current_windowed_value = None
     self.bundle_finalizer_param = bundle_finalizer_param
-
+    self.key_param_required = False
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
@@ -504,10 +515,13 @@ class PerWindowInvoker(DoFnInvoker):
       args_to_pick = len(arguments) - len(defaults) - self_in_args
       args_with_placeholders = input_args[:args_to_pick]
 
-    # Fill the OtherPlaceholders for context, window or timestamp
+    # Fill the OtherPlaceholders for context, key, window or timestamp
     remaining_args_iter = iter(input_args[args_to_pick:])
     for a, d in zip(arguments[-len(defaults):], defaults):
       if d == core.DoFn.ElementParam:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif d == core.DoFn.KeyParam:
+        self.key_param_required = True
         args_with_placeholders.append(ArgPlaceholder(d))
       elif d == core.DoFn.WindowParam:
         args_with_placeholders.append(ArgPlaceholder(d))
@@ -625,18 +639,19 @@ class PerWindowInvoker(DoFnInvoker):
     # stateful DoFn, we set during __init__ self.has_windowed_inputs to be
     # True. Therefore, windows will be exploded coming into this method, and
     # we can rely on the window variable being set above.
-    if self.user_state_context:
+    if self.user_state_context or self.key_param_required:
       try:
         key, unused_value = windowed_value.value
       except (TypeError, ValueError):
         raise ValueError(
-            ('Input value to a stateful DoFn must be a KV tuple; instead, '
-             'got %s.') % (windowed_value.value,))
+            ('Input value to a stateful DoFn or KeyParam must be a KV tuple; '
+             'instead, got %s.') % (windowed_value.value,))
 
-    # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
         args_for_process[i] = windowed_value.value
+      elif p == core.DoFn.KeyParam:
+        args_for_process[i] = key
       elif p == core.DoFn.WindowParam:
         args_for_process[i] = window
       elif p == core.DoFn.TimestampParam:
@@ -654,9 +669,7 @@ class PerWindowInvoker(DoFnInvoker):
       if kwargs_for_process is None:
         kwargs_for_process = additional_kwargs
       else:
-        for key in additional_kwargs:
-          kwargs_for_process[key] = additional_kwargs[key]
-
+        kwargs_for_process.update(additional_args)
     if kwargs_for_process:
       output_processor.process_outputs(
           windowed_value,
