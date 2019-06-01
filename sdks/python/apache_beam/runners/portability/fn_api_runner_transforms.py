@@ -45,9 +45,7 @@ KNOWN_COMPOSITES = frozenset([
 
 COMBINE_URNS = frozenset([
     common_urns.composites.COMBINE_PER_KEY.urn,
-    common_urns.combine_components.COMBINE_PGBKCV.urn,
-    common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
-    common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn])
+])
 
 PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
@@ -55,7 +53,8 @@ PAR_DO_URNS = frozenset([
     common_urns.sdf_components.SPLIT_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
-    common_urns.sdf_components.PROCESS_ELEMENTS.urn])
+    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+])
 
 IMPULSE_BUFFER = b'impulse'
 
