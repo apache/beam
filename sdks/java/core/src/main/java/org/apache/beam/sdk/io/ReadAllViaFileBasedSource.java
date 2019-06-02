@@ -106,7 +106,7 @@ public class ReadAllViaFileBasedSource<T>
               .createForSubrangeOfFile(file.getMetadata(), range.getFrom(), range.getTo())
               .createReader(c.getPipelineOptions())) {
         for (boolean more = reader.start(); more; more = reader.advance()) {
-          c.output(reader.getCurrent());
+          c.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
         }
       }
     }
