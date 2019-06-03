@@ -95,9 +95,14 @@ class DataflowRunner(PipelineRunner):
   # Imported here to avoid circular dependencies.
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
 
   _PTRANSFORM_OVERRIDES = [
       CreatePTransformOverride(),
+  ]
+
+  _SDF_PTRANSFORM_OVERRIDES = [
+      ReadPTransformOverride(),
   ]
 
   def __init__(self, cache=None):
@@ -372,6 +377,8 @@ class DataflowRunner(PipelineRunner):
     # done before Runner API serialization, since the new proto needs to contain
     # any added PTransforms.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+    if apiclient._use_sdf_bounded_source(options):
+      pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
