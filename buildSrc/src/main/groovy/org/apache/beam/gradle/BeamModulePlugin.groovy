@@ -1847,6 +1847,58 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
+
+      project.ext.addPortableWordCountTask = { String nameSuffix, boolean isStreaming ->
+
+        project.task('portableWordCount' + nameSuffix) {
+          dependsOn 'installGcpTest'
+          dependsOn = ['installGcpTest']
+          mustRunAfter = [
+            ':runners:flink:1.5:job-server-container:docker',
+            ':sdks:python:container:docker',
+            ':sdks:python:container:py3:docker'
+          ]
+          doLast {
+            // TODO: Figure out GCS credentials and use real GCS input and output.
+            def options = [
+              "--input=/etc/profile",
+              "--output=/tmp/py-wordcount-direct",
+              "--runner=PortableRunner",
+              "--experiments=worker_threads=100",
+              "--parallelism=2",
+              "--shutdown_sources_on_final_watermark",
+            ]
+            if (isStreaming)
+              options += [
+                "--streaming"
+              ]
+            else
+              // workaround for local file output in docker container
+              options += [
+                "--environment_cache_millis=10000"
+              ]
+            if (project.hasProperty("jobEndpoint"))
+              options += [
+                "--job_endpoint=${project.property('jobEndpoint')}"
+              ]
+            if (project.hasProperty("environmentType")) {
+              options += [
+                "--environment_type=${project.property('environmentType')}"
+              ]
+            }
+            if (project.hasProperty("environmentConfig")) {
+              options += [
+                "--environment_config=${project.property('environmentConfig')}"
+              ]
+            }
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
+              // TODO: Check that the output file is generated and runs.
+            }
+          }
+        }
+      }
     }
   }
 }
