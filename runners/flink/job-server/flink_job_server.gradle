@@ -124,7 +124,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
     jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0",
+    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
     testClasspathConfiguration: configurations.validatesPortableRunner,
     numParallelTests: 1,
     pipelineOpts: pipelineOptions,
