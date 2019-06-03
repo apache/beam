@@ -35,12 +35,16 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.PeekingIterator;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 import org.apache.spark.HashPartitioner;
+import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Functions for GroupByKey with Non-Merging windows translations to Spark. */
 public class GroupNonMergingWindowsFunctions {
+  private static final Logger LOG = LoggerFactory.getLogger(GroupNonMergingWindowsFunctions.class);
 
   /**
    * Creates composite key of K and W and group all values for that composite key with Spark's
@@ -55,7 +59,8 @@ public class GroupNonMergingWindowsFunctions {
           JavaRDD<WindowedValue<KV<K, V>>> rdd,
           Coder<K> keyCoder,
           Coder<V> valueCoder,
-          WindowingStrategy<?, W> windowingStrategy) {
+          WindowingStrategy<?, W> windowingStrategy,
+          Partitioner partitioner) {
     final Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
     final WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
         WindowedValue.getFullCoder(ByteArrayCoder.of(), windowCoder);
@@ -81,12 +86,17 @@ public class GroupNonMergingWindowsFunctions {
                     return new Tuple2<>(windowedKey, windowValueBytes);
                   });
             })
-        .repartitionAndSortWithinPartitions(new HashPartitioner(rdd.getNumPartitions()))
+        .repartitionAndSortWithinPartitions(getPartitioner(partitioner, rdd))
         .mapPartitions(
             it ->
                 new GroupByKeyIterator<>(
                     it, keyCoder, valueCoder, windowingStrategy, windowedValueCoder))
         .filter(Objects::nonNull); // filter last null element from GroupByKeyIterator
+  }
+
+  private static <K, V> Partitioner getPartitioner(
+      Partitioner partitioner, JavaRDD<WindowedValue<KV<K, V>>> rdd) {
+    return partitioner == null ? new HashPartitioner(rdd.getNumPartitions()) : partitioner;
   }
 
   /**
