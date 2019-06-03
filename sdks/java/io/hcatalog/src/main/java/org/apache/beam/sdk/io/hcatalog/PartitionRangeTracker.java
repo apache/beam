@@ -52,7 +52,7 @@ public class PartitionRangeTracker extends RestrictionTracker<PartitionRange, Pa
       return true;
     }
 
-    if (comparator.compare(lastClaimedPartition, partition) > 0) {
+    if (comparator.compare(lastClaimedPartition, partition) >= 0) {
       return false;
     }
     lastClaimedPartition = partition;
@@ -72,41 +72,62 @@ public class PartitionRangeTracker extends RestrictionTracker<PartitionRange, Pa
 
   @Override
   public PartitionRange checkpoint() {
-    checkState(
-        lastClaimedPartition != null,
-        "Can't checkpoint before any partition was successfully claimed");
+    // If we haven't claimed any partition, we should return the list of all partitions we were
+    // originally
+    // supposed to process as the checkpoint.
+    if (lastClaimedPartition == null) {
+      PartitionRange originalRange = range;
+      // We update our current range to an interval that contains no partitions.
+      range = new PartitionRange(ImmutableList.of(), comparator, lastClaimedPartition);
+      return originalRange;
+    }
+
     final ImmutableList<Partition> allPartitions = range.getPartitions();
     List<Partition> forSort = new ArrayList<>(allPartitions);
     Collections.sort(forSort, comparator);
     final int lastClaimedPartitionIndex = forSort.indexOf(lastClaimedPartition);
-    final List<Partition> unprocessedPartitions =
-        forSort.subList(lastClaimedPartitionIndex + 1, forSort.size());
-    this.range =
-        new PartitionRange(
-            ImmutableList.copyOf(forSort.subList(0, lastClaimedPartitionIndex + 1)),
-            comparator,
-            lastClaimedPartition);
-    return new PartitionRange(
-        ImmutableList.copyOf(unprocessedPartitions), comparator, lastClaimedPartition);
+    if (lastClaimedPartitionIndex == forSort.size() - 1) {
+      this.range =
+          new PartitionRange(ImmutableList.copyOf(forSort), comparator, lastClaimedPartition);
+      return new PartitionRange(ImmutableList.of(), comparator, lastClaimedPartition);
+    } else {
+      final List<Partition> unprocessedPartitions =
+          forSort.subList(lastClaimedPartitionIndex + 1, forSort.size());
+      this.range =
+          new PartitionRange(
+              ImmutableList.copyOf(forSort.subList(0, lastClaimedPartitionIndex + 1)),
+              comparator,
+              lastClaimedPartition);
+      return new PartitionRange(
+          ImmutableList.copyOf(unprocessedPartitions), comparator, lastClaimedPartition);
+    }
   }
 
   @Override
   public void checkDone() throws IllegalStateException {
-    final int indexOfLastClaimed = range.getPartitions().indexOf(lastClaimedPartition);
     final ImmutableList<Partition> partitions = range.getPartitions();
     final ArrayList<Partition> partitionsCopy = new ArrayList<>(partitions);
-
     Collections.sort(partitionsCopy, comparator);
+    final int indexOfLastClaimed = partitionsCopy.indexOf(lastClaimedPartition);
     checkState(
-        indexOfLastClaimed <= partitions.size(),
-        "Last attempted partition was %s in range %s, claiming work in [%s) was not attempted",
-        lastAttemptedPartition,
-        range,
-        range.getPartitions());
+        indexOfLastClaimed == partitions.size() - 1,
+        "Last attempted partition was at index %s, claiming work from index [%s] to [%s] was not attempted",
+        indexOfLastClaimed,
+        indexOfLastClaimed + 1,
+        partitions.size());
   }
 
   @Override
   public Backlog getBacklog() {
+    final ImmutableList<Partition> partitions = range.getPartitions();
+    final ArrayList<Partition> partitionsCopy = new ArrayList<>(partitions);
+    Collections.sort(partitionsCopy, comparator);
+
+    // Return 0 for the case when range does not have any partitions
+    if (range.getPartitions().isEmpty()) {
+      return Backlog.of(BigDecimal.ZERO);
+    }
+
     // If we have never attempted a partition, we return the length of the entire range.
     if (lastAttemptedPartition == null) {
       return Backlog.of(BigDecimal.valueOf(range.getPartitions().size()));
@@ -117,8 +138,7 @@ public class PartitionRangeTracker extends RestrictionTracker<PartitionRange, Pa
     return Backlog.of(
         BigDecimal.valueOf(
             Math.max(
-                range.getPartitions().size()
-                    - range.getPartitions().indexOf(lastAttemptedPartition),
+                range.getPartitions().size() - (partitionsCopy.indexOf(lastAttemptedPartition) + 1),
                 0)));
   }
 

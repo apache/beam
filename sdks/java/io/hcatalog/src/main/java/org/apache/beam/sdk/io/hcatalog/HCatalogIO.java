@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -33,17 +34,22 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableComparator;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.stats.StatsUtils;
 import org.apache.hive.hcatalog.common.HCatConstants;
@@ -58,6 +64,8 @@ import org.apache.hive.hcatalog.data.transfer.ReadEntity;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.apache.hive.hcatalog.data.transfer.WriteEntity;
 import org.apache.hive.hcatalog.data.transfer.WriterContext;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,6 +120,7 @@ public class HCatalogIO {
 
   private static final long BATCH_SIZE = 1024L;
   private static final String DEFAULT_DATABASE = "default";
+  private static final Boolean TREAT_UNBOUNDED_AS_BOUNDED = true;
 
   /** Write data to Hive. */
   public static Write write() {
@@ -123,7 +132,131 @@ public class HCatalogIO {
     return new AutoValue_HCatalogIO_Read.Builder().setDatabase(DEFAULT_DATABASE).build();
   }
 
+  /**
+   * Read unbounded data from Hive. This essentially means that as new partitions show up, we start
+   * reading data for that partition.
+   */
+  public static UnboundedRead unbounded() {
+    return new UnboundedRead(
+        new AutoValue_HCatalogIO_Read.Builder()
+            .setDatabase(DEFAULT_DATABASE)
+            .setShouldTreatUnboundedAsBounded(TREAT_UNBOUNDED_AS_BOUNDED)
+            .build());
+  }
+
   private HCatalogIO() {}
+
+  /** A {@link PTransform} to read unbounded data using HCatalog. */
+  public static final class UnboundedRead extends Read {
+
+    private Read readSpec;
+
+    private UnboundedRead(Read readSpec) {
+      this.readSpec = readSpec;
+    }
+
+    @Nullable
+    @Override
+    Map<String, String> getConfigProperties() {
+      return readSpec.getConfigProperties();
+    }
+
+    @Nullable
+    @Override
+    String getDatabase() {
+      return readSpec.getDatabase();
+    }
+
+    @Nullable
+    @Override
+    String getTable() {
+      return readSpec.getTable();
+    }
+
+    @Nullable
+    @Override
+    String getFilter() {
+      return readSpec.getFilter();
+    }
+
+    @Nullable
+    @Override
+    ReaderContext getContext() {
+      return readSpec.getContext();
+    }
+
+    @Nullable
+    @Override
+    Integer getSplitId() {
+      return readSpec.getSplitId();
+    }
+
+    @Override
+    Builder toBuilder() {
+      return readSpec.toBuilder();
+    }
+
+    @Nullable
+    @Override
+    Duration getPollingInterval() {
+      return readSpec.getPollingInterval();
+    }
+
+    @Nullable
+    @Override
+    SerializableComparator<Partition> getPartitionComparator() {
+      return readSpec.getPartitionComparator();
+    }
+
+    @Nullable
+    @Override
+    SerializableFunction<String, Instant> getWatermarkTimestampConverter() {
+      return readSpec.getWatermarkTimestampConverter();
+    }
+
+    @Nullable
+    @Override
+    ImmutableList<String> getPartitionCols() {
+      return readSpec.getPartitionCols();
+    }
+
+    @Nullable
+    @Override
+    String getWatermarkPartitionColumn() {
+      return readSpec.getWatermarkPartitionColumn();
+    }
+
+    @Nullable
+    @Override
+    Boolean getShouldTreatUnboundedAsBounded() {
+      return readSpec.getShouldTreatUnboundedAsBounded();
+    }
+
+    @Override
+    public PCollection<HCatRecord> expand(PBegin input) {
+      checkArgument(readSpec.getPollingInterval() != null, "withPollingInterval() is required");
+      checkArgument(
+          readSpec.getWatermarkPartitionColumn() != null,
+          "withsWatermarkPartitionColumn() is required");
+      checkArgument(
+          readSpec.getWatermarkTimestampConverter() != null,
+          "withWatermarkTimestampConverter() is required");
+      checkArgument(readSpec.getPartitionCols() != null, "withPartitionCols() is required");
+      checkArgument(
+          readSpec.getPartitionComparator() != null, "withPartitionComparator() is required");
+      return input
+          .apply("ConvertToReadRequest", Create.of(new ArrayList<>(Arrays.asList(readSpec))))
+          .apply(
+              "PollForNewPartitions",
+              ParDo.of(
+                  new PartitionPollerFn(
+                      readSpec.getConfigProperties(),
+                      readSpec.getDatabase(),
+                      readSpec.getTable(),
+                      false)))
+          .apply("ReadPartitions", ParDo.of(new HCatRecordReaderFn()));
+    }
+  }
 
   /** A {@link PTransform} to read data using HCatalog. */
   @VisibleForTesting
@@ -147,6 +280,24 @@ public class HCatalogIO {
     @Nullable
     abstract Integer getSplitId();
 
+    @Nullable
+    abstract Duration getPollingInterval();
+
+    @Nullable
+    abstract SerializableComparator<Partition> getPartitionComparator();
+
+    @Nullable
+    abstract SerializableFunction<String, Instant> getWatermarkTimestampConverter();
+
+    @Nullable
+    abstract ImmutableList<String> getPartitionCols();
+
+    @Nullable
+    abstract String getWatermarkPartitionColumn();
+
+    @Nullable
+    abstract Boolean getShouldTreatUnboundedAsBounded();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -162,6 +313,19 @@ public class HCatalogIO {
       abstract Builder setSplitId(Integer splitId);
 
       abstract Builder setContext(ReaderContext context);
+
+      abstract Builder setPollingInterval(Duration pollingInterval);
+
+      abstract Builder setPartitionComparator(SerializableComparator<Partition> comparator);
+
+      abstract Builder setWatermarkTimestampConverter(
+          SerializableFunction<String, Instant> timeConverter);
+
+      abstract Builder setPartitionCols(ImmutableList<String> partitionCols);
+
+      abstract Builder setWatermarkPartitionColumn(String partitionColumn);
+
+      abstract Builder setShouldTreatUnboundedAsBounded(Boolean treatUnboundedAsBounded);
 
       abstract Read build();
     }
@@ -186,6 +350,43 @@ public class HCatalogIO {
       return toBuilder().setFilter(filter).build();
     }
 
+    /** Sets the duration after which the PartitionPollerFn resumes polling for new partitions. */
+    public Read withPollingInterval(Duration pollingInterval) {
+      return toBuilder().setPollingInterval(pollingInterval).build();
+    }
+
+    /**
+     * Sets the comparator which gets used to sort partitions in ascending order so that while
+     * polling for new partitions, we know where to start from.
+     */
+    public Read withPartitionComparator(SerializableComparator<Partition> comparator) {
+      return toBuilder().setPartitionComparator(comparator).build();
+    }
+
+    /**
+     * Sets the converter fn to associate a partition column with a timestamp which then gets used
+     * to advance the watermark.
+     */
+    public Read withWatermarkTimestampConverter(
+        SerializableFunction<String, Instant> timeConverter) {
+      return toBuilder().setWatermarkTimestampConverter(timeConverter).build();
+    }
+
+    /** Set the names of the columns that are partitions. */
+    public Read withPartitionCols(ImmutableList<String> partitionCols) {
+      return toBuilder().setPartitionCols(partitionCols).build();
+    }
+
+    /** Specifies the name of the column which contains the watermark values. */
+    public Read withWatermarkPartitionColumn(String partitionColumn) {
+      return toBuilder().setWatermarkPartitionColumn(partitionColumn).build();
+    }
+
+    /** Specifies the name of the column which contains the watermark values. */
+    public Read withUnboundedAsBounded(boolean treatBoundedAsUnbounded) {
+      return toBuilder().setShouldTreatUnboundedAsBounded(treatBoundedAsUnbounded).build();
+    }
+
     Read withSplitId(int splitId) {
       checkArgument(splitId >= 0, "Invalid split id-" + splitId);
       return toBuilder().setSplitId(splitId).build();
@@ -199,7 +400,6 @@ public class HCatalogIO {
     public PCollection<HCatRecord> expand(PBegin input) {
       checkArgument(getTable() != null, "withTable() is required");
       checkArgument(getConfigProperties() != null, "withConfigProperties() is required");
-
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));
     }
 

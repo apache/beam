@@ -183,12 +183,10 @@ public class HCatalogIOTest implements Serializable {
     readAfterWritePipeline.run();
   }
 
-  private Map<String, String> getPartitioned() {
-    String loadDate = "2019-05-14T23:28:04.425Z";
-    int productType = 1;
+  private Map<String, String> getPartitions() {
     Map<String, String> partitions = new HashMap<>();
-    partitions.put("load_date", String.valueOf(loadDate));
-    partitions.put("product_type", String.valueOf(productType));
+    partitions.put("load_date", "2019-05-14T23:28:04.425Z");
+    partitions.put("product_type", "1");
     return partitions;
   }
 
@@ -204,24 +202,28 @@ public class HCatalogIOTest implements Serializable {
                 .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
                 .withDatabase(TEST_DATABASE)
                 .withTable(TEST_TABLE)
-                .withPartition(getPartitioned())
+                .withPartition(getPartitions())
                 .withBatchSize(512L));
     defaultPipeline.run();
 
-    final HCatalogUnboundedReader reader = HCatalogUnboundedReader.of();
-    reader.setConfig(getConfigPropertiesAsMap(service.getHiveConf()));
-    reader.setDatabase(TEST_DATABASE);
-    reader.setTable(TEST_TABLE);
-    reader.setShouldTreatSourceAsBounded(true);
-
-    final PCollection<HCatRecord> records =
+    final ImmutableList<String> partitions = ImmutableList.of("load_date", "product_type");
+    final PCollection<HCatRecord> data =
         readAfterWritePipeline
-            .apply(Create.of(buildReadRequest()))
-            .apply(reader)
+            .apply(
+                "ReadData",
+                HCatalogIO.unbounded()
+                    .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+                    .withDatabase(TEST_DATABASE)
+                    .withTable(TEST_TABLE)
+                    .withWatermarkPartitionColumn("load_date")
+                    .withPollingInterval(Duration.millis(15000))
+                    .withPartitionCols(partitions)
+                    .withPartitionComparator(new PartitionCreateTimeComparator())
+                    .withWatermarkTimestampConverter(new WatermarkTimestampConverter()))
             .setCoder((Coder) WritableCoder.of(DefaultHCatRecord.class));
 
     final PCollection<String> output =
-        records.apply(
+        data.apply(
             ParDo.of(
                 new DoFn<HCatRecord, String>() {
                   @ProcessElement
@@ -232,28 +234,6 @@ public class HCatalogIOTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
     readAfterWritePipeline.run();
-  }
-
-  private static List<PartitionPoller.ReadRequest> buildReadRequest() {
-    List<PartitionPoller.ReadRequest> expected = new ArrayList<>();
-    final HCatalogIO.Read read =
-        HCatalogIO.read()
-            .withDatabase(TEST_DATABASE)
-            .withTable(TEST_TABLE)
-            .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()));
-
-    final ImmutableList<String> partitions = ImmutableList.of("load_date", "product_type");
-
-    final PartitionPoller.ReadRequest readRequest =
-        new PartitionPoller.ReadRequest(
-            Duration.millis(15000),
-            read,
-            new PartitionCreateTimeComparator(),
-            new WatermarkTimestampConverter(),
-            partitions,
-            "load_date");
-    expected.add(readRequest);
-    return expected;
   }
 
   private static class PartitionCreateTimeComparator implements SerializableComparator<Partition> {

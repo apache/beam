@@ -25,9 +25,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -48,10 +51,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Unbounded reader for doing reads from Hcat. */
-@DoFn.BoundedPerElement
-public class HCatRecordReader extends DoFn<HCatRecordReader.PartitionWrapper, HCatRecord> {
+@BoundedPerElement
+class HCatRecordReaderFn extends DoFn<HCatRecordReaderFn.PartitionWrapper, HCatRecord> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(HCatRecordReader.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HCatRecordReaderFn.class);
 
   /** Wrapper class for partition data. */
   public static class PartitionWrapper implements Serializable {
@@ -90,8 +93,7 @@ public class HCatRecordReader extends DoFn<HCatRecordReader.PartitionWrapper, HC
     for (int i = 0; i < partitionCols.size(); i++) {
       filter.add(partitionCols.get(i) + "=" + "'" + values.get(i) + "'");
     }
-
-    final String filterString = filter.stream().collect(Collectors.joining(" and "));
+    final String filterString = String.join(" and ", filter);
 
     ReadEntity entity =
         new ReadEntity.Builder()
@@ -140,16 +142,9 @@ public class HCatRecordReader extends DoFn<HCatRecordReader.PartitionWrapper, HC
   /** Reads data for a specific partition. */
   @ProcessElement
   @SuppressWarnings("unused")
-  public void processElement(ProcessContext processContext, SplitTracker tracker) throws Exception {
-    Integer startFrom;
-    if (tracker.getLastClaimedSplit() == null) {
-      // This is the first time we are doing this. Try claiming the very first split
-      startFrom = tracker.getSplit().getFrom();
-    } else {
-      final Integer lastClaimedSplit = tracker.getLastClaimedSplit();
-      startFrom = lastClaimedSplit + 1;
-    }
-
+  public void processElement(
+      ProcessContext processContext, RestrictionTracker<OffsetRange, Long> tracker)
+      throws Exception {
     final PartitionWrapper element = processContext.element();
     final ImmutableList<String> partitionCols = element.partitionCols;
     final List<String> values = element.partition.getValues();
@@ -168,8 +163,8 @@ public class HCatRecordReader extends DoFn<HCatRecordReader.PartitionWrapper, HC
     }
     ReaderContext readerContext = getReaderContext(processContext.element(), desiredSplitCount);
 
-    for (int i = startFrom; tracker.tryClaim(i); i++) {
-      HCatReader reader = DataTransferFactory.getHCatReader(readerContext, i);
+    for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); i++) {
+      HCatReader reader = DataTransferFactory.getHCatReader(readerContext, (int) i);
       Iterator<HCatRecord> hcatIterator = reader.read();
       while (hcatIterator.hasNext()) {
         final HCatRecord record = hcatIterator.next();
@@ -184,7 +179,7 @@ public class HCatRecordReader extends DoFn<HCatRecordReader.PartitionWrapper, HC
 
   @GetInitialRestriction
   @SuppressWarnings("unused")
-  public Split getInitialRestriction(PartitionWrapper request) throws Exception {
+  public OffsetRange getInitialRestriction(PartitionWrapper request) throws Exception {
     final Partition partition = request.partition;
     int desiredSplitCount = 1;
     long estimatedSizeBytes = getFileSizeForPartitions(request);
@@ -198,12 +193,12 @@ public class HCatRecordReader extends DoFn<HCatRecordReader.PartitionWrapper, HC
         "Splitting: estimated size {}, desired split count {}, actual split count",
         estimatedSizeBytes,
         desiredSplitCount);
-    return new Split(0, readerContext.numSplits());
+    return new OffsetRange(0, readerContext.numSplits());
   }
 
   @NewTracker
   @SuppressWarnings("unused")
-  public SplitTracker newTracker(Split split) {
-    return split.newTracker();
+  public OffsetRangeTracker newTracker(OffsetRange range) {
+    return range.newTracker();
   }
 }
