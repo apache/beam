@@ -27,7 +27,7 @@ import org.junit.Test;
 public class TaskTest {
 
   @Rule
-  public TestPipeline testPipeline = TestPipeline.create();
+  public final transient TestPipeline testPipeline = TestPipeline.create();
 
   @SuppressWarnings("unchecked")
   @Test
