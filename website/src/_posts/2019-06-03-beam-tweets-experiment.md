@@ -36,6 +36,6 @@ With this goal in mind, we are trying the following approach:
 - The tweets proposed in the spreadsheet will be reviewed by members of the Apache Beam PMC, and if approved they will be tweeted (or retweeted if you want a retweet).
 - Add your contact information if you want reviewers to be able to reach you with questions
 
-Initially this will be an experimental approach, to see if the community finds this useful - and if the engagement in the @ApacheBeam twitter improves, we will improve, and formalize this process.
+Initially this will be an experimental approach, to see if the community finds this useful - and if we see engagement in the [@ApacheBeam](https://twitter.com/ApacheBeam) twitter, we will improve, and formalize this process.
 
 We are excited to see how this experiment plays out! : )
