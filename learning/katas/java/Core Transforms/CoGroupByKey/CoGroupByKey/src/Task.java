@@ -41,12 +41,12 @@ class Task {
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> fruits =
-        pipeline.apply(
+        pipeline.apply("Fruits",
             Create.of("apple", "banana", "cherry")
         );
 
     PCollection<String> countries =
-        pipeline.apply(
+        pipeline.apply("Countries",
             Create.of("australia", "brazil", "canada")
         );
 
