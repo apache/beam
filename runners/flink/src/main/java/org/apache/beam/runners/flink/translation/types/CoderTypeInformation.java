@@ -61,8 +61,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   @Override
   @SuppressWarnings("unchecked")
   public Class<T> getTypeClass() {
-    // We don't have the Class, so we have to pass null here. What a shame...
-    return (Class<T>) Object.class;
+    return (Class<T>) coder.getEncodedTypeDescriptor().getRawType();
   }
 
   @Override

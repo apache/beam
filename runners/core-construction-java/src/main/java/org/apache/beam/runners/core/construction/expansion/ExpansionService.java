@@ -205,10 +205,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       final String coderUrn = coderUrns.pop();
       RunnerApi.Coder.Builder coderBuilder =
           RunnerApi.Coder.newBuilder()
-              .setSpec(
-                  RunnerApi.SdkFunctionSpec.newBuilder()
-                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build())
-                      .build());
+              .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build());
 
       if (coderUrn.equals(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))) {
         RunnerApi.Coder elementCoder = buildProto(coderUrns, componentsBuilder);

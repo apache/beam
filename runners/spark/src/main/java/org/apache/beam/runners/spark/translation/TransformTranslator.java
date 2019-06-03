@@ -29,8 +29,6 @@ import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.aggregators.NamedAggregatorsAccumulator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -121,7 +119,6 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, V>>> inRDD =
             ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
-        final NamedAggregatorsAccumulator accum = AggregatorsAccumulator.getInstance();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
@@ -144,7 +141,7 @@ public final class TransformTranslator {
 
           // --- group by key only.
           Partitioner partitioner = getPartitioner(context);
-          JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyOnly =
+          JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
               GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
 
           // --- now group also by window.
@@ -155,8 +152,7 @@ public final class TransformTranslator {
                       windowingStrategy,
                       new TranslationUtils.InMemoryStateInternalsFactory<>(),
                       SystemReduceFn.buffering(coder.getValueCoder()),
-                      context.getSerializableOptions(),
-                      accum));
+                      context.getSerializableOptions()));
         }
         context.putDataset(transform, new BoundedDataset<>(groupedByKey));
       }
@@ -437,14 +433,14 @@ public final class TransformTranslator {
     final WindowedValue.WindowedValueCoder<V> wvCoder =
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
-    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
+    JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupRDD =
         GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, partitioner);
 
     return groupRDD
         .map(
             input -> {
-              final K key = input.getValue().getKey();
-              Iterable<WindowedValue<V>> value = input.getValue().getValue();
+              final K key = input.getKey();
+              Iterable<WindowedValue<V>> value = input.getValue();
               return FluentIterable.from(value)
                   .transform(
                       windowedValue ->

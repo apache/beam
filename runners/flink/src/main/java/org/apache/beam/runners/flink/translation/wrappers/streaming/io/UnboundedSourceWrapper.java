@@ -329,7 +329,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
             timestamp,
             GlobalWindow.INSTANCE,
             PaneInfo.NO_FIRING);
-    ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
+    ctx.collect(windowedValue);
   }
 
   @Override

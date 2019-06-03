@@ -797,12 +797,12 @@ class BeamTransformFactory(object):
     if coder_id not in self.descriptor.coders:
       raise KeyError("No such coder: %s" % coder_id)
     coder_proto = self.descriptor.coders[coder_id]
-    if coder_proto.spec.spec.urn:
+    if coder_proto.spec.urn:
       return self.context.coders.get_by_id(coder_id)
     else:
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
-          json.loads(coder_proto.spec.spec.payload.decode('utf-8')))
+          json.loads(coder_proto.spec.payload.decode('utf-8')))
 
   def get_windowed_coder(self, pcoll_id):
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
