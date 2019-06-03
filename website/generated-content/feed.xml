@@ -431,6 +431,46 @@ This project involves a number of &lt;a href=&quot;https://issues.apache.org/jir
       </item>
     
       <item>
+        <title>Announcing Beam Summit Site</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are thrilled to announce the launch of our new website dedicated to Beam Summits!&lt;/p&gt;
+
+&lt;p&gt;The &lt;a href=&quot;https://beamsummit.org&quot;&gt;beamsummit.org&lt;/a&gt; site provides all the information you need towards the upcoming Beam Summits in Europe, Asia and North America in 2019. You will find information about the conference theme, the speakers and sessions, the abstract submission timeline and the registration process, the conference venues and hosting cities - and much more that you will find useful until and during the Beam Summits 2019.&lt;/p&gt;
+
+&lt;p&gt;We are working to make the website easy to use, so that anyone who is organizing a Beam event can rely on it. You can find the &lt;a href=&quot;https://github.com/matthiasa4/hoverboard&quot;&gt;code for it in Github&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The pages will be updated on a regular basis, but we also love hearing thoughts from our community! Let us know if you have any questions, comments or suggestions, and help us improve! Also, if you are thinking of organizing a Beam event, please feel free to reach out for support, and to use the code in GitHub as well.&lt;/p&gt;
+
+&lt;p&gt;We sincerely hope that you like the new Beam Summit website and will find it useful for accessing information. Enjoy browsing around!&lt;/p&gt;
+
+&lt;p&gt;See you in Berlin!&lt;/p&gt;
+
+&lt;p&gt;#beamsummit2019.&lt;/p&gt;
+
+</description>
+        <pubDate>Mon, 18 Mar 2019 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2019/03/18/beam-summit-site.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/03/18/beam-summit-site.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.11.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -869,109 +909,6 @@ Google, Spotify, Talend, Sky, Amazon, Data Artisans, Datatonic, Vente Exclusive,
         <pubDate>Wed, 31 Oct 2018 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam 2.8.0</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are happy to present the new 2.8.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href=&quot;/get-started/downloads/#280-2018-10-26&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
-For more information on changes in 2.8.0, check out the
-&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12343985&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h2&gt;
-
-&lt;h2 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-4783&quot;&gt;BEAM-4783&lt;/a&gt; Performance degradations in certain situations when Spark runner is used.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;dependency-upgrades&quot;&gt;Dependency Upgrades&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Elastic Search dependency upgraded to 6.3.2&lt;/li&gt;
-  &lt;li&gt;google-cloud-pubsub dependency upgraded to 0.35.4&lt;/li&gt;
-  &lt;li&gt;google-api-client dependency upgraded to 1.24.1&lt;/li&gt;
-  &lt;li&gt;Updated Flink Runner to 1.5.3&lt;/li&gt;
-  &lt;li&gt;Updated Spark runner to Spark version 2.3.2&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;sdks&quot;&gt;SDKs&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Python SDK added support for user state and timers.&lt;/li&gt;
-  &lt;li&gt;Go SDK added support for side inputs.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;portability&quot;&gt;Portability&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://beam.apache.org/roadmap/portability/#python-on-flink&quot;&gt;Python on Flink MVP&lt;/a&gt; completed.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Fixes to RedisIO non-prefix read operations.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Several bug fixes and performance improvements.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
-
-&lt;p&gt;According to git shortlog, the following people contributed
-to the 2.8.0 release. Thank you to all contributors!&lt;/p&gt;
-
-&lt;p&gt;Adam Horky, Ahmet Altay, Alan Myrvold, Aleksandr Kokhaniukov,
-Alex Amato, Alexey Romanenko, Aljoscha Krettek, Andrew Fulton,
-Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Batkhuyag Batsaikhan, Ben Song,
-Bingfeng Shu, Boyuan Zhang, Chamikara Jayalath, Charles Chen,
-Christian Schneider, Cody Schroeder, Colm O hEigeartaigh, Daniel Mills,
-Daniel Oliveira, Dat Tran, David Moravek, Dusan Rychnovsky, Etienne Chauchot,
-Eugene Kirpichov, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía,
-Jan Lukavský, Jaromir Vanek, Jean-Baptiste Onofré, Jeff Klukas, Joar Wandborg,
-Jozef Vilcek, Julien Phalip, Julien Tournay, Juta, Jára Vaněk,
-Katarzyna Kucharczyk, Kengo Seki, Kenneth Knowles, Kevin Si, Kirill Kozlov,
-Kyle Winkelman, Logan HAUSPIE, Lukasz Cwik, Manu Zhang, Mark Liu,
-Matthias Baetens, Matthias Feys, Maximilian Michels, Melissa Pashniak,
-Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik,
-Petr, Ondrej Kvasnicka, Pablo Estrada, PaulVelthuis93, Pavel Slechta,
-Rafael Fernández, Raghu Angadi, Renat, Reuven Lax, Robbe Sneyders,
-Robert Bradshaw, Robert Burke, Rodrigo Benenson, Rong Ou, Ruoyun Huang,
-Ryan Williams, Sam Rohde, Scott Wegner, Shinsuke Sugaya, Shnitz, Simon P,
-Sindy Li, Stephen Lumenta, Stijn Decubber, Thomas Weise, Tomas Novak,
-Tomas Roos, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Vitalii Tverdokhlib,
-Xinyu Liu, XuMingmin, Yifan Zou, Yuan, Yueyang Qiu, aalbatross, amaliujia,
-cclauss, connelloG, daidokoro, deepyaman, djhworld, flyisland, huygaa11,
-jasonkuster, jglezt, kkpoon, mareksimunek, nielm, svXaverius, timrobertson100,
-vaclav.plajt@gmail.com, vitaliytv, vvarma, xiliu, xinyuiscool, xitep,
-Łukasz Gajowy.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 29 Oct 2018 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2018/10/29/beam-2.8.0.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2018/10/29/beam-2.8.0.html</guid>
         
         
         <category>blog</category>
