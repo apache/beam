@@ -14,5 +14,5 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-apache-beam==2.11.0
-apache-beam[test]==2.11.0
+apache-beam==2.12.0
+apache-beam[test]==2.12.0
