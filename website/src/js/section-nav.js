@@ -11,7 +11,7 @@
 // the License.
 
 $(document).ready(function () {
-    function Navbar(conf) {
+   function Navbar(conf) {
         var idCTA = conf["classNameCTA"],
             idContainer = conf["classNameContainer"],
             idNavMask = conf["classNameMask"],
@@ -95,8 +95,10 @@ $(document).ready(function () {
                 var _self = this;
                 var sectionNavEl = $("." + idSectionNav);
                 var sectionNavHeight = $(sectionNavEl).height();
+                var mainContent = $(".container-main-content");
 
-                $(".container-main-content").css({"min-height": sectionNavHeight});
+                mainContent.css({"min-height": sectionNavHeight});
+                sectionNavEl.css({'max-height': mainContent.css('height')});
 
                 $(window).resize(function () {
                     if ($(window).width() > CONST.DESKTOP_BREAKPOINT) {
