@@ -40,6 +40,7 @@ __all__ = [
     'assert_that',
     'equal_to',
     'is_empty',
+    'is_not_empty',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
     'TestWindowedValue',
@@ -148,6 +149,19 @@ def is_empty():
       raise BeamAssertException(
           'Failed assert: [] == %r' % actual)
   return _empty
+
+
+def is_not_empty():
+  """
+  This is test method which makes sure that the pcol is not empty and it has
+  some data in it.
+  :return:
+  """
+  def _not_empty(actual):
+    actual = list(actual)
+    if not actual:
+      raise BeamAssertException('Failed assert: pcol is empty')
+  return _not_empty
 
 
 def assert_that(actual, matcher, label='assert_that',
