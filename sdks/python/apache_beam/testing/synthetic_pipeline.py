@@ -135,6 +135,9 @@ class SyntheticSource(iobase.BoundedSource):
 
     self._num_records = input_spec['numRecords']
     self._key_size = maybe_parse_byte_size(input_spec.get('keySizeBytes', 1))
+    self._hot_key_fraction = input_spec.get('hotKeyFraction', 0)
+    self._num_hot_keys = input_spec.get('numHotKeys', 0)
+
     self._value_size = maybe_parse_byte_size(
         input_spec.get('valueSizeBytes', 1))
     self._total_size = self.element_size * self._num_records
@@ -238,13 +241,25 @@ class SyntheticSource(iobase.BoundedSource):
       tracker = range_trackers.UnsplittableRangeTracker(tracker)
     return tracker
 
+  def _gen_kv_pair(self, index):
+    r = np.random.RandomState(index)
+    rand = r.random_sample()
+
+    # Determines whether to generate hot key or not.
+    if rand < self._hot_key_fraction:
+      # Generate hot key.
+      # An integer is randomly selected from the range [0, numHotKeys-1]
+      # with equal probability.
+      r_hot = np.random.RandomState(index % self._num_hot_keys)
+      return r_hot.bytes(self._key_size), r.bytes(self._value_size)
+    else:
+      return r.bytes(self._key_size), r.bytes(self._value_size)
+
   def read(self, range_tracker):
     index = range_tracker.start_position()
     while range_tracker.try_claim(index):
-      r = np.random.RandomState(index)
-
       time.sleep(self._sleep_per_input_record_sec)
-      yield r.bytes(self._key_size), r.bytes(self._value_size)
+      yield self._gen_kv_pair(index)
       index += 1
 
   def default_output_coder(self):
