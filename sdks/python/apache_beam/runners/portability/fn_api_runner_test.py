@@ -30,7 +30,8 @@ import unittest
 import uuid
 from builtins import range
 
-import hamcrest
+import hamcrest  # pylint: disable=ungrouped-imports
+import mock
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
 from tenacity import retry
@@ -38,6 +39,7 @@ from tenacity import stop_after_attempt
 
 import apache_beam as beam
 from apache_beam.io import restriction_trackers
+from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
@@ -485,6 +487,34 @@ class FnApiRunnerTest(unittest.TestCase):
       counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
+
+  def _run_sdf_wrapper_pipeline(self, source, expected_value):
+    with self.create_pipeline() as p:
+      from apache_beam.options.pipeline_options import DebugOptions
+      experiments = (p._options.view_as(DebugOptions).experiments or [])
+
+      # Setup experiment option to enable using SDFBoundedSourceWrapper
+      if not 'use_sdf_bounded_source' in experiments:
+        experiments.append('use_sdf_bounded_source')
+
+      p._options.view_as(DebugOptions).experiments = experiments
+
+      actual = (
+          p | beam.io.Read(source)
+      )
+    assert_that(actual, equal_to(expected_value))
+
+  @mock.patch('apache_beam.io.iobase._SDFBoundedSourceWrapper.expand')
+  def test_sdf_wrapper_overrides_read(self, sdf_wrapper_mock_expand):
+    def _fake_wrapper_expand(pbegin):
+      return (pbegin
+              | beam.Create(['1']))
+
+    sdf_wrapper_mock_expand.side_effect = _fake_wrapper_expand
+    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), ['1'])
+
+  def test_sdf_wrap_range_source(self):
+    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
