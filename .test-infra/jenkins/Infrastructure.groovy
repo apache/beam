@@ -42,7 +42,7 @@ class Infrastructure {
     }
   }
 
-  static void prepareFlinkJobServer(def context, String repositoryRoot, String dockerTag) {
+  static void prepareFlinkJobServer(def context, String flinkVersion, String repositoryRoot, String dockerTag) {
     context.steps {
       String image = "${repositoryRoot}/flink-job-server"
       String imageTag = "${image}:${dockerTag}"
@@ -52,7 +52,7 @@ class Infrastructure {
       gradle {
         rootBuildScriptDir(common.checkoutDir)
         common.setGradleSwitches(delegate)
-        tasks(":runners:flink:1.7:job-server-container:docker")
+        tasks(":runners:flink:${flinkVersion}:job-server-container:docker")
         switches("-Pdocker-repository-root=${repositoryRoot}")
         switches("-Pdocker-tag=${dockerTag}")
       }
@@ -64,7 +64,7 @@ class Infrastructure {
     }
   }
 
-  static void setupFlinkCluster(def context, String clusterNamePrefix, String imagesToPull, String jobServerImage, Integer workerCount, Integer slotsPerTaskmanager = 1) {
+  static void setupFlinkCluster(def context, String clusterNamePrefix, String flinkDownloadUrl, String imagesToPull, String jobServerImage, Integer workerCount, Integer slotsPerTaskmanager = 1) {
     String gcsBucket = 'gs://beam-flink-cluster'
     String clusterName = getClusterName(clusterNamePrefix)
     String artifactsDir="${gcsBucket}/${clusterName}"
@@ -74,7 +74,7 @@ class Infrastructure {
         env("GCLOUD_ZONE", "us-central1-a")
         env("CLUSTER_NAME", clusterName)
         env("GCS_BUCKET", gcsBucket)
-        env("FLINK_DOWNLOAD_URL", 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz')
+        env("FLINK_DOWNLOAD_URL", flinkDownloadUrl)
         env("FLINK_NUM_WORKERS", workerCount)
         env("FLINK_TASKMANAGER_SLOTS", slotsPerTaskmanager)
         env("DETACHED_MODE", 'true')
