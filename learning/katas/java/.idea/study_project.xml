@@ -567,7 +567,7 @@
                             <option name="name" value="CoGroupByKey" />
                             <option name="record" value="-1" />
                             <option name="status" value="Unchecked" />
-                            <option name="stepikChangeStatus" value="Up to date" />
+                            <option name="stepikChangeStatus" value="Info and Content changed" />
                             <option name="files">
                               <map>
                                 <entry key="src/Task.java">
@@ -583,7 +583,7 @@
                                             <option name="initialState" />
                                             <option name="initializedFromDependency" value="false" />
                                             <option name="length" value="6" />
-                                            <option name="offset" value="2290" />
+                                            <option name="offset" value="2311" />
                                             <option name="placeholderDependency" />
                                             <option name="placeholderText" value="TODO()" />
                                             <option name="possibleAnswer" value="TupleTag&lt;String&gt; fruitsTag = new TupleTag&lt;&gt;();&#10;    TupleTag&lt;String&gt; countriesTag = new TupleTag&lt;&gt;();&#10;&#10;    MapElements&lt;String, KV&lt;String, String&gt;&gt; mapToAlphabetKv =&#10;        MapElements.into(kvs(strings(), strings()))&#10;            .via(word -&gt; KV.of(word.substring(0, 1), word));&#10;&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; fruitsPColl = fruits.apply(&quot;Fruit to KV&quot;, mapToAlphabetKv);&#10;    PCollection&lt;KV&lt;String, String&gt;&gt; countriesPColl = countries&#10;        .apply(&quot;Country to KV&quot;, mapToAlphabetKv);&#10;&#10;    return KeyedPCollectionTuple&#10;        .of(fruitsTag, fruitsPColl)&#10;        .and(countriesTag, countriesPColl)&#10;&#10;        .apply(CoGroupByKey.create())&#10;&#10;        .apply(ParDo.of(new DoFn&lt;KV&lt;String, CoGbkResult&gt;, String&gt;() {&#10;&#10;          @ProcessElement&#10;          public void processElement(&#10;              @Element KV&lt;String, CoGbkResult&gt; element, OutputReceiver&lt;String&gt; out) {&#10;&#10;            String alphabet = element.getKey();&#10;            CoGbkResult coGbkResult = element.getValue();&#10;&#10;            String fruit = coGbkResult.getOnly(fruitsTag);&#10;            String country = coGbkResult.getOnly(countriesTag);&#10;&#10;            out.output(new WordsAlphabet(alphabet, fruit, country).toString());&#10;          }&#10;&#10;        }))" />
