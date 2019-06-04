@@ -30,6 +30,11 @@ The transforms in this file include ``WriteToFiles``, which allows you to write
 a ``beam.PCollection`` to files, and gives you many options to customize how to
 do this.
 
+The ``WriteToFiles`` transform supports bounded and unbounded PCollections
+(i.e. it can be used both batch and streaming pipelines). For streaming
+pipelines, it currently does not have support for multiple trigger firings
+on the same window.
+
 File Naming
 -----------
 One of the parameters received by ``WriteToFiles`` is a function specifying how
@@ -315,7 +320,7 @@ def destination_prefix_naming():
       kwargs['start'] = window.start.to_utc_datetime().isoformat()
       kwargs['end'] = window.end.to_utc_datetime().isoformat()
 
-    # TODO(pabloem): Add support for PaneInfo
+    # TODO(BEAM-3759): Add support for PaneInfo
     # If the PANE is the ONLY firing in the window, we don't add it.
     #if pane and not (pane.is_first and pane.is_last):
     #  kwargs['pane'] = pane.index
@@ -509,8 +514,6 @@ class WriteToFiles(beam.PTransform):
 
 
 def _create_writer(base_path, writer_key):
-  # TODO(pabloem) Is this a good place to create a temporary directory?
-
   try:
     filesystems.FileSystems.mkdirs(base_path)
   except IOError:
